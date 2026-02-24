@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AudioProvider } from "@/components/AudioProvider";
 import BottomNav from "@/components/BottomNav";
+import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "脳波チューニング",
@@ -24,12 +25,14 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body>
-        <AudioProvider>
-          <main className="mx-auto max-w-[480px] min-h-screen pb-20 px-4">
-            {children}
-          </main>
-          <BottomNav />
-        </AudioProvider>
+        <ThemeProvider>
+          <AudioProvider>
+            <main className="mx-auto max-w-[480px] min-h-screen pb-20 px-4">
+              {children}
+            </main>
+            <BottomNav />
+          </AudioProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

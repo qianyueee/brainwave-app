@@ -4,6 +4,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { getProgramById } from "@/lib/programs";
 
 const PRESETS = [
+  { label: "5分", value: 5 * 60 },
   { label: "10分", value: 10 * 60 },
   { label: "15分", value: 15 * 60 },
   { label: "20分", value: 20 * 60 },

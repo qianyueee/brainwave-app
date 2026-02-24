@@ -17,6 +17,7 @@
 body {
   background: var(--color-navy);
   color: var(--color-text-primary);
+  transition: background-color 2s ease-out, color 2s ease-out;
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
   font-size: 18px;
   line-height: 1.6;
