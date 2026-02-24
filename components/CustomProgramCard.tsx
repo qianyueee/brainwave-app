@@ -36,9 +36,12 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
   const displayMinutes = Math.round(program.defaultDuration / 60);
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
-      className="w-full bg-navy-light rounded-2xl p-4 flex items-center gap-4 text-left transition-colors active:bg-navy-lighter"
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }}
+      className="w-full bg-navy-light rounded-2xl p-4 flex items-center gap-4 text-left transition-colors active:bg-navy-lighter cursor-pointer"
     >
       <div className="w-14 h-14 rounded-xl bg-navy-lighter flex items-center justify-center text-2xl shrink-0">
         {program.icon}
@@ -75,6 +78,6 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
           </svg>
         </button>
       </div>
-    </button>
+    </div>
   );
 }

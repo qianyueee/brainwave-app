@@ -7,6 +7,7 @@ import { useAudio } from "@/components/AudioProvider";
 import SynthLayerCard from "@/components/SynthLayerCard";
 import SynthPlaybackButton from "@/components/SynthPlaybackButton";
 import SynthVibratoPanel from "@/components/SynthVibratoPanel";
+import ExportDialog from "@/components/ExportDialog";
 
 const MAX_LAYERS = 8;
 const FREQ_MIN = 20;
@@ -36,6 +37,8 @@ export default function SynthPage() {
 
   const [presetName, setPresetName] = useState("");
   const [programName, setProgramName] = useState("");
+  const [programDesc, setProgramDesc] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
   const [baseFreqInput, setBaseFreqInput] = useState(harmonicBaseFreq.toString());
   const [activeChannel, setActiveChannel] = useState<StereoChannel>("left");
 
@@ -97,12 +100,13 @@ export default function SynthPage() {
 
   const handleSaveAsProgram = () => {
     if (editingProgramId) {
-      updateProgram(editingProgramId);
+      updateProgram(editingProgramId, programDesc);
     } else {
       const name = programName.trim();
       if (!name) return;
-      saveAsProgram(name);
+      saveAsProgram(name, programDesc);
       setProgramName("");
+      setProgramDesc("");
     }
   };
 
@@ -256,6 +260,19 @@ export default function SynthPage() {
         )}
       </div>
 
+      {/* Export button */}
+      <button
+        onClick={() => setExportOpen(true)}
+        className="w-full py-3 rounded-2xl bg-navy-light text-text-primary text-base font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10 3v10m0 0l-3-3m3 3l3-3M4 15h12" />
+        </svg>
+        音声をエクスポート
+      </button>
+
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} mode="synth" />
+
       {/* Save preset */}
       <div className="flex flex-col gap-2">
         <p className="text-sm text-text-secondary">プリセット保存</p>
@@ -282,29 +299,49 @@ export default function SynthPage() {
       <div className="flex flex-col gap-2">
         <p className="text-sm text-text-secondary">プログラムとして保存</p>
         {editingProgramId ? (
-          <button
-            onClick={handleSaveAsProgram}
-            className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold transition-opacity active:scale-95"
-          >
-            プログラムを更新
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={programName}
-              onChange={(e) => setProgramName(e.target.value)}
-              placeholder="プログラム名を入力"
-              maxLength={30}
-              className="flex-1 bg-navy-light rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+          <div className="flex flex-col gap-2">
+            <textarea
+              value={programDesc}
+              onChange={(e) => setProgramDesc(e.target.value)}
+              placeholder="簡単な説明を入力（任意）"
+              maxLength={100}
+              rows={2}
+              className="w-full bg-navy-light rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent resize-none"
             />
             <button
               onClick={handleSaveAsProgram}
-              disabled={!programName.trim()}
-              className="px-5 py-3 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95"
+              className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold transition-opacity active:scale-95"
             >
-              保存
+              プログラムを更新
             </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={programName}
+                onChange={(e) => setProgramName(e.target.value)}
+                placeholder="プログラム名を入力"
+                maxLength={30}
+                className="flex-1 bg-navy-light rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+              />
+              <button
+                onClick={handleSaveAsProgram}
+                disabled={!programName.trim()}
+                className="px-5 py-3 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95"
+              >
+                保存
+              </button>
+            </div>
+            <textarea
+              value={programDesc}
+              onChange={(e) => setProgramDesc(e.target.value)}
+              placeholder="簡単な説明を入力（任意）"
+              maxLength={100}
+              rows={2}
+              className="w-full bg-navy-light rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent resize-none"
+            />
           </div>
         )}
         <p className="text-xs text-text-muted">ホーム画面にカードとして表示されます</p>

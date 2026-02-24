@@ -99,8 +99,8 @@ interface SynthState {
   resetEditor: () => void;
 
   // Custom program actions
-  saveAsProgram: (name: string) => void;
-  updateProgram: (id: string) => void;
+  saveAsProgram: (name: string, description?: string) => void;
+  updateProgram: (id: string, description?: string) => void;
   deleteProgram: (id: string) => void;
   loadProgramForEdit: (program: CustomProgram) => void;
 }
@@ -283,7 +283,7 @@ export const useSynthStore = create<SynthState>()(
       },
 
       // --- Custom program actions ---
-      saveAsProgram: (name) => {
+      saveAsProgram: (name, description) => {
         const { layers, leftLayers, rightLayers, vibrato, editorMode, isStereo, savedPrograms } = get();
         const preset: SynthPreset = {
           id: generateId(),
@@ -299,7 +299,7 @@ export const useSynthStore = create<SynthState>()(
         const program: CustomProgram = {
           id: "custom-" + generateId(),
           name,
-          description: `カスタム・${layerCount}レイヤー合成`,
+          description: description?.trim() || `カスタム・${layerCount}レイヤー合成`,
           icon: "\uD83C\uDFB9",
           defaultDuration: 15 * 60,
           preset,
@@ -308,7 +308,7 @@ export const useSynthStore = create<SynthState>()(
         set({ savedPrograms: [...savedPrograms, program], editingProgramId: program.id });
       },
 
-      updateProgram: (id) => {
+      updateProgram: (id, description) => {
         const { layers, leftLayers, rightLayers, vibrato, editorMode, isStereo, savedPrograms } = get();
         const preset: SynthPreset = {
           id: generateId(),
@@ -324,7 +324,11 @@ export const useSynthStore = create<SynthState>()(
         set({
           savedPrograms: savedPrograms.map((p) =>
             p.id === id
-              ? { ...p, preset: { ...preset, name: p.name }, description: `カスタム・${layerCount}レイヤー合成` }
+              ? {
+                  ...p,
+                  preset: { ...preset, name: p.name },
+                  description: description?.trim() || `カスタム・${layerCount}レイヤー合成`,
+                }
               : p
           ),
         });
