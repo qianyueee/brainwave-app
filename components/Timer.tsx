@@ -31,10 +31,10 @@ export default function Timer() {
             key={p.value}
             onClick={() => setTimerDuration(p.value)}
             disabled={isPlaying}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
               timerDuration === p.value
-                ? "bg-primary text-white"
-                : "bg-navy-lighter text-text-secondary"
+                ? "bg-navy-light text-primary font-bold neu-inset"
+                : "bg-navy text-text-secondary neu-raised-sm neu-press"
             } disabled:opacity-50`}
           >
             {p.label}

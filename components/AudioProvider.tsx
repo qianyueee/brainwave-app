@@ -12,6 +12,7 @@ import { SynthSession, SynthLayer, TremoloConfig, VibratoConfig } from "@/lib/sy
 import { ProgramConfig } from "@/lib/programs";
 import type { CustomProgram } from "@/lib/programs";
 import { NaturePlayer } from "@/lib/nature-player";
+import { getAudioBlob } from "@/lib/custom-audio-db";
 import { startKeepAlive, stopKeepAlive, setMediaSessionHandlers } from "@/lib/keep-alive";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
@@ -108,6 +109,18 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   }, [stopPolling, setIsPlaying, setElapsed]);
 
+  const playCustomAudio = useCallback(
+    async (soundId: string, volume: number) => {
+      const blob = await getAudioBlob(soundId);
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const np = new NaturePlayer();
+      await np.playFromUrl(url, volume);
+      naturePlayerRef.current = np;
+    },
+    []
+  );
+
   const startSession = useCallback(
     (program: ProgramConfig, duration: number) => {
       getAudioContext();
@@ -151,7 +164,11 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
       const { natureSoundId, natureVolume } = useAppStore.getState();
       if (natureSoundId) {
-        session.playNatureSound(natureSoundId, natureVolume);
+        if (natureSoundId.startsWith("custom-")) {
+          playCustomAudio(natureSoundId, natureVolume);
+        } else {
+          session.playNatureSound(natureSoundId, natureVolume);
+        }
       }
 
       pollRef.current = setInterval(() => {
@@ -160,7 +177,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }
       }, 1000);
     },
-    [beatVolume, stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog]
+    [beatVolume, stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
   );
 
   const startSynth = useCallback(
@@ -227,9 +244,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       // Nature sound
       const { natureSoundId, natureVolume } = useAppStore.getState();
       if (natureSoundId) {
-        const np = new NaturePlayer();
-        np.play(natureSoundId, natureVolume);
-        naturePlayerRef.current = np;
+        if (natureSoundId.startsWith("custom-")) {
+          playCustomAudio(natureSoundId, natureVolume);
+        } else {
+          const np = new NaturePlayer();
+          np.play(natureSoundId, natureVolume);
+          naturePlayerRef.current = np;
+        }
       }
 
       startKeepAlive(program.name);
@@ -265,7 +286,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         stopCustomProgram();
       }, duration * 1000);
     },
-    [stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog]
+    [stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
   );
 
   const getSynth = useCallback(() => synthRef.current, []);
@@ -274,18 +295,29 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   // --- Nature sound routing ---
   const playNatureSound = useCallback(
     (soundId: string, volume: number) => {
-      // If binaural session is active, delegate to it
-      if (sessionRef.current?.isPlaying) {
+      const isCustom = soundId.startsWith("custom-");
+
+      // If binaural session is active, delegate built-in sounds to it
+      if (sessionRef.current?.isPlaying && !isCustom) {
         sessionRef.current.playNatureSound(soundId, volume);
         return;
       }
-      // For custom program or standalone synth, use standalone NaturePlayer
+
+      // For custom audio or standalone: use NaturePlayer directly
       stopStandaloneNature();
-      const np = new NaturePlayer();
-      np.play(soundId, volume);
-      naturePlayerRef.current = np;
+      if (sessionRef.current?.isPlaying) {
+        sessionRef.current.stopNatureSound();
+      }
+
+      if (isCustom) {
+        playCustomAudio(soundId, volume);
+      } else {
+        const np = new NaturePlayer();
+        np.play(soundId, volume);
+        naturePlayerRef.current = np;
+      }
     },
-    [stopStandaloneNature]
+    [stopStandaloneNature, playCustomAudio]
   );
 
   const stopNatureSound = useCallback(() => {

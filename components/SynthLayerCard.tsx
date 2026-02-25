@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SynthLayer, ToneType, TremoloMode } from "@/lib/synth-engine";
 import { useSynthStore, StereoChannel } from "@/store/useSynthStore";
 import { useAudio } from "@/components/AudioProvider";
+import { X } from "lucide-react";
 
 const FREQ_MIN = 20;
 const FREQ_MAX = 10000;
@@ -156,10 +157,10 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
   };
 
   const numInputClass =
-    "w-16 bg-navy-lighter rounded-lg px-2 py-1 text-xs text-text-primary text-right tabular-nums outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+    "w-16 bg-navy rounded-xl px-2 py-1 text-xs text-text-primary text-right tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
   return (
-    <div className="bg-navy-light rounded-2xl p-4 flex flex-col gap-3">
+    <div className="bg-navy rounded-3xl p-4 flex flex-col gap-3 neu-raised">
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-text-primary">
@@ -170,12 +171,10 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
         <button
           onClick={handleRemove}
           disabled={!canDelete}
-          className="w-8 h-8 rounded-full bg-navy-lighter flex items-center justify-center text-text-muted disabled:opacity-30 transition-opacity active:scale-95"
+          className="w-8 h-8 rounded-full bg-navy neu-raised-sm flex items-center justify-center text-text-muted disabled:opacity-30 transition-opacity active:scale-95"
           aria-label="削除"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 4l8 8M12 4l-8 8" />
-          </svg>
+          <X size={16} strokeWidth={2} />
         </button>
       </div>
 
@@ -193,7 +192,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
               onChange={(e) => setFreqInput(e.target.value)}
               onBlur={handleFreqInputBlur}
               onKeyDown={blurOnEnter}
-              className="w-24 bg-navy-lighter rounded-lg px-2 py-1 text-xs text-text-primary text-right tabular-nums outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-24 bg-navy rounded-xl px-2 py-1 text-xs text-text-primary text-right tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="text-xs text-text-muted">Hz</span>
           </div>
@@ -209,7 +208,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
             setFreqInput(v.toString());
             handleFrequencyChange(v);
           }}
-          className="w-full h-2 rounded-full appearance-none bg-navy-lighter accent-primary"
+          className="w-full"
         />
       </div>
 
@@ -226,7 +225,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
           step={1}
           value={Math.round(layer.volume * 100)}
           onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
-          className="w-full h-2 rounded-full appearance-none bg-navy-lighter accent-primary"
+          className="w-full"
         />
       </div>
 
@@ -238,10 +237,10 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
             <button
               key={t}
               onClick={() => handleToneChange(t)}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors active:scale-95 ${
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all active:scale-95 ${
                 layer.tone === t
-                  ? "bg-primary text-white"
-                  : "bg-navy-lighter text-text-secondary"
+                  ? "bg-navy-light text-primary font-bold neu-inset"
+                  : "bg-navy text-text-secondary neu-raised-sm"
               }`}
             >
               {t === "soft" ? "Soft" : "Bright"}
@@ -256,13 +255,13 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
           <label className="text-xs text-text-secondary">トレモロ</label>
           <button
             onClick={handleTremoloToggle}
-            className={`w-11 h-6 rounded-full transition-colors relative ${
+            className={`w-11 h-6 rounded-full transition-colors relative neu-toggle-track ${
               layer.tremolo.enabled ? "bg-primary" : "bg-navy-lighter"
             }`}
             aria-label="トレモロ切替"
           >
             <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform neu-raised-sm ${
                 layer.tremolo.enabled ? "translate-x-5" : "translate-x-0"
               }`}
             />
@@ -277,10 +276,10 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
                 <button
                   key={m}
                   onClick={() => handleTremoloMode(m)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors active:scale-95 ${
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all active:scale-95 ${
                     layer.tremolo.mode === m
-                      ? "bg-primary text-white"
-                      : "bg-navy-lighter text-text-secondary"
+                      ? "bg-navy-light text-primary font-bold neu-inset"
+                      : "bg-navy text-text-secondary neu-raised-sm"
                   }`}
                 >
                   {m === "sine" ? "Sine" : "Decay"}
@@ -318,7 +317,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
                   setTremRateInput(v.toString());
                   handleTremRateChange(v);
                 }}
-                className="w-full h-2 rounded-full appearance-none bg-navy-lighter accent-primary"
+                className="w-full"
               />
             </div>
 
@@ -352,7 +351,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
                   setDepthInput(v.toString());
                   handleDepthChange(v);
                 }}
-                className="w-full h-2 rounded-full appearance-none bg-navy-lighter accent-primary"
+                className="w-full"
               />
             </div>
           </div>

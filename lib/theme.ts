@@ -24,174 +24,183 @@ export interface TimePeriod {
 
 export const TIME_PERIODS: TimePeriod[] = [
   {
+    // 00-03: Midnight Blue (cosmic navy) — deep dark
     id: "midnight",
     name: "深夜",
     startHour: 0,
     endHour: 3,
     palette: {
-      navy: "#070e1e",
-      navyLight: "#0e1a30",
-      navyLighter: "#162440",
-      primary: "#4a7fd4",
+      navy: "#060d1b",
+      navyLight: "#0c1628",
+      navyLighter: "#142038",
+      primary: "#5088e0",
       primaryDark: "#3a6ab8",
-      accent: "#6b6baa",
-      accentDark: "#5a5a96",
-      surface: "#121e34",
+      accent: "#7878c0",
+      accentDark: "#6060a8",
+      surface: "#0e182c",
       textPrimary: "#d0d8e8",
       textSecondary: "#8890a8",
       textMuted: "#5c6478",
     },
   },
   {
+    // 03-05: Indigo/Purple (pre-dawn) — deep, saturated purple
     id: "indigo",
     name: "未明",
     startHour: 3,
     endHour: 5,
     palette: {
-      navy: "#0c0e24",
-      navyLight: "#151838",
-      navyLighter: "#1f254e",
-      primary: "#7c6dd8",
-      primaryDark: "#6858c0",
-      accent: "#a07cdc",
-      accentDark: "#8a68c4",
-      surface: "#181c3a",
-      textPrimary: "#d5d0ef",
-      textSecondary: "#908aae",
-      textMuted: "#605a7e",
+      navy: "#0e0c28",
+      navyLight: "#161438",
+      navyLighter: "#221e50",
+      primary: "#8a78e8",
+      primaryDark: "#7060d0",
+      accent: "#b088f0",
+      accentDark: "#9870d8",
+      surface: "#181640",
+      textPrimary: "#ddd6f5",
+      textSecondary: "#9a92c0",
+      textMuted: "#6a6090",
     },
   },
   {
+    // 05-07: Pale Pink/Orange (sunrise) — warm, medium-light
     id: "sunrise",
     name: "日の出",
     startHour: 5,
     endHour: 7,
     palette: {
-      navy: "#1a0e14",
-      navyLight: "#281828",
-      navyLighter: "#362238",
-      primary: "#e88a6e",
-      primaryDark: "#d07458",
-      accent: "#f0a870",
-      accentDark: "#d8925c",
-      surface: "#2a1a28",
-      textPrimary: "#f2e4de",
-      textSecondary: "#b8a098",
-      textMuted: "#7e6a62",
+      navy: "#f2ddd0",
+      navyLight: "#f8e8de",
+      navyLighter: "#e8ccc0",
+      primary: "#e06838",
+      primaryDark: "#c85828",
+      accent: "#f08850",
+      accentDark: "#d87040",
+      surface: "#f5e2d6",
+      textPrimary: "#2c1508",
+      textSecondary: "#7a5040",
+      textMuted: "#a08070",
     },
   },
   {
+    // 07-11: Sky Blue (clear energy) — bright, crisp
     id: "morning",
     name: "朝",
     startHour: 7,
     endHour: 11,
     palette: {
-      navy: "#0a1520",
-      navyLight: "#122030",
-      navyLighter: "#1a2e42",
-      primary: "#4da6e0",
-      primaryDark: "#3890c8",
-      accent: "#52c4a0",
-      accentDark: "#40ae8a",
-      surface: "#162838",
-      textPrimary: "#e8f0f8",
-      textSecondary: "#8ea8c0",
-      textMuted: "#5e7890",
+      navy: "#dceef8",
+      navyLight: "#e8f4fc",
+      navyLighter: "#c8ddf0",
+      primary: "#1888d8",
+      primaryDark: "#1070c0",
+      accent: "#28b890",
+      accentDark: "#20a078",
+      surface: "#e2f0fa",
+      textPrimary: "#0a1e30",
+      textSecondary: "#3a6080",
+      textMuted: "#6890a8",
     },
   },
   {
+    // 11-14: Bright Yellow/White (midday) — warm cream, golden
     id: "midday",
     name: "昼",
     startHour: 11,
     endHour: 14,
     palette: {
-      navy: "#141820",
-      navyLight: "#1e2230",
-      navyLighter: "#282e40",
-      primary: "#d4a840",
-      primaryDark: "#bc9230",
-      accent: "#e0c060",
-      accentDark: "#c8a84c",
-      surface: "#202430",
-      textPrimary: "#f5f0e0",
-      textSecondary: "#b0a880",
-      textMuted: "#787050",
+      navy: "#faf3dc",
+      navyLight: "#fdf8e8",
+      navyLighter: "#ece0b8",
+      primary: "#d09010",
+      primaryDark: "#b87c08",
+      accent: "#e8b020",
+      accentDark: "#d09818",
+      surface: "#fcf5e0",
+      textPrimary: "#2a2008",
+      textSecondary: "#706028",
+      textMuted: "#988850",
     },
   },
   {
+    // 14-17: Golden Amber (afternoon) — warm amber
     id: "afternoon",
     name: "午後",
     startHour: 14,
     endHour: 17,
     palette: {
-      navy: "#161008",
-      navyLight: "#241c12",
-      navyLighter: "#32281c",
-      primary: "#d4922a",
-      primaryDark: "#bc7e1c",
-      accent: "#e8a040",
-      accentDark: "#d08c30",
-      surface: "#28200e",
-      textPrimary: "#f5e8d0",
-      textSecondary: "#b0a080",
-      textMuted: "#787058",
+      navy: "#f5e4c8",
+      navyLight: "#faecd6",
+      navyLighter: "#e4d0a8",
+      primary: "#d08018",
+      primaryDark: "#b86c10",
+      accent: "#e89830",
+      accentDark: "#d08020",
+      surface: "#f8e8d0",
+      textPrimary: "#2a1808",
+      textSecondary: "#705828",
+      textMuted: "#988048",
     },
   },
   {
+    // 17-19: Magenta/Crimson (sunset) — warm rose, vivid
     id: "sunset",
     name: "夕暮れ",
     startHour: 17,
     endHour: 19,
     palette: {
-      navy: "#1a0a12",
-      navyLight: "#2a1420",
-      navyLighter: "#3a1e2e",
-      primary: "#d45a7a",
-      primaryDark: "#bc4666",
-      accent: "#e87050",
-      accentDark: "#d05c3c",
-      surface: "#2c1620",
-      textPrimary: "#f5dce0",
-      textSecondary: "#b8909a",
-      textMuted: "#7e5a66",
+      navy: "#f0ccd0",
+      navyLight: "#f8d8dc",
+      navyLighter: "#e0b8be",
+      primary: "#d04060",
+      primaryDark: "#b83050",
+      accent: "#e86048",
+      accentDark: "#d04838",
+      surface: "#f4d2d6",
+      textPrimary: "#2a0810",
+      textSecondary: "#783848",
+      textMuted: "#a06878",
     },
   },
   {
+    // 19-22: Twilight Grey/Indigo (evening) — cooling down, medium-dark
     id: "twilight",
     name: "黄昏",
     startHour: 19,
     endHour: 22,
     palette: {
-      navy: "#0c1018",
-      navyLight: "#151c28",
-      navyLighter: "#1e2838",
-      primary: "#6888c0",
-      primaryDark: "#5474aa",
-      accent: "#8878b0",
-      accentDark: "#74649c",
-      surface: "#182030",
-      textPrimary: "#dce0ea",
-      textSecondary: "#909ab0",
-      textMuted: "#606a80",
+      navy: "#141828",
+      navyLight: "#1c2238",
+      navyLighter: "#283050",
+      primary: "#7090d0",
+      primaryDark: "#5878b8",
+      accent: "#9080c0",
+      accentDark: "#7868a8",
+      surface: "#1a2030",
+      textPrimary: "#dce0f0",
+      textSecondary: "#8898b8",
+      textMuted: "#586888",
     },
   },
   {
+    // 22-24: Deep Violet (rest) — deep, saturated violet
     id: "violet",
     name: "夜",
     startHour: 22,
     endHour: 24,
     palette: {
-      navy: "#0e0a1c",
-      navyLight: "#181430",
-      navyLighter: "#221e44",
-      primary: "#7a68c8",
-      primaryDark: "#6654b2",
-      accent: "#9070c0",
-      accentDark: "#7c5caa",
-      surface: "#1a1430",
-      textPrimary: "#dcd4f0",
-      textSecondary: "#9488b0",
-      textMuted: "#645880",
+      navy: "#100830",
+      navyLight: "#181040",
+      navyLighter: "#241858",
+      primary: "#8870e0",
+      primaryDark: "#7058c8",
+      accent: "#a080d8",
+      accentDark: "#8868c0",
+      surface: "#1c1040",
+      textPrimary: "#e0d8f5",
+      textSecondary: "#9890c0",
+      textMuted: "#686090",
     },
   },
 ];
@@ -287,18 +296,28 @@ export function getEffectivePalette(date: Date): ThemePalette {
 // --- CSS var application ---
 
 const CSS_VAR_MAP: Record<keyof ThemePalette, string> = {
-  navy: "--color-navy",
-  navyLight: "--color-navy-light",
-  navyLighter: "--color-navy-lighter",
-  primary: "--color-primary",
-  primaryDark: "--color-primary-dark",
-  accent: "--color-accent",
-  accentDark: "--color-accent-dark",
-  surface: "--color-surface",
-  textPrimary: "--color-text-primary",
-  textSecondary: "--color-text-secondary",
-  textMuted: "--color-text-muted",
+  navy: "--dyn-navy",
+  navyLight: "--dyn-navy-light",
+  navyLighter: "--dyn-navy-lighter",
+  primary: "--dyn-primary",
+  primaryDark: "--dyn-primary-dark",
+  accent: "--dyn-accent",
+  accentDark: "--dyn-accent-dark",
+  surface: "--dyn-surface",
+  textPrimary: "--dyn-text-primary",
+  textSecondary: "--dyn-text-secondary",
+  textMuted: "--dyn-text-muted",
 };
+
+// Compute relative luminance (0 = black, 1 = white)
+function luminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex);
+  const srgb = [r, g, b].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+}
 
 export function applyPalette(palette: ThemePalette): void {
   const style = document.documentElement.style;
@@ -306,6 +325,23 @@ export function applyPalette(palette: ThemePalette): void {
   for (const key of keys) {
     style.setProperty(CSS_VAR_MAP[key], palette[key]);
   }
+
+  // Adapt neumorphism shadows based on background luminance
+  const lum = luminance(palette.navy);
+  if (lum > 0.3) {
+    // Light background — stronger highlight, subtle dark shadow
+    style.setProperty("--shadow-neu-dark", "rgba(0,0,0,0.12)");
+    style.setProperty("--shadow-neu-light", "rgba(255,255,255,0.70)");
+  } else if (lum > 0.1) {
+    // Medium background
+    style.setProperty("--shadow-neu-dark", "rgba(0,0,0,0.25)");
+    style.setProperty("--shadow-neu-light", "rgba(255,255,255,0.25)");
+  } else {
+    // Dark background
+    style.setProperty("--shadow-neu-dark", "rgba(0,0,0,0.45)");
+    style.setProperty("--shadow-neu-light", "rgba(255,255,255,0.05)");
+  }
+
   // Update theme-color meta tag
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {

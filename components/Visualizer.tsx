@@ -3,6 +3,13 @@
 import { useAppStore } from "@/store/useAppStore";
 import { getProgramById } from "@/lib/programs";
 import { getCurrentPhaseInfo } from "@/lib/utils";
+import { Waves, Zap, Moon } from "lucide-react";
+
+const PROGRAM_ICONS: Record<string, typeof Waves> = {
+  "reset-deep": Waves,
+  "clarity-focus": Zap,
+  "night-recovery": Moon,
+};
 
 export default function Visualizer() {
   const isPlaying = useAppStore((s) => s.isPlaying);
@@ -19,6 +26,7 @@ export default function Visualizer() {
 
   // Map beat frequency to animation speed: lower freq = slower pulse
   const pulseDuration = isPlaying ? Math.max(0.3, 1 / Math.max(beatFreq, 0.5)) : 2;
+  const Icon = PROGRAM_ICONS[program.id] ?? Waves;
 
   return (
     <div className="flex flex-col items-center gap-4 py-6">
@@ -27,8 +35,12 @@ export default function Visualizer() {
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="absolute inset-0 rounded-full border-2 border-primary/30"
+            className="absolute inset-0 rounded-full"
             style={{
+              boxShadow: isPlaying
+                ? `0 0 ${12 + i * 6}px var(--color-primary), inset 0 0 ${8 + i * 4}px color-mix(in srgb, var(--color-primary) 20%, transparent)`
+                : `3px 3px 8px var(--shadow-neu-dark), -2px -2px 6px var(--shadow-neu-light)`,
+              border: `1px solid color-mix(in srgb, var(--color-primary) ${isPlaying ? 30 : 10}%, transparent)`,
               animationName: isPlaying ? "pulse-ring" : "none",
               animationDuration: `${pulseDuration}s`,
               animationTimingFunction: "ease-in-out",
@@ -39,11 +51,22 @@ export default function Visualizer() {
         ))}
         {/* Center circle */}
         <div
-          className={`w-24 h-24 rounded-full flex items-center justify-center transition-colors ${
-            isPlaying ? "bg-primary/20 border-2 border-primary" : "bg-navy-lighter border-2 border-text-muted"
+          className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${
+            isPlaying ? "neu-glow-primary" : "bg-navy neu-raised-lg"
           }`}
+          style={isPlaying ? {
+            animationName: "pulse-glow",
+            animationDuration: "3s",
+            animationTimingFunction: "ease-in-out",
+            animationIterationCount: "infinite",
+            backgroundColor: "var(--color-navy)",
+          } : undefined}
         >
-          <span className="text-3xl">{program.icon}</span>
+          <Icon
+            size={32}
+            className={isPlaying ? "text-primary" : "text-text-muted"}
+            strokeWidth={1.5}
+          />
         </div>
       </div>
 

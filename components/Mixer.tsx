@@ -4,6 +4,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useAudio } from "@/components/AudioProvider";
 import { NATURE_SOUNDS } from "@/lib/audio-engine";
 import { isCustomProgramId } from "@/lib/programs";
+import CustomAudioSection from "@/components/CustomAudioSection";
 
 export default function Mixer() {
   const beatVolume = useAppStore((s) => s.beatVolume);
@@ -65,7 +66,7 @@ export default function Mixer() {
           step="0.01"
           value={beatVolume}
           onChange={handleBeatVolume}
-          className="w-full h-2 rounded-full appearance-none bg-navy-lighter accent-primary"
+          className="w-full"
         />
       </div>
 
@@ -77,10 +78,10 @@ export default function Mixer() {
             <button
               key={sound.id}
               onClick={() => handleNatureSelect(sound.id)}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 natureSoundId === sound.id
-                  ? "bg-accent text-white"
-                  : "bg-navy-lighter text-text-secondary"
+                  ? "bg-navy-light text-accent font-bold neu-inset"
+                  : "bg-navy text-text-secondary neu-raised-sm neu-press"
               } ${!isPlaying && natureSoundId !== sound.id ? "opacity-50" : ""}`}
             >
               {sound.name}
@@ -88,6 +89,9 @@ export default function Mixer() {
           ))}
         </div>
       </div>
+
+      {/* Custom audio */}
+      <CustomAudioSection />
 
       {/* Nature volume */}
       <div className="flex flex-col gap-2">
@@ -105,7 +109,7 @@ export default function Mixer() {
           value={natureVolume}
           onChange={handleNatureVolume}
           disabled={!natureSoundId}
-          className="w-full h-2 rounded-full appearance-none bg-navy-lighter accent-accent disabled:opacity-30"
+          className="w-full disabled:opacity-30"
         />
       </div>
     </div>

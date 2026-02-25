@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   LineChart,
   Line,
@@ -21,42 +22,74 @@ const DEMO_DATA = [
   { day: "日", age: 49 },
 ];
 
+function getThemeColor(varName: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  return val || fallback;
+}
+
 export default function BrainAgeChart() {
+  const [colors, setColors] = useState({
+    primary: "#4a7fd4",
+    accent: "#6b6baa",
+    grid: "#162440",
+    text: "#8890a8",
+    bg: "#0e1a30",
+    textPrimary: "#d0d8e8",
+  });
+
+  useEffect(() => {
+    const update = () => {
+      setColors({
+        primary: getThemeColor("--color-primary", "#4a7fd4"),
+        accent: getThemeColor("--color-accent", "#6b6baa"),
+        grid: getThemeColor("--color-navy-lighter", "#162440"),
+        text: getThemeColor("--color-text-secondary", "#8890a8"),
+        bg: getThemeColor("--color-navy-light", "#0e1a30"),
+        textPrimary: getThemeColor("--color-text-primary", "#d0d8e8"),
+      });
+    };
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
-    <div className="bg-navy-light rounded-2xl p-4">
+    <div className="bg-navy rounded-3xl p-4 neu-raised">
       <p className="text-base font-bold text-text-primary mb-1">脳年齢トレンド</p>
       <p className="text-xs text-text-muted mb-4">デモデータ</p>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={DEMO_DATA}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2d4a" />
+          <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
           <XAxis
             dataKey="day"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-            axisLine={{ stroke: "#1e2d4a" }}
+            tick={{ fill: colors.text, fontSize: 12 }}
+            axisLine={{ stroke: colors.grid }}
           />
           <YAxis
             domain={[40, 65]}
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-            axisLine={{ stroke: "#1e2d4a" }}
+            tick={{ fill: colors.text, fontSize: 12 }}
+            axisLine={{ stroke: colors.grid }}
             tickFormatter={(v: number) => `${v}歳`}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#142038",
-              border: "1px solid #1e2d4a",
-              borderRadius: "8px",
-              color: "#f1f5f9",
+              backgroundColor: colors.bg,
+              border: `1px solid ${colors.grid}`,
+              borderRadius: "12px",
+              color: colors.textPrimary,
               fontSize: "14px",
+              boxShadow: "4px 4px 10px rgba(0,0,0,0.4), -2px -2px 6px rgba(255,255,255,0.04)",
             }}
             formatter={(value: number | undefined) => [`${value ?? 0}歳`, "脳年齢"]}
           />
           <Line
             type="monotone"
             dataKey="age"
-            stroke="#3b82f6"
+            stroke={colors.primary}
             strokeWidth={2}
-            dot={{ fill: "#3b82f6", r: 4 }}
-            activeDot={{ fill: "#f97316", r: 6 }}
+            dot={{ fill: colors.primary, r: 4 }}
+            activeDot={{ fill: colors.accent, r: 6 }}
           />
         </LineChart>
       </ResponsiveContainer>

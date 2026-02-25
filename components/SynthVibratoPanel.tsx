@@ -67,22 +67,22 @@ export default function SynthVibratoPanel() {
   };
 
   const numInputClass =
-    "w-16 bg-navy-lighter rounded-lg px-2 py-1 text-xs text-text-primary text-right tabular-nums outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+    "w-16 bg-navy rounded-xl px-2 py-1 text-xs text-text-primary text-right tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
   return (
-    <div className="bg-navy-light rounded-2xl p-4 flex flex-col gap-2">
+    <div className="bg-navy rounded-3xl p-4 flex flex-col gap-2 neu-raised">
       {/* Header + toggle */}
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-text-primary">ビブラート</p>
         <button
           onClick={handleToggle}
-          className={`w-11 h-6 rounded-full transition-colors relative ${
+          className={`w-11 h-6 rounded-full transition-colors relative neu-toggle-track ${
             vibrato.enabled ? "bg-primary" : "bg-navy-lighter"
           }`}
           aria-label="ビブラート切替"
         >
           <span
-            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform neu-raised-sm ${
               vibrato.enabled ? "translate-x-5" : "translate-x-0"
             }`}
           />
@@ -121,7 +121,7 @@ export default function SynthVibratoPanel() {
                 setRateInput(v.toString());
                 handleRateChange(v);
               }}
-              className="w-full h-2 rounded-full appearance-none bg-navy-lighter accent-primary"
+              className="w-full"
             />
           </div>
 
@@ -155,7 +155,7 @@ export default function SynthVibratoPanel() {
                 setDepthInput(v.toString());
                 handleDepthChange(v);
               }}
-              className="w-full h-2 rounded-full appearance-none bg-navy-lighter accent-primary"
+              className="w-full"
             />
           </div>
         </div>

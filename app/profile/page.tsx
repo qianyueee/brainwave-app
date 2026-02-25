@@ -5,6 +5,7 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { INDICATOR_META } from "@/lib/brain-profile";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import EegUploader from "@/components/EegUploader";
+import { BrainCircuit } from "lucide-react";
 
 export default function ProfilePage() {
   const profile = useBrainProfileStore((s) => s.profile);
@@ -30,7 +31,7 @@ export default function ProfilePage() {
       {profile ? (
         <>
           {/* Radar Chart */}
-          <div className="bg-navy-light rounded-2xl p-4">
+          <div className="bg-navy rounded-3xl p-4 neu-raised">
             <BrainRadarChart indicators={profile.indicators} size="large" />
             <p className="text-xs text-text-muted text-center mt-2">
               セッション: {profile.sessionTag} ・ 最終更新:{" "}
@@ -44,7 +45,7 @@ export default function ProfilePage() {
             {INDICATOR_META.map((meta) => {
               const score = profile.indicators[meta.key];
               return (
-                <div key={meta.key} className="bg-navy-light rounded-2xl p-4">
+                <div key={meta.key} className="bg-navy rounded-3xl p-4 neu-raised">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-base font-bold text-text-primary">{meta.label}</p>
                     <p className="text-lg font-mono font-bold text-primary tabular-nums">
@@ -52,7 +53,7 @@ export default function ProfilePage() {
                     </p>
                   </div>
                   {/* Score bar */}
-                  <div className="w-full h-2 bg-navy-lighter rounded-full overflow-hidden mb-2">
+                  <div className="w-full h-2 bg-navy-lighter rounded-full overflow-hidden mb-2 neu-inset">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{
@@ -73,7 +74,7 @@ export default function ProfilePage() {
             <EegUploader />
             <button
               onClick={clearProfile}
-              className="w-full py-3 rounded-2xl border-2 border-text-muted text-text-secondary text-base font-medium transition-colors active:bg-navy-light"
+              className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-base font-medium neu-raised-sm neu-press transition-transform"
             >
               データをクリア
             </button>
@@ -82,8 +83,10 @@ export default function ProfilePage() {
       ) : (
         <>
           {/* Empty state */}
-          <div className="bg-navy-light rounded-2xl p-8 text-center">
-            <div className="text-5xl mb-4">🧠</div>
+          <div className="bg-navy rounded-3xl p-8 text-center neu-raised">
+            <div className="flex justify-center mb-4">
+              <BrainCircuit size={48} className="text-primary" strokeWidth={1.5} />
+            </div>
             <p className="text-lg font-bold text-text-primary mb-2">
               脳波データを分析しましょう
             </p>

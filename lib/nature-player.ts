@@ -89,6 +89,28 @@ export class NaturePlayer {
     }
   }
 
+  async playFromUrl(url: string, volume: number): Promise<void> {
+    this.stop();
+
+    const buffer = await loadAudioBuffer(this.ctx, url);
+
+    const now = this.ctx.currentTime;
+
+    this.source = this.ctx.createBufferSource();
+    this.source.buffer = buffer;
+    this.source.loop = true;
+
+    this.gainNode = this.ctx.createGain();
+    this.gainNode.gain.setValueAtTime(0, now);
+    this.gainNode.gain.linearRampToValueAtTime(volume * 0.5, now + 0.5);
+
+    this.source.connect(this.gainNode);
+    this.gainNode.connect(getAudioDestination());
+
+    this.source.start(now);
+    this._isPlaying = true;
+  }
+
   setVolume(value: number): void {
     const v = Math.max(0, Math.min(1, value)) * 0.5;
     const now = this.ctx.currentTime;

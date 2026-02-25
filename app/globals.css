@@ -1,23 +1,41 @@
 @import "tailwindcss";
 
-@theme inline {
-  --color-navy: #0a1628;
-  --color-navy-light: #142038;
-  --color-navy-lighter: #1e2d4a;
-  --color-primary: #3b82f6;
-  --color-primary-dark: #2563eb;
-  --color-accent: #f97316;
-  --color-accent-dark: #ea580c;
-  --color-surface: #1e293b;
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+/* Dynamic color variables — updated at runtime by ThemeProvider */
+:root {
+  --dyn-navy: #060d1b;
+  --dyn-navy-light: #0c1628;
+  --dyn-navy-lighter: #142038;
+  --dyn-primary: #5088e0;
+  --dyn-primary-dark: #3a6ab8;
+  --dyn-accent: #7878c0;
+  --dyn-accent-dark: #6060a8;
+  --dyn-surface: #0e182c;
+  --dyn-text-primary: #d0d8e8;
+  --dyn-text-secondary: #8890a8;
+  --dyn-text-muted: #5c6478;
+  --shadow-neu-dark: rgba(0, 0, 0, 0.45);
+  --shadow-neu-light: rgba(255, 255, 255, 0.05);
+}
+
+/* Tailwind theme references dynamic vars — keeps var() in utilities */
+@theme {
+  --color-navy: var(--dyn-navy);
+  --color-navy-light: var(--dyn-navy-light);
+  --color-navy-lighter: var(--dyn-navy-lighter);
+  --color-primary: var(--dyn-primary);
+  --color-primary-dark: var(--dyn-primary-dark);
+  --color-accent: var(--dyn-accent);
+  --color-accent-dark: var(--dyn-accent-dark);
+  --color-surface: var(--dyn-surface);
+  --color-text-primary: var(--dyn-text-primary);
+  --color-text-secondary: var(--dyn-text-secondary);
+  --color-text-muted: var(--dyn-text-muted);
 }
 
 body {
-  background: var(--color-navy);
-  color: var(--color-text-primary);
-  transition: background-color 2s ease-out, color 2s ease-out;
+  background: var(--dyn-navy);
+  color: var(--dyn-text-primary);
+  transition: background-color 1s ease-out, color 1s ease-out;
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
   font-size: 18px;
   line-height: 1.6;
@@ -36,6 +54,123 @@ input, textarea {
   user-select: auto;
 }
 
+/* ===== Soft UI / Neumorphism Utilities ===== */
+
+.neu-raised {
+  box-shadow:
+    6px 6px 14px var(--shadow-neu-dark),
+    -4px -4px 10px var(--shadow-neu-light);
+}
+
+.neu-raised-sm {
+  box-shadow:
+    3px 3px 8px var(--shadow-neu-dark),
+    -2px -2px 6px var(--shadow-neu-light);
+}
+
+.neu-raised-lg {
+  box-shadow:
+    8px 8px 20px var(--shadow-neu-dark),
+    -6px -6px 14px var(--shadow-neu-light);
+}
+
+.neu-inset {
+  box-shadow:
+    inset 3px 3px 8px var(--shadow-neu-dark),
+    inset -2px -2px 6px var(--shadow-neu-light);
+}
+
+.neu-press:active {
+  box-shadow:
+    inset 3px 3px 8px var(--shadow-neu-dark),
+    inset -2px -2px 6px var(--shadow-neu-light);
+  transform: scale(0.98);
+}
+
+.neu-nav {
+  box-shadow:
+    0 -6px 16px var(--shadow-neu-dark),
+    0 -2px 8px var(--shadow-neu-light);
+}
+
+.neu-glow-primary {
+  box-shadow:
+    0 0 30px var(--dyn-primary),
+    0 0 60px color-mix(in srgb, var(--dyn-primary) 40%, transparent),
+    8px 8px 20px var(--shadow-neu-dark),
+    -6px -6px 14px var(--shadow-neu-light);
+}
+
+.neu-toggle-track {
+  box-shadow:
+    inset 2px 2px 5px var(--shadow-neu-dark),
+    inset -1px -1px 3px var(--shadow-neu-light);
+}
+
+/* ===== Range Input Styling ===== */
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 28px;
+}
+
+input[type="range"]::-webkit-slider-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--dyn-navy-lighter);
+  box-shadow:
+    inset 2px 2px 4px var(--shadow-neu-dark),
+    inset -1px -1px 3px var(--shadow-neu-light);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--dyn-navy-lighter);
+  box-shadow:
+    inset 2px 2px 4px var(--shadow-neu-dark),
+    inset -1px -1px 3px var(--shadow-neu-light);
+  border: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--dyn-navy-light);
+  border: 2px solid var(--dyn-primary);
+  box-shadow:
+    3px 3px 8px var(--shadow-neu-dark),
+    -2px -2px 6px var(--shadow-neu-light);
+  margin-top: -8px;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--dyn-navy-light);
+  border: 2px solid var(--dyn-primary);
+  box-shadow:
+    3px 3px 8px var(--shadow-neu-dark),
+    -2px -2px 6px var(--shadow-neu-light);
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+  opacity: 0.3;
+}
+
+input[type="range"]:disabled::-moz-range-thumb {
+  opacity: 0.3;
+}
+
+/* ===== Keyframes ===== */
+
 @keyframes pulse-ring {
   0% {
     transform: scale(0.8);
@@ -51,7 +186,29 @@ input, textarea {
   }
 }
 
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px var(--dyn-primary),
+      0 0 40px color-mix(in srgb, var(--dyn-primary) 30%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 40px var(--dyn-primary),
+      0 0 80px color-mix(in srgb, var(--dyn-primary) 50%, transparent);
+  }
+}
+
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes pulse-ring {
+    0%, 50%, 100% { transform: scale(1); opacity: 0.5; }
+  }
+  @keyframes pulse-glow {
+    0%, 50%, 100% { box-shadow: 0 0 20px var(--dyn-primary); }
+  }
 }

@@ -7,6 +7,7 @@ import { getAdjustedProgram } from "@/lib/brain-profile";
 import { isCustomProgramId } from "@/lib/programs";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { formatTime } from "@/lib/utils";
+import { Play, Pause, Square } from "lucide-react";
 
 export default function PlaybackControls() {
   const { startSession, stopSession, startCustomProgram, stopCustomProgram } = useAudio();
@@ -64,32 +65,25 @@ export default function PlaybackControls() {
         <button
           onClick={handleStop}
           disabled={!isPlaying}
-          className="w-14 h-14 rounded-full bg-navy-lighter border-2 border-text-muted flex items-center justify-center text-text-secondary disabled:opacity-30 transition-opacity active:scale-95"
+          className="w-14 h-14 rounded-full bg-navy flex items-center justify-center text-text-secondary disabled:opacity-30 transition-opacity active:scale-95 neu-raised-sm"
           aria-label="停止"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <rect x="3" y="3" width="14" height="14" rx="2" />
-          </svg>
+          <Square size={20} fill="currentColor" />
         </button>
 
         <button
           onClick={handlePlay}
-          className={`w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+          className={`w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-95 neu-raised-lg ${
             isPlaying
-              ? "bg-accent border-2 border-accent-dark"
-              : "bg-primary border-2 border-primary-dark"
+              ? "bg-accent text-white"
+              : "bg-primary text-white"
           }`}
           aria-label={isPlaying ? "一時停止" : "再生"}
         >
           {isPlaying ? (
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="white">
-              <rect x="6" y="4" width="5" height="20" rx="1" />
-              <rect x="17" y="4" width="5" height="20" rx="1" />
-            </svg>
+            <Pause size={32} fill="white" strokeWidth={0} />
           ) : (
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="white">
-              <path d="M8 4l16 10-16 10V4z" />
-            </svg>
+            <Play size={32} fill="white" strokeWidth={0} className="ml-1" />
           )}
         </button>
 

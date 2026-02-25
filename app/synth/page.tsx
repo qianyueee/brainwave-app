@@ -8,6 +8,7 @@ import SynthLayerCard from "@/components/SynthLayerCard";
 import SynthPlaybackButton from "@/components/SynthPlaybackButton";
 import SynthVibratoPanel from "@/components/SynthVibratoPanel";
 import ExportDialog from "@/components/ExportDialog";
+import { ChevronLeft, Plus, Download } from "lucide-react";
 
 const MAX_LAYERS = 8;
 const FREQ_MIN = 20;
@@ -123,12 +124,10 @@ export default function SynthPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.back()}
-          className="w-10 h-10 rounded-full bg-navy-light flex items-center justify-center text-text-secondary active:scale-95"
+          className="w-10 h-10 rounded-full bg-navy flex items-center justify-center text-text-secondary active:scale-95 neu-raised-sm"
           aria-label="戻る"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 4l-6 6 6 6" />
-          </svg>
+          <ChevronLeft size={20} strokeWidth={2} />
         </button>
         <div>
           <h1 className="text-xl font-bold text-text-primary">カスタム合成器</h1>
@@ -143,10 +142,10 @@ export default function SynthPage() {
             <button
               key={m}
               onClick={() => handleModeChange(m)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors active:scale-95 ${
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95 ${
                 editorMode === m
-                  ? "bg-primary text-white"
-                  : "bg-navy-light text-text-secondary"
+                  ? "bg-navy-light text-primary neu-inset"
+                  : "bg-navy text-text-secondary neu-raised-sm"
               }`}
             >
               {m === "free" ? "Free" : "Harmonic"}
@@ -155,17 +154,17 @@ export default function SynthPage() {
         </div>
 
         {/* Stereo toggle */}
-        <div className="flex items-center justify-between bg-navy-light rounded-xl px-4 py-3">
+        <div className="flex items-center justify-between bg-navy rounded-2xl px-4 py-3 neu-raised">
           <span className="text-sm text-text-primary font-medium">ステレオ</span>
           <button
             onClick={handleStereoToggle}
-            className={`w-11 h-6 rounded-full transition-colors relative ${
+            className={`w-11 h-6 rounded-full transition-colors relative neu-toggle-track ${
               isStereo ? "bg-primary" : "bg-navy-lighter"
             }`}
             aria-label="ステレオ切替"
           >
             <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform neu-raised-sm ${
                 isStereo ? "translate-x-5" : "translate-x-0"
               }`}
             />
@@ -175,7 +174,7 @@ export default function SynthPage() {
 
       {/* Harmonic base frequency input */}
       {editorMode === "harmonic" && (
-        <div className="bg-navy-light rounded-2xl p-4 flex flex-col gap-2">
+        <div className="bg-navy rounded-3xl p-4 flex flex-col gap-2 neu-raised">
           <label className="text-xs text-text-secondary">基本周波数</label>
           <div className="flex gap-2 items-center">
             <input
@@ -186,12 +185,12 @@ export default function SynthPage() {
               value={baseFreqInput}
               onChange={(e) => setBaseFreqInput(e.target.value)}
               onKeyDown={handleBaseFreqKeyDown}
-              className="flex-1 bg-navy-lighter rounded-xl px-4 py-3 text-base text-text-primary tabular-nums outline-none focus:ring-2 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="text-sm text-text-muted">Hz</span>
             <button
               onClick={handleBaseFreqApply}
-              className="px-4 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95"
+              className="px-4 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 neu-raised-sm"
             >
               生成
             </button>
@@ -217,10 +216,10 @@ export default function SynthPage() {
             <button
               key={ch}
               onClick={() => setActiveChannel(ch)}
-              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors active:scale-95 ${
+              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
                 activeChannel === ch
-                  ? "bg-accent text-white"
-                  : "bg-navy-light text-text-secondary"
+                  ? "bg-navy-light text-accent font-bold neu-inset"
+                  : "bg-navy text-text-secondary neu-raised-sm"
               }`}
             >
               {ch === "left" ? "L 左チャンネル" : "R 右チャンネル"}
@@ -253,9 +252,10 @@ export default function SynthPage() {
         {canAddLayer && (
           <button
             onClick={() => isStereo ? handleAddStereoLayer(activeChannel) : handleAddLayer()}
-            className="w-full py-3 rounded-2xl border-2 border-dashed border-text-muted text-text-secondary text-sm font-medium transition-colors active:bg-navy-light"
+            className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
           >
-            ＋ レイヤーを追加
+            <Plus size={18} strokeWidth={2} />
+            レイヤーを追加
           </button>
         )}
       </div>
@@ -263,11 +263,9 @@ export default function SynthPage() {
       {/* Export button */}
       <button
         onClick={() => setExportOpen(true)}
-        className="w-full py-3 rounded-2xl bg-navy-light text-text-primary text-base font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+        className="w-full py-3 rounded-2xl bg-navy text-text-primary text-base font-bold flex items-center justify-center gap-2 neu-raised-sm neu-press transition-transform"
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10 3v10m0 0l-3-3m3 3l3-3M4 15h12" />
-        </svg>
+        <Download size={20} strokeWidth={2} />
         音声をエクスポート
       </button>
 
@@ -283,12 +281,12 @@ export default function SynthPage() {
             onChange={(e) => setPresetName(e.target.value)}
             placeholder="プリセット名を入力"
             maxLength={30}
-            className="flex-1 bg-navy-light rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-primary"
           />
           <button
             onClick={handleSave}
             disabled={!presetName.trim()}
-            className="px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95"
+            className="px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
           >
             保存
           </button>
@@ -306,11 +304,11 @@ export default function SynthPage() {
               placeholder="簡単な説明を入力（任意）"
               maxLength={100}
               rows={2}
-              className="w-full bg-navy-light rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent resize-none"
+              className="w-full bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent resize-none"
             />
             <button
               onClick={handleSaveAsProgram}
-              className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold transition-opacity active:scale-95"
+              className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
             >
               プログラムを更新
             </button>
@@ -324,12 +322,12 @@ export default function SynthPage() {
                 onChange={(e) => setProgramName(e.target.value)}
                 placeholder="プログラム名を入力"
                 maxLength={30}
-                className="flex-1 bg-navy-light rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+                className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent"
               />
               <button
                 onClick={handleSaveAsProgram}
                 disabled={!programName.trim()}
-                className="px-5 py-3 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95"
+                className="px-5 py-3 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
               >
                 保存
               </button>
@@ -340,7 +338,7 @@ export default function SynthPage() {
               placeholder="簡単な説明を入力（任意）"
               maxLength={100}
               rows={2}
-              className="w-full bg-navy-light rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent resize-none"
+              className="w-full bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent resize-none"
             />
           </div>
         )}

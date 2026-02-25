@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { CustomProgram } from "@/lib/programs";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
+import { Waves, Pencil, Trash2 } from "lucide-react";
 
 interface CustomProgramCardProps {
   program: CustomProgram;
@@ -34,6 +35,7 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
   };
 
   const displayMinutes = Math.round(program.defaultDuration / 60);
+  const Icon = Waves;
 
   return (
     <div
@@ -41,10 +43,10 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }}
-      className="w-full bg-navy-light rounded-2xl p-4 flex items-center gap-4 text-left transition-colors active:bg-navy-lighter cursor-pointer"
+      className="w-full bg-navy rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform cursor-pointer"
     >
-      <div className="w-14 h-14 rounded-xl bg-navy-lighter flex items-center justify-center text-2xl shrink-0">
-        {program.icon}
+      <div className="w-14 h-14 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
+        <Icon size={26} className="text-accent" strokeWidth={1.5} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -61,21 +63,17 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
       <div className="flex flex-col gap-1 shrink-0">
         <button
           onClick={handleEdit}
-          className="w-9 h-9 rounded-lg bg-navy-lighter flex items-center justify-center text-text-secondary active:scale-95"
+          className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95"
           aria-label="編集"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
-          </svg>
+          <Pencil size={16} strokeWidth={1.5} />
         </button>
         <button
           onClick={handleDelete}
-          className="w-9 h-9 rounded-lg bg-navy-lighter flex items-center justify-center text-red-400 active:scale-95"
+          className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-red-400 active:scale-95"
           aria-label="削除"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" />
-          </svg>
+          <Trash2 size={16} strokeWidth={1.5} />
         </button>
       </div>
     </div>

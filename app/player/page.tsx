@@ -9,6 +9,7 @@ import PlaybackControls from "@/components/PlaybackControls";
 import Timer from "@/components/Timer";
 import Mixer from "@/components/Mixer";
 import ExportDialog from "@/components/ExportDialog";
+import { Download } from "lucide-react";
 
 export default function PlayerPage() {
   const programId = useAppStore((s) => s.selectedProgramId);
@@ -40,7 +41,7 @@ export default function PlayerPage() {
       <Visualizer />
       <PlaybackControls />
 
-      <div className="bg-navy-light rounded-2xl p-4 flex flex-col gap-4">
+      <div className="bg-navy rounded-3xl p-4 flex flex-col gap-4 neu-raised">
         <Timer />
         <Mixer />
       </div>
@@ -49,11 +50,9 @@ export default function PlayerPage() {
       {canExport && (
         <button
           onClick={() => setExportOpen(true)}
-          className="w-full py-3 rounded-2xl bg-navy-light text-text-primary text-base font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+          className="w-full py-3 rounded-2xl bg-navy text-text-primary text-base font-bold flex items-center justify-center gap-2 neu-raised-sm neu-press transition-transform"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10 3v10m0 0l-3-3m3 3l3-3M4 15h12" />
-          </svg>
+          <Download size={20} strokeWidth={2} />
           音声をエクスポート
         </button>
       )}

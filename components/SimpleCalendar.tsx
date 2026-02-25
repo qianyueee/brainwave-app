@@ -31,7 +31,7 @@ export default function SimpleCalendar() {
   const monthName = `${year}年${month + 1}月`;
 
   return (
-    <div className="bg-navy-light rounded-2xl p-4">
+    <div className="bg-navy rounded-3xl p-4 neu-raised">
       <p className="text-base font-bold text-text-primary mb-3">{monthName}</p>
       <div className="grid grid-cols-7 gap-1 text-center">
         {WEEKDAYS.map((w) => (
@@ -47,8 +47,8 @@ export default function SimpleCalendar() {
             <div
               key={i}
               className={`relative py-2 text-sm rounded-lg ${
-                isToday ? "bg-primary/20 text-primary font-bold" : "text-text-secondary"
-              } ${day === null ? "" : ""}`}
+                isToday ? "text-primary font-bold neu-inset" : "text-text-secondary"
+              }`}
             >
               {day ?? ""}
               {hasLog && (

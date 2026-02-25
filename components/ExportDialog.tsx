@@ -107,7 +107,7 @@ export default function ExportDialog({ open, onClose, mode }: ExportDialogProps)
       onClick={() => { if (!isExporting) onClose(); }}
     >
       <div
-        className="w-full max-w-[420px] mx-4 bg-navy-light rounded-2xl p-6 flex flex-col gap-5"
+        className="w-full max-w-[420px] mx-4 bg-navy rounded-3xl p-6 flex flex-col gap-5 neu-raised-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-bold text-text-primary text-center">
@@ -123,10 +123,10 @@ export default function ExportDialog({ open, onClose, mode }: ExportDialogProps)
                 key={d.value}
                 onClick={() => setDuration(d.value)}
                 disabled={isExporting}
-                className={`py-3 rounded-xl text-base font-bold transition-colors active:scale-95 ${
+                className={`py-3 rounded-2xl text-base font-bold transition-all active:scale-95 ${
                   duration === d.value
-                    ? "bg-primary text-white"
-                    : "bg-navy-lighter text-text-secondary"
+                    ? "bg-navy-light text-primary neu-inset"
+                    : "bg-navy text-text-secondary neu-raised-sm"
                 }`}
               >
                 {d.label}
@@ -144,10 +144,10 @@ export default function ExportDialog({ open, onClose, mode }: ExportDialogProps)
                 key={f}
                 onClick={() => setFormat(f)}
                 disabled={isExporting}
-                className={`flex-1 py-3 rounded-xl text-base font-bold transition-colors active:scale-95 ${
+                className={`flex-1 py-3 rounded-2xl text-base font-bold transition-all active:scale-95 ${
                   format === f
-                    ? "bg-primary text-white"
-                    : "bg-navy-lighter text-text-secondary"
+                    ? "bg-navy-light text-primary neu-inset"
+                    : "bg-navy text-text-secondary neu-raised-sm"
                 }`}
               >
                 {f.toUpperCase()}
@@ -167,7 +167,7 @@ export default function ExportDialog({ open, onClose, mode }: ExportDialogProps)
             <p className="text-sm text-red-400 text-center">{progress.error}</p>
             <button
               onClick={handleRetry}
-              className="w-full py-3 rounded-xl bg-accent text-white text-base font-bold active:scale-95"
+              className="w-full py-3 rounded-2xl bg-accent text-white text-base font-bold active:scale-95 neu-raised-sm"
             >
               リトライ
             </button>
@@ -184,7 +184,7 @@ export default function ExportDialog({ open, onClose, mode }: ExportDialogProps)
         ) : (
           <button
             onClick={handleExport}
-            className="w-full py-3 rounded-xl bg-primary text-white text-base font-bold active:scale-95 transition-opacity"
+            className="w-full py-3 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-opacity neu-raised neu-press"
           >
             エクスポート開始
           </button>
@@ -194,7 +194,7 @@ export default function ExportDialog({ open, onClose, mode }: ExportDialogProps)
         {!isExporting && progress.status !== "done" && (
           <button
             onClick={onClose}
-            className="w-full py-3 rounded-xl bg-navy-lighter text-text-secondary text-base font-bold active:scale-95"
+            className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-base font-bold active:scale-95 neu-raised-sm neu-press"
           >
             キャンセル
           </button>

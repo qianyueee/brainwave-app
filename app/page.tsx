@@ -12,6 +12,7 @@ import CustomProgramCard from "@/components/CustomProgramCard";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import { useSynthStore } from "@/store/useSynthStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
+import { BrainCircuit, Plus } from "lucide-react";
 
 export default function HomePage() {
   const router = useRouter();
@@ -47,7 +48,7 @@ export default function HomePage() {
       {/* Brain Profile Card */}
       {hydrated && (
         profile ? (
-          <Link href="/profile" className="block bg-navy-light rounded-2xl p-4 transition-colors active:bg-navy-lighter">
+          <Link href="/profile" className="block bg-navy rounded-3xl p-4 neu-raised neu-press transition-transform">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-text-secondary">脳特性チャート</p>
               <span className="text-xs text-primary font-medium">詳細 →</span>
@@ -60,9 +61,11 @@ export default function HomePage() {
         ) : (
           <Link
             href="/profile"
-            className="block w-full bg-navy-light rounded-2xl p-4 text-center transition-colors active:bg-navy-lighter"
+            className="block w-full bg-navy rounded-3xl p-4 text-center neu-raised neu-press transition-transform"
           >
-            <div className="text-3xl mb-2">🧠</div>
+            <div className="flex justify-center mb-2">
+              <BrainCircuit size={36} className="text-primary" strokeWidth={1.5} />
+            </div>
             <p className="text-base font-bold text-text-primary">脳波データをアップロード</p>
             <p className="text-sm text-text-secondary mt-1">
               パーソナライズされたプログラムを体験
@@ -94,9 +97,10 @@ export default function HomePage() {
         <p className="text-sm text-text-secondary">カスタム</p>
         <button
           onClick={handleNewSynth}
-          className="w-full py-3 rounded-2xl border-2 border-dashed border-text-muted text-text-secondary text-sm font-medium transition-colors active:bg-navy-light"
+          className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
         >
-          ＋ 新規作成
+          <Plus size={18} strokeWidth={2} />
+          新規作成
         </button>
         {hydrated &&
           savedPresets.map((preset) => (

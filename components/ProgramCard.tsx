@@ -5,6 +5,13 @@ import { ProgramConfig } from "@/lib/programs";
 import { getAdjustedProgram } from "@/lib/brain-profile";
 import { useAppStore } from "@/store/useAppStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
+import { Waves, Zap, Moon, ChevronRight } from "lucide-react";
+
+const PROGRAM_ICONS: Record<string, typeof Waves> = {
+  "reset-deep": Waves,
+  "clarity-focus": Zap,
+  "night-recovery": Moon,
+};
 
 interface ProgramCardProps {
   program: ProgramConfig;
@@ -26,14 +33,15 @@ export default function ProgramCard({ program }: ProgramCardProps) {
   };
 
   const displayMinutes = Math.round((adjusted?.defaultDuration ?? program.defaultDuration) / 60);
+  const Icon = PROGRAM_ICONS[program.id] ?? Waves;
 
   return (
     <button
       onClick={handleClick}
-      className="w-full bg-navy-light rounded-2xl p-4 flex items-center gap-4 text-left transition-colors active:bg-navy-lighter"
+      className="w-full bg-navy rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform"
     >
-      <div className="w-14 h-14 rounded-xl bg-navy-lighter flex items-center justify-center text-2xl shrink-0">
-        {program.icon}
+      <div className="w-14 h-14 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
+        <Icon size={26} className="text-primary" strokeWidth={1.5} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -51,15 +59,7 @@ export default function ProgramCard({ program }: ProgramCardProps) {
           {adjusted?.carrierFreq ?? program.carrierFreq}Hz・{displayMinutes}分
         </p>
       </div>
-      <svg
-        className="w-5 h-5 text-text-muted shrink-0"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-      </svg>
+      <ChevronRight size={20} className="text-text-muted shrink-0" />
     </button>
   );
 }

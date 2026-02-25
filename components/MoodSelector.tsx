@@ -2,11 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
+import { Flame, CloudFog, Smile } from "lucide-react";
 
 const MOODS = [
-  { label: "イライラ", emoji: "😤", programId: "reset-deep" },
-  { label: "ぼんやり", emoji: "😶‍🌫️", programId: "clarity-focus" },
-  { label: "すっきり", emoji: "😌", programId: "reset-deep" },
+  { label: "イライラ", icon: Flame, programId: "reset-deep" },
+  { label: "ぼんやり", icon: CloudFog, programId: "clarity-focus" },
+  { label: "すっきり", icon: Smile, programId: "reset-deep" },
 ];
 
 export default function MoodSelector() {
@@ -24,16 +25,21 @@ export default function MoodSelector() {
     <div className="flex flex-col gap-3">
       <p className="text-sm text-text-secondary">今の気分は？</p>
       <div className="flex gap-3">
-        {MOODS.map((mood) => (
-          <button
-            key={mood.label}
-            onClick={() => handleMood(mood)}
-            className="flex-1 bg-navy-light rounded-xl py-4 flex flex-col items-center gap-2 transition-colors active:bg-navy-lighter"
-          >
-            <span className="text-2xl">{mood.emoji}</span>
-            <span className="text-sm text-text-primary">{mood.label}</span>
-          </button>
-        ))}
+        {MOODS.map((mood) => {
+          const Icon = mood.icon;
+          return (
+            <button
+              key={mood.label}
+              onClick={() => handleMood(mood)}
+              className="flex-1 bg-navy rounded-2xl py-4 flex flex-col items-center gap-2 neu-raised-sm neu-press transition-transform"
+            >
+              <span className="w-12 h-12 rounded-full bg-navy neu-inset flex items-center justify-center">
+                <Icon size={24} className="text-primary" strokeWidth={1.5} />
+              </span>
+              <span className="text-sm text-text-primary">{mood.label}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

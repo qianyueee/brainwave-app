@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { parseEegFile, computeIndicators } from "@/lib/brain-profile";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
+import { Upload } from "lucide-react";
 
 export default function EegUploader() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,8 +48,9 @@ export default function EegUploader() {
       <button
         onClick={() => inputRef.current?.click()}
         disabled={isProcessing}
-        className="w-full py-3 rounded-2xl bg-primary text-white text-base font-bold transition-colors active:bg-primary-dark disabled:opacity-50"
+        className="w-full py-3 rounded-2xl bg-primary text-white text-base font-bold transition-colors active:scale-[0.98] disabled:opacity-50 neu-raised neu-press flex items-center justify-center gap-2"
       >
+        <Upload size={20} strokeWidth={2} />
         {isProcessing ? "解析中..." : "脳波データをアップロード"}
       </button>
       <p className="text-xs text-text-muted text-center">

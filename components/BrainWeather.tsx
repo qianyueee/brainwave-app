@@ -1,10 +1,14 @@
 "use client";
 
+import { CloudSun } from "lucide-react";
+
 export default function BrainWeather() {
   return (
-    <div className="bg-navy-light rounded-2xl p-5 text-center">
+    <div className="bg-navy rounded-3xl p-5 text-center neu-raised">
       <p className="text-sm text-text-secondary mb-2">今日の脳のお天気</p>
-      <p className="text-4xl mb-2">🌤️</p>
+      <div className="flex justify-center mb-2">
+        <CloudSun size={40} className="text-accent" strokeWidth={1.5} />
+      </div>
       <p className="text-lg font-bold text-text-primary">おおむね快晴</p>
       <p className="text-xs text-text-muted mt-1">
         脳波データ取得後にパーソナライズされます
