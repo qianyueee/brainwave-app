@@ -154,7 +154,7 @@ export default function SynthPage() {
         </div>
 
         {/* Stereo toggle */}
-        <div className="flex items-center justify-between bg-navy rounded-2xl px-4 py-3 neu-raised">
+        <div className="flex items-center justify-between bg-surface border border-surface-border rounded-2xl px-4 py-3 neu-raised">
           <span className="text-sm text-text-primary font-medium">ステレオ</span>
           <button
             onClick={handleStereoToggle}
@@ -174,7 +174,7 @@ export default function SynthPage() {
 
       {/* Harmonic base frequency input */}
       {editorMode === "harmonic" && (
-        <div className="bg-navy rounded-3xl p-4 flex flex-col gap-2 neu-raised">
+        <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-2 neu-raised">
           <label className="text-xs text-text-secondary">基本周波数</label>
           <div className="flex gap-2 items-center">
             <input

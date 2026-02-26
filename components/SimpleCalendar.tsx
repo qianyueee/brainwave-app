@@ -31,7 +31,7 @@ export default function SimpleCalendar() {
   const monthName = `${year}年${month + 1}月`;
 
   return (
-    <div className="bg-navy rounded-3xl p-4 neu-raised">
+    <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
       <p className="text-base font-bold text-text-primary mb-3">{monthName}</p>
       <div className="grid grid-cols-7 gap-1 text-center">
         {WEEKDAYS.map((w) => (

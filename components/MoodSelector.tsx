@@ -31,7 +31,7 @@ export default function MoodSelector() {
             <button
               key={mood.label}
               onClick={() => handleMood(mood)}
-              className="flex-1 bg-navy rounded-2xl py-4 flex flex-col items-center gap-2 neu-raised-sm neu-press transition-transform"
+              className="flex-1 bg-surface border border-surface-border rounded-2xl py-4 flex flex-col items-center gap-2 neu-raised-sm neu-press transition-transform"
             >
               <span className="w-12 h-12 rounded-full bg-navy neu-inset flex items-center justify-center">
                 <Icon size={24} className="text-primary" strokeWidth={1.5} />

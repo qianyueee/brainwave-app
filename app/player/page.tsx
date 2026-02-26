@@ -41,7 +41,7 @@ export default function PlayerPage() {
       <Visualizer />
       <PlaybackControls />
 
-      <div className="bg-navy rounded-3xl p-4 flex flex-col gap-4 neu-raised">
+      <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-4 neu-raised">
         <Timer />
         <Mixer />
       </div>

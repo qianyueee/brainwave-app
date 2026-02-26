@@ -22,7 +22,11 @@ export default function Visualizer() {
 
   const timeScale = timerDuration / program.defaultDuration;
   const scaledElapsed = elapsed / timeScale;
-  const { phase, beatFreq } = getCurrentPhaseInfo(program.phases, scaledElapsed);
+  const { phase, beatFreq: rawBeatFreq } = getCurrentPhaseInfo(program.phases, scaledElapsed);
+
+  // During intro phase, display the program's target frequency
+  const displayFreq = phase?.name === "導入" ? program.targetBeatFreq : rawBeatFreq;
+  const beatFreq = rawBeatFreq;
 
   // Map beat frequency to animation speed: lower freq = slower pulse
   const pulseDuration = isPlaying ? Math.max(0.3, 1 / Math.max(beatFreq, 0.5)) : 2;
@@ -73,7 +77,7 @@ export default function Visualizer() {
       {/* Info */}
       <div className="text-center">
         <p className="text-lg font-medium text-text-primary">
-          {beatFreq.toFixed(1)} Hz
+          {displayFreq.toFixed(1)} Hz
         </p>
         <p className="text-sm text-text-secondary">
           {phase ? phase.name : "待機中"}

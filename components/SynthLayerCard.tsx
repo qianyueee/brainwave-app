@@ -5,11 +5,12 @@ import { SynthLayer, ToneType, TremoloMode } from "@/lib/synth-engine";
 import { useSynthStore, StereoChannel } from "@/store/useSynthStore";
 import { useAudio } from "@/components/AudioProvider";
 import { X } from "lucide-react";
+import RangeSlider from "@/components/RangeSlider";
 
 const FREQ_MIN = 20;
 const FREQ_MAX = 10000;
 const TREM_RATE_MIN = 0.01;
-const TREM_RATE_MAX = 20;
+const TREM_RATE_MAX = 40;
 const DEPTH_MIN = 0;
 const DEPTH_MAX = 100;
 
@@ -160,7 +161,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
     "w-16 bg-navy rounded-xl px-2 py-1 text-xs text-text-primary text-right tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
   return (
-    <div className="bg-navy rounded-3xl p-4 flex flex-col gap-3 neu-raised">
+    <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-3 neu-raised">
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-text-primary">
@@ -197,8 +198,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
             <span className="text-xs text-text-muted">Hz</span>
           </div>
         </div>
-        <input
-          type="range"
+        <RangeSlider
           min={FREQ_MIN}
           max={FREQ_MAX}
           step={0.01}
@@ -218,8 +218,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
           <label className="text-xs text-text-secondary">音量</label>
           <span className="text-xs text-text-muted tabular-nums">{Math.round(layer.volume * 100)}%</span>
         </div>
-        <input
-          type="range"
+        <RangeSlider
           min={0}
           max={100}
           step={1}
@@ -306,8 +305,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
                   <span className="text-xs text-text-muted">Hz</span>
                 </div>
               </div>
-              <input
-                type="range"
+              <RangeSlider
                 min={TREM_RATE_MIN}
                 max={TREM_RATE_MAX}
                 step={0.01}
@@ -340,8 +338,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
                   <span className="text-xs text-text-muted">%</span>
                 </div>
               </div>
-              <input
-                type="range"
+              <RangeSlider
                 min={DEPTH_MIN}
                 max={DEPTH_MAX}
                 step={1}

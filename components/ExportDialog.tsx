@@ -107,7 +107,7 @@ export default function ExportDialog({ open, onClose, mode }: ExportDialogProps)
       onClick={() => { if (!isExporting) onClose(); }}
     >
       <div
-        className="w-full max-w-[420px] mx-4 bg-navy rounded-3xl p-6 flex flex-col gap-5 neu-raised-lg"
+        className="w-full max-w-[420px] mx-4 bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-5 neu-raised-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-bold text-text-primary text-center">

@@ -112,7 +112,7 @@ export default function CustomAudioSection() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="audio/*"
+          accept="audio/mpeg,audio/mp3,audio/wav,audio/aac,audio/mp4,audio/x-m4a,audio/ogg,audio/flac,audio/webm,.mp3,.m4a,.aac,.wav,.ogg,.flac,.webm,.mp4"
           onChange={handleUpload}
           className="hidden"
         />

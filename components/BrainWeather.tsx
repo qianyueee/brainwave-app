@@ -4,7 +4,7 @@ import { CloudSun } from "lucide-react";
 
 export default function BrainWeather() {
   return (
-    <div className="bg-navy rounded-3xl p-5 text-center neu-raised">
+    <div className="bg-surface border border-surface-border rounded-3xl p-5 text-center neu-raised">
       <p className="text-sm text-text-secondary mb-2">今日の脳のお天気</p>
       <div className="flex justify-center mb-2">
         <CloudSun size={40} className="text-accent" strokeWidth={1.5} />

@@ -38,7 +38,7 @@ export default function ProgramCard({ program }: ProgramCardProps) {
   return (
     <button
       onClick={handleClick}
-      className="w-full bg-navy rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform"
+      className="w-full bg-surface border border-surface-border rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform"
     >
       <div className="w-14 h-14 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
         <Icon size={26} className="text-primary" strokeWidth={1.5} />

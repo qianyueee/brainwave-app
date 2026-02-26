@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSynthStore } from "@/store/useSynthStore";
 import { useAudio } from "@/components/AudioProvider";
+import RangeSlider from "@/components/RangeSlider";
 
 const RATE_MIN = 0.01;
 const RATE_MAX = 20;
@@ -70,7 +71,7 @@ export default function SynthVibratoPanel() {
     "w-16 bg-navy rounded-xl px-2 py-1 text-xs text-text-primary text-right tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
   return (
-    <div className="bg-navy rounded-3xl p-4 flex flex-col gap-2 neu-raised">
+    <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-2 neu-raised">
       {/* Header + toggle */}
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-text-primary">ビブラート</p>
@@ -110,8 +111,7 @@ export default function SynthVibratoPanel() {
                 <span className="text-xs text-text-muted">Hz</span>
               </div>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={RATE_MIN}
               max={RATE_MAX}
               step={0.01}
@@ -144,8 +144,7 @@ export default function SynthVibratoPanel() {
                 <span className="text-xs text-text-muted">%</span>
               </div>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={DEPTH_MIN}
               max={DEPTH_MAX}
               step={1}

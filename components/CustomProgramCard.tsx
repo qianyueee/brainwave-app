@@ -43,7 +43,7 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }}
-      className="w-full bg-navy rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform cursor-pointer"
+      className="w-full bg-surface border border-surface-border rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform cursor-pointer"
     >
       <div className="w-14 h-14 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
         <Icon size={26} className="text-accent" strokeWidth={1.5} />

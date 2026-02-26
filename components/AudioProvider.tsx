@@ -329,11 +329,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   }, [stopStandaloneNature]);
 
   const setNatureVolume = useCallback((value: number) => {
+    if (naturePlayerRef.current?.isPlaying) {
+      naturePlayerRef.current.setVolume(value);
+    }
     if (sessionRef.current?.isPlaying) {
       sessionRef.current.setNatureVolume(value);
-      return;
     }
-    naturePlayerRef.current?.setVolume(value);
   }, []);
 
   const setSynthVolume = useCallback((value: number) => {

@@ -55,7 +55,7 @@ export default function BrainAgeChart() {
   }, []);
 
   return (
-    <div className="bg-navy rounded-3xl p-4 neu-raised">
+    <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
       <p className="text-base font-bold text-text-primary mb-1">脳年齢トレンド</p>
       <p className="text-xs text-text-muted mb-4">デモデータ</p>
       <ResponsiveContainer width="100%" height={200}>

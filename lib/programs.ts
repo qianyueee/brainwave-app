@@ -19,6 +19,8 @@ export interface ProgramConfig {
   carrierFreq: number;
   /** Default duration in seconds */
   defaultDuration: number;
+  /** Target beat frequency displayed during intro phase (Hz) */
+  targetBeatFreq: number;
   phases: FrequencyPhase[];
 }
 
@@ -33,6 +35,7 @@ const resetAndDeep: ProgramConfig = {
   icon: "🌊",
   carrierFreq: 174,
   defaultDuration: 15 * 60,
+  targetBeatFreq: 7.83,
   phases: [
     {
       name: "導入",
@@ -76,6 +79,7 @@ const clarityFocus: ProgramConfig = {
   icon: "⚡",
   carrierFreq: 432,
   defaultDuration: 20 * 60,
+  targetBeatFreq: 40.0,
   phases: [
     {
       name: "導入",
@@ -119,6 +123,7 @@ const nightRecovery: ProgramConfig = {
   icon: "🌙",
   carrierFreq: 136.1,
   defaultDuration: 30 * 60,
+  targetBeatFreq: 1.5,
   phases: [
     {
       name: "導入",

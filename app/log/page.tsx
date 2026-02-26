@@ -23,11 +23,11 @@ export default function LogPage() {
 
       {/* Stats summary */}
       <div className="flex gap-3">
-        <div className="flex-1 bg-navy rounded-3xl p-4 text-center neu-raised">
+        <div className="flex-1 bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised">
           <p className="text-2xl font-bold text-primary">{totalSessions}</p>
           <p className="text-xs text-text-muted mt-1">セッション</p>
         </div>
-        <div className="flex-1 bg-navy rounded-3xl p-4 text-center neu-raised">
+        <div className="flex-1 bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised">
           <p className="text-2xl font-bold text-accent">{totalMinutes}</p>
           <p className="text-xs text-text-muted mt-1">合計（分）</p>
         </div>

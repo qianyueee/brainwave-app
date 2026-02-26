@@ -5,6 +5,7 @@ import { useAudio } from "@/components/AudioProvider";
 import { NATURE_SOUNDS } from "@/lib/audio-engine";
 import { isCustomProgramId } from "@/lib/programs";
 import CustomAudioSection from "@/components/CustomAudioSection";
+import RangeSlider from "@/components/RangeSlider";
 
 export default function Mixer() {
   const beatVolume = useAppStore((s) => s.beatVolume);
@@ -59,8 +60,7 @@ export default function Mixer() {
             {Math.round(beatVolume * 100)}%
           </span>
         </div>
-        <input
-          type="range"
+        <RangeSlider
           min="0"
           max="1"
           step="0.01"
@@ -101,8 +101,7 @@ export default function Mixer() {
             {Math.round(natureVolume * 100)}%
           </span>
         </div>
-        <input
-          type="range"
+        <RangeSlider
           min="0"
           max="1"
           step="0.01"

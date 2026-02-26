@@ -31,7 +31,7 @@ export default function ProfilePage() {
       {profile ? (
         <>
           {/* Radar Chart */}
-          <div className="bg-navy rounded-3xl p-4 neu-raised">
+          <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
             <BrainRadarChart indicators={profile.indicators} size="large" />
             <p className="text-xs text-text-muted text-center mt-2">
               セッション: {profile.sessionTag} ・ 最終更新:{" "}
@@ -45,7 +45,7 @@ export default function ProfilePage() {
             {INDICATOR_META.map((meta) => {
               const score = profile.indicators[meta.key];
               return (
-                <div key={meta.key} className="bg-navy rounded-3xl p-4 neu-raised">
+                <div key={meta.key} className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-base font-bold text-text-primary">{meta.label}</p>
                     <p className="text-lg font-mono font-bold text-primary tabular-nums">
@@ -83,7 +83,7 @@ export default function ProfilePage() {
       ) : (
         <>
           {/* Empty state */}
-          <div className="bg-navy rounded-3xl p-8 text-center neu-raised">
+          <div className="bg-surface border border-surface-border rounded-3xl p-8 text-center neu-raised">
             <div className="flex justify-center mb-4">
               <BrainCircuit size={48} className="text-primary" strokeWidth={1.5} />
             </div>
