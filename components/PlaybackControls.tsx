@@ -73,11 +73,12 @@ export default function PlaybackControls() {
 
         <button
           onClick={handlePlay}
-          className={`w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-95 neu-raised-lg ${
+          className={`w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-95 neu-raised-lg breathe ${
             isPlaying
               ? "bg-accent text-white"
               : "bg-primary text-white"
           }`}
+          style={{ "--breathe-delay": "0s" } as React.CSSProperties}
           aria-label={isPlaying ? "一時停止" : "再生"}
         >
           {isPlaying ? (

@@ -48,7 +48,7 @@ export default function HomePage() {
       {/* Brain Profile Card */}
       {hydrated && (
         profile ? (
-          <Link href="/profile" className="block bg-surface border border-surface-border rounded-3xl p-4 neu-raised neu-press transition-transform">
+          <Link href="/profile" className="block bg-surface border border-surface-border rounded-3xl p-4 neu-raised neu-press transition-transform breathe">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-text-secondary">脳特性チャート</p>
               <span className="text-xs text-primary font-medium">詳細 →</span>
@@ -61,7 +61,7 @@ export default function HomePage() {
         ) : (
           <Link
             href="/profile"
-            className="block w-full bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised neu-press transition-transform"
+            className="block w-full bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised neu-press transition-transform breathe"
           >
             <div className="flex justify-center mb-2">
               <BrainCircuit size={36} className="text-primary" strokeWidth={1.5} />
@@ -75,7 +75,7 @@ export default function HomePage() {
       )}
 
       {/* Programs */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 breathe-stagger">
         <p className="text-sm text-text-secondary">プログラム一覧</p>
         {PROGRAMS.map((program) => (
           <ProgramCard key={program.id} program={program} />
@@ -84,7 +84,7 @@ export default function HomePage() {
 
       {/* Custom Programs */}
       {hydrated && savedPrograms.length > 0 && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 breathe-stagger">
           <p className="text-sm text-text-secondary">カスタムプログラム</p>
           {savedPrograms.map((program) => (
             <CustomProgramCard key={program.id} program={program} />
@@ -93,7 +93,7 @@ export default function HomePage() {
       )}
 
       {/* Custom Synth */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 breathe-stagger">
         <p className="text-sm text-text-secondary">カスタム</p>
         <button
           onClick={handleNewSynth}

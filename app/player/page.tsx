@@ -41,7 +41,7 @@ export default function PlayerPage() {
       <Visualizer />
       <PlaybackControls />
 
-      <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-4 neu-raised">
+      <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-4 neu-raised breathe" style={{ "--breathe-delay": "0.8s" } as React.CSSProperties}>
         <Timer />
         <Mixer />
       </div>

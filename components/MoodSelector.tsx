@@ -24,14 +24,14 @@ export default function MoodSelector() {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-text-secondary">今の気分は？</p>
-      <div className="flex gap-3">
+      <div className="flex gap-3 breathe-stagger">
         {MOODS.map((mood) => {
           const Icon = mood.icon;
           return (
             <button
               key={mood.label}
               onClick={() => handleMood(mood)}
-              className="flex-1 bg-surface border border-surface-border rounded-2xl py-4 flex flex-col items-center gap-2 neu-raised-sm neu-press transition-transform"
+              className="flex-1 bg-surface border border-surface-border rounded-2xl py-4 flex flex-col items-center gap-2 neu-raised-sm neu-press transition-transform breathe"
             >
               <span className="w-12 h-12 rounded-full bg-navy neu-inset flex items-center justify-center">
                 <Icon size={24} className="text-primary" strokeWidth={1.5} />

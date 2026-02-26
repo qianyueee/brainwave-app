@@ -56,7 +56,7 @@ export default function Visualizer() {
         {/* Center circle */}
         <div
           className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${
-            isPlaying ? "neu-glow-primary" : "bg-navy neu-raised-lg"
+            isPlaying ? "neu-glow-primary" : "bg-navy neu-raised-lg breathe"
           }`}
           style={isPlaying ? {
             animationName: "pulse-glow",

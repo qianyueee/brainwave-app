@@ -7,7 +7,7 @@ export type TremoloMode = "sine" | "decay";
 export interface TremoloConfig {
   enabled: boolean;
   mode: TremoloMode;
-  rate: number;   // 0.01-20 Hz
+  rate: number;   // 0.01-60 Hz
   depth: number;  // 0-1
 }
 
@@ -20,7 +20,7 @@ export const DEFAULT_TREMOLO: TremoloConfig = {
 
 export interface VibratoConfig {
   enabled: boolean;
-  rate: number;   // 0.01-20 Hz
+  rate: number;   // 0.01-60 Hz
   depth: number;  // 0-1 (100% = ±100 cents)
 }
 
@@ -379,14 +379,14 @@ export class SynthSession {
     if (config.mode === "sine") {
       const freq = config.rate;
       tremoloGain.gain.cancelScheduledValues(now);
-      tremoloGain.gain.setValueAtTime(1 - depth / 2, now);
+      tremoloGain.gain.setValueAtTime(1, now);
 
       const lfo = this.ctx.createOscillator();
       lfo.type = "sine";
       lfo.frequency.setValueAtTime(freq, now);
 
       const lfoGain = this.ctx.createGain();
-      lfoGain.gain.setValueAtTime(depth / 2, now);
+      lfoGain.gain.setValueAtTime(depth, now);
 
       lfo.connect(lfoGain);
       lfoGain.connect(tremoloGain.gain);
@@ -395,19 +395,18 @@ export class SynthSession {
       return { lfo, lfoGain, decayTimer: null };
     } else {
       const beatPeriod = 1 / config.rate;
-      const minGain = 1 - depth;
-      const tau = beatPeriod / 3;
+      const decayTime = beatPeriod * depth;
 
       tremoloGain.gain.cancelScheduledValues(now);
       tremoloGain.gain.setValueAtTime(1, now);
-      tremoloGain.gain.setTargetAtTime(minGain, now, tau);
+      tremoloGain.gain.exponentialRampToValueAtTime(0.001, now + decayTime);
 
       const decayTimer = setInterval(() => {
         if (!this._isPlaying) return;
         const t = this.ctx.currentTime;
         tremoloGain.gain.cancelScheduledValues(t);
         tremoloGain.gain.setValueAtTime(1, t);
-        tremoloGain.gain.setTargetAtTime(minGain, t, tau);
+        tremoloGain.gain.exponentialRampToValueAtTime(0.001, t + decayTime);
       }, beatPeriod * 1000);
 
       return { lfo: null, lfoGain: null, decayTimer };

@@ -10,7 +10,7 @@ import RangeSlider from "@/components/RangeSlider";
 const FREQ_MIN = 20;
 const FREQ_MAX = 10000;
 const TREM_RATE_MIN = 0.01;
-const TREM_RATE_MAX = 40;
+const TREM_RATE_MAX = 60;
 const DEPTH_MIN = 0;
 const DEPTH_MAX = 100;
 
