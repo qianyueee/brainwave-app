@@ -49,7 +49,7 @@ export async function renderBinauralOffline(
   );
 
   // Gain nodes
-  const vol = Math.max(0, Math.min(1, beatVolume)) * 0.5;
+  const vol = Math.max(0, Math.min(1, beatVolume));
   const leftGain = ctx.createGain();
   const rightGain = ctx.createGain();
   leftGain.gain.setValueAtTime(0, 0);

@@ -70,7 +70,8 @@ interface SynthState {
   savedPresets: SynthPreset[];
   savedPrograms: CustomProgram[];
 
-  // Editing a custom program (not persisted)
+  // Editing context (not persisted)
+  editingPresetId: string | null;
   editingProgramId: string | null;
 
   // Actions — mode
@@ -94,6 +95,7 @@ interface SynthState {
   updateVibrato: (patch: Partial<VibratoConfig>) => void;
   setIsSynthPlaying: (v: boolean) => void;
   savePreset: (name: string) => void;
+  updatePreset: (id: string) => void;
   deletePreset: (id: string) => void;
   loadPreset: (preset: SynthPreset) => void;
   resetEditor: () => void;
@@ -118,6 +120,7 @@ export const useSynthStore = create<SynthState>()(
       harmonicBaseFreq: 220,
       savedPresets: [],
       savedPrograms: [],
+      editingPresetId: null,
       editingProgramId: null,
 
       // --- Mode ---
@@ -241,7 +244,25 @@ export const useSynthStore = create<SynthState>()(
           editorMode: isStereo ? `${editorMode}-stereo` : editorMode,
           createdAt: new Date().toISOString(),
         };
-        set({ savedPresets: [...savedPresets, preset] });
+        set({ savedPresets: [...savedPresets, preset], editingPresetId: preset.id });
+      },
+
+      updatePreset: (id) => {
+        const { layers, leftLayers, rightLayers, vibrato, editorMode, isStereo, savedPresets } = get();
+        set({
+          savedPresets: savedPresets.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  layers: layers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
+                  leftLayers: leftLayers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
+                  rightLayers: rightLayers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
+                  vibrato: { ...vibrato },
+                  editorMode: isStereo ? `${editorMode}-stereo` : editorMode,
+                }
+              : p
+          ),
+        });
       },
 
       deletePreset: (id) => {
@@ -255,6 +276,7 @@ export const useSynthStore = create<SynthState>()(
         set({
           editorMode,
           isStereo,
+          editingPresetId: preset.id,
           layers: (preset.layers ?? [createDefaultLayer()]).map((l) => ({
             ...l, id: generateId(), tremolo: l.tremolo ? { ...l.tremolo } : { ...DEFAULT_TREMOLO },
           })),
@@ -278,6 +300,7 @@ export const useSynthStore = create<SynthState>()(
           editorMode: "free" as EditorMode,
           isStereo: false,
           harmonicBaseFreq: 220,
+          editingPresetId: null,
           editingProgramId: null,
         });
       },

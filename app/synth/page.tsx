@@ -32,6 +32,9 @@ export default function SynthPage() {
   const generateHarmonics = useSynthStore((s) => s.generateHarmonics);
   const { getSynth, stopSynth } = useAudio();
 
+  const updatePreset = useSynthStore((s) => s.updatePreset);
+  const editingPresetId = useSynthStore((s) => s.editingPresetId);
+  const savedPresets = useSynthStore((s) => s.savedPresets);
   const saveAsProgram = useSynthStore((s) => s.saveAsProgram);
   const updateProgram = useSynthStore((s) => s.updateProgram);
   const editingProgramId = useSynthStore((s) => s.editingProgramId);
@@ -98,6 +101,15 @@ export default function SynthPage() {
     savePreset(name);
     setPresetName("");
   };
+
+  const handleOverwriteSave = () => {
+    if (!editingPresetId) return;
+    updatePreset(editingPresetId);
+  };
+
+  const editingPresetName = editingPresetId
+    ? savedPresets.find((p) => p.id === editingPresetId)?.name
+    : null;
 
   const handleSaveAsProgram = () => {
     if (editingProgramId) {
@@ -274,21 +286,37 @@ export default function SynthPage() {
       {/* Save preset */}
       <div className="flex flex-col gap-2">
         <p className="text-sm text-text-secondary">プリセット保存</p>
+
+        {/* Overwrite existing preset */}
+        {editingPresetName && (
+          <button
+            onClick={handleOverwriteSave}
+            className="w-full py-3 rounded-xl bg-primary text-white text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
+          >
+            「{editingPresetName}」を上書き保存
+          </button>
+        )}
+
+        {/* Save as new */}
         <div className="flex gap-2">
           <input
             type="text"
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
-            placeholder="プリセット名を入力"
+            placeholder={editingPresetName ? "新しいプリセット名を入力" : "プリセット名を入力"}
             maxLength={30}
             className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-primary"
           />
           <button
             onClick={handleSave}
             disabled={!presetName.trim()}
-            className="px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
+            className={`px-5 py-3 rounded-xl text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm ${
+              editingPresetName
+                ? "bg-navy-light text-primary"
+                : "bg-primary text-white"
+            }`}
           >
-            保存
+            {editingPresetName ? "別名保存" : "保存"}
           </button>
         </div>
       </div>

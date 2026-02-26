@@ -117,8 +117,8 @@ export class SynthSession {
     this.leftGain = this.ctx.createGain();
     this.rightGain = this.ctx.createGain();
 
-    const leftScale = 1 / Math.max(leftLayers.length, 1);
-    const rightScale = 1 / Math.max(rightLayers.length, 1);
+    const leftScale = 1 / Math.sqrt(Math.max(leftLayers.length, 1));
+    const rightScale = 1 / Math.sqrt(Math.max(rightLayers.length, 1));
     this.leftGain.gain.setValueAtTime(leftScale, now);
     this.rightGain.gain.setValueAtTime(rightScale, now);
 
@@ -158,7 +158,7 @@ export class SynthSession {
     this.masterGain.connect(getAudioDestination());
 
     if (!this._isStereo) {
-      const scale = 1 / Math.max(totalLayers, 1);
+      const scale = 1 / Math.sqrt(Math.max(totalLayers, 1));
       this.masterGain.gain.linearRampToValueAtTime(scale, now + 0.05);
     }
 
@@ -235,7 +235,7 @@ export class SynthSession {
       this.leftGain?.gain.setTargetAtTime(v, now, 0.02);
       this.rightGain?.gain.setTargetAtTime(v, now, 0.02);
     } else if (this.masterGain) {
-      const scale = 1 / Math.max(this.layerNodes.size, 1);
+      const scale = 1 / Math.sqrt(Math.max(this.layerNodes.size, 1));
       this.masterGain.gain.setTargetAtTime(v * scale, now, 0.02);
     }
   }
@@ -261,7 +261,7 @@ export class SynthSession {
   setLayerVolume(id: string, volume: number): void {
     const nodes = this.layerNodes.get(id);
     if (!nodes) return;
-    const v = Math.max(0, Math.min(1, volume)) * 0.5;
+    const v = Math.max(0, Math.min(1, volume));
     nodes.gain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02);
   }
 
@@ -335,7 +335,7 @@ export class SynthSession {
     let filter: BiquadFilterNode | null = null;
 
     osc.frequency.setValueAtTime(layer.frequency, now);
-    gain.gain.setValueAtTime(layer.volume * 0.5, now);
+    gain.gain.setValueAtTime(layer.volume, now);
 
     if (this.vibratoGain) {
       this.vibratoGain.connect(osc.detune);
@@ -432,7 +432,7 @@ export class SynthSession {
 
   private updateMasterScale(): void {
     if (!this.masterGain) return;
-    const scale = 1 / Math.max(this.layerNodes.size, 1);
+    const scale = 1 / Math.sqrt(Math.max(this.layerNodes.size, 1));
     this.masterGain.gain.setTargetAtTime(scale, this.ctx.currentTime, 0.02);
   }
 
@@ -443,7 +443,7 @@ export class SynthSession {
     for (const [, ch] of this.layerChannels) {
       if (ch === channel) count++;
     }
-    const scale = 1 / Math.max(count, 1);
+    const scale = 1 / Math.sqrt(Math.max(count, 1));
     gainNode.gain.setTargetAtTime(scale, this.ctx.currentTime, 0.02);
   }
 }

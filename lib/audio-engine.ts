@@ -93,8 +93,8 @@ export class BinauralSession {
     this.rightGain = this.ctx.createGain();
     this.leftGain.gain.setValueAtTime(0, now);
     this.rightGain.gain.setValueAtTime(0, now);
-    this.leftGain.gain.linearRampToValueAtTime(0.5, now + 0.05); // 50ms fade-in
-    this.rightGain.gain.linearRampToValueAtTime(0.5, now + 0.05);
+    this.leftGain.gain.linearRampToValueAtTime(1, now + 0.05); // 50ms fade-in
+    this.rightGain.gain.linearRampToValueAtTime(1, now + 0.05);
 
     // ChannelMergerNode: input 0 = left channel, input 1 = right channel
     this.merger = this.ctx.createChannelMerger(2);
@@ -173,7 +173,7 @@ export class BinauralSession {
   }
 
   setVolume(value: number): void {
-    const v = Math.max(0, Math.min(1, value)) * 0.5;
+    const v = Math.max(0, Math.min(1, value));
     const now = this.ctx.currentTime;
     this.leftGain?.gain.setTargetAtTime(v, now, 0.02);
     this.rightGain?.gain.setTargetAtTime(v, now, 0.02);
