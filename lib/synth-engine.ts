@@ -345,14 +345,19 @@ export class SynthSession {
     tremoloGain.gain.setValueAtTime(1, now);
 
     if (layer.tone === "soft") {
-      osc.type = "sine";
-      osc.connect(tremoloGain);
+      osc.type = "triangle";
+      filter = this.ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(1000, now);
+      filter.Q.setValueAtTime(3, now);
+      osc.connect(filter);
+      filter.connect(tremoloGain);
     } else {
       osc.type = "sawtooth";
       filter = this.ctx.createBiquadFilter();
       filter.type = "lowpass";
-      filter.frequency.setValueAtTime(1800, now);
-      filter.Q.setValueAtTime(0.707, now);
+      filter.frequency.setValueAtTime(1100, now);
+      filter.Q.setValueAtTime(2, now);
       osc.connect(filter);
       filter.connect(tremoloGain);
     }
