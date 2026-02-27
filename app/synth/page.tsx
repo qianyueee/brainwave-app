@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSynthStore, EditorMode, StereoChannel } from "@/store/useSynthStore";
 import { useAudio } from "@/components/AudioProvider";
@@ -8,7 +8,9 @@ import SynthLayerCard from "@/components/SynthLayerCard";
 import SynthPlaybackButton from "@/components/SynthPlaybackButton";
 import SynthVibratoPanel from "@/components/SynthVibratoPanel";
 import ExportDialog from "@/components/ExportDialog";
-import { ChevronLeft, Plus, Download } from "lucide-react";
+import { ChevronLeft, Plus, Download, Upload, FileDown } from "lucide-react";
+import { downloadBlob } from "@/lib/audio-export";
+import { SynthPreset } from "@/lib/synth-engine";
 
 const MAX_LAYERS = 8;
 const FREQ_MIN = 20;
@@ -35,6 +37,7 @@ export default function SynthPage() {
   const updatePreset = useSynthStore((s) => s.updatePreset);
   const editingPresetId = useSynthStore((s) => s.editingPresetId);
   const savedPresets = useSynthStore((s) => s.savedPresets);
+  const importPresets = useSynthStore((s) => s.importPresets);
   const saveAsProgram = useSynthStore((s) => s.saveAsProgram);
   const updateProgram = useSynthStore((s) => s.updateProgram);
   const editingProgramId = useSynthStore((s) => s.editingProgramId);
@@ -45,6 +48,7 @@ export default function SynthPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [baseFreqInput, setBaseFreqInput] = useState(harmonicBaseFreq.toString());
   const [activeChannel, setActiveChannel] = useState<StereoChannel>("left");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleModeChange = (mode: EditorMode) => {
     if (mode === editorMode) return;
@@ -121,6 +125,31 @@ export default function SynthPage() {
       setProgramName("");
       setProgramDesc("");
     }
+  };
+
+  const handleExportPresets = () => {
+    if (savedPresets.length === 0) return;
+    const json = JSON.stringify(savedPresets, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    downloadBlob(blob, "brainwave-presets.json");
+  };
+
+  const handleImportPresets = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string);
+        if (!Array.isArray(data)) return;
+        importPresets(data as SynthPreset[]);
+      } catch {
+        // invalid JSON — silently ignore
+      }
+    };
+    reader.readAsText(file);
+    // reset so the same file can be re-selected
+    e.target.value = "";
   };
 
   // Current layer list to display
@@ -319,6 +348,32 @@ export default function SynthPage() {
             {editingPresetName ? "別名保存" : "保存"}
           </button>
         </div>
+      </div>
+
+      {/* Preset Import/Export */}
+      <div className="flex gap-2">
+        <button
+          onClick={handleExportPresets}
+          disabled={savedPresets.length === 0}
+          className="flex-1 py-3 rounded-xl bg-navy text-text-primary text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
+        >
+          <FileDown size={18} strokeWidth={2} />
+          エクスポート
+        </button>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="flex-1 py-3 rounded-xl bg-navy text-text-primary text-sm font-bold flex items-center justify-center gap-2 active:scale-95 neu-raised-sm"
+        >
+          <Upload size={18} strokeWidth={2} />
+          インポート
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleImportPresets}
+          className="hidden"
+        />
       </div>
 
       {/* Save as program */}

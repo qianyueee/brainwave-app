@@ -590,16 +590,16 @@ export const INDICATOR_META: IndicatorMeta[] = [
     description: "どれだけ深い集中に到達できるかの最大出力。Attention上位5%の平均値。",
   },
   {
-    key: "focusSpeed",
-    label: "集中スピード",
-    shortLabel: "集中速度",
-    description: "脳のエンジンがかかる速さ。Attentionが閾値を突破するまでの時間の逆数。",
-  },
-  {
     key: "sustainedFocus",
     label: "持続的集中",
     shortLabel: "集中持続",
     description: "集中が「点」ではなく「線」としてどれだけ長く続いたか。平均持続時間と安定性から評価。",
+  },
+  {
+    key: "calmnessStability",
+    label: "平穏持続度",
+    shortLabel: "平穏持続",
+    description: "リラックス中の変動係数の小ささ。雑念やノイズに乱されない安定感。",
   },
   {
     key: "relaxationDepth",
@@ -614,9 +614,9 @@ export const INDICATOR_META: IndicatorMeta[] = [
     description: "Beta波優位からAlpha波へ逆転するまでの勾配。脳をオフモードに切り替える速さ。",
   },
   {
-    key: "calmnessStability",
-    label: "平穏持続度",
-    shortLabel: "平穏持続",
-    description: "リラックス中の変動係数の小ささ。雑念やノイズに乱されない安定感。",
+    key: "focusSpeed",
+    label: "集中スピード",
+    shortLabel: "集中速度",
+    description: "脳のエンジンがかかる速さ。Attentionが閾値を突破するまでの時間の逆数。",
   },
 ];

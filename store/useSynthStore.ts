@@ -100,6 +100,9 @@ interface SynthState {
   loadPreset: (preset: SynthPreset) => void;
   resetEditor: () => void;
 
+  // Import/Export
+  importPresets: (presets: SynthPreset[]) => void;
+
   // Custom program actions
   saveAsProgram: (name: string, description?: string) => void;
   updateProgram: (id: string, description?: string) => void;
@@ -303,6 +306,31 @@ export const useSynthStore = create<SynthState>()(
           editingPresetId: null,
           editingProgramId: null,
         });
+      },
+
+      // --- Import/Export ---
+      importPresets: (presets) => {
+        const valid = presets.filter(
+          (p) =>
+            p &&
+            typeof p.name === "string" &&
+            Array.isArray(p.layers) &&
+            p.vibrato &&
+            typeof p.vibrato === "object"
+        );
+        if (valid.length === 0) return;
+        const reIdLayers = (layers: SynthLayer[]) =>
+          layers.map((l) => ({ ...l, id: generateId(), tremolo: { ...l.tremolo } }));
+        const imported: SynthPreset[] = valid.map((p) => ({
+          ...p,
+          id: generateId(),
+          layers: reIdLayers(p.layers),
+          leftLayers: p.leftLayers ? reIdLayers(p.leftLayers) : undefined,
+          rightLayers: p.rightLayers ? reIdLayers(p.rightLayers) : undefined,
+          vibrato: { ...p.vibrato },
+          createdAt: p.createdAt || new Date().toISOString(),
+        }));
+        set((state) => ({ savedPresets: [...state.savedPresets, ...imported] }));
       },
 
       // --- Custom program actions ---
