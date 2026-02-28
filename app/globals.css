@@ -2,18 +2,18 @@
 
 /* Dynamic color variables — updated at runtime by ThemeProvider */
 :root {
-  --dyn-navy: #0a1020;
-  --dyn-navy-light: #111828;
-  --dyn-navy-lighter: #1a2238;
-  --dyn-primary: #9B8EC4;
-  --dyn-primary-dark: #7E72A8;
-  --dyn-accent: #7BAE7F;
-  --dyn-accent-dark: #629966;
-  --dyn-surface: #162030;
-  --dyn-surface-border: #243048;
-  --dyn-text-primary: #d8dce8;
-  --dyn-text-secondary: #8c94a8;
-  --dyn-text-muted: #5c6478;
+  --dyn-navy: #020617;
+  --dyn-navy-light: #0a1025;
+  --dyn-navy-lighter: #131c35;
+  --dyn-primary: #6366F1;
+  --dyn-primary-dark: #4F46E5;
+  --dyn-accent: #818CF8;
+  --dyn-accent-dark: #6366F1;
+  --dyn-surface: #0e1628;
+  --dyn-surface-border: #1e2840;
+  --dyn-text-primary: #e2e4f0;
+  --dyn-text-secondary: #8890a8;
+  --dyn-text-muted: #505870;
   --shadow-neu-dark: rgba(0, 0, 0, 0.45);
   --shadow-neu-light: rgba(255, 255, 255, 0.05);
 }
