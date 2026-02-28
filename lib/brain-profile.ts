@@ -39,17 +39,14 @@ function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
 }
 
-/** 高专注 / 高放松阈值 */
-const HIGH_THRESHOLD = 50;
+/** 入定スピードで「到達」とみなす閾値 */
+const SETTLING_THRESHOLD = 80;
 
-/** 持続判定で許容する短期 dip の秒数 */
-const ALLOWED_DIP = 3;
+/** 平穏持続度の閾値 */
+const TRANQUILITY_THRESHOLD = 70;
 
-/** 速度判定で「到達」とみなすのに必要な連続秒数 */
-const ENTRY_CONSECUTIVE = 10;
-
-/** 速度スコアの基準秒数（この秒数で到達 → スコア 0） */
-const SPEED_REFERENCE_SECONDS = 180;
+/** 速度スコアの係数（秒数をスコアに変換） */
+const SPEED_COEFFICIENT = 0.5;
 
 // ─── Excel / CSV Parsing ─────────────────────────────────────────────────────
 
@@ -213,120 +210,96 @@ export async function parseEegFile(file: File): Promise<{ rows: EegRow[]; tag: s
 
 // ─── 6 Indicator Algorithms ──────────────────────────────────────────────────
 
+/** Get top N% average of an array */
+function topPercentAvg(values: number[], percent: number): number {
+  const sorted = [...values].sort((a, b) => b - a);
+  const count = Math.max(1, Math.ceil(sorted.length * percent / 100));
+  const sum = sorted.slice(0, count).reduce((s, v) => s + v, 0);
+  return sum / count;
+}
+
+/** Standard deviation */
+function stdDev(values: number[]): number {
+  const mean = values.reduce((s, v) => s + v, 0) / values.length;
+  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
 /**
- * ① 専注強度 (Focus Intensity)
- * 全程平均値: mean(attention_series)
+ * ① 集中強度 (Focus Intensity)
+ * (最大値 × 0.7) + (上位10%平均 × 0.3)
  */
 function computeFocusIntensity(rows: EegRow[]): number {
-  const sum = rows.reduce((s, r) => s + r.attention, 0);
-  return clamp(Math.round(sum / rows.length), 0, 100);
+  const values = rows.map((r) => r.attention);
+  const max = Math.max(...values);
+  const top10Avg = topPercentAvg(values, 10);
+  return clamp(Math.round(max * 0.7 + top10Avg * 0.3), 0, 100);
 }
 
 /**
- * ② 持続的専注 (Sustained Focus)
- * 最長連続 attention >= 50 の秒数 / 総秒数 × 100
- * ≤ ALLOWED_DIP 秒の短期 dip は連続扱い（途切れない）
- */
-function computeSustainedFocus(rows: EegRow[]): number {
-  let maxRun = 0;
-  let currentRun = 0;
-  let dipCount = 0;
-  for (const r of rows) {
-    if (r.attention >= HIGH_THRESHOLD) {
-      currentRun++;
-      dipCount = 0;
-    } else {
-      dipCount++;
-      if (dipCount <= ALLOWED_DIP) {
-        currentRun++;
-      } else {
-        if (currentRun > maxRun) maxRun = currentRun;
-        currentRun = 0;
-        dipCount = 0;
-      }
-    }
-  }
-  if (currentRun > maxRun) maxRun = currentRun;
-  return clamp(Math.round((maxRun / rows.length) * 100), 0, 100);
-}
-
-/**
- * ③ リラックス深度 (Relaxation Depth)
- * 全程平均値: mean(relaxation_series)
- */
-function computeRelaxationDepth(rows: EegRow[]): number {
-  const sum = rows.reduce((s, r) => s + r.relaxation, 0);
-  return clamp(Math.round(sum / rows.length), 0, 100);
-}
-
-/**
- * ④ 平穏持続度 (Calm Sustained)
- * 最長連続 relaxation >= 50 の秒数 / 総秒数 × 100
- * ≤ ALLOWED_DIP 秒の短期 dip は連続扱い（途切れない）
- */
-function computeCalmnessStability(rows: EegRow[]): number {
-  let maxRun = 0;
-  let currentRun = 0;
-  let dipCount = 0;
-  for (const r of rows) {
-    if (r.relaxation >= HIGH_THRESHOLD) {
-      currentRun++;
-      dipCount = 0;
-    } else {
-      dipCount++;
-      if (dipCount <= ALLOWED_DIP) {
-        currentRun++;
-      } else {
-        if (currentRun > maxRun) maxRun = currentRun;
-        currentRun = 0;
-        dipCount = 0;
-      }
-    }
-  }
-  if (currentRun > maxRun) maxRun = currentRun;
-  return clamp(Math.round((maxRun / rows.length) * 100), 0, 100);
-}
-
-/**
- * ⑤ 入定速度 (Calm Entry Speed)
- * 連続 ENTRY_CONSECUTIVE 秒以上 relaxation >= 50 を維持した最初の位置を「到達」とみなす。
- * (1 - 到達index / SPEED_REFERENCE_SECONDS) × 100。全程未達標の場合は 0。
- */
-function computeCalmnessSpeed(rows: EegRow[]): number {
-  const idx = findFirstStableIndex(rows.map((r) => r.relaxation));
-  if (idx === -1) return 0;
-  return clamp(Math.round((1 - idx / SPEED_REFERENCE_SECONDS) * 100), 0, 100);
-}
-
-/**
- * ⑥ 専注速度 (Focus Entry Speed)
- * 連続 ENTRY_CONSECUTIVE 秒以上 attention >= 50 を維持した最初の位置を「到達」とみなす。
- * (1 - 到達index / SPEED_REFERENCE_SECONDS) × 100。全程未達標の場合は 0。
+ * ② 集中スピード (Focus Speed)
+ * 測定開始からAttentionが50を超えピークに達するまでの秒数を評価。
+ * 100 - (ピーク到達秒数 × 係数)。早く到達するほど高得点。
  */
 function computeFocusSpeed(rows: EegRow[]): number {
-  const idx = findFirstStableIndex(rows.map((r) => r.attention));
-  if (idx === -1) return 0;
-  return clamp(Math.round((1 - idx / SPEED_REFERENCE_SECONDS) * 100), 0, 100);
-}
-
-/** 找到首次连续 ENTRY_CONSECUTIVE 秒 >= HIGH_THRESHOLD 的起始 index，未找到返回 -1 */
-function findFirstStableIndex(values: number[]): number {
-  let consecutive = 0;
-  for (let i = 0; i < values.length; i++) {
-    if (values[i] >= HIGH_THRESHOLD) {
-      consecutive++;
-      if (consecutive >= ENTRY_CONSECUTIVE) return i - ENTRY_CONSECUTIVE + 1;
-    } else {
-      consecutive = 0;
-    }
-  }
-  return -1;
+  const values = rows.map((r) => r.attention);
+  // Find peak index (first occurrence of max value)
+  const max = Math.max(...values);
+  const peakIdx = values.indexOf(max);
+  return clamp(Math.round(100 - peakIdx * SPEED_COEFFICIENT), 0, 100);
 }
 
 /**
- * Sigmoid 赋分：将原始 0-100 映射到 ~18-91 区间。
- * 中间段（30-90）展开集中，两端压缩避免极端值。
- * 最低分 ≥ 14，最高分 ≤ 91。
+ * ③ 持続的集中 (Focus Sustenance)
+ * 100 - (Attentionの標準偏差 × 2)
+ * バラつきが少ないほど高スコア。
+ */
+function computeSustainedFocus(rows: EegRow[]): number {
+  const values = rows.map((r) => r.attention);
+  const sd = stdDev(values);
+  return clamp(Math.round(100 - sd * 2), 0, 100);
+}
+
+/**
+ * ④ リラックス深度 (Relaxation Depth)
+ * (Meditation平均値 × 0.6) + (最大値 × 0.4)
+ */
+function computeRelaxationDepth(rows: EegRow[]): number {
+  const values = rows.map((r) => r.relaxation);
+  const mean = values.reduce((s, v) => s + v, 0) / values.length;
+  const max = Math.max(...values);
+  return clamp(Math.round(mean * 0.6 + max * 0.4), 0, 100);
+}
+
+/**
+ * ⑤ 入定スピード (Settling Speed)
+ * 測定開始からMeditation値が80を超えるまでの秒数を評価。
+ * 100 - (80到達までの秒数 × 係数)。
+ */
+function computeCalmnessSpeed(rows: EegRow[]): number {
+  const idx = rows.findIndex((r) => r.relaxation >= SETTLING_THRESHOLD);
+  if (idx === -1) return 0;
+  return clamp(Math.round(100 - idx * SPEED_COEFFICIENT), 0, 100);
+}
+
+/**
+ * ⑥ 平穏持続度 (Tranquility Stability)
+ * (70以上の時間 ÷ 全測定時間) × 100 に揺らぎ補正を加味。
+ * 揺らぎ補正: 標準偏差が大きいほどスコアを少し下げる。
+ */
+function computeCalmnessStability(rows: EegRow[]): number {
+  const values = rows.map((r) => r.relaxation);
+  const aboveCount = values.filter((v) => v >= TRANQUILITY_THRESHOLD).length;
+  const ratio = (aboveCount / values.length) * 100;
+  // Fluctuation penalty: subtract up to 15 points based on stddev
+  const sd = stdDev(values);
+  const penalty = Math.min(15, sd * 0.5);
+  return clamp(Math.round(ratio - penalty), 0, 100);
+}
+
+/**
+ * Sigmoid rescale: map raw 0-100 to ~14-95 range.
+ * Mid-range (30-90) is spread out, extremes are compressed.
  */
 const SIGMOID_K = 0.06;
 const SIGMOID_BASE = 14;
