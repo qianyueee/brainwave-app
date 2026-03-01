@@ -46,12 +46,12 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
       className="w-full bg-surface border border-surface-border rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform breathe cursor-pointer"
     >
       <div className="w-14 h-14 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
-        <Icon size={26} className="text-accent" strokeWidth={1.5} />
+        <Icon size={26} className="text-primary" strokeWidth={1.5} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-base font-bold text-text-primary truncate">{program.name}</p>
-          <span className="text-[10px] font-bold text-accent bg-accent/15 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
+          <span className="text-[10px] font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
             カスタム
           </span>
         </div>

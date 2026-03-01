@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   RadarChart,
   Radar,
@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { BrainIndicators } from "@/lib/brain-profile";
 import { INDICATOR_META } from "@/lib/brain-profile";
+import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
 interface BrainRadarChartProps {
   indicators: BrainIndicators;
@@ -39,19 +40,20 @@ export default function BrainRadarChart({ indicators, size = "large" }: BrainRad
     muted: "#5c6478",
   });
 
-  useEffect(() => {
-    const update = () => {
-      setColors({
-        primary: getThemeColor("--color-primary", "#4a7fd4"),
-        grid: getThemeColor("--color-navy-lighter", "#1e3a5f"),
-        text: getThemeColor("--color-text-secondary", "#8890a8"),
-        muted: getThemeColor("--color-text-muted", "#5c6478"),
-      });
-    };
-    update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
+  const readColors = useCallback(() => {
+    setColors({
+      primary: getThemeColor("--color-primary", "#4a7fd4"),
+      grid: getThemeColor("--color-navy-lighter", "#1e3a5f"),
+      text: getThemeColor("--color-text-secondary", "#8890a8"),
+      muted: getThemeColor("--color-text-muted", "#5c6478"),
+    });
   }, []);
+
+  useEffect(() => {
+    readColors();
+    window.addEventListener(THEME_CHANGE_EVENT, readColors);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, readColors);
+  }, [readColors]);
 
   return (
     <ResponsiveContainer width="100%" height={height}>

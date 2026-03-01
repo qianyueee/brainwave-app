@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
 // Demo data for v1
 const DEMO_DATA = [
@@ -38,21 +39,22 @@ export default function BrainAgeChart() {
     textPrimary: "#d0d8e8",
   });
 
-  useEffect(() => {
-    const update = () => {
-      setColors({
-        primary: getThemeColor("--color-primary", "#4a7fd4"),
-        accent: getThemeColor("--color-accent", "#6b6baa"),
-        grid: getThemeColor("--color-navy-lighter", "#162440"),
-        text: getThemeColor("--color-text-secondary", "#8890a8"),
-        bg: getThemeColor("--color-navy-light", "#0e1a30"),
-        textPrimary: getThemeColor("--color-text-primary", "#d0d8e8"),
-      });
-    };
-    update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
+  const readColors = useCallback(() => {
+    setColors({
+      primary: getThemeColor("--color-primary", "#4a7fd4"),
+      accent: getThemeColor("--color-accent", "#6b6baa"),
+      grid: getThemeColor("--color-navy-lighter", "#162440"),
+      text: getThemeColor("--color-text-secondary", "#8890a8"),
+      bg: getThemeColor("--color-navy-light", "#0e1a30"),
+      textPrimary: getThemeColor("--color-text-primary", "#d0d8e8"),
+    });
   }, []);
+
+  useEffect(() => {
+    readColors();
+    window.addEventListener(THEME_CHANGE_EVENT, readColors);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, readColors);
+  }, [readColors]);
 
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
