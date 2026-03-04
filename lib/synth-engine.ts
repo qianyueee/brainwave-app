@@ -406,6 +406,7 @@ export class SynthSession {
     } else {
       const beatPeriod = 1 / config.rate;
       const decayTime = beatPeriod * depth;
+      const attackTime = Math.min(0.005, decayTime * 0.05); // 5ms attack to avoid pop
 
       tremoloGain.gain.cancelScheduledValues(now);
       tremoloGain.gain.setValueAtTime(1, now);
@@ -415,8 +416,10 @@ export class SynthSession {
         if (!this._isPlaying) return;
         const t = this.ctx.currentTime;
         tremoloGain.gain.cancelScheduledValues(t);
-        tremoloGain.gain.setValueAtTime(1, t);
-        tremoloGain.gain.exponentialRampToValueAtTime(0.001, t + decayTime);
+        // Smooth attack: ramp from current value to 1 over attackTime
+        tremoloGain.gain.setValueAtTime(tremoloGain.gain.value, t);
+        tremoloGain.gain.linearRampToValueAtTime(1, t + attackTime);
+        tremoloGain.gain.exponentialRampToValueAtTime(0.001, t + attackTime + decayTime);
       }, beatPeriod * 1000);
 
       return { lfo: null, lfoGain: null, decayTimer };
