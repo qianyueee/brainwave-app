@@ -52,7 +52,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const setIsPlaying = useAppStore((s) => s.setIsPlaying);
   const setElapsed = useAppStore((s) => s.setElapsed);
   const addSessionLog = useAppStore((s) => s.addSessionLog);
-  const beatVolume = useAppStore((s) => s.beatVolume);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -133,7 +132,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       stopPolling();
 
       const session = new BinauralSession(program, duration);
-      session.setVolume(beatVolume);
+      const { beatVolume } = useAppStore.getState();
+      // Apply initial volume after 60ms fade-in completes
+      setTimeout(() => session.setVolume(beatVolume), 80);
       session.onEnd(() => {
         addSessionLog({
           id: Date.now().toString(),
@@ -177,7 +178,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }
       }, 1000);
     },
-    [beatVolume, stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
+    [stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
   );
 
   const startSynth = useCallback(
@@ -237,6 +238,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       useSynthStore.getState().setIsSynthPlaying(true);
       setIsPlaying(true);
       setElapsed(0);
+
+      // Apply initial volume from store
+      const { beatVolume } = useAppStore.getState();
+      synth.setMasterVolume(beatVolume);
 
       const ctx = getAudioContext();
       customStartTimeRef.current = ctx.currentTime;
