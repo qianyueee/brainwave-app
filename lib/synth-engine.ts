@@ -178,6 +178,15 @@ export class SynthSession {
 
   stop(): void {
     if (!this._isPlaying) return;
+    this._isPlaying = false;
+
+    // Stop all decay timers immediately so they don't cancel the fade-out ramp
+    for (const [, nodes] of this.layerNodes) {
+      if (nodes.tremolo.decayTimer) {
+        clearInterval(nodes.tremolo.decayTimer);
+        nodes.tremolo.decayTimer = null;
+      }
+    }
 
     const now = this.ctx.currentTime;
     const fadeOut = 0.2;
@@ -223,8 +232,6 @@ export class SynthSession {
       this.vibratoLfo = null;
       this.vibratoGain = null;
     }, fadeOut * 1000 + 50);
-
-    this._isPlaying = false;
   }
 
   /** Adjust master volume (0-1) for external control (e.g. Mixer) */
