@@ -12,6 +12,9 @@ import CustomProgramCard from "@/components/CustomProgramCard";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import { useSynthStore } from "@/store/useSynthStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
+import { useAdminStore } from "@/store/useAdminStore";
+import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
+import PublishedProgramCard from "@/components/PublishedProgramCard";
 import { BrainCircuit, Plus } from "lucide-react";
 
 export default function HomePage() {
@@ -20,12 +23,19 @@ export default function HomePage() {
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const resetEditor = useSynthStore((s) => s.resetEditor);
   const profile = useBrainProfileStore((s) => s.profile);
+  const isAdmin = useAdminStore((s) => s.isAdmin);
+  const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
+  const fetchPrograms = usePublishedProgramsStore((s) => s.fetchPrograms);
 
   // Guard against hydration mismatch from persist middleware
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    fetchPrograms();
+  }, [fetchPrograms]);
 
   const handleNewSynth = () => {
     resetEditor();
@@ -82,8 +92,17 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Custom Programs */}
-      {hydrated && savedPrograms.length > 0 && (
+      {/* Published Programs (visible to all users) */}
+      {hydrated && publishedPrograms.length > 0 && (
+        <div className="flex flex-col gap-3 breathe-stagger">
+          {publishedPrograms.map((program) => (
+            <PublishedProgramCard key={program.id} program={program} />
+          ))}
+        </div>
+      )}
+
+      {/* Custom Programs (admin only) */}
+      {isAdmin && hydrated && savedPrograms.length > 0 && (
         <div className="flex flex-col gap-3 breathe-stagger">
           <p className="text-sm text-text-secondary">カスタムプログラム</p>
           {savedPrograms.map((program) => (
@@ -92,21 +111,23 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Custom Synth */}
-      <div className="flex flex-col gap-3 breathe-stagger">
-        <p className="text-sm text-text-secondary">カスタム</p>
-        <button
-          onClick={handleNewSynth}
-          className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
-        >
-          <Plus size={18} strokeWidth={2} />
-          新規作成
-        </button>
-        {hydrated &&
-          savedPresets.map((preset) => (
-            <SynthPresetCard key={preset.id} preset={preset} />
-          ))}
-      </div>
+      {/* Custom Synth (admin only) */}
+      {isAdmin && (
+        <div className="flex flex-col gap-3 breathe-stagger">
+          <p className="text-sm text-text-secondary">カスタム</p>
+          <button
+            onClick={handleNewSynth}
+            className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
+          >
+            <Plus size={18} strokeWidth={2} />
+            新規作成
+          </button>
+          {hydrated &&
+            savedPresets.map((preset) => (
+              <SynthPresetCard key={preset.id} preset={preset} />
+            ))}
+        </div>
+      )}
     </div>
   );
 }

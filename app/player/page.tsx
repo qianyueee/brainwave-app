@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
+import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { getProgramById, isCustomProgramId } from "@/lib/programs";
 import Visualizer from "@/components/Visualizer";
 import PlaybackControls from "@/components/PlaybackControls";
@@ -14,11 +15,14 @@ import { Download } from "lucide-react";
 export default function PlayerPage() {
   const programId = useAppStore((s) => s.selectedProgramId);
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
+  const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
   const [exportOpen, setExportOpen] = useState(false);
 
   const isCustom = isCustomProgramId(programId);
   const program = isCustom ? undefined : getProgramById(programId);
-  const customProgram = isCustom ? savedPrograms.find((p) => p.id === programId) : undefined;
+  const customProgram = isCustom
+    ? savedPrograms.find((p) => p.id === programId) ?? publishedPrograms.find((p) => p.id === programId)
+    : undefined;
 
   const displayName = isCustom ? customProgram?.name : program?.name;
   const displayDesc = isCustom ? customProgram?.description : program?.description;

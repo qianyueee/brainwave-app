@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CustomProgram } from "@/lib/programs";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
-import { Waves, Pencil, Trash2 } from "lucide-react";
+import { useAdminStore } from "@/store/useAdminStore";
+import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
+import { Waves, Pencil, Trash2, Upload } from "lucide-react";
 
 interface CustomProgramCardProps {
   program: CustomProgram;
@@ -16,6 +19,10 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
   const setTimerDuration = useAppStore((s) => s.setTimerDuration);
   const loadProgramForEdit = useSynthStore((s) => s.loadProgramForEdit);
   const deleteProgram = useSynthStore((s) => s.deleteProgram);
+  const isAdmin = useAdminStore((s) => s.isAdmin);
+  const publishProgram = usePublishedProgramsStore((s) => s.publishProgram);
+  const publishLoading = usePublishedProgramsStore((s) => s.loading);
+  const [publishing, setPublishing] = useState(false);
 
   const handleClick = () => {
     setSelectedProgramId(program.id);
@@ -32,6 +39,13 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     deleteProgram(program.id);
+  };
+
+  const handlePublish = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPublishing(true);
+    await publishProgram(program);
+    setPublishing(false);
   };
 
   const displayMinutes = Math.round(program.defaultDuration / 60);
@@ -61,6 +75,16 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
         <p className="text-xs text-text-muted mt-1">{displayMinutes}分</p>
       </div>
       <div className="flex flex-col gap-1 shrink-0">
+        {isAdmin && (
+          <button
+            onClick={handlePublish}
+            disabled={publishing || publishLoading}
+            className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-green-400 active:scale-95 disabled:opacity-50"
+            aria-label="加入主界面"
+          >
+            <Upload size={16} strokeWidth={1.5} />
+          </button>
+        )}
         <button
           onClick={handleEdit}
           className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95"
