@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { getProgramById } from "@/lib/programs";
+import type { SynthPreset } from "@/lib/synth-engine";
 import {
   ExportFormat,
   ExportDuration,
@@ -17,6 +18,7 @@ interface ExportDialogProps {
   open: boolean;
   onClose: () => void;
   mode: "binaural" | "synth";
+  customPreset?: SynthPreset;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -25,7 +27,7 @@ const STATUS_LABELS: Record<string, string> = {
   done: "完了！",
 };
 
-export default function ExportDialog({ open, onClose, mode }: ExportDialogProps) {
+export default function ExportDialog({ open, onClose, mode, customPreset }: ExportDialogProps) {
   const [duration, setDuration] = useState<ExportDuration>(60);
   const [format, setFormat] = useState<ExportFormat>("mp3");
   const [progress, setProgress] = useState<ExportProgress>({ status: "idle" });
@@ -70,12 +72,19 @@ export default function ExportDialog({ open, onClose, mode }: ExportDialogProps)
         },
       });
     } else {
+      const presetEditorMode = customPreset?.editorMode ?? "";
+      const useStereo = customPreset ? presetEditorMode.endsWith("-stereo") : isStereo;
+      const synthLayers = customPreset?.layers ?? layers;
+      const synthLeft = customPreset?.leftLayers ?? leftLayers;
+      const synthRight = customPreset?.rightLayers ?? rightLayers;
+      const synthVibrato = customPreset?.vibrato ?? vibrato;
+
       await exportSynth({
-        layers,
-        vibrato,
-        isStereo,
-        leftLayers: isStereo ? leftLayers : undefined,
-        rightLayers: isStereo ? rightLayers : undefined,
+        layers: synthLayers,
+        vibrato: synthVibrato,
+        isStereo: useStereo,
+        leftLayers: useStereo ? synthLeft : undefined,
+        rightLayers: useStereo ? synthRight : undefined,
         duration,
         format,
         onProgress: (p) => {
@@ -92,7 +101,7 @@ export default function ExportDialog({ open, onClose, mode }: ExportDialogProps)
   }, [
     mode, duration, format, isExporting,
     selectedProgramId, beatVolume, natureSoundId, natureVolume,
-    layers, leftLayers, rightLayers, vibrato, isStereo, onClose,
+    layers, leftLayers, rightLayers, vibrato, isStereo, customPreset, onClose,
   ]);
 
   const handleRetry = () => {

@@ -3,6 +3,7 @@
 import { useAudio } from "@/components/AudioProvider";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
+import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { getAdjustedProgram } from "@/lib/brain-profile";
 import { isCustomProgramId } from "@/lib/programs";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
@@ -17,10 +18,13 @@ export default function PlaybackControls() {
   const timerDuration = useAppStore((s) => s.timerDuration);
   const indicators = useBrainProfileStore((s) => s.profile?.indicators ?? null);
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
+  const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
 
   const isCustom = isCustomProgramId(programId);
   const program = isCustom ? undefined : getAdjustedProgram(programId, indicators);
-  const customProgram = isCustom ? savedPrograms.find((p) => p.id === programId) : undefined;
+  const customProgram = isCustom
+    ? savedPrograms.find((p) => p.id === programId) ?? publishedPrograms.find((p) => p.id === programId)
+    : undefined;
 
   const handlePlay = () => {
     if (isPlaying) {

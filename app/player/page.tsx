@@ -27,8 +27,8 @@ export default function PlayerPage() {
   const displayName = isCustom ? customProgram?.name : program?.name;
   const displayDesc = isCustom ? customProgram?.description : program?.description;
 
-  // Export only available for binaural programs (not custom synth programs)
-  const canExport = !isCustom && !!program;
+  const canExport = isCustom ? !!customProgram : !!program;
+  const exportMode = isCustom ? "synth" : "binaural";
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
@@ -61,7 +61,7 @@ export default function PlayerPage() {
         </button>
       )}
 
-      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} mode="binaural" />
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} mode={exportMode} customPreset={customProgram?.preset} />
     </div>
   );
 }
