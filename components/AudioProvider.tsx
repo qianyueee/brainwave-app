@@ -53,10 +53,28 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const setElapsed = useAppStore((s) => s.setElapsed);
   const addSessionLog = useAppStore((s) => s.addSessionLog);
 
+  const keepAliveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
+    }
+  }, []);
+
+  // Delay stopKeepAlive so fade-out (200ms) completes before <audio> pauses
+  const scheduleStopKeepAlive = useCallback(() => {
+    if (keepAliveTimerRef.current) clearTimeout(keepAliveTimerRef.current);
+    keepAliveTimerRef.current = setTimeout(() => {
+      stopKeepAlive();
+      keepAliveTimerRef.current = null;
+    }, 350);
+  }, []);
+
+  const cancelStopKeepAlive = useCallback(() => {
+    if (keepAliveTimerRef.current) {
+      clearTimeout(keepAliveTimerRef.current);
+      keepAliveTimerRef.current = null;
     }
   }, []);
 
@@ -72,9 +90,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     synthRef.current = null;
     useSynthStore.getState().setIsSynthPlaying(false);
     if (!sessionRef.current?.isPlaying && !customProgramRef.current) {
-      stopKeepAlive();
+      scheduleStopKeepAlive();
     }
-  }, []);
+  }, [scheduleStopKeepAlive]);
 
   const stopCustomProgram = useCallback(() => {
     if (customEndTimerRef.current) {
@@ -93,9 +111,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     setElapsed(0);
     useSynthStore.getState().setIsSynthPlaying(false);
     if (!sessionRef.current?.isPlaying) {
-      stopKeepAlive();
+      scheduleStopKeepAlive();
     }
-  }, [stopPolling, stopStandaloneNature, setIsPlaying, setElapsed]);
+  }, [stopPolling, stopStandaloneNature, setIsPlaying, setElapsed, scheduleStopKeepAlive]);
 
   const stopSession = useCallback(() => {
     sessionRef.current?.stop();
@@ -104,9 +122,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     setIsPlaying(false);
     setElapsed(0);
     if (!synthRef.current?.isPlaying && !customProgramRef.current) {
-      stopKeepAlive();
+      scheduleStopKeepAlive();
     }
-  }, [stopPolling, setIsPlaying, setElapsed]);
+  }, [stopPolling, setIsPlaying, setElapsed, scheduleStopKeepAlive]);
 
   const playCustomAudio = useCallback(
     async (soundId: string, volume: number) => {
@@ -122,6 +140,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   const startSession = useCallback(
     (program: ProgramConfig, duration: number) => {
+      cancelStopKeepAlive();
       getAudioContext();
       stopSynth();
       stopCustomProgram();
@@ -176,11 +195,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }
       }, 1000);
     },
-    [stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
+    [cancelStopKeepAlive, stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
   );
 
   const startSynth = useCallback(
     (layers: SynthLayer[]) => {
+      cancelStopKeepAlive();
       getAudioContext();
       stopSession();
       stopCustomProgram();
@@ -210,11 +230,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         },
       );
     },
-    [stopSession, stopSynth, stopCustomProgram]
+    [cancelStopKeepAlive, stopSession, stopSynth, stopCustomProgram]
   );
 
   const startCustomProgram = useCallback(
     (program: CustomProgram, duration: number) => {
+      cancelStopKeepAlive();
       getAudioContext();
       stopSession();
       stopSynth();
@@ -289,7 +310,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         stopCustomProgram();
       }, duration * 1000);
     },
-    [stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
+    [cancelStopKeepAlive, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
   );
 
   const getSynth = useCallback(() => synthRef.current, []);
