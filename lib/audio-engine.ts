@@ -15,12 +15,24 @@ export interface SessionState {
   totalDuration: number;
 }
 
+// Harmonic overtone config: [multiplier, gain]
+// Fundamental(1x) 0.82 + 2nd harmonic 0.12 + 3rd harmonic 0.06 = 1.0
+const HARMONICS: readonly [number, number][] = [
+  [1, 0.82],   // fundamental
+  [2, 0.12],   // 2nd harmonic — adds warmth
+  [3, 0.06],   // 3rd harmonic — subtle brightness
+];
+
 export class BinauralSession {
   private ctx: AudioContext;
   private leftOsc: OscillatorNode | null = null;
   private rightOsc: OscillatorNode | null = null;
   private leftGain: GainNode | null = null;
   private rightGain: GainNode | null = null;
+  private leftHarmonicOscs: OscillatorNode[] = [];
+  private leftHarmonicGains: GainNode[] = [];
+  private rightHarmonicOscs: OscillatorNode[] = [];
+  private rightHarmonicGains: GainNode[] = [];
   private merger: ChannelMergerNode | null = null;
   // Nature sound
   private naturePlayer: NaturePlayer | null = null;
@@ -73,47 +85,72 @@ export class BinauralSession {
     }
 
     const now = this.ctx.currentTime;
+    const carrier = this.program.carrierFreq;
+    const initBeat = this.program.phases[0].startBeatFreq;
 
-    // Create oscillators (mono output each)
-    this.leftOsc = this.ctx.createOscillator();
-    this.rightOsc = this.ctx.createOscillator();
-    this.leftOsc.type = "sine";
-    this.rightOsc.type = "sine";
-
-    // Left = carrier freq (constant)
-    this.leftOsc.frequency.setValueAtTime(this.program.carrierFreq, now);
-    // Right = carrier + initial beat freq (will be ramped)
-    this.rightOsc.frequency.setValueAtTime(
-      this.program.carrierFreq + this.program.phases[0].startBeatFreq,
-      now
-    );
-
-    // Create gain nodes with fade-in
+    // Create channel-level gain nodes with fade-in
     this.leftGain = this.ctx.createGain();
     this.rightGain = this.ctx.createGain();
     this.leftGain.gain.setValueAtTime(0, now);
     this.rightGain.gain.setValueAtTime(0, now);
-    this.leftGain.gain.linearRampToValueAtTime(1, now + 0.05); // 50ms fade-in
+    this.leftGain.gain.linearRampToValueAtTime(1, now + 0.05);
     this.rightGain.gain.linearRampToValueAtTime(1, now + 0.05);
 
     // ChannelMergerNode: input 0 = left channel, input 1 = right channel
     this.merger = this.ctx.createChannelMerger(2);
-
-    // Signal chain: Osc → Gain → Merger(channel) → destination
-    this.leftOsc.connect(this.leftGain);
-    this.leftGain.connect(this.merger, 0, 0);
-
-    this.rightOsc.connect(this.rightGain);
-    this.rightGain.connect(this.merger, 0, 1);
-
     this.merger.connect(getAudioDestination());
 
-    // Schedule frequency ramps on right oscillator
-    scheduleRamps(this.rightOsc, this.program.carrierFreq, this.program.phases, this.timeScale, now);
+    // Create fundamental + harmonic oscillators for each channel
+    // Harmonics are at fixed carrier multiples (no beat offset) to keep binaural beat clean
+    this.leftHarmonicOscs = [];
+    this.leftHarmonicGains = [];
+    this.rightHarmonicOscs = [];
+    this.rightHarmonicGains = [];
 
-    // Start oscillators
-    this.leftOsc.start(now);
-    this.rightOsc.start(now);
+    for (const [mult, gain] of HARMONICS) {
+      // Left channel: harmonics at carrier * mult
+      const lOsc = this.ctx.createOscillator();
+      lOsc.type = "sine";
+      lOsc.frequency.setValueAtTime(carrier * mult, now);
+      const lGain = this.ctx.createGain();
+      lGain.gain.setValueAtTime(gain, now);
+      lOsc.connect(lGain);
+      lGain.connect(this.leftGain);
+      this.leftHarmonicOscs.push(lOsc);
+      this.leftHarmonicGains.push(lGain);
+
+      // Right channel: fundamental gets beat offset, harmonics are fixed
+      const rOsc = this.ctx.createOscillator();
+      rOsc.type = "sine";
+      if (mult === 1) {
+        // Fundamental: carrier + beat frequency (ramped)
+        rOsc.frequency.setValueAtTime(carrier + initBeat, now);
+      } else {
+        // Harmonics: fixed at carrier * mult (no beat)
+        rOsc.frequency.setValueAtTime(carrier * mult, now);
+      }
+      const rGain = this.ctx.createGain();
+      rGain.gain.setValueAtTime(gain, now);
+      rOsc.connect(rGain);
+      rGain.connect(this.rightGain);
+      this.rightHarmonicOscs.push(rOsc);
+      this.rightHarmonicGains.push(rGain);
+    }
+
+    // Keep references to fundamentals for external access
+    this.leftOsc = this.leftHarmonicOscs[0];
+    this.rightOsc = this.rightHarmonicOscs[0];
+
+    // Connect channel gains to merger
+    this.leftGain.connect(this.merger, 0, 0);
+    this.rightGain.connect(this.merger, 0, 1);
+
+    // Schedule frequency ramps on right fundamental oscillator only
+    scheduleRamps(this.rightOsc, carrier, this.program.phases, this.timeScale, now);
+
+    // Start all oscillators
+    for (const osc of this.leftHarmonicOscs) osc.start(now);
+    for (const osc of this.rightHarmonicOscs) osc.start(now);
 
     this.startTime = now;
     this._isPlaying = true;
@@ -154,16 +191,20 @@ export class BinauralSession {
 
     // Stop and disconnect after fade-out
     setTimeout(() => {
-      this.leftOsc?.stop();
-      this.rightOsc?.stop();
-      this.leftOsc?.disconnect();
-      this.rightOsc?.disconnect();
+      for (const osc of this.leftHarmonicOscs) { osc.stop(); osc.disconnect(); }
+      for (const osc of this.rightHarmonicOscs) { osc.stop(); osc.disconnect(); }
+      for (const g of this.leftHarmonicGains) g.disconnect();
+      for (const g of this.rightHarmonicGains) g.disconnect();
       this.leftGain?.disconnect();
       this.rightGain?.disconnect();
       this.merger?.disconnect();
 
       this.leftOsc = null;
       this.rightOsc = null;
+      this.leftHarmonicOscs = [];
+      this.rightHarmonicOscs = [];
+      this.leftHarmonicGains = [];
+      this.rightHarmonicGains = [];
       this.leftGain = null;
       this.rightGain = null;
       this.merger = null;
