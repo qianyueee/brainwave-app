@@ -232,10 +232,20 @@ export class SynthSession {
     const v = Math.max(0, Math.min(1, value));
     const now = this.ctx.currentTime;
     if (this._isStereo) {
-      this.leftGain?.gain.setTargetAtTime(v, now, 0.02);
-      this.rightGain?.gain.setTargetAtTime(v, now, 0.02);
+      if (this.leftGain) {
+        this.leftGain.gain.cancelScheduledValues(now);
+        this.leftGain.gain.setValueAtTime(this.leftGain.gain.value, now);
+        this.leftGain.gain.setTargetAtTime(v, now, 0.02);
+      }
+      if (this.rightGain) {
+        this.rightGain.gain.cancelScheduledValues(now);
+        this.rightGain.gain.setValueAtTime(this.rightGain.gain.value, now);
+        this.rightGain.gain.setTargetAtTime(v, now, 0.02);
+      }
     } else if (this.masterGain) {
       const scale = 1 / Math.sqrt(Math.max(this.layerNodes.size, 1));
+      this.masterGain.gain.cancelScheduledValues(now);
+      this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
       this.masterGain.gain.setTargetAtTime(v * scale, now, 0.02);
     }
   }

@@ -76,7 +76,7 @@ export class BinauralSession {
     this.onEndCallback = callback;
   }
 
-  start(): void {
+  start(initialVolume = 1): void {
     if (this._isPlaying) return;
 
     // Ensure context is running
@@ -87,14 +87,15 @@ export class BinauralSession {
     const now = this.ctx.currentTime;
     const carrier = this.program.carrierFreq;
     const initBeat = this.program.phases[0].startBeatFreq;
+    const vol = Math.max(0, Math.min(1, initialVolume));
 
-    // Create channel-level gain nodes with fade-in
+    // Create channel-level gain nodes with fade-in to target volume
     this.leftGain = this.ctx.createGain();
     this.rightGain = this.ctx.createGain();
     this.leftGain.gain.setValueAtTime(0, now);
     this.rightGain.gain.setValueAtTime(0, now);
-    this.leftGain.gain.linearRampToValueAtTime(1, now + 0.05);
-    this.rightGain.gain.linearRampToValueAtTime(1, now + 0.05);
+    this.leftGain.gain.linearRampToValueAtTime(vol, now + 0.05);
+    this.rightGain.gain.linearRampToValueAtTime(vol, now + 0.05);
 
     // ChannelMergerNode: input 0 = left channel, input 1 = right channel
     this.merger = this.ctx.createChannelMerger(2);
@@ -216,8 +217,16 @@ export class BinauralSession {
   setVolume(value: number): void {
     const v = Math.max(0, Math.min(1, value));
     const now = this.ctx.currentTime;
-    this.leftGain?.gain.setTargetAtTime(v, now, 0.02);
-    this.rightGain?.gain.setTargetAtTime(v, now, 0.02);
+    if (this.leftGain) {
+      this.leftGain.gain.cancelScheduledValues(now);
+      this.leftGain.gain.setValueAtTime(this.leftGain.gain.value, now);
+      this.leftGain.gain.setTargetAtTime(v, now, 0.02);
+    }
+    if (this.rightGain) {
+      this.rightGain.gain.cancelScheduledValues(now);
+      this.rightGain.gain.setValueAtTime(this.rightGain.gain.value, now);
+      this.rightGain.gain.setTargetAtTime(v, now, 0.02);
+    }
   }
 
   /** Load and play a nature sound, looping until session stops */

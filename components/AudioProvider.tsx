@@ -133,8 +133,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
       const session = new BinauralSession(program, duration);
       const { beatVolume } = useAppStore.getState();
-      // Apply initial volume after 60ms fade-in completes
-      setTimeout(() => session.setVolume(beatVolume), 80);
       session.onEnd(() => {
         addSessionLog({
           id: Date.now().toString(),
@@ -147,7 +145,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         stopSession();
       });
 
-      session.start();
+      session.start(beatVolume);
       sessionRef.current = session;
       setIsPlaying(true);
       setElapsed(0);
