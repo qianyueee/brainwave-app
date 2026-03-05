@@ -169,6 +169,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setIsPlaying(true);
       setElapsed(0);
 
+      cancelStopKeepAlive();
       startKeepAlive(program.name);
       setMediaSessionHandlers(
         () => {
@@ -219,6 +220,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       synthRef.current = synth;
       useSynthStore.getState().setIsSynthPlaying(true);
 
+      cancelStopKeepAlive();
       startKeepAlive("カスタム合成");
       setMediaSessionHandlers(
         () => {
@@ -277,6 +279,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      cancelStopKeepAlive();
       startKeepAlive(program.name);
       setMediaSessionHandlers(
         () => {
