@@ -1,6 +1,8 @@
 import { ProgramConfig } from "./programs";
 import { scheduleRamps } from "./ramp-scheduler";
 import type { SynthLayer, VibratoConfig, TremoloConfig } from "./synth-engine";
+import { NATURE_SOUNDS } from "./nature-player";
+import { getAudioBlob } from "./custom-audio-db";
 
 // --- Types ---
 
@@ -21,7 +23,68 @@ export interface ExportProgress {
   error?: string;
 }
 
+// --- Nature sound helpers ---
+
+async function loadNatureSoundBuffer(
+  ctx: OfflineAudioContext,
+  soundId: string,
+): Promise<AudioBuffer | null> {
+  let arrayBuffer: ArrayBuffer;
+
+  if (soundId.startsWith("custom-")) {
+    // Custom audio stored in IndexedDB
+    const blob = await getAudioBlob(soundId);
+    if (!blob) return null;
+    arrayBuffer = await blob.arrayBuffer();
+  } else {
+    // Built-in nature sound — use same path as NaturePlayer
+    const sound = NATURE_SOUNDS.find((s) => s.id === soundId);
+    if (!sound) return null;
+    const response = await fetch(sound.file);
+    arrayBuffer = await response.arrayBuffer();
+  }
+
+  return ctx.decodeAudioData(arrayBuffer);
+}
+
+/** Mix nature sound into an OfflineAudioContext, matching real-time NaturePlayer behavior */
+async function mixNatureSound(
+  ctx: OfflineAudioContext,
+  natureSoundId: string,
+  natureVolume: number,
+  duration: number,
+): Promise<void> {
+  const audioBuffer = await loadNatureSoundBuffer(ctx, natureSoundId);
+  if (!audioBuffer) return;
+
+  const source = ctx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.loop = true;
+
+  const natureGain = ctx.createGain();
+  // Match real-time NaturePlayer: 0.5s fade-in to volume * 0.5
+  const targetVol = natureVolume * 0.5;
+  natureGain.gain.setValueAtTime(0, 0);
+  natureGain.gain.linearRampToValueAtTime(targetVol, 0.5);
+
+  // Fade out at end
+  const fadeOutStart = Math.max(0, duration - 0.5);
+  natureGain.gain.setValueAtTime(targetVol, fadeOutStart);
+  natureGain.gain.linearRampToValueAtTime(0, duration);
+
+  source.connect(natureGain);
+  natureGain.connect(ctx.destination);
+  source.start(0);
+}
+
 // --- Binaural offline rendering ---
+
+// Harmonic overtone config matching real-time engine: [multiplier, gain]
+const HARMONICS: readonly [number, number][] = [
+  [1, 0.82],   // fundamental
+  [2, 0.12],   // 2nd harmonic — adds warmth
+  [3, 0.06],   // 3rd harmonic — subtle brightness
+];
 
 export async function renderBinauralOffline(
   program: ProgramConfig,
@@ -34,19 +97,8 @@ export async function renderBinauralOffline(
   const length = sampleRate * duration;
   const ctx = new OfflineAudioContext(2, length, sampleRate);
   const timeScale = duration / program.defaultDuration;
-
-  // Left oscillator = carrier
-  const leftOsc = ctx.createOscillator();
-  leftOsc.type = "sine";
-  leftOsc.frequency.setValueAtTime(program.carrierFreq, 0);
-
-  // Right oscillator = carrier + beat
-  const rightOsc = ctx.createOscillator();
-  rightOsc.type = "sine";
-  rightOsc.frequency.setValueAtTime(
-    program.carrierFreq + program.phases[0].startBeatFreq,
-    0,
-  );
+  const carrier = program.carrierFreq;
+  const initBeat = program.phases[0].startBeatFreq;
 
   // Gain nodes
   const vol = Math.max(0, Math.min(1, beatVolume));
@@ -66,40 +118,53 @@ export async function renderBinauralOffline(
 
   // Channel merger: L/R stereo
   const merger = ctx.createChannelMerger(2);
-  leftOsc.connect(leftGain);
   leftGain.connect(merger, 0, 0);
-  rightOsc.connect(rightGain);
   rightGain.connect(merger, 0, 1);
   merger.connect(ctx.destination);
 
-  // Schedule frequency ramps
-  scheduleRamps(rightOsc, program.carrierFreq, program.phases, timeScale, 0);
+  // Create fundamental + harmonic oscillators matching real-time engine
+  let rightFundamental: OscillatorNode | null = null;
 
-  // Optionally load nature sound
+  for (const [mult, harmonicGain] of HARMONICS) {
+    // Left channel: harmonics at carrier * mult
+    const lOsc = ctx.createOscillator();
+    lOsc.type = "sine";
+    lOsc.frequency.setValueAtTime(carrier * mult, 0);
+    const lGain = ctx.createGain();
+    lGain.gain.setValueAtTime(harmonicGain, 0);
+    lOsc.connect(lGain);
+    lGain.connect(leftGain);
+    lOsc.start(0);
+
+    // Right channel: fundamental gets beat offset, harmonics are fixed
+    const rOsc = ctx.createOscillator();
+    rOsc.type = "sine";
+    if (mult === 1) {
+      rOsc.frequency.setValueAtTime(carrier + initBeat, 0);
+      rightFundamental = rOsc;
+    } else {
+      rOsc.frequency.setValueAtTime(carrier * mult, 0);
+    }
+    const rGain = ctx.createGain();
+    rGain.gain.setValueAtTime(harmonicGain, 0);
+    rOsc.connect(rGain);
+    rGain.connect(rightGain);
+    rOsc.start(0);
+  }
+
+  // Schedule frequency ramps on right fundamental oscillator only
+  if (rightFundamental) {
+    scheduleRamps(rightFundamental, carrier, program.phases, timeScale, 0);
+  }
+
+  // Optionally mix nature sound (built-in or custom)
   if (natureSoundId && natureVolume && natureVolume > 0) {
     try {
-      const response = await fetch(`/sounds/${natureSoundId}.mp3`);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.loop = true;
-      const natureGain = ctx.createGain();
-      natureGain.gain.setValueAtTime(natureVolume * 0.5, 0);
-      // Fade out nature too
-      natureGain.gain.setValueAtTime(natureVolume * 0.5, fadeOutStart);
-      natureGain.gain.linearRampToValueAtTime(0, duration);
-      source.connect(natureGain);
-      natureGain.connect(ctx.destination);
-      source.start(0);
+      await mixNatureSound(ctx, natureSoundId, natureVolume, duration);
     } catch {
       // Nature sound optional — continue without it
     }
   }
-
-  leftOsc.start(0);
-  rightOsc.start(0);
 
   return ctx.startRendering();
 }
@@ -118,15 +183,16 @@ function createOfflineTremolo(
   const depth = config.depth;
 
   if (config.mode === "sine") {
+    // Match real-time: base gain 1, LFO depth = depth (not depth/2)
     tremoloGain.gain.cancelScheduledValues(startTime);
-    tremoloGain.gain.setValueAtTime(1 - depth / 2, startTime);
+    tremoloGain.gain.setValueAtTime(1, startTime);
 
     const lfo = ctx.createOscillator();
     lfo.type = "sine";
     lfo.frequency.setValueAtTime(config.rate, startTime);
 
     const lfoGain = ctx.createGain();
-    lfoGain.gain.setValueAtTime(depth / 2, startTime);
+    lfoGain.gain.setValueAtTime(depth, startTime);
 
     lfo.connect(lfoGain);
     lfoGain.connect(tremoloGain.gain);
@@ -134,10 +200,12 @@ function createOfflineTremolo(
 
     return { lfo, lfoGain };
   } else {
-    // Decay mode: pre-schedule all setValueAtTime/setTargetAtTime pairs
+    // Decay mode: match real-time exponentialRamp behavior
+    // Real-time uses setInterval + cancelScheduledValues per cycle;
+    // offline must pre-schedule with proper anchor points per cycle.
     const beatPeriod = 1 / config.rate;
-    const minGain = 1 - depth;
-    const tau = beatPeriod / 3;
+    const decayTime = beatPeriod * depth;
+    const attackTime = Math.min(0.005, decayTime * 0.05);
 
     tremoloGain.gain.cancelScheduledValues(startTime);
 
@@ -145,8 +213,17 @@ function createOfflineTremolo(
     for (let i = 0; i < numCycles; i++) {
       const t = startTime + i * beatPeriod;
       if (t > startTime + duration) break;
-      tremoloGain.gain.setValueAtTime(1, t);
-      tremoloGain.gain.setTargetAtTime(minGain, t, tau);
+
+      if (i === 0) {
+        // First cycle: immediate start at 1, then decay (no attack phase)
+        tremoloGain.gain.setValueAtTime(1, t);
+        tremoloGain.gain.exponentialRampToValueAtTime(0.001, t + decayTime);
+      } else {
+        // Subsequent cycles: anchor at cycle start, attack ramp, then decay
+        tremoloGain.gain.setValueAtTime(0.001, t);
+        tremoloGain.gain.linearRampToValueAtTime(1, t + attackTime);
+        tremoloGain.gain.exponentialRampToValueAtTime(0.001, t + attackTime + decayTime);
+      }
     }
 
     return {};
@@ -165,7 +242,8 @@ function createOfflineLayerNodes(
   const gain = ctx.createGain();
 
   osc.frequency.setValueAtTime(layer.frequency, startTime);
-  gain.gain.setValueAtTime(layer.volume * 0.5, startTime);
+  // Match real-time: layer.volume directly (no * 0.5)
+  gain.gain.setValueAtTime(layer.volume, startTime);
 
   if (vibratoGain) {
     vibratoGain.connect(osc.detune);
@@ -174,15 +252,23 @@ function createOfflineLayerNodes(
   const tremoloGain = ctx.createGain();
   tremoloGain.gain.setValueAtTime(1, startTime);
 
+  // Match real-time synth-engine tone types and filter parameters
   if (layer.tone === "soft") {
-    osc.type = "sine";
-    osc.connect(tremoloGain);
+    // Real-time: triangle + lowpass(1000Hz, Q=3)
+    osc.type = "triangle";
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(1000, startTime);
+    filter.Q.setValueAtTime(3, startTime);
+    osc.connect(filter);
+    filter.connect(tremoloGain);
   } else {
+    // Real-time: sawtooth + lowpass(1100Hz, Q=2)
     osc.type = "sawtooth";
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.setValueAtTime(1800, startTime);
-    filter.Q.setValueAtTime(0.707, startTime);
+    filter.frequency.setValueAtTime(1100, startTime);
+    filter.Q.setValueAtTime(2, startTime);
     osc.connect(filter);
     filter.connect(tremoloGain);
   }
@@ -202,6 +288,8 @@ export async function renderSynthOffline(
   leftLayers?: SynthLayer[],
   rightLayers?: SynthLayer[],
   duration: number = 60,
+  natureSoundId?: string,
+  natureVolume?: number,
 ): Promise<AudioBuffer> {
   const sampleRate = 44100;
   const length = sampleRate * duration;
@@ -226,8 +314,9 @@ export async function renderSynthOffline(
     const leftGainNode = ctx.createGain();
     const rightGainNode = ctx.createGain();
 
-    const leftScale = 1 / Math.max(leftLayers.length, 1);
-    const rightScale = 1 / Math.max(rightLayers.length, 1);
+    // Match real-time: 1/sqrt(N) scaling
+    const leftScale = 1 / Math.sqrt(Math.max(leftLayers.length, 1));
+    const rightScale = 1 / Math.sqrt(Math.max(rightLayers.length, 1));
     leftGainNode.gain.setValueAtTime(leftScale, 0);
     rightGainNode.gain.setValueAtTime(rightScale, 0);
 
@@ -250,7 +339,8 @@ export async function renderSynthOffline(
   } else {
     // Mono
     const masterGain = ctx.createGain();
-    const scale = 1 / Math.max(layers.length, 1);
+    // Match real-time: 1/sqrt(N) scaling
+    const scale = 1 / Math.sqrt(Math.max(layers.length, 1));
     masterGain.gain.setValueAtTime(0, 0);
     masterGain.gain.linearRampToValueAtTime(scale, 0.05);
 
@@ -262,6 +352,15 @@ export async function renderSynthOffline(
 
     for (const layer of layers) {
       createOfflineLayerNodes(ctx, layer, masterGain, vibratoGainNode, 0, duration);
+    }
+  }
+
+  // Optionally mix nature sound (built-in or custom)
+  if (natureSoundId && natureVolume && natureVolume > 0) {
+    try {
+      await mixNatureSound(ctx, natureSoundId, natureVolume, duration);
+    } catch {
+      // Nature sound optional — continue without it
     }
   }
 
@@ -425,14 +524,17 @@ export async function exportSynth(options: {
   rightLayers?: SynthLayer[];
   duration: ExportDuration;
   format: ExportFormat;
+  natureSoundId?: string;
+  natureVolume?: number;
   onProgress: (p: ExportProgress) => void;
 }): Promise<void> {
-  const { layers, vibrato, isStereo, leftLayers, rightLayers, duration, format, onProgress } = options;
+  const { layers, vibrato, isStereo, leftLayers, rightLayers, duration, format, natureSoundId, natureVolume, onProgress } = options;
 
   try {
     onProgress({ status: "rendering" });
     const buffer = await renderSynthOffline(
       layers, vibrato, isStereo, leftLayers, rightLayers, duration,
+      natureSoundId, natureVolume,
     );
 
     onProgress({ status: "encoding" });

@@ -87,6 +87,8 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
         rightLayers: useStereo ? synthRight : undefined,
         duration,
         format,
+        natureSoundId: natureSoundId || undefined,
+        natureVolume,
         onProgress: (p) => {
           setProgress(p);
           if (p.status === "done") {
