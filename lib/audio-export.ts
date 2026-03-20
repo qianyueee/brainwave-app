@@ -426,7 +426,7 @@ function writeString(view: DataView, offset: number, str: string): void {
 // --- MP3 encoding ---
 
 export async function encodeMp3(buffer: AudioBuffer): Promise<Blob> {
-  const { Mp3Encoder } = await import("lamejs");
+  const { Mp3Encoder } = await import("@breezystack/lamejs");
 
   const sampleRate = buffer.sampleRate;
   const numChannels = Math.min(buffer.numberOfChannels, 2);
