@@ -8,9 +8,10 @@ import SynthLayerCard from "@/components/SynthLayerCard";
 import SynthPlaybackButton from "@/components/SynthPlaybackButton";
 import SynthVibratoPanel from "@/components/SynthVibratoPanel";
 import ExportDialog from "@/components/ExportDialog";
-import { ChevronLeft, Plus, Download, Upload, FileDown } from "lucide-react";
+import { ChevronLeft, Plus, Download, Upload, FileDown, Lock } from "lucide-react";
 import { downloadBlob } from "@/lib/audio-export";
 import { SynthPreset } from "@/lib/synth-engine";
+import { useAuthStore } from "@/store/useAuthStore";
 
 const MAX_LAYERS = 8;
 const FREQ_MIN = 20;
@@ -158,6 +159,38 @@ export default function SynthPage() {
     : layers;
   const maxDisplay = editorMode === "harmonic" ? 9 : MAX_LAYERS;
   const canAddLayer = editorMode === "free" && displayLayers.length < MAX_LAYERS;
+
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.loading);
+  const openAuthModal = useAuthStore((s) => s.openAuthModal);
+
+  if (!authLoading && !user) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 pt-24" style={{ animation: "fade-in 0.3s ease-out" }}>
+        <div className="w-20 h-20 rounded-full bg-surface border border-surface-border flex items-center justify-center neu-raised">
+          <Lock size={36} className="text-text-muted" strokeWidth={1.5} />
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-bold text-text-primary">ログインが必要です</p>
+          <p className="text-sm text-text-secondary mt-2">
+            合成器機能を利用するにはログインしてください
+          </p>
+        </div>
+        <button
+          onClick={() => openAuthModal("login")}
+          className="h-12 px-8 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-all neu-raised neu-press"
+        >
+          ログイン
+        </button>
+        <button
+          onClick={() => router.back()}
+          className="text-sm text-text-muted underline active:opacity-70"
+        >
+          戻る
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>

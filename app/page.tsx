@@ -15,7 +15,8 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import PublishedProgramCard from "@/components/PublishedProgramCard";
-import { BrainCircuit, Plus } from "lucide-react";
+import { BrainCircuit, Plus, User, LogOut } from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function HomePage() {
   const router = useRouter();
@@ -26,6 +27,11 @@ export default function HomePage() {
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
   const fetchPrograms = usePublishedProgramsStore((s) => s.fetchPrograms);
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.loading);
+  const openAuthModal = useAuthStore((s) => s.openAuthModal);
+  const signOut = useAuthStore((s) => s.signOut);
+  const isLoggedIn = !!user;
 
   // Guard against hydration mismatch from persist middleware
   const [hydrated, setHydrated] = useState(false);
@@ -45,11 +51,37 @@ export default function HomePage() {
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">脳波チューニング</h1>
-        <p className="text-sm text-text-secondary mt-1">
-          バイノーラルビートで脳をチューニング
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">脳波チューニング</h1>
+          <p className="text-sm text-text-secondary mt-1">
+            バイノーラルビートで脳をチューニング
+          </p>
+        </div>
+        {!authLoading && (
+          isLoggedIn ? (
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
+                {user.email?.charAt(0).toUpperCase() ?? "U"}
+              </div>
+              <button
+                onClick={signOut}
+                className="w-10 h-10 flex items-center justify-center rounded-xl text-text-muted active:scale-95"
+                title="ログアウト"
+              >
+                <LogOut size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => openAuthModal("login")}
+              className="flex items-center gap-2 h-10 px-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press active:scale-95"
+            >
+              <User size={18} strokeWidth={1.5} />
+              ログイン
+            </button>
+          )
+        )}
       </div>
 
       <BrainWeather />
@@ -92,8 +124,8 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Published Programs (visible to all users) */}
-      {hydrated && publishedPrograms.length > 0 && (
+      {/* Published Programs (logged in only) */}
+      {isLoggedIn && hydrated && publishedPrograms.length > 0 && (
         <div className="flex flex-col gap-3 breathe-stagger">
           {publishedPrograms.map((program) => (
             <PublishedProgramCard key={program.id} program={program} />
@@ -101,8 +133,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Custom Programs (admin only) */}
-      {isAdmin && hydrated && savedPrograms.length > 0 && (
+      {/* Custom Programs (admin + logged in) */}
+      {isLoggedIn && isAdmin && hydrated && savedPrograms.length > 0 && (
         <div className="flex flex-col gap-3 breathe-stagger">
           <p className="text-sm text-text-secondary">カスタムプログラム</p>
           {savedPrograms.map((program) => (
@@ -111,8 +143,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Custom Synth (admin only) */}
-      {isAdmin && (
+      {/* Custom Synth (admin + logged in) */}
+      {isLoggedIn && isAdmin && (
         <div className="flex flex-col gap-3 breathe-stagger">
           <p className="text-sm text-text-secondary">カスタム</p>
           <button
@@ -127,6 +159,19 @@ export default function HomePage() {
               <SynthPresetCard key={preset.id} preset={preset} />
             ))}
         </div>
+      )}
+
+      {/* Login CTA for unauthenticated users */}
+      {!isLoggedIn && !authLoading && (
+        <button
+          onClick={() => openAuthModal("login")}
+          className="w-full py-4 rounded-3xl bg-surface border border-surface-border text-center neu-raised neu-press active:scale-[0.98] transition-transform"
+        >
+          <p className="text-base font-bold text-text-primary">ログインしてもっと体験</p>
+          <p className="text-sm text-text-secondary mt-1">
+            カスタム合成器・プログラムを利用できます
+          </p>
+        </button>
       )}
     </div>
   );

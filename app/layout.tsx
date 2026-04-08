@@ -3,6 +3,7 @@ import "./globals.css";
 import { AudioProvider } from "@/components/AudioProvider";
 import BottomNav from "@/components/BottomNav";
 import ThemeProvider from "@/components/ThemeProvider";
+import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: "脳波チューニング",
@@ -26,12 +27,14 @@ export default function RootLayout({
     <html lang="ja">
       <body>
         <ThemeProvider>
-          <AudioProvider>
-            <main className="mx-auto max-w-[480px] min-h-screen pb-20 px-4">
-              {children}
-            </main>
-            <BottomNav />
-          </AudioProvider>
+          <AuthProvider>
+            <AudioProvider>
+              <main className="mx-auto max-w-[480px] min-h-screen pb-20 px-4">
+                {children}
+              </main>
+              <BottomNav />
+            </AudioProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
