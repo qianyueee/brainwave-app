@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { supabase } from "@/lib/supabase";
-import { X } from "lucide-react";
+import { X, Eye, EyeOff } from "lucide-react";
 
 export default function AuthModal() {
   const open = useAuthStore((s) => s.authModalOpen);
@@ -17,6 +17,8 @@ export default function AuthModal() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const resetForm = () => {
     setEmail("");
@@ -24,6 +26,8 @@ export default function AuthModal() {
     setConfirmPassword("");
     setError("");
     setMessage("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   };
 
   const switchView = (v: "login" | "signup" | "forgot") => {
@@ -99,8 +103,9 @@ export default function AuthModal() {
       return;
     }
     setError("");
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
     const redirectTo = typeof window !== "undefined"
-      ? `${window.location.origin}${window.location.pathname}`
+      ? `${window.location.origin}${basePath}/`
       : undefined;
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -115,6 +120,10 @@ export default function AuthModal() {
     if (view === "login") handleLogin();
     else if (view === "signup") handleSignup();
     else handleForgotPassword();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !loading) handleSubmit();
   };
 
   if (!open) return null;
@@ -137,7 +146,8 @@ export default function AuthModal() {
           </h2>
           <button
             onClick={closeModal}
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-text-muted active:scale-95"
+            aria-label="閉じる"
+            className="w-10 h-10 flex items-center justify-center rounded-xl text-text-muted active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           >
             <X size={22} />
           </button>
@@ -145,12 +155,12 @@ export default function AuthModal() {
 
         {/* Error / Message */}
         {error && (
-          <p className="text-sm text-red-400 bg-red-400/10 rounded-2xl px-4 py-3">
+          <p role="alert" className="text-sm text-red-400 bg-red-400/10 rounded-2xl px-4 py-3">
             {error}
           </p>
         )}
         {message && (
-          <p className="text-sm text-emerald-400 bg-emerald-400/10 rounded-2xl px-4 py-3">
+          <p role="status" className="text-sm text-emerald-400 bg-emerald-400/10 rounded-2xl px-4 py-3">
             {message}
           </p>
         )}
@@ -159,15 +169,17 @@ export default function AuthModal() {
           <>
             {/* Email input */}
             <div>
-              <label className="text-sm text-text-secondary mb-1 block">
+              <label htmlFor="auth-email" className="text-sm text-text-secondary mb-1 block">
                 メールアドレス
               </label>
               <input
+                id="auth-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="example@email.com"
-                className="w-full h-12 px-4 rounded-2xl bg-navy text-base text-text-primary placeholder:text-text-muted border border-surface-border focus:border-primary focus:outline-none neu-inset"
+                className="w-full h-12 px-4 rounded-2xl bg-navy text-base text-text-primary placeholder:text-text-muted border border-surface-border focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary neu-inset"
                 autoComplete="email"
               />
             </div>
@@ -175,17 +187,29 @@ export default function AuthModal() {
             {/* Password input */}
             {view !== "forgot" && (
               <div>
-                <label className="text-sm text-text-secondary mb-1 block">
+                <label htmlFor="auth-password" className="text-sm text-text-secondary mb-1 block">
                   パスワード
                 </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="6文字以上"
-                  className="w-full h-12 px-4 rounded-2xl bg-navy text-base text-text-primary placeholder:text-text-muted border border-surface-border focus:border-primary focus:outline-none neu-inset"
-                  autoComplete={view === "login" ? "current-password" : "new-password"}
-                />
+                <div className="relative">
+                  <input
+                    id="auth-password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="6文字以上"
+                    className="w-full h-12 px-4 pr-12 rounded-2xl bg-navy text-base text-text-primary placeholder:text-text-muted border border-surface-border focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary neu-inset"
+                    autoComplete={view === "login" ? "current-password" : "new-password"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-text-muted active:opacity-70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded-lg"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
             )}
 
