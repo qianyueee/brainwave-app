@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PROGRAMS } from "@/lib/programs";
@@ -15,7 +15,7 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import PublishedProgramCard from "@/components/PublishedProgramCard";
-import { BrainCircuit, Plus, User, LogOut } from "lucide-react";
+import { BrainCircuit, Plus, User, LogOut, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function HomePage() {
@@ -25,8 +25,11 @@ export default function HomePage() {
   const resetEditor = useSynthStore((s) => s.resetEditor);
   const profile = useBrainProfileStore((s) => s.profile);
   const isAdmin = useAdminStore((s) => s.isAdmin);
+  const userGroups = useAdminStore((s) => s.userGroups);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
+  const groupProgramIds = usePublishedProgramsStore((s) => s.groupProgramIds);
   const fetchPrograms = usePublishedProgramsStore((s) => s.fetchPrograms);
+  const fetchGroupProgramIds = usePublishedProgramsStore((s) => s.fetchGroupProgramIds);
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
@@ -42,6 +45,20 @@ export default function HomePage() {
   useEffect(() => {
     fetchPrograms();
   }, [fetchPrograms]);
+
+  // Fetch group→program assignments when user groups change
+  useEffect(() => {
+    if (userGroups.length > 0) {
+      fetchGroupProgramIds(userGroups.map((g) => g.id));
+    }
+  }, [userGroups, fetchGroupProgramIds]);
+
+  // Filter published programs: admins see all, regular users see only programs assigned to their groups
+  const visiblePrograms = useMemo(() => {
+    if (isAdmin) return publishedPrograms;
+    if (!isLoggedIn || groupProgramIds.length === 0) return [];
+    return publishedPrograms.filter((p) => groupProgramIds.includes(p.id));
+  }, [isAdmin, isLoggedIn, publishedPrograms, groupProgramIds]);
 
   const handleNewSynth = () => {
     resetEditor();
@@ -61,6 +78,15 @@ export default function HomePage() {
         {!authLoading && (
           isLoggedIn ? (
             <div className="flex items-center gap-2">
+              {isAdmin && (
+                <button
+                  onClick={() => router.push("/admin")}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl text-amber-400 active:scale-95"
+                  title="管理パネル"
+                >
+                  <Settings size={20} strokeWidth={1.5} />
+                </button>
+              )}
               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
                 {user.email?.charAt(0).toUpperCase() ?? "U"}
               </div>
@@ -124,16 +150,16 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Published Programs (logged in only) */}
-      {isLoggedIn && hydrated && publishedPrograms.length > 0 && (
+      {/* Published Programs (filtered by group) */}
+      {hydrated && visiblePrograms.length > 0 && (
         <div className="flex flex-col gap-3 breathe-stagger">
-          {publishedPrograms.map((program) => (
+          {visiblePrograms.map((program) => (
             <PublishedProgramCard key={program.id} program={program} />
           ))}
         </div>
       )}
 
-      {/* Custom Programs (admin + logged in) */}
+      {/* Custom Programs (admin only) */}
       {isLoggedIn && isAdmin && hydrated && savedPrograms.length > 0 && (
         <div className="flex flex-col gap-3 breathe-stagger">
           <p className="text-sm text-text-secondary">カスタムプログラム</p>
@@ -143,7 +169,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Custom Synth (admin + logged in) */}
+      {/* Custom Synth (admin only) */}
       {isLoggedIn && isAdmin && (
         <div className="flex flex-col gap-3 breathe-stagger">
           <p className="text-sm text-text-secondary">カスタム</p>

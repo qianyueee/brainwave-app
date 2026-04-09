@@ -42,8 +42,10 @@ function programToRow(p: CustomProgram): Omit<DbRow, "published_at"> {
 
 interface PublishedProgramsState {
   programs: CustomProgram[];
+  groupProgramIds: string[];
   loading: boolean;
   fetchPrograms: () => Promise<void>;
+  fetchGroupProgramIds: (groupIds: string[]) => Promise<void>;
   publishProgram: (program: CustomProgram) => Promise<void>;
   unpublishProgram: (id: string) => Promise<void>;
 }
@@ -51,6 +53,7 @@ interface PublishedProgramsState {
 export const usePublishedProgramsStore = create<PublishedProgramsState>()(
   (set, get) => ({
     programs: [],
+    groupProgramIds: [],
     loading: false,
 
     fetchPrograms: async () => {
@@ -66,6 +69,23 @@ export const usePublishedProgramsStore = create<PublishedProgramsState>()(
         return;
       }
       set({ programs: (data as DbRow[]).map(rowToProgram), loading: false });
+    },
+
+    fetchGroupProgramIds: async (groupIds) => {
+      if (!supabase || groupIds.length === 0) {
+        set({ groupProgramIds: [] });
+        return;
+      }
+      const { data, error } = await supabase
+        .from("group_programs")
+        .select("program_id")
+        .in("group_id", groupIds);
+      if (error) {
+        console.error("[published_programs] fetchGroupProgramIds error:", error.message);
+        return;
+      }
+      const ids = [...new Set((data ?? []).map((d) => d.program_id))];
+      set({ groupProgramIds: ids });
     },
 
     publishProgram: async (program) => {
