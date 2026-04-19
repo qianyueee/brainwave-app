@@ -2,9 +2,9 @@
 
 import { useRef, useState, useEffect } from "react";
 import { Plus, X } from "lucide-react";
-import { saveAudio, deleteAudio } from "@/lib/custom-audio-db";
-import { useCustomAudioStore, CustomAudioMeta } from "@/store/useCustomAudioStore";
+import { useCustomAudioStore } from "@/store/useCustomAudioStore";
 import { useAppStore } from "@/store/useAppStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useAudio } from "@/components/AudioProvider";
 
 const MAX_COUNT = 3;
@@ -21,8 +21,9 @@ function trimFileName(name: string): string {
 
 export default function CustomAudioSection() {
   const audios = useCustomAudioStore((s) => s.audios);
-  const addAudioMeta = useCustomAudioStore((s) => s.addAudio);
-  const removeAudioMeta = useCustomAudioStore((s) => s.removeAudio);
+  const addAudio = useCustomAudioStore((s) => s.addAudio);
+  const removeAudio = useCustomAudioStore((s) => s.removeAudio);
+  const user = useAuthStore((s) => s.user);
 
   const natureSoundId = useAppStore((s) => s.natureSoundId);
   const setNatureSoundId = useAppStore((s) => s.setNatureSoundId);
@@ -53,11 +54,9 @@ export default function CustomAudioSection() {
 
     const id = generateId();
     const name = trimFileName(file.name);
-    const meta: CustomAudioMeta = { id, name, mimeType: file.type };
 
     try {
-      await saveAudio({ id, name, mimeType: file.type, blob: file });
-      addAudioMeta(meta);
+      await addAudio(id, name, file.type, file);
     } catch {
       setError("保存に失敗しました");
     }
@@ -71,8 +70,7 @@ export default function CustomAudioSection() {
     }
 
     try {
-      await deleteAudio(id);
-      removeAudioMeta(id);
+      await removeAudio(id);
     } catch {
       setError("削除に失敗しました");
     }
@@ -93,6 +91,7 @@ export default function CustomAudioSection() {
   };
 
   if (!hydrated) return null;
+  if (!user) return null;
 
   return (
     <div className="flex flex-col gap-2">

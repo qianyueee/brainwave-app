@@ -17,7 +17,7 @@ export default function EegUploader() {
     try {
       const { rows, tag } = await parseEegFile(file);
       const indicators = computeIndicators(rows);
-      setProfile({
+      await setProfile({
         indicators,
         uploadedAt: new Date().toISOString(),
         sessionTag: tag,

@@ -2,14 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { INDICATOR_META } from "@/lib/brain-profile";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import EegUploader from "@/components/EegUploader";
-import { BrainCircuit } from "lucide-react";
+import { BrainCircuit, Lock } from "lucide-react";
 
 export default function ProfilePage() {
   const profile = useBrainProfileStore((s) => s.profile);
   const clearProfile = useBrainProfileStore((s) => s.clearProfile);
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.loading);
+  const openAuthModal = useAuthStore((s) => s.openAuthModal);
 
   // Guard hydration mismatch from persist
   const [hydrated, setHydrated] = useState(false);
@@ -18,6 +22,28 @@ export default function ProfilePage() {
   }, []);
 
   if (!hydrated) return null;
+
+  if (!authLoading && !user) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 pt-24" style={{ animation: "fade-in 0.3s ease-out" }}>
+        <div className="w-20 h-20 rounded-full bg-surface border border-surface-border flex items-center justify-center neu-raised">
+          <Lock size={36} className="text-text-muted" strokeWidth={1.5} />
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-bold text-text-primary">ログインが必要です</p>
+          <p className="text-sm text-text-secondary mt-2">
+            脳特性データはアカウントに保存されます
+          </p>
+        </div>
+        <button
+          onClick={() => openAuthModal("login")}
+          className="h-12 px-8 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-all neu-raised neu-press"
+        >
+          ログイン
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>

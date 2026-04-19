@@ -3,6 +3,8 @@ import { scheduleRamps } from "./ramp-scheduler";
 import type { SynthLayer, VibratoConfig, TremoloConfig } from "./synth-engine";
 import { NATURE_SOUNDS } from "./nature-player";
 import { getAudioBlob } from "./custom-audio-db";
+import { ensureBlobCached } from "./sync/custom-audios";
+import { useCustomAudioStore } from "@/store/useCustomAudioStore";
 
 // --- Types ---
 
@@ -32,8 +34,26 @@ async function loadNatureSoundBuffer(
   let arrayBuffer: ArrayBuffer;
 
   if (soundId.startsWith("custom-")) {
-    // Custom audio stored in IndexedDB
-    const blob = await getAudioBlob(soundId);
+    // Custom audio: prefer IndexedDB cache, fall back to cloud
+    let blob = await getAudioBlob(soundId);
+    if (!blob) {
+      const meta = useCustomAudioStore.getState().audios.find((a) => a.id === soundId);
+      if (meta?.storagePath) {
+        try {
+          blob = await ensureBlobCached({
+            id: meta.id,
+            name: meta.name,
+            mimeType: meta.mimeType,
+            storagePath: meta.storagePath,
+            sizeBytes: null,
+            durationSec: null,
+            createdAt: "",
+          });
+        } catch {
+          return null;
+        }
+      }
+    }
     if (!blob) return null;
     arrayBuffer = await blob.arrayBuffer();
   } else {

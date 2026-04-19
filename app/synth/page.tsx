@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSynthStore, EditorMode, StereoChannel } from "@/store/useSynthStore";
 import { useAudio } from "@/components/AudioProvider";
@@ -12,6 +12,7 @@ import { ChevronLeft, Plus, Download, Upload, FileDown, Lock } from "lucide-reac
 import { downloadBlob } from "@/lib/audio-export";
 import { SynthPreset } from "@/lib/synth-engine";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useAdminStore } from "@/store/useAdminStore";
 
 const MAX_LAYERS = 8;
 const FREQ_MIN = 20;
@@ -20,6 +21,17 @@ const HARMONIC_BASE_MIN = 1;
 
 export default function SynthPage() {
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.loading);
+  const isAdmin = useAdminStore((s) => s.isAdmin);
+  const roleLoaded = useAdminStore((s) => s.roleLoaded);
+
+  useEffect(() => {
+    if (!authLoading && roleLoaded && (!user || !isAdmin)) {
+      router.replace("/");
+    }
+  }, [authLoading, roleLoaded, user, isAdmin, router]);
+
   const layers = useSynthStore((s) => s.layers);
   const leftLayers = useSynthStore((s) => s.leftLayers);
   const rightLayers = useSynthStore((s) => s.rightLayers);
@@ -160,8 +172,6 @@ export default function SynthPage() {
   const maxDisplay = editorMode === "harmonic" ? 9 : MAX_LAYERS;
   const canAddLayer = editorMode === "free" && displayLayers.length < MAX_LAYERS;
 
-  const user = useAuthStore((s) => s.user);
-  const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
 
   if (!authLoading && !user) {
@@ -187,6 +197,28 @@ export default function SynthPage() {
           className="text-sm text-text-muted underline active:opacity-70"
         >
           戻る
+        </button>
+      </div>
+    );
+  }
+
+  if (roleLoaded && user && !isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 pt-24" style={{ animation: "fade-in 0.3s ease-out" }}>
+        <div className="w-20 h-20 rounded-full bg-surface border border-surface-border flex items-center justify-center neu-raised">
+          <Lock size={36} className="text-text-muted" strokeWidth={1.5} />
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-bold text-text-primary">権限がありません</p>
+          <p className="text-sm text-text-secondary mt-2">
+            この機能は管理者のみ利用できます
+          </p>
+        </div>
+        <button
+          onClick={() => router.replace("/")}
+          className="h-12 px-8 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-all neu-raised neu-press"
+        >
+          ホームへ
         </button>
       </div>
     );

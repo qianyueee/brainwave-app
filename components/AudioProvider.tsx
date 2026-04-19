@@ -13,9 +13,11 @@ import { ProgramConfig } from "@/lib/programs";
 import type { CustomProgram } from "@/lib/programs";
 import { NaturePlayer } from "@/lib/nature-player";
 import { getAudioBlob } from "@/lib/custom-audio-db";
+import { ensureBlobCached } from "@/lib/sync/custom-audios";
 import { startKeepAlive, stopKeepAlive, setMediaSessionHandlers } from "@/lib/keep-alive";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
+import { useCustomAudioStore } from "@/store/useCustomAudioStore";
 
 interface AudioContextValue {
   startSession: (program: ProgramConfig, duration: number) => void;
@@ -128,7 +130,27 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   const playCustomAudio = useCallback(
     async (soundId: string, volume: number) => {
-      const blob = await getAudioBlob(soundId);
+      let blob = await getAudioBlob(soundId);
+      if (!blob) {
+        // Cloud-cache fallback: this device hasn't downloaded the blob yet
+        const meta = useCustomAudioStore.getState().audios.find((a) => a.id === soundId);
+        if (meta?.storagePath) {
+          try {
+            blob = await ensureBlobCached({
+              id: meta.id,
+              name: meta.name,
+              mimeType: meta.mimeType,
+              storagePath: meta.storagePath,
+              sizeBytes: null,
+              durationSec: null,
+              createdAt: "",
+            });
+          } catch (err) {
+            console.error("[audio-provider] failed to fetch custom audio:", err);
+            return;
+          }
+        }
+      }
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       const np = new NaturePlayer();

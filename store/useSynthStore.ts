@@ -9,6 +9,18 @@ import {
   DEFAULT_VIBRATO,
 } from "@/lib/synth-engine";
 import type { CustomProgram } from "@/lib/programs";
+import { createPerUserStorage } from "@/lib/sync/per-user-storage";
+import {
+  listPresets,
+  upsertPreset,
+  deletePreset as deletePresetCloud,
+  bulkInsertPresets,
+} from "@/lib/sync/presets";
+import {
+  listPrograms,
+  upsertProgram,
+  deleteProgram as deleteProgramCloud,
+} from "@/lib/sync/programs";
 
 export type EditorMode = "free" | "harmonic";
 export type StereoChannel = "left" | "right";
@@ -66,9 +78,10 @@ interface SynthState {
   isStereo: boolean;
   harmonicBaseFreq: number;
 
-  // Persisted
+  // Persisted (per-user cache)
   savedPresets: SynthPreset[];
   savedPrograms: CustomProgram[];
+  cloudUserId: string | null;
 
   // Editing context (not persisted)
   editingPresetId: string | null;
@@ -94,20 +107,24 @@ interface SynthState {
   // Actions — shared
   updateVibrato: (patch: Partial<VibratoConfig>) => void;
   setIsSynthPlaying: (v: boolean) => void;
-  savePreset: (name: string) => void;
-  updatePreset: (id: string) => void;
-  deletePreset: (id: string) => void;
+  savePreset: (name: string) => Promise<void>;
+  updatePreset: (id: string) => Promise<void>;
+  deletePreset: (id: string) => Promise<void>;
   loadPreset: (preset: SynthPreset) => void;
   resetEditor: () => void;
 
   // Import/Export
-  importPresets: (presets: SynthPreset[]) => void;
+  importPresets: (presets: SynthPreset[]) => Promise<void>;
 
   // Custom program actions
-  saveAsProgram: (name: string, description?: string) => void;
-  updateProgram: (id: string, description?: string) => void;
-  deleteProgram: (id: string) => void;
+  saveAsProgram: (name: string, description?: string) => Promise<void>;
+  updateProgram: (id: string, description?: string) => Promise<void>;
+  deleteProgram: (id: string) => Promise<void>;
   loadProgramForEdit: (program: CustomProgram) => void;
+
+  // Cloud sync
+  loadFromCloud: (userId: string) => Promise<void>;
+  clearForLogout: () => void;
 }
 
 export const useSynthStore = create<SynthState>()(
@@ -123,6 +140,7 @@ export const useSynthStore = create<SynthState>()(
       harmonicBaseFreq: 220,
       savedPresets: [],
       savedPrograms: [],
+      cloudUserId: null,
       editingPresetId: null,
       editingProgramId: null,
 
@@ -235,7 +253,7 @@ export const useSynthStore = create<SynthState>()(
 
       setIsSynthPlaying: (v) => set({ isSynthPlaying: v }),
 
-      savePreset: (name) => {
+      savePreset: async (name) => {
         const { layers, leftLayers, rightLayers, vibrato, editorMode, isStereo, savedPresets } = get();
         const preset: SynthPreset = {
           id: generateId(),
@@ -247,29 +265,63 @@ export const useSynthStore = create<SynthState>()(
           editorMode: isStereo ? `${editorMode}-stereo` : editorMode,
           createdAt: new Date().toISOString(),
         };
+        const prevPresets = savedPresets;
         set({ savedPresets: [...savedPresets, preset], editingPresetId: preset.id });
+
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        try {
+          await upsertPreset(uid, preset);
+        } catch (err) {
+          console.error("[synth] savePreset failed:", err);
+          set({ savedPresets: prevPresets, editingPresetId: null });
+          throw err;
+        }
       },
 
-      updatePreset: (id) => {
+      updatePreset: async (id) => {
         const { layers, leftLayers, rightLayers, vibrato, editorMode, isStereo, savedPresets } = get();
-        set({
-          savedPresets: savedPresets.map((p) =>
-            p.id === id
-              ? {
-                  ...p,
-                  layers: layers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
-                  leftLayers: leftLayers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
-                  rightLayers: rightLayers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
-                  vibrato: { ...vibrato },
-                  editorMode: isStereo ? `${editorMode}-stereo` : editorMode,
-                }
-              : p
-          ),
-        });
+        const prevPresets = savedPresets;
+        const next = savedPresets.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                layers: layers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
+                leftLayers: leftLayers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
+                rightLayers: rightLayers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
+                vibrato: { ...vibrato },
+                editorMode: isStereo ? `${editorMode}-stereo` : editorMode,
+              }
+            : p
+        );
+        set({ savedPresets: next });
+
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        const updated = next.find((p) => p.id === id);
+        if (!updated) return;
+        try {
+          await upsertPreset(uid, updated);
+        } catch (err) {
+          console.error("[synth] updatePreset failed:", err);
+          set({ savedPresets: prevPresets });
+          throw err;
+        }
       },
 
-      deletePreset: (id) => {
-        set((state) => ({ savedPresets: state.savedPresets.filter((p) => p.id !== id) }));
+      deletePreset: async (id) => {
+        const prevPresets = get().savedPresets;
+        set({ savedPresets: prevPresets.filter((p) => p.id !== id) });
+
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        try {
+          await deletePresetCloud(uid, id);
+        } catch (err) {
+          console.error("[synth] deletePreset failed:", err);
+          set({ savedPresets: prevPresets });
+          throw err;
+        }
       },
 
       loadPreset: (preset) => {
@@ -309,7 +361,7 @@ export const useSynthStore = create<SynthState>()(
       },
 
       // --- Import/Export ---
-      importPresets: (presets) => {
+      importPresets: async (presets) => {
         const valid = presets.filter(
           (p) =>
             p &&
@@ -330,11 +382,22 @@ export const useSynthStore = create<SynthState>()(
           vibrato: { ...p.vibrato },
           createdAt: p.createdAt || new Date().toISOString(),
         }));
-        set((state) => ({ savedPresets: [...state.savedPresets, ...imported] }));
+        const prevPresets = get().savedPresets;
+        set({ savedPresets: [...prevPresets, ...imported] });
+
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        try {
+          await bulkInsertPresets(uid, imported);
+        } catch (err) {
+          console.error("[synth] importPresets failed:", err);
+          set({ savedPresets: prevPresets });
+          throw err;
+        }
       },
 
       // --- Custom program actions ---
-      saveAsProgram: (name, description) => {
+      saveAsProgram: async (name, description) => {
         const { layers, leftLayers, rightLayers, vibrato, editorMode, isStereo, savedPrograms } = get();
         const preset: SynthPreset = {
           id: generateId(),
@@ -356,10 +419,21 @@ export const useSynthStore = create<SynthState>()(
           preset,
           createdAt: new Date().toISOString(),
         };
+        const prevPrograms = savedPrograms;
         set({ savedPrograms: [...savedPrograms, program], editingProgramId: program.id });
+
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        try {
+          await upsertProgram(uid, program);
+        } catch (err) {
+          console.error("[synth] saveAsProgram failed:", err);
+          set({ savedPrograms: prevPrograms, editingProgramId: null });
+          throw err;
+        }
       },
 
-      updateProgram: (id, description) => {
+      updateProgram: async (id, description) => {
         const { layers, leftLayers, rightLayers, vibrato, editorMode, isStereo, savedPrograms } = get();
         const preset: SynthPreset = {
           id: generateId(),
@@ -372,30 +446,78 @@ export const useSynthStore = create<SynthState>()(
           createdAt: new Date().toISOString(),
         };
         const layerCount = isStereo ? leftLayers.length + rightLayers.length : layers.length;
-        set({
-          savedPrograms: savedPrograms.map((p) =>
-            p.id === id
-              ? {
-                  ...p,
-                  preset: { ...preset, name: p.name },
-                  description: description?.trim() || `カスタム・${layerCount}レイヤー合成`,
-                }
-              : p
-          ),
-        });
+        const prevPrograms = savedPrograms;
+        const next = savedPrograms.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                preset: { ...preset, name: p.name },
+                description: description?.trim() || `カスタム・${layerCount}レイヤー合成`,
+              }
+            : p
+        );
+        set({ savedPrograms: next });
+
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        const updated = next.find((p) => p.id === id);
+        if (!updated) return;
+        try {
+          await upsertProgram(uid, updated);
+        } catch (err) {
+          console.error("[synth] updateProgram failed:", err);
+          set({ savedPrograms: prevPrograms });
+          throw err;
+        }
       },
 
-      deleteProgram: (id) => {
-        set((state) => ({ savedPrograms: state.savedPrograms.filter((p) => p.id !== id) }));
+      deleteProgram: async (id) => {
+        const prevPrograms = get().savedPrograms;
+        set({ savedPrograms: prevPrograms.filter((p) => p.id !== id) });
+
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        try {
+          await deleteProgramCloud(uid, id);
+        } catch (err) {
+          console.error("[synth] deleteProgram failed:", err);
+          set({ savedPrograms: prevPrograms });
+          throw err;
+        }
       },
 
       loadProgramForEdit: (program) => {
         get().loadPreset(program.preset);
         set({ editingProgramId: program.id });
       },
+
+      // --- Cloud sync ---
+      loadFromCloud: async (userId) => {
+        try {
+          const [presets, programs] = await Promise.all([
+            listPresets(userId),
+            listPrograms(userId),
+          ]);
+          set({ savedPresets: presets, savedPrograms: programs, cloudUserId: userId });
+        } catch (err) {
+          console.error("[synth] load failed:", err);
+          set({ cloudUserId: userId });
+        }
+      },
+
+      clearForLogout: () => {
+        set({
+          savedPresets: [],
+          savedPrograms: [],
+          cloudUserId: null,
+          editingPresetId: null,
+          editingProgramId: null,
+        });
+      },
     }),
     {
       name: "synth-presets",
+      storage: createPerUserStorage(),
       partialize: (state) => ({ savedPresets: state.savedPresets, savedPrograms: state.savedPrograms }),
     }
   )
