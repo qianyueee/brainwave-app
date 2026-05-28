@@ -8,7 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { BinauralSession, getAudioContext } from "@/lib/audio-engine";
-import { SynthSession, SynthLayer, TremoloConfig, VibratoConfig } from "@/lib/synth-engine";
+import { SynthSession, SynthLayer, TremoloConfig, VibratoConfig, MonitorChannel } from "@/lib/synth-engine";
 import { ProgramConfig } from "@/lib/programs";
 import type { CustomProgram } from "@/lib/programs";
 import { NaturePlayer } from "@/lib/nature-player";
@@ -38,6 +38,8 @@ interface AudioContextValue {
   setNatureVolume: (value: number) => void;
   // Synth volume control (for Mixer)
   setSynthVolume: (value: number) => void;
+  // Solo monitor in stereo mode
+  setMonitorChannel: (channel: MonitorChannel) => void;
 }
 
 const AudioCtx = createContext<AudioContextValue | null>(null);
@@ -233,9 +235,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       }
 
       const synth = new SynthSession();
-      const { vibrato, isStereo, leftLayers, rightLayers } = useSynthStore.getState();
+      const { vibrato, isStereo, leftLayers, rightLayers, monitorChannel } = useSynthStore.getState();
       if (isStereo) {
         synth.startStereo(leftLayers, rightLayers, vibrato);
+        synth.setMonitorChannel(monitorChannel);
       } else {
         synth.start(layers, vibrato);
       }
@@ -272,6 +275,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
       if (isStereo && preset.leftLayers && preset.rightLayers) {
         synth.startStereo(preset.leftLayers, preset.rightLayers, preset.vibrato);
+        synth.setMonitorChannel(useSynthStore.getState().monitorChannel);
       } else {
         synth.start(preset.layers, preset.vibrato);
       }
@@ -390,6 +394,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     synthRef.current?.setMasterVolume(value);
   }, []);
 
+  const setMonitorChannel = useCallback((channel: MonitorChannel) => {
+    synthRef.current?.setMonitorChannel(channel);
+  }, []);
+
   const updateSynthLayer = useCallback(
     (id: string, patch: Partial<Pick<SynthLayer, "frequency" | "volume" | "tone">>) => {
       const synth = synthRef.current;
@@ -448,6 +456,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         stopNatureSound,
         setNatureVolume,
         setSynthVolume,
+        setMonitorChannel,
       }}
     >
       {children}

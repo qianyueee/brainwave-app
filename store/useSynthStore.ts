@@ -24,6 +24,7 @@ import {
 
 export type EditorMode = "free" | "harmonic";
 export type StereoChannel = "left" | "right";
+export type MonitorChannel = "both" | "left" | "right";
 
 const MAX_LAYERS = 8;
 const HARMONIC_COUNT = 9;
@@ -77,6 +78,9 @@ interface SynthState {
   editorMode: EditorMode;
   isStereo: boolean;
   harmonicBaseFreq: number;
+  harmonicBaseFreqLeft: number;
+  harmonicBaseFreqRight: number;
+  monitorChannel: MonitorChannel;
 
   // Persisted (per-user cache)
   savedPresets: SynthPreset[];
@@ -90,7 +94,8 @@ interface SynthState {
   // Actions — mode
   setEditorMode: (mode: EditorMode) => void;
   setIsStereo: (v: boolean) => void;
-  generateHarmonics: (baseFreq: number) => void;
+  generateHarmonics: (baseFreq: number, channel?: StereoChannel) => void;
+  setMonitorChannel: (c: MonitorChannel) => void;
 
   // Actions — mono layer ops (used when !isStereo)
   addLayer: () => void;
@@ -138,6 +143,9 @@ export const useSynthStore = create<SynthState>()(
       editorMode: "free" as EditorMode,
       isStereo: false,
       harmonicBaseFreq: 220,
+      harmonicBaseFreqLeft: 220,
+      harmonicBaseFreqRight: 220,
+      monitorChannel: "both" as MonitorChannel,
       savedPresets: [],
       savedPrograms: [],
       cloudUserId: null,
@@ -146,7 +154,7 @@ export const useSynthStore = create<SynthState>()(
 
       // --- Mode ---
       setEditorMode: (mode) => {
-        const { editorMode, harmonicBaseFreq, isStereo } = get();
+        const { editorMode, harmonicBaseFreq, harmonicBaseFreqLeft, harmonicBaseFreqRight, isStereo } = get();
         if (mode === editorMode) return;
 
         if (mode === "free") {
@@ -157,32 +165,58 @@ export const useSynthStore = create<SynthState>()(
           }
         } else {
           // harmonic
-          const harmonics = createHarmonicLayers(harmonicBaseFreq);
           if (isStereo) {
-            set({ editorMode: mode, leftLayers: cloneLayers(harmonics), rightLayers: cloneLayers(harmonics) });
+            set({
+              editorMode: mode,
+              leftLayers: createHarmonicLayers(harmonicBaseFreqLeft),
+              rightLayers: createHarmonicLayers(harmonicBaseFreqRight),
+            });
           } else {
-            set({ editorMode: mode, layers: harmonics });
+            set({ editorMode: mode, layers: createHarmonicLayers(harmonicBaseFreq) });
           }
         }
       },
 
       setIsStereo: (v) => {
-        const { isStereo, layers, leftLayers } = get();
+        const { isStereo, layers, leftLayers, harmonicBaseFreq, harmonicBaseFreqLeft } = get();
         if (v === isStereo) return;
         if (v) {
-          // mono → stereo: copy layers to both channels
-          set({ isStereo: true, leftLayers: cloneLayers(layers), rightLayers: cloneLayers(layers) });
+          // mono → stereo: copy layers to both channels; seed L/R base freq from mono
+          set({
+            isStereo: true,
+            leftLayers: cloneLayers(layers),
+            rightLayers: cloneLayers(layers),
+            harmonicBaseFreqLeft: harmonicBaseFreq,
+            harmonicBaseFreqRight: harmonicBaseFreq,
+          });
         } else {
-          // stereo → mono: take left channel
-          set({ isStereo: false, layers: cloneLayers(leftLayers) });
+          // stereo → mono: take left channel and its base freq; reset monitor
+          set({
+            isStereo: false,
+            layers: cloneLayers(leftLayers),
+            harmonicBaseFreq: harmonicBaseFreqLeft,
+            monitorChannel: "both",
+          });
         }
       },
 
-      generateHarmonics: (baseFreq) => {
+      setMonitorChannel: (c) => set({ monitorChannel: c }),
+
+      generateHarmonics: (baseFreq, channel) => {
         const { isStereo } = get();
         const harmonics = createHarmonicLayers(baseFreq);
-        if (isStereo) {
-          set({ harmonicBaseFreq: baseFreq, leftLayers: cloneLayers(harmonics), rightLayers: cloneLayers(harmonics) });
+        if (isStereo && channel === "left") {
+          set({ harmonicBaseFreqLeft: baseFreq, leftLayers: harmonics });
+        } else if (isStereo && channel === "right") {
+          set({ harmonicBaseFreqRight: baseFreq, rightLayers: harmonics });
+        } else if (isStereo) {
+          // no channel specified in stereo: update both
+          set({
+            harmonicBaseFreqLeft: baseFreq,
+            harmonicBaseFreqRight: baseFreq,
+            leftLayers: cloneLayers(harmonics),
+            rightLayers: cloneLayers(harmonics),
+          });
         } else {
           set({ harmonicBaseFreq: baseFreq, layers: harmonics });
         }
@@ -331,6 +365,7 @@ export const useSynthStore = create<SynthState>()(
         set({
           editorMode,
           isStereo,
+          monitorChannel: "both",
           editingPresetId: preset.id,
           layers: (preset.layers ?? [createDefaultLayer()]).map((l) => ({
             ...l, id: generateId(), tremolo: l.tremolo ? { ...l.tremolo } : { ...DEFAULT_TREMOLO },
@@ -355,6 +390,9 @@ export const useSynthStore = create<SynthState>()(
           editorMode: "free" as EditorMode,
           isStereo: false,
           harmonicBaseFreq: 220,
+          harmonicBaseFreqLeft: 220,
+          harmonicBaseFreqRight: 220,
+          monitorChannel: "both",
           editingPresetId: null,
           editingProgramId: null,
         });

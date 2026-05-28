@@ -63,6 +63,8 @@ interface LayerNodes {
   tremolo: TremoloNodes;
 }
 
+export type MonitorChannel = "both" | "left" | "right";
+
 export class SynthSession {
   private ctx: AudioContext;
   private layerNodes = new Map<string, LayerNodes>();
@@ -76,6 +78,10 @@ export class SynthSession {
   private rightGain: GainNode | null = null;
   // Track which channel each layer belongs to for stereo
   private layerChannels = new Map<string, "left" | "right">();
+
+  // Solo monitor state (stereo only)
+  private _monitor: MonitorChannel = "both";
+  private _userVolume = 1;
 
   // Global vibrato LFO
   private vibratoLfo: OscillatorNode | null = null;
@@ -237,24 +243,25 @@ export class SynthSession {
   /** Adjust master volume (0-1) for external control (e.g. Mixer) */
   setMasterVolume(value: number): void {
     const v = Math.max(0, Math.min(1, value));
+    this._userVolume = v;
     const now = this.ctx.currentTime;
     if (this._isStereo) {
-      if (this.leftGain) {
-        this.leftGain.gain.cancelScheduledValues(now);
-        this.leftGain.gain.setValueAtTime(this.leftGain.gain.value, now);
-        this.leftGain.gain.setTargetAtTime(v, now, 0.02);
-      }
-      if (this.rightGain) {
-        this.rightGain.gain.cancelScheduledValues(now);
-        this.rightGain.gain.setValueAtTime(this.rightGain.gain.value, now);
-        this.rightGain.gain.setTargetAtTime(v, now, 0.02);
-      }
+      this.applyChannelGain("left");
+      this.applyChannelGain("right");
     } else if (this.masterGain) {
       const scale = 1 / Math.sqrt(Math.max(this.layerNodes.size, 1));
       this.masterGain.gain.cancelScheduledValues(now);
       this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
       this.masterGain.gain.setTargetAtTime(v * scale, now, 0.02);
     }
+  }
+
+  /** Solo monitor in stereo mode: hear only L, only R, or both. No-op in mono. */
+  setMonitorChannel(channel: MonitorChannel): void {
+    this._monitor = channel;
+    if (!this._isStereo) return;
+    this.applyChannelGain("left");
+    this.applyChannelGain("right");
   }
 
   // --- Vibrato ---
@@ -389,7 +396,10 @@ export class SynthSession {
 
   private createTremolo(config: TremoloConfig, tremoloGain: GainNode, now: number): TremoloNodes {
     const empty: TremoloNodes = { lfo: null, lfoGain: null, decayTimer: null };
-    if (!config.enabled || config.depth <= 0) return empty;
+    if (!config.enabled) return empty;
+    // Sine: depth = modulation amplitude (0 = no modulation)
+    // Decay: depth = sustain level reached at end of each beat (0 = full decay to silence, 1 = no decay)
+    if (config.mode === "sine" && config.depth <= 0) return empty;
 
     const depth = config.depth;
 
@@ -412,21 +422,22 @@ export class SynthSession {
       return { lfo, lfoGain, decayTimer: null };
     } else {
       const beatPeriod = 1 / config.rate;
-      const decayTime = beatPeriod * depth;
-      const attackTime = Math.min(0.005, decayTime * 0.05); // 5ms attack to avoid pop
+      const attackTime = Math.min(0.005, beatPeriod * 0.05); // 5ms attack to avoid pop
+      const decayTime = Math.max(beatPeriod - attackTime, 0.001);
+      // exponentialRampToValueAtTime cannot reach exactly 0; clamp to -60dB
+      const target = Math.max(depth, 0.001);
 
       tremoloGain.gain.cancelScheduledValues(now);
       tremoloGain.gain.setValueAtTime(1, now);
-      tremoloGain.gain.exponentialRampToValueAtTime(0.001, now + decayTime);
+      tremoloGain.gain.exponentialRampToValueAtTime(target, now + decayTime);
 
       const decayTimer = setInterval(() => {
         if (!this._isPlaying) return;
         const t = this.ctx.currentTime;
         tremoloGain.gain.cancelScheduledValues(t);
-        // Smooth attack: ramp from current value to 1 over attackTime
         tremoloGain.gain.setValueAtTime(tremoloGain.gain.value, t);
         tremoloGain.gain.linearRampToValueAtTime(1, t + attackTime);
-        tremoloGain.gain.exponentialRampToValueAtTime(0.001, t + attackTime + decayTime);
+        tremoloGain.gain.exponentialRampToValueAtTime(target, t + attackTime + decayTime);
       }, beatPeriod * 1000);
 
       return { lfo: null, lfoGain: null, decayTimer };
@@ -457,13 +468,22 @@ export class SynthSession {
   }
 
   private updateChannelScale(channel: "left" | "right"): void {
-    const gainNode = channel === "left" ? this.leftGain : this.rightGain;
-    if (!gainNode) return;
+    this.applyChannelGain(channel);
+  }
+
+  private applyChannelGain(channel: "left" | "right"): void {
+    const node = channel === "left" ? this.leftGain : this.rightGain;
+    if (!node) return;
     let count = 0;
     for (const [, ch] of this.layerChannels) {
       if (ch === channel) count++;
     }
-    const scale = 1 / Math.sqrt(Math.max(count, 1));
-    gainNode.gain.setTargetAtTime(scale, this.ctx.currentTime, 0.02);
+    const baseScale = 1 / Math.sqrt(Math.max(count, 1));
+    const monitorMul = this._monitor === "both" || this._monitor === channel ? 1 : 0;
+    const target = baseScale * this._userVolume * monitorMul;
+    const now = this.ctx.currentTime;
+    node.gain.cancelScheduledValues(now);
+    node.gain.setValueAtTime(node.gain.value, now);
+    node.gain.setTargetAtTime(target, now, 0.02);
   }
 }

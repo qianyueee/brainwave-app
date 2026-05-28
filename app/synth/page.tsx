@@ -42,10 +42,14 @@ export default function SynthPage() {
   const editorMode = useSynthStore((s) => s.editorMode);
   const isStereo = useSynthStore((s) => s.isStereo);
   const harmonicBaseFreq = useSynthStore((s) => s.harmonicBaseFreq);
+  const harmonicBaseFreqLeft = useSynthStore((s) => s.harmonicBaseFreqLeft);
+  const harmonicBaseFreqRight = useSynthStore((s) => s.harmonicBaseFreqRight);
+  const monitorChannel = useSynthStore((s) => s.monitorChannel);
   const setEditorMode = useSynthStore((s) => s.setEditorMode);
   const setIsStereo = useSynthStore((s) => s.setIsStereo);
   const generateHarmonics = useSynthStore((s) => s.generateHarmonics);
-  const { getSynth, stopSynth } = useAudio();
+  const setMonitorChannel = useSynthStore((s) => s.setMonitorChannel);
+  const { getSynth, stopSynth, setMonitorChannel: audioSetMonitor } = useAudio();
 
   const updatePreset = useSynthStore((s) => s.updatePreset);
   const editingPresetId = useSynthStore((s) => s.editingPresetId);
@@ -60,16 +64,26 @@ export default function SynthPage() {
   const [programDesc, setProgramDesc] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
   const [baseFreqInput, setBaseFreqInput] = useState(harmonicBaseFreq.toString());
+  const [baseFreqInputLeft, setBaseFreqInputLeft] = useState(harmonicBaseFreqLeft.toString());
+  const [baseFreqInputRight, setBaseFreqInputRight] = useState(harmonicBaseFreqRight.toString());
   const [activeChannel, setActiveChannel] = useState<StereoChannel>("left");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync local input strings when store values change (e.g. on stereo toggle or preset load)
+  useEffect(() => {
+    setBaseFreqInput(harmonicBaseFreq.toString());
+  }, [harmonicBaseFreq]);
+  useEffect(() => {
+    setBaseFreqInputLeft(harmonicBaseFreqLeft.toString());
+  }, [harmonicBaseFreqLeft]);
+  useEffect(() => {
+    setBaseFreqInputRight(harmonicBaseFreqRight.toString());
+  }, [harmonicBaseFreqRight]);
 
   const handleModeChange = (mode: EditorMode) => {
     if (mode === editorMode) return;
     if (isSynthPlaying) stopSynth();
     setEditorMode(mode);
-    if (mode === "harmonic") {
-      setBaseFreqInput(useSynthStore.getState().harmonicBaseFreq.toString());
-    }
   };
 
   const handleStereoToggle = () => {
@@ -77,20 +91,30 @@ export default function SynthPage() {
     setIsStereo(!isStereo);
   };
 
-  const handleBaseFreqApply = () => {
-    const parsed = parseFloat(baseFreqInput);
+  const handleBaseFreqApply = (channel?: StereoChannel) => {
+    const raw = channel === "left" ? baseFreqInputLeft
+      : channel === "right" ? baseFreqInputRight
+      : baseFreqInput;
+    const current = channel === "left" ? harmonicBaseFreqLeft
+      : channel === "right" ? harmonicBaseFreqRight
+      : harmonicBaseFreq;
+    const setInput = channel === "left" ? setBaseFreqInputLeft
+      : channel === "right" ? setBaseFreqInputRight
+      : setBaseFreqInput;
+
+    const parsed = parseFloat(raw);
     if (isNaN(parsed)) {
-      setBaseFreqInput(harmonicBaseFreq.toString());
+      setInput(current.toString());
       return;
     }
     const clamped = Math.round(Math.max(HARMONIC_BASE_MIN, Math.min(FREQ_MAX, parsed)) * 100) / 100;
-    setBaseFreqInput(clamped.toString());
+    setInput(clamped.toString());
     if (isSynthPlaying) stopSynth();
-    generateHarmonics(clamped);
+    generateHarmonics(clamped, channel);
   };
 
-  const handleBaseFreqKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleBaseFreqApply();
+  const handleBaseFreqKeyDown = (channel?: StereoChannel) => (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleBaseFreqApply(channel);
   };
 
   const handleAddLayer = () => {
@@ -280,30 +304,81 @@ export default function SynthPage() {
 
       {/* Harmonic base frequency input */}
       {editorMode === "harmonic" && (
-        <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-2 neu-raised">
-          <label className="text-xs text-text-secondary">基本周波数</label>
-          <div className="flex gap-2 items-center">
-            <input
-              type="number"
-              min={HARMONIC_BASE_MIN}
-              max={FREQ_MAX}
-              step={0.01}
-              value={baseFreqInput}
-              onChange={(e) => setBaseFreqInput(e.target.value)}
-              onKeyDown={handleBaseFreqKeyDown}
-              className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <span className="text-sm text-text-muted">Hz</span>
-            <button
-              onClick={handleBaseFreqApply}
-              className="px-4 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 neu-raised-sm"
-            >
-              生成
-            </button>
-          </div>
-          <p className="text-xs text-text-muted">
-            基本周波数の1〜9倍音を生成します{isStereo ? "（両チャンネル）" : ""}
-          </p>
+        <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-3 neu-raised">
+          {isStereo ? (
+            <>
+              <label className="text-xs text-text-secondary">基本周波数</label>
+              <div className="flex gap-2 items-center">
+                <span className="w-7 text-xs text-accent font-bold tabular-nums">L</span>
+                <input
+                  type="number"
+                  min={HARMONIC_BASE_MIN}
+                  max={FREQ_MAX}
+                  step={0.01}
+                  value={baseFreqInputLeft}
+                  onChange={(e) => setBaseFreqInputLeft(e.target.value)}
+                  onKeyDown={handleBaseFreqKeyDown("left")}
+                  className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <span className="text-sm text-text-muted">Hz</span>
+                <button
+                  onClick={() => handleBaseFreqApply("left")}
+                  className="px-4 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 neu-raised-sm"
+                >
+                  生成
+                </button>
+              </div>
+              <div className="flex gap-2 items-center">
+                <span className="w-7 text-xs text-accent font-bold tabular-nums">R</span>
+                <input
+                  type="number"
+                  min={HARMONIC_BASE_MIN}
+                  max={FREQ_MAX}
+                  step={0.01}
+                  value={baseFreqInputRight}
+                  onChange={(e) => setBaseFreqInputRight(e.target.value)}
+                  onKeyDown={handleBaseFreqKeyDown("right")}
+                  className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <span className="text-sm text-text-muted">Hz</span>
+                <button
+                  onClick={() => handleBaseFreqApply("right")}
+                  className="px-4 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 neu-raised-sm"
+                >
+                  生成
+                </button>
+              </div>
+              <p className="text-xs text-text-muted">
+                左右別に基本周波数を設定できます（1〜9倍音を生成）
+              </p>
+            </>
+          ) : (
+            <>
+              <label className="text-xs text-text-secondary">基本周波数</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  min={HARMONIC_BASE_MIN}
+                  max={FREQ_MAX}
+                  step={0.01}
+                  value={baseFreqInput}
+                  onChange={(e) => setBaseFreqInput(e.target.value)}
+                  onKeyDown={handleBaseFreqKeyDown()}
+                  className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary tabular-nums outline-none neu-inset focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <span className="text-sm text-text-muted">Hz</span>
+                <button
+                  onClick={() => handleBaseFreqApply()}
+                  className="px-4 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 neu-raised-sm"
+                >
+                  生成
+                </button>
+              </div>
+              <p className="text-xs text-text-muted">
+                基本周波数の1〜9倍音を生成します
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -314,6 +389,32 @@ export default function SynthPage() {
 
       {/* Global Vibrato */}
       <SynthVibratoPanel />
+
+      {/* Stereo solo monitor */}
+      {isStereo && (
+        <div className="bg-surface border border-surface-border rounded-2xl px-3 py-2 neu-raised flex items-center gap-2">
+          <span className="text-xs text-text-muted shrink-0">モニター</span>
+          <div className="flex gap-1 flex-1">
+            {(["left", "both", "right"] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  setMonitorChannel(c);
+                  audioSetMonitor(c);
+                }}
+                aria-pressed={monitorChannel === c}
+                className={`flex-1 min-h-[48px] rounded-xl text-sm font-bold transition-all active:scale-95 ${
+                  monitorChannel === c
+                    ? "bg-primary text-white neu-inset"
+                    : "bg-navy text-text-secondary neu-raised-sm"
+                }`}
+              >
+                {c === "left" ? "L のみ" : c === "right" ? "R のみ" : "両方"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stereo channel tabs */}
       {isStereo && (
