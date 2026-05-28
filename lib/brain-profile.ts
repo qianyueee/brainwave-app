@@ -39,14 +39,23 @@ function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
 }
 
-/** 入定スピードで「到達」とみなす閾値 */
-const SETTLING_THRESHOLD = 80;
-
-/** 平穏持続度の閾値 */
-const TRANQUILITY_THRESHOLD = 70;
-
-/** 速度スコアの係数（秒数をスコアに変換） */
-const SPEED_COEFFICIENT = 0.5;
+/**
+ * 6指標アルゴリズムの全パラメータ（校正用に一箇所へ集約）。
+ * デフォルト値は実測4セッション（Jun/L/MS/M）の分布から暫定的に標定したもの。
+ * provisional — より多くのサンプルが集まったら分布に合わせて再調整する。
+ */
+export const INDICATOR_CONFIG = {
+  // ① 集中強度 / ② 集中スピード
+  focus: { intensityTopPct: 10, threshold: 50, sustainSecs: 3, speedTau: 60 },
+  // ③ 持続的集中
+  sustain: { threshold: 40, longestRefSecs: 60, coverWeight: 0.5, longestWeight: 0.5 },
+  // ④ リラックス深度
+  relax: { levelTopPct: 10, bandRef: 0.7, levelWeight: 0.6, bandWeight: 0.4, excludeDelta: true },
+  // ⑤ 入定スピード（settling）
+  settle: { restThreshold: 60, sustainSecs: 3, speedTau: 60 },
+  // ⑥ 平穏持続度
+  stable: { cvGood: 0.1, cvCap: 0.4 },
+};
 
 // ─── Excel / CSV Parsing ─────────────────────────────────────────────────────
 
@@ -153,12 +162,10 @@ export async function parseEegFile(file: File): Promise<{ rows: EegRow[]; tag: s
         maxLen = Math.max(maxLen, arr.length);
       }
 
-      // Reconstruct per-second rows
+      // Reconstruct per-second rows (keep interior gaps; trimming happens after)
       for (let i = 0; i < maxLen; i++) {
         const att = arrays.get("attention")?.[i] ?? 0;
         const rel = arrays.get("relaxation")?.[i] ?? 0;
-        if (att === 0 && rel === 0) continue;
-
         rows.push({
           attention: att,
           relaxation: rel,
@@ -186,8 +193,6 @@ export async function parseEegFile(file: File): Promise<{ rows: EegRow[]; tag: s
         }
       }
 
-      if ((row.attention ?? 0) === 0 && (row.relaxation ?? 0) === 0) continue;
-
       rows.push({
         attention: row.attention ?? 0,
         relaxation: row.relaxation ?? 0,
@@ -203,120 +208,200 @@ export async function parseEegFile(file: File): Promise<{ rows: EegRow[]; tag: s
     }
   }
 
-  if (rows.length === 0) throw new Error("有効なデータ行がありません");
+  // Trim leading/trailing poor-signal samples but keep interior gaps so the
+  // per-second timeline stays intact (timing-based indicators ②⑤ rely on it).
+  let lo = 0;
+  let hi = rows.length - 1;
+  while (lo <= hi && rows[lo].attention <= 0 && rows[lo].relaxation <= 0) lo++;
+  while (hi >= lo && rows[hi].attention <= 0 && rows[hi].relaxation <= 0) hi--;
+  const trimmed = rows.slice(lo, hi + 1);
 
-  return { rows, tag: tag || file.name.replace(/\.\w+$/, "") };
+  if (trimmed.length === 0) throw new Error("有効なデータ行がありません");
+
+  return { rows: trimmed, tag: tag || file.name.replace(/\.\w+$/, "") };
 }
 
-// ─── 6 Indicator Algorithms ──────────────────────────────────────────────────
+// ─── Statistics helpers ──────────────────────────────────────────────────────
 
-/** Get top N% average of an array */
+function mean(values: number[]): number {
+  return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+}
+
+/** Average of the top N% of values (robust "peak capability" without single-sample noise) */
 function topPercentAvg(values: number[], percent: number): number {
+  if (!values.length) return 0;
   const sorted = [...values].sort((a, b) => b - a);
-  const count = Math.max(1, Math.ceil(sorted.length * percent / 100));
-  const sum = sorted.slice(0, count).reduce((s, v) => s + v, 0);
-  return sum / count;
+  const count = Math.max(1, Math.ceil((sorted.length * percent) / 100));
+  return mean(sorted.slice(0, count));
 }
 
-/** Standard deviation */
+/** Population standard deviation */
 function stdDev(values: number[]): number {
-  const mean = values.reduce((s, v) => s + v, 0) / values.length;
-  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
+  if (!values.length) return 0;
+  const m = mean(values);
+  const variance = values.reduce((s, v) => s + (v - m) ** 2, 0) / values.length;
   return Math.sqrt(variance);
 }
 
+/** Coefficient of variation = stddev / mean (0 when mean is 0) */
+function coefficientOfVariation(values: number[]): number {
+  const m = mean(values);
+  return m === 0 ? 0 : stdDev(values) / m;
+}
+
+/** Lengths (in seconds) of each run where value stays ≥ threshold */
+function runsAbove(values: number[], threshold: number): number[] {
+  const runs: number[] = [];
+  let cur = 0;
+  for (const v of values) {
+    if (v >= threshold) {
+      cur++;
+    } else {
+      if (cur > 0) runs.push(cur);
+      cur = 0;
+    }
+  }
+  if (cur > 0) runs.push(cur);
+  return runs;
+}
+
+/** Index where value first stays ≥ threshold for `sustainSecs` consecutive samples (else null) */
+function firstSustainedCrossing(
+  values: number[],
+  threshold: number,
+  sustainSecs: number
+): number | null {
+  let run = 0;
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] >= threshold) {
+      run++;
+      if (run >= sustainSecs) return i - sustainSecs + 1;
+    } else {
+      run = 0;
+    }
+  }
+  return null;
+}
+
+// ─── EEG-specific helpers ─────────────────────────────────────────────────────
+
+/** A sample is usable when the device reported a non-zero eSense value (poor-signal seconds are 0) */
+function isValidSample(r: EegRow): boolean {
+  return r.attention > 0 || r.relaxation > 0;
+}
+
+const alphaPower = (r: EegRow): number => r.lowAlpha + r.highAlpha;
+const betaPower = (r: EegRow): number => r.lowBeta + r.highBeta;
+
 /**
- * ① 集中強度 (Focus Intensity)
- * (最大値 × 0.7) + (上位10%平均 × 0.3)
+ * (低α + 高α + θ) が全帯域パワーに占める相対比率。
+ * NeuroSky の生バンドパワーは無次元の巨大値なので、必ず比率に正規化する。
+ * Delta は瞬き/ノイズ/眠気で過大になりやすいため既定では分母から除外（覚醒リラックスを見る）。
  */
+function relaxBandRatio(r: EegRow, excludeDelta: boolean): number {
+  let denom =
+    r.lowAlpha + r.highAlpha + r.theta + r.lowBeta + r.highBeta + r.lowGamma + r.highGamma;
+  if (!excludeDelta) denom += r.delta;
+  if (denom <= 0) return 0;
+  return (r.lowAlpha + r.highAlpha + r.theta) / denom;
+}
+
+/** 時間→スコアの逆数マッピング: 速いほど高得点（0秒で100、tau秒で50） */
+function speedScore(seconds: number, tau: number): number {
+  return clamp(Math.round((100 * tau) / (tau + seconds)), 0, 100);
+}
+
+/** ⑤⑥共通: リラックス≥閾値 かつ α≥β が持続し始めた秒（入定点）。なければ null */
+function findSettlingIndex(rows: EegRow[]): number | null {
+  const { restThreshold, sustainSecs } = INDICATOR_CONFIG.settle;
+  let run = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.relaxation >= restThreshold && alphaPower(r) >= betaPower(r)) {
+      run++;
+      if (run >= sustainSecs) return i - sustainSecs + 1;
+    } else {
+      run = 0;
+    }
+  }
+  return null;
+}
+
+// ─── 6 Indicator Algorithms ──────────────────────────────────────────────────
+// timing系（②⑤）は秒位を保つため全行を時間軸（添字≈秒）として使う。
+// 値統計系（①③④⑥）は poor-signal の秒を除外する。
+
+/** ① 集中強度: Attention 上位N%平均（最大到達レベル＝集中の深さ） */
 function computeFocusIntensity(rows: EegRow[]): number {
-  const values = rows.map((r) => r.attention);
-  const max = Math.max(...values);
-  const top10Avg = topPercentAvg(values, 10);
-  return clamp(Math.round(max * 0.7 + top10Avg * 0.3), 0, 100);
+  const att = rows.filter(isValidSample).map((r) => r.attention);
+  if (!att.length) return 0;
+  return clamp(Math.round(topPercentAvg(att, INDICATOR_CONFIG.focus.intensityTopPct)), 0, 100);
 }
 
-/**
- * ② 集中スピード (Focus Speed)
- * 測定開始からAttentionが50を超えピークに達するまでの秒数を評価。
- * 100 - (ピーク到達秒数 × 係数)。早く到達するほど高得点。
- */
+/** ② 集中スピード: Attention が初めて閾値を継続突破するまでの秒数 → 速いほど高得点 */
 function computeFocusSpeed(rows: EegRow[]): number {
-  const values = rows.map((r) => r.attention);
-  // Find peak index (first occurrence of max value)
-  const max = Math.max(...values);
-  const peakIdx = values.indexOf(max);
-  return clamp(Math.round(100 - peakIdx * SPEED_COEFFICIENT), 0, 100);
+  const { threshold, sustainSecs, speedTau } = INDICATOR_CONFIG.focus;
+  const t = firstSustainedCrossing(
+    rows.map((r) => r.attention),
+    threshold,
+    sustainSecs
+  );
+  return t === null ? 0 : speedScore(t, speedTau);
 }
 
-/**
- * ③ 持続的集中 (Focus Sustenance)
- * 100 - (Attentionの標準偏差 × 2)
- * バラつきが少ないほど高スコア。
- */
+/** ③ 持続的集中: ≥閾値の連続片段のカバー率と最長持続を合成（点ではなく線で続いたか） */
 function computeSustainedFocus(rows: EegRow[]): number {
-  const values = rows.map((r) => r.attention);
-  const sd = stdDev(values);
-  return clamp(Math.round(100 - sd * 2), 0, 100);
+  const { threshold, longestRefSecs, coverWeight, longestWeight } = INDICATOR_CONFIG.sustain;
+  if (!rows.length) return 0;
+  const att = rows.map((r) => r.attention);
+  const runs = runsAbove(att, threshold);
+  const coverage = (runs.reduce((s, r) => s + r, 0) / att.length) * 100;
+  const longest = runs.length ? Math.max(...runs) : 0;
+  const longestScore = Math.min(100, (longest / longestRefSecs) * 100);
+  return clamp(Math.round(coverWeight * coverage + longestWeight * longestScore), 0, 100);
 }
 
-/**
- * ④ リラックス深度 (Relaxation Depth)
- * (Meditation平均値 × 0.6) + (最大値 × 0.4)
- */
+/** ④ リラックス深度: Relaxation上位N%平均 と (低α+高α+θ)/非δ帯域比率 を合成 */
 function computeRelaxationDepth(rows: EegRow[]): number {
-  const values = rows.map((r) => r.relaxation);
-  const mean = values.reduce((s, v) => s + v, 0) / values.length;
-  const max = Math.max(...values);
-  return clamp(Math.round(mean * 0.6 + max * 0.4), 0, 100);
+  const { levelTopPct, bandRef, levelWeight, bandWeight, excludeDelta } = INDICATOR_CONFIG.relax;
+  const valid = rows.filter(isValidSample);
+  if (!valid.length) return 0;
+  const level = topPercentAvg(
+    valid.map((r) => r.relaxation),
+    levelTopPct
+  );
+  const ratios = valid.map((r) => relaxBandRatio(r, excludeDelta)).filter((x) => x > 0);
+  const bandScore = Math.min(100, (mean(ratios) / bandRef) * 100);
+  return clamp(Math.round(levelWeight * level + bandWeight * bandScore), 0, 100);
 }
 
-/**
- * ⑤ 入定スピード (Settling Speed)
- * 測定開始からMeditation値が80を超えるまでの秒数を評価。
- * 100 - (80到達までの秒数 × 係数)。
- */
+/** ⑤ 入定スピード: 活性状態からリラックス≥閾値 かつ α≥β に切り替わるまでの秒数 → 速いほど高得点 */
 function computeCalmnessSpeed(rows: EegRow[]): number {
-  const idx = rows.findIndex((r) => r.relaxation >= SETTLING_THRESHOLD);
-  if (idx === -1) return 0;
-  return clamp(Math.round(100 - idx * SPEED_COEFFICIENT), 0, 100);
+  const t = findSettlingIndex(rows);
+  return t === null ? 0 : speedScore(t, INDICATOR_CONFIG.settle.speedTau);
 }
 
-/**
- * ⑥ 平穏持続度 (Tranquility Stability)
- * (70以上の時間 ÷ 全測定時間) × 100 に揺らぎ補正を加味。
- * 揺らぎ補正: 標準偏差が大きいほどスコアを少し下げる。
- */
+/** ⑥ 平穏持続度: 入定後の Relaxation の変動係数(CV) → 乱れず安定しているほど高得点 */
 function computeCalmnessStability(rows: EegRow[]): number {
-  const values = rows.map((r) => r.relaxation);
-  const aboveCount = values.filter((v) => v >= TRANQUILITY_THRESHOLD).length;
-  const ratio = (aboveCount / values.length) * 100;
-  // Fluctuation penalty: subtract up to 15 points based on stddev
-  const sd = stdDev(values);
-  const penalty = Math.min(15, sd * 0.5);
-  return clamp(Math.round(ratio - penalty), 0, 100);
+  const { cvGood, cvCap } = INDICATOR_CONFIG.stable;
+  const settle = findSettlingIndex(rows);
+  const phase = (settle === null ? rows : rows.slice(settle)).filter(isValidSample);
+  const rel = phase.map((r) => r.relaxation);
+  if (rel.length < 2) return 0;
+  const cv = coefficientOfVariation(rel);
+  // 二点線形マッピング: CV≤cvGood→100, CV≥cvCap→0
+  return clamp(Math.round(((cvCap - cv) / (cvCap - cvGood)) * 100), 0, 100);
 }
 
-/**
- * Sigmoid rescale: map raw 0-100 to ~14-95 range.
- * Mid-range (30-90) is spread out, extremes are compressed.
- */
-const SIGMOID_K = 0.06;
-const SIGMOID_BASE = 14;
-const SIGMOID_RANGE = 81; // 95 - 14
-function rescale(raw: number): number {
-  return Math.round(SIGMOID_BASE + SIGMOID_RANGE / (1 + Math.exp(-SIGMOID_K * (raw - 50))));
-}
-
-/** Compute all 6 indicators from raw EEG rows */
+/** Compute all 6 indicators from raw EEG rows (0-100, no post-hoc rescaling) */
 export function computeIndicators(rows: EegRow[]): BrainIndicators {
   return {
-    focusIntensity: rescale(computeFocusIntensity(rows)),
-    focusSpeed: rescale(computeFocusSpeed(rows)),
-    sustainedFocus: rescale(computeSustainedFocus(rows)),
-    relaxationDepth: rescale(computeRelaxationDepth(rows)),
-    calmnessSpeed: rescale(computeCalmnessSpeed(rows)),
-    calmnessStability: rescale(computeCalmnessStability(rows)),
+    focusIntensity: computeFocusIntensity(rows),
+    focusSpeed: computeFocusSpeed(rows),
+    sustainedFocus: computeSustainedFocus(rows),
+    relaxationDepth: computeRelaxationDepth(rows),
+    calmnessSpeed: computeCalmnessSpeed(rows),
+    calmnessStability: computeCalmnessStability(rows),
   };
 }
 
@@ -424,36 +509,36 @@ export const INDICATOR_META: IndicatorMeta[] = [
     key: "focusIntensity",
     label: "専注強度",
     shortLabel: "専注強度",
-    description: "注意力の全程平均値。集中力の全体的なレベルを示す。",
+    description: "注意力スコアの上位10%平均。集中の最大到達レベル（どれだけ深く集中できたか）を示す。",
   },
   {
     key: "sustainedFocus",
     label: "持続的専注",
     shortLabel: "集中持続",
-    description: "最長連続高専注片段が総時間に占める割合。集中がどれだけ途切れずに続いたか。",
+    description: "注意力40以上が連続した区間のカバー率と最長持続から算出。集中が途切れず「線」として続いた度合い。",
   },
   {
     key: "relaxationDepth",
     label: "リラックス深度",
     shortLabel: "弛緩深度",
-    description: "放松度の全程平均値。リラックスの全体的な深さを示す。",
+    description: "放松度の上位10%平均と、(低α+高α+θ)/非δ波 の帯域比率を合成。覚醒したまま深く休めたかを示す。",
   },
   {
     key: "calmnessStability",
     label: "平穏持続度",
     shortLabel: "平穏持続",
-    description: "最長連続高放松片段が総時間に占める割合。リラックスがどれだけ安定して持続したか。",
+    description: "入定後の放松度の変動係数(CV)から算出。値が乱れず安定を保てたほど高得点。",
   },
   {
     key: "calmnessSpeed",
     label: "入定スピード",
     shortLabel: "入定速度",
-    description: "初めて高放松状態に達するまでの速さ。早いほど高得点。",
+    description: "放松度が60以上かつα波がβ波を上回るまでの速さ。早く脳をオフに切り替えられたほど高得点。",
   },
   {
     key: "focusSpeed",
     label: "専注スピード",
     shortLabel: "専注速度",
-    description: "初めて高専注状態に達するまでの速さ。早いほど高得点。",
+    description: "注意力が初めて50を継続突破するまでの速さ。早く集中に入れたほど高得点。",
   },
 ];
