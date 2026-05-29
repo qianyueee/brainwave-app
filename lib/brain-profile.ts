@@ -105,12 +105,14 @@ function splitCsvValues(val: unknown): number[] {
 }
 
 /**
- * Parse an Excel or CSV file buffer into EegRow[].
+ * Parse an Excel or CSV file (BrainLink export) into EegRow[].
  *
- * BrainLink exports have two possible formats:
- * 1. **Packed format**: Few rows, each cell contains comma-separated per-second values
- *    (e.g. "34,34,29,..." for 385 seconds of Attention data)
- * 2. **Row-per-second format**: One row per second, each cell is a single number
+ * Supports three layouts, auto-detected:
+ * 1. **Transposed (new)**: column A = field name, column B = value. Metric
+ *    values are comma-separated per-second strings (one field per row).
+ * 2. **Wide packed (old)**: field names across row 1; each data cell is a
+ *    comma-separated per-second string.
+ * 3. **Wide per-second (old)**: field names across row 1; one row per second.
  *
  * Uses dynamic import of xlsx (SheetJS) to keep bundle size in check.
  */
@@ -119,93 +121,88 @@ export async function parseEegFile(file: File): Promise<{ rows: EegRow[]; tag: s
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: "array" });
   const sheet = wb.Sheets[wb.SheetNames[0]];
-  const jsonRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+  // Read as a raw grid so we can handle both wide and transposed layouts.
+  const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, blankrows: false });
 
-  if (jsonRows.length === 0) throw new Error("ファイルにデータがありません");
+  if (!aoa.length) throw new Error("ファイルにデータがありません");
 
-  // Map headers using keyword matching
-  const firstRow = jsonRows[0];
-  const headerMap = new Map<string, keyof EegRow>();
-  for (const rawKey of Object.keys(firstRow)) {
-    const field = matchHeader(rawKey);
-    if (field) headerMap.set(rawKey, field);
-  }
+  const asStr = (v: unknown): string => (v == null ? "" : String(v));
 
-  if (!headerMap.size) throw new Error("認識可能な列ヘッダーがありません");
+  // Detect orientation: do field names run down column A (transposed) or
+  // across row 1 (wide)?
+  const header0 = Array.isArray(aoa[0]) ? aoa[0] : [];
+  let wideMatches = 0;
+  for (const c of header0) if (matchHeader(asStr(c))) wideMatches++;
+  let transposedMatches = 0;
+  for (const r of aoa) if (Array.isArray(r) && matchHeader(asStr(r[0]))) transposedMatches++;
 
-  // Detect format: check if the Attention column value contains commas (packed format)
-  const attentionKey = [...headerMap.entries()].find(([, f]) => f === "attention")?.[0];
-  const firstAttVal = attentionKey ? firstRow[attentionKey] : undefined;
-  const isPacked = typeof firstAttVal === "string" && firstAttVal.includes(",");
-
+  // Per-field, per-second value arrays.
+  const columns = new Map<keyof EegRow, number[]>();
   let tag = "";
-  const rows: EegRow[] = [];
 
-  if (isPacked) {
-    // ── Packed format: each cell is comma-separated values ──
-    // Process each Excel row (may be multiple sessions/segments)
-    for (const raw of jsonRows) {
-      // Extract tag
-      const tagKey = [...headerMap.entries()].find(([, f]) => f === "tag")?.[0];
-      if (tagKey) {
-        const tv = raw[tagKey];
-        if (tv && typeof tv === "string" && tv.trim()) tag = tv.trim();
+  if (transposedMatches > wideMatches) {
+    // ── Transposed (new): col A = field name, col B = value ──
+    for (const r of aoa) {
+      if (!Array.isArray(r)) continue;
+      const field = matchHeader(asStr(r[0]));
+      if (!field) continue;
+      if (field === "tag") {
+        const tv = asStr(r[1]).trim();
+        if (tv) tag = tv;
+        continue;
       }
-
-      // Split all numeric columns into arrays
-      const arrays = new Map<keyof EegRow, number[]>();
-      let maxLen = 0;
-      for (const [rawKey, field] of headerMap) {
-        if (field === "tag") continue;
-        const arr = splitCsvValues(raw[rawKey]);
-        arrays.set(field, arr);
-        maxLen = Math.max(maxLen, arr.length);
-      }
-
-      // Reconstruct per-second rows (keep interior gaps; trimming happens after)
-      for (let i = 0; i < maxLen; i++) {
-        const att = arrays.get("attention")?.[i] ?? 0;
-        const rel = arrays.get("relaxation")?.[i] ?? 0;
-        rows.push({
-          attention: att,
-          relaxation: rel,
-          delta: arrays.get("delta")?.[i] ?? 0,
-          theta: arrays.get("theta")?.[i] ?? 0,
-          lowAlpha: arrays.get("lowAlpha")?.[i] ?? 0,
-          highAlpha: arrays.get("highAlpha")?.[i] ?? 0,
-          lowBeta: arrays.get("lowBeta")?.[i] ?? 0,
-          highBeta: arrays.get("highBeta")?.[i] ?? 0,
-          lowGamma: arrays.get("lowGamma")?.[i] ?? 0,
-          highGamma: arrays.get("highGamma")?.[i] ?? 0,
-        });
-      }
+      columns.set(field, splitCsvValues(r[1]));
     }
   } else {
-    // ── Row-per-second format: each row is one data point ──
-    for (const raw of jsonRows) {
-      const row: Partial<EegRow> = {};
-      for (const [rawKey, field] of headerMap) {
-        const val = raw[rawKey];
-        if (field === "tag") {
-          if (val && typeof val === "string" && val.trim()) tag = val.trim();
-        } else {
-          row[field] = typeof val === "number" ? val : Number(val) || 0;
-        }
-      }
+    // ── Wide (old): field names across row 1 ──
+    const colField = header0.map((c) => matchHeader(asStr(c)));
+    const attCol = colField.findIndex((f) => f === "attention");
+    const firstAtt = attCol >= 0 && Array.isArray(aoa[1]) ? asStr(aoa[1][attCol]) : "";
+    const isPacked = firstAtt.includes(",");
 
-      rows.push({
-        attention: row.attention ?? 0,
-        relaxation: row.relaxation ?? 0,
-        delta: row.delta ?? 0,
-        theta: row.theta ?? 0,
-        lowAlpha: row.lowAlpha ?? 0,
-        highAlpha: row.highAlpha ?? 0,
-        lowBeta: row.lowBeta ?? 0,
-        highBeta: row.highBeta ?? 0,
-        lowGamma: row.lowGamma ?? 0,
-        highGamma: row.highGamma ?? 0,
-      });
+    for (let r = 1; r < aoa.length; r++) {
+      const row = aoa[r];
+      if (!Array.isArray(row)) continue;
+      for (let c = 0; c < colField.length; c++) {
+        const field = colField[c];
+        if (!field) continue;
+        if (field === "tag") {
+          const tv = asStr(row[c]).trim();
+          if (tv) tag = tv;
+          continue;
+        }
+        const arr = columns.get(field) ?? [];
+        if (isPacked) {
+          arr.push(...splitCsvValues(row[c]));
+        } else {
+          arr.push(typeof row[c] === "number" ? (row[c] as number) : Number(asStr(row[c])) || 0);
+        }
+        columns.set(field, arr);
+      }
     }
+  }
+
+  if (columns.size === 0) throw new Error("認識可能な列ヘッダーがありません");
+
+  // Reconstruct per-second rows (keep interior gaps; trimming happens after).
+  let maxLen = 0;
+  for (const arr of columns.values()) maxLen = Math.max(maxLen, arr.length);
+  const at = (field: keyof EegRow, i: number): number => columns.get(field)?.[i] ?? 0;
+
+  const rows: EegRow[] = [];
+  for (let i = 0; i < maxLen; i++) {
+    rows.push({
+      attention: at("attention", i),
+      relaxation: at("relaxation", i),
+      delta: at("delta", i),
+      theta: at("theta", i),
+      lowAlpha: at("lowAlpha", i),
+      highAlpha: at("highAlpha", i),
+      lowBeta: at("lowBeta", i),
+      highBeta: at("highBeta", i),
+      lowGamma: at("lowGamma", i),
+      highGamma: at("highGamma", i),
+    });
   }
 
   // Trim leading/trailing poor-signal samples but keep interior gaps so the
