@@ -3,58 +3,83 @@ import { persist } from "zustand/middleware";
 import type { BrainProfile } from "@/lib/brain-profile";
 import { createPerUserStorage } from "@/lib/sync/per-user-storage";
 import {
-  getBrainProfile,
-  upsertBrainProfile,
+  getBrainMeasurements,
+  upsertBrainMeasurements,
   deleteBrainProfile,
 } from "@/lib/sync/brain-profile";
 
 interface BrainProfileState {
+  /** Latest measurement — kept for the /profile chart & program personalization. */
   profile: BrainProfile | null;
+  /** Full measurement history, oldest→newest. */
+  measurements: BrainProfile[];
   cloudUserId: string | null;
-  setProfile: (profile: BrainProfile) => Promise<void>;
+  addMeasurement: (profile: BrainProfile) => Promise<void>;
+  deleteMeasurement: (uploadedAt: string) => Promise<void>;
   clearProfile: () => Promise<void>;
   loadFromCloud: (userId: string) => Promise<void>;
   clearForLogout: () => void;
 }
 
+const latest = (list: BrainProfile[]): BrainProfile | null =>
+  list.length ? list[list.length - 1] : null;
+
 export const useBrainProfileStore = create<BrainProfileState>()(
   persist(
     (set, get) => ({
       profile: null,
+      measurements: [],
       cloudUserId: null,
 
-      setProfile: async (profile) => {
-        const prev = get().profile;
-        set({ profile });
+      addMeasurement: async (profile) => {
+        const prev = get().measurements;
+        const next = [...prev, profile];
+        set({ measurements: next, profile: latest(next) });
         const uid = get().cloudUserId;
         if (!uid) return;
         try {
-          await upsertBrainProfile(uid, profile);
+          await upsertBrainMeasurements(uid, next);
         } catch (err) {
           console.error("[brain-profile] upsert failed:", err);
-          set({ profile: prev });
+          set({ measurements: prev, profile: latest(prev) });
+          throw err;
+        }
+      },
+
+      deleteMeasurement: async (uploadedAt) => {
+        const prev = get().measurements;
+        const next = prev.filter((m) => m.uploadedAt !== uploadedAt);
+        if (next.length === prev.length) return; // nothing matched
+        set({ measurements: next, profile: latest(next) });
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        try {
+          await upsertBrainMeasurements(uid, next);
+        } catch (err) {
+          console.error("[brain-profile] delete (upsert) failed:", err);
+          set({ measurements: prev, profile: latest(prev) });
           throw err;
         }
       },
 
       clearProfile: async () => {
-        const prev = get().profile;
-        set({ profile: null });
+        const prev = get().measurements;
+        set({ measurements: [], profile: null });
         const uid = get().cloudUserId;
         if (!uid) return;
         try {
           await deleteBrainProfile(uid);
         } catch (err) {
           console.error("[brain-profile] delete failed:", err);
-          set({ profile: prev });
+          set({ measurements: prev, profile: latest(prev) });
           throw err;
         }
       },
 
       loadFromCloud: async (userId) => {
         try {
-          const cloud = await getBrainProfile(userId);
-          set({ profile: cloud, cloudUserId: userId });
+          const cloud = await getBrainMeasurements(userId);
+          set({ measurements: cloud, profile: latest(cloud), cloudUserId: userId });
         } catch (err) {
           console.error("[brain-profile] load failed:", err);
           set({ cloudUserId: userId });
@@ -62,13 +87,34 @@ export const useBrainProfileStore = create<BrainProfileState>()(
       },
 
       clearForLogout: () => {
-        set({ profile: null, cloudUserId: null });
+        set({ profile: null, measurements: [], cloudUserId: null });
       },
     }),
     {
       name: "brain-profile",
       storage: createPerUserStorage(),
-      partialize: (state) => ({ profile: state.profile }),
+      partialize: (state) => ({
+        profile: state.profile,
+        measurements: state.measurements,
+      }),
+      version: 1,
+      // v0 stored only a single `profile`; seed the history from it.
+      migrate: (persisted, version) => {
+        const p = (persisted ?? {}) as {
+          profile?: BrainProfile | null;
+          measurements?: BrainProfile[];
+        };
+        if (version >= 1) {
+          return { profile: p.profile ?? null, measurements: p.measurements ?? [] };
+        }
+        const measurements =
+          p.measurements && p.measurements.length
+            ? p.measurements
+            : p.profile
+              ? [p.profile]
+              : [];
+        return { profile: latest(measurements), measurements };
+      },
     }
   )
 );

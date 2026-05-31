@@ -7,9 +7,11 @@ import { INDICATOR_META } from "@/lib/brain-profile";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import EegUploader from "@/components/EegUploader";
 import { BrainCircuit, Lock } from "lucide-react";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const profile = useBrainProfileStore((s) => s.profile);
+  const measurements = useBrainProfileStore((s) => s.measurements);
   const clearProfile = useBrainProfileStore((s) => s.clearProfile);
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
@@ -67,6 +69,15 @@ export default function ProfilePage() {
             </p>
           </div>
 
+          {measurements.length > 0 && (
+            <Link
+              href="/log"
+              className="block text-sm text-primary text-center underline underline-offset-4 active:opacity-70"
+            >
+              全 {measurements.length} 件の測定記録を見る →
+            </Link>
+          )}
+
           {/* 6 Indicator Cards */}
           <div className="flex flex-col gap-3">
             <p className="text-sm text-text-secondary">各指標の詳細</p>
@@ -101,10 +112,14 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-3">
             <EegUploader />
             <button
-              onClick={clearProfile}
+              onClick={() => {
+                if (window.confirm("すべての脳波記録を削除しますか？")) {
+                  clearProfile().catch((err) => console.error(err));
+                }
+              }}
               className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-base font-medium neu-raised-sm neu-press transition-transform"
             >
-              データをクリア
+              すべての記録を削除
             </button>
           </div>
         </>
