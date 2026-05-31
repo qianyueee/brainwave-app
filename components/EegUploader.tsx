@@ -7,7 +7,7 @@ import { Upload } from "lucide-react";
 
 export default function EegUploader() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const setProfile = useBrainProfileStore((s) => s.setProfile);
+  const addMeasurement = useBrainProfileStore((s) => s.addMeasurement);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +17,7 @@ export default function EegUploader() {
     try {
       const { rows, tag } = await parseEegFile(file);
       const indicators = computeIndicators(rows);
-      await setProfile({
+      await addMeasurement({
         indicators,
         uploadedAt: new Date().toISOString(),
         sessionTag: tag,

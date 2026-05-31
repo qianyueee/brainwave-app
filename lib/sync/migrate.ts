@@ -5,7 +5,7 @@ import type { BrainProfile } from "@/lib/brain-profile";
 import type { CustomAudioMeta } from "@/store/useCustomAudioStore";
 import { bulkInsertPresets, listPresets } from "./presets";
 import { bulkInsertPrograms, listPrograms } from "./programs";
-import { getBrainProfile, upsertBrainProfile } from "./brain-profile";
+import { getBrainMeasurements, upsertBrainMeasurements } from "./brain-profile";
 import { listAudios, uploadAudio } from "./custom-audios";
 import { getAudioBlob } from "@/lib/custom-audio-db";
 import { useSynthStore } from "@/store/useSynthStore";
@@ -78,9 +78,9 @@ export async function runFirstLoginMigration(user: User): Promise<void> {
     const env = readJson<ZustandEnvelope<{ profile?: BrainProfile | null }>>(LEGACY_KEYS.brain);
     const localProfile = env?.state?.profile;
     if (localProfile) {
-      const cloud = await getBrainProfile(userId);
-      if (!cloud) {
-        await upsertBrainProfile(userId, localProfile);
+      const cloud = await getBrainMeasurements(userId);
+      if (cloud.length === 0) {
+        await upsertBrainMeasurements(userId, [localProfile]);
         await useBrainProfileStore.getState().loadFromCloud(userId);
       }
     }
