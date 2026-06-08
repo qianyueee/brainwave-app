@@ -3,12 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSynthStore, EditorMode, StereoChannel } from "@/store/useSynthStore";
+import { useAppStore } from "@/store/useAppStore";
 import { useAudio } from "@/components/AudioProvider";
 import SynthLayerCard from "@/components/SynthLayerCard";
 import SynthPlaybackButton from "@/components/SynthPlaybackButton";
+import SynthTimelineStrip from "@/components/SynthTimelineStrip";
 import SynthVibratoPanel from "@/components/SynthVibratoPanel";
 import ExportDialog from "@/components/ExportDialog";
-import { ChevronLeft, Plus, Download, Upload, FileDown, Lock } from "lucide-react";
+import { ChevronLeft, Plus, Download, Upload, FileDown, Lock, Play, Square } from "lucide-react";
 import { downloadBlob } from "@/lib/audio-export";
 import { SynthPreset } from "@/lib/synth-engine";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -49,7 +51,14 @@ export default function SynthPage() {
   const setIsStereo = useSynthStore((s) => s.setIsStereo);
   const generateHarmonics = useSynthStore((s) => s.generateHarmonics);
   const setMonitorChannel = useSynthStore((s) => s.setMonitorChannel);
-  const { getSynth, stopSynth, setMonitorChannel: audioSetMonitor } = useAudio();
+  const {
+    getSynth,
+    startSynth,
+    stopSynth,
+    stopCustomProgram,
+    startTimelinePreview,
+    setMonitorChannel: audioSetMonitor,
+  } = useAudio();
 
   const updatePreset = useSynthStore((s) => s.updatePreset);
   const editingPresetId = useSynthStore((s) => s.editingPresetId);
@@ -58,6 +67,19 @@ export default function SynthPage() {
   const saveAsProgram = useSynthStore((s) => s.saveAsProgram);
   const updateProgram = useSynthStore((s) => s.updateProgram);
   const editingProgramId = useSynthStore((s) => s.editingProgramId);
+
+  // Timeline editor state
+  const isTimelineMode = useSynthStore((s) => s.isTimelineMode);
+  const timelineSegments = useSynthStore((s) => s.timelineSegments);
+  const activeSegmentIndex = useSynthStore((s) => s.activeSegmentIndex);
+  const flushActiveSegment = useSynthStore((s) => s.flushActiveSegment);
+  const saveAsTimelineProgram = useSynthStore((s) => s.saveAsTimelineProgram);
+  const appIsPlaying = useAppStore((s) => s.isPlaying);
+
+  // runTimeline sets BOTH app.isPlaying and isSynthPlaying; startSynth sets only
+  // isSynthPlaying. That lets us tell a whole-timeline preview from a segment one.
+  const wholeTimelinePlaying = appIsPlaying && isSynthPlaying;
+  const segmentPreviewPlaying = isSynthPlaying && !appIsPlaying;
 
   const [presetName, setPresetName] = useState("");
   const [programName, setProgramName] = useState("");
@@ -80,14 +102,21 @@ export default function SynthPage() {
     setBaseFreqInputRight(harmonicBaseFreqRight.toString());
   }, [harmonicBaseFreqRight]);
 
+  // Destructive edits rebuild the active buffer, so stop any preview (segment or
+  // whole-timeline) first to keep the live nodes consistent with the buffer.
+  const stopAllPreview = () => {
+    stopSynth();
+    stopCustomProgram();
+  };
+
   const handleModeChange = (mode: EditorMode) => {
     if (mode === editorMode) return;
-    if (isSynthPlaying) stopSynth();
+    stopAllPreview();
     setEditorMode(mode);
   };
 
   const handleStereoToggle = () => {
-    if (isSynthPlaying) stopSynth();
+    stopAllPreview();
     setIsStereo(!isStereo);
   };
 
@@ -109,7 +138,7 @@ export default function SynthPage() {
     }
     const clamped = Math.round(Math.max(HARMONIC_BASE_MIN, Math.min(FREQ_MAX, parsed)) * 100) / 100;
     setInput(clamped.toString());
-    if (isSynthPlaying) stopSynth();
+    stopAllPreview();
     generateHarmonics(clamped, channel);
   };
 
@@ -154,13 +183,38 @@ export default function SynthPage() {
 
   const handleSaveAsProgram = () => {
     if (editingProgramId) {
+      // updateProgram is timeline-aware (branches on isTimelineMode internally).
       updateProgram(editingProgramId, programDesc);
     } else {
       const name = programName.trim();
       if (!name) return;
-      saveAsProgram(name, programDesc);
+      if (isTimelineMode) {
+        saveAsTimelineProgram(name, programDesc);
+      } else {
+        saveAsProgram(name, programDesc);
+      }
       setProgramName("");
       setProgramDesc("");
+    }
+  };
+
+  // --- Timeline preview controls ---
+  const handleSegmentPreview = () => {
+    if (segmentPreviewPlaying) {
+      stopSynth();
+    } else {
+      stopCustomProgram();
+      startSynth(useSynthStore.getState().layers);
+    }
+  };
+
+  const handleWholeTimeline = () => {
+    if (wholeTimelinePlaying) {
+      stopCustomProgram();
+    } else {
+      stopSynth();
+      flushActiveSegment();
+      startTimelinePreview(useSynthStore.getState().timelineSegments);
     }
   };
 
@@ -260,10 +314,19 @@ export default function SynthPage() {
           <ChevronLeft size={20} strokeWidth={2} />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-text-primary">カスタム合成器</h1>
-          <p className="text-sm text-text-secondary">振荡器を重ねてオリジナル音を作成</p>
+          <h1 className="text-xl font-bold text-text-primary">
+            {isTimelineMode ? "タイムライン作成" : "カスタム合成器"}
+          </h1>
+          <p className="text-sm text-text-secondary">
+            {isTimelineMode
+              ? "時間で音が切り替わる音声を作成"
+              : "振荡器を重ねてオリジナル音を作成"}
+          </p>
         </div>
       </div>
+
+      {/* Timeline segment strip */}
+      {isTimelineMode && <SynthTimelineStrip />}
 
       {/* Mode selector + Stereo toggle */}
       <div className="flex flex-col gap-2">
@@ -383,9 +446,32 @@ export default function SynthPage() {
       )}
 
       {/* Playback */}
-      <div className="flex justify-center">
-        <SynthPlaybackButton />
-      </div>
+      {isTimelineMode ? (
+        <div className="flex gap-2">
+          <button
+            onClick={handleSegmentPreview}
+            className={`flex-1 min-h-[56px] rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all neu-raised-sm ${
+              segmentPreviewPlaying ? "bg-accent text-white" : "bg-navy text-text-primary"
+            }`}
+          >
+            {segmentPreviewPlaying ? <Square size={18} fill="white" strokeWidth={0} /> : <Play size={18} fill="currentColor" strokeWidth={0} />}
+            この区間を試聴
+          </button>
+          <button
+            onClick={handleWholeTimeline}
+            className={`flex-1 min-h-[56px] rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all neu-raised-sm ${
+              wholeTimelinePlaying ? "bg-accent text-white" : "bg-primary text-white"
+            }`}
+          >
+            {wholeTimelinePlaying ? <Square size={18} fill="white" strokeWidth={0} /> : <Play size={18} fill="white" strokeWidth={0} />}
+            全体を再生
+          </button>
+        </div>
+      ) : (
+        <div className="flex justify-center">
+          <SynthPlaybackButton />
+        </div>
+      )}
 
       {/* Global Vibrato */}
       <SynthVibratoPanel />
@@ -437,6 +523,14 @@ export default function SynthPage() {
 
       {/* Layer list */}
       <div className="flex flex-col gap-3">
+        {isTimelineMode && (
+          <p className="text-xs text-primary font-bold">
+            編集中: セグメント {activeSegmentIndex + 1}
+            {timelineSegments[activeSegmentIndex]?.name
+              ? `「${timelineSegments[activeSegmentIndex].name}」`
+              : ""}
+          </p>
+        )}
         <div className="flex items-center justify-between">
           <p className="text-sm text-text-secondary">
             {isStereo ? `${activeChannel === "left" ? "L" : "R"} ` : ""}
@@ -467,18 +561,23 @@ export default function SynthPage() {
         )}
       </div>
 
-      {/* Export button */}
-      <button
-        onClick={() => setExportOpen(true)}
-        className="w-full py-3 rounded-2xl bg-navy text-text-primary text-base font-bold flex items-center justify-center gap-2 neu-raised-sm neu-press transition-transform"
-      >
-        <Download size={20} strokeWidth={2} />
-        音声をエクスポート
-      </button>
+      {/* Export button (single-config only; timeline export is not supported yet) */}
+      {!isTimelineMode && (
+        <>
+          <button
+            onClick={() => setExportOpen(true)}
+            className="w-full py-3 rounded-2xl bg-navy text-text-primary text-base font-bold flex items-center justify-center gap-2 neu-raised-sm neu-press transition-transform"
+          >
+            <Download size={20} strokeWidth={2} />
+            音声をエクスポート
+          </button>
 
-      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} mode="synth" />
+          <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} mode="synth" />
+        </>
+      )}
 
-      {/* Save preset */}
+      {/* Save preset (single-config only) */}
+      {!isTimelineMode && (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-text-secondary">プリセット保存</p>
 
@@ -515,8 +614,10 @@ export default function SynthPage() {
           </button>
         </div>
       </div>
+      )}
 
-      {/* Preset Import/Export */}
+      {/* Preset Import/Export (single-config only) */}
+      {!isTimelineMode && (
       <div className="flex gap-2">
         <button
           onClick={handleExportPresets}
@@ -541,10 +642,13 @@ export default function SynthPage() {
           className="hidden"
         />
       </div>
+      )}
 
       {/* Save as program */}
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-text-secondary">プログラムとして保存</p>
+        <p className="text-sm text-text-secondary">
+          {isTimelineMode ? "タイムラインを保存" : "プログラムとして保存"}
+        </p>
         {editingProgramId ? (
           <div className="flex flex-col gap-2">
             <textarea

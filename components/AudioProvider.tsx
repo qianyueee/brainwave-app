@@ -8,9 +8,11 @@ import {
   ReactNode,
 } from "react";
 import { BinauralSession, getAudioContext } from "@/lib/audio-engine";
-import { SynthSession, SynthLayer, TremoloConfig, VibratoConfig, MonitorChannel } from "@/lib/synth-engine";
+import { SynthSession, SynthLayer, TimelineSegment, TremoloConfig, VibratoConfig, MonitorChannel } from "@/lib/synth-engine";
+import { TimelineSession } from "@/lib/timeline-engine";
 import { ProgramConfig } from "@/lib/programs";
 import type { CustomProgram } from "@/lib/programs";
+import { isTimelineProgram } from "@/lib/programs";
 import { NaturePlayer } from "@/lib/nature-player";
 import { getAudioBlob } from "@/lib/custom-audio-db";
 import { ensureBlobCached } from "@/lib/sync/custom-audios";
@@ -32,6 +34,8 @@ interface AudioContextValue {
   // Custom program playback
   startCustomProgram: (program: CustomProgram, duration: number) => void;
   stopCustomProgram: () => void;
+  // Timeline preview (synth editor): play an in-progress segment sequence
+  startTimelinePreview: (segments: TimelineSegment[]) => void;
   // Nature sound routing (works with any active engine)
   playNatureSound: (soundId: string, volume: number) => void;
   stopNatureSound: () => void;
@@ -52,6 +56,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const customEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customStartTimeRef = useRef<number>(0);
   const customProgramRef = useRef<CustomProgram | null>(null);
+  const timelineRef = useRef<TimelineSession | null>(null);
 
   const setIsPlaying = useAppStore((s) => s.setIsPlaying);
   const setElapsed = useAppStore((s) => s.setElapsed);
@@ -102,6 +107,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     if (customEndTimerRef.current) {
       clearTimeout(customEndTimerRef.current);
       customEndTimerRef.current = null;
+    }
+    if (timelineRef.current) {
+      timelineRef.current.stop();
+      timelineRef.current = null;
     }
     if (synthRef.current?.isPlaying) {
       synthRef.current.stop();
@@ -260,8 +269,95 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     [cancelStopKeepAlive, stopSession, stopSynth, stopCustomProgram]
   );
 
+  // Shared timeline starter — used by both timeline custom-program playback and
+  // the synth editor's whole-timeline preview. `logInfo` is null for previews.
+  const runTimeline = useCallback(
+    (
+      segments: TimelineSegment[],
+      name: string,
+      logInfo: { programId: string; programName: string } | null
+    ) => {
+      cancelStopKeepAlive();
+      getAudioContext();
+      stopSession();
+      stopSynth();
+      stopCustomProgram();
+
+      if (segments.length === 0) return;
+
+      const ts = new TimelineSession(segments);
+      const { beatVolume } = useAppStore.getState();
+      const { monitorChannel } = useSynthStore.getState();
+      ts.start(beatVolume, monitorChannel);
+      timelineRef.current = ts;
+      useSynthStore.getState().setIsSynthPlaying(true);
+      setIsPlaying(true);
+      setElapsed(0);
+
+      // Nature sound (same routing as a single custom program)
+      const { natureSoundId, natureVolume } = useAppStore.getState();
+      if (natureSoundId) {
+        if (natureSoundId.startsWith("custom-")) {
+          playCustomAudio(natureSoundId, natureVolume);
+        } else {
+          const np = new NaturePlayer();
+          np.play(natureSoundId, natureVolume);
+          naturePlayerRef.current = np;
+        }
+      }
+
+      cancelStopKeepAlive();
+      startKeepAlive(name);
+      setMediaSessionHandlers(
+        () => {
+          const audioCtx = getAudioContext();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+        },
+        () => {
+          stopCustomProgram();
+        }
+      );
+
+      pollRef.current = setInterval(() => {
+        if (timelineRef.current?.isPlaying) {
+          setElapsed(timelineRef.current.elapsed);
+        }
+      }, 1000);
+
+      ts.onEnd(() => {
+        if (logInfo) {
+          addSessionLog({
+            id: Date.now().toString(),
+            programId: logInfo.programId,
+            programName: logInfo.programName,
+            date: new Date().toISOString(),
+            duration: ts.total,
+            mood: useAppStore.getState().mood,
+          });
+        }
+        stopCustomProgram();
+      });
+    },
+    [cancelStopKeepAlive, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
+  );
+
+  const startTimelinePreview = useCallback(
+    (segments: TimelineSegment[]) => {
+      runTimeline(segments, "タイムライン プレビュー", null);
+    },
+    [runTimeline]
+  );
+
   const startCustomProgram = useCallback(
     (program: CustomProgram, duration: number) => {
+      if (isTimelineProgram(program)) {
+        runTimeline(program.preset.timeline!.segments, program.name, {
+          programId: program.id,
+          programName: program.name,
+        });
+        return;
+      }
+
       cancelStopKeepAlive();
       getAudioContext();
       stopSession();
@@ -339,7 +435,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         stopCustomProgram();
       }, duration * 1000);
     },
-    [cancelStopKeepAlive, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio]
+    [cancelStopKeepAlive, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, addSessionLog, playCustomAudio, runTimeline]
   );
 
   const getSynth = useCallback(() => synthRef.current, []);
@@ -391,11 +487,19 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setSynthVolume = useCallback((value: number) => {
-    synthRef.current?.setMasterVolume(value);
+    if (timelineRef.current) {
+      timelineRef.current.setMasterVolume(value);
+    } else {
+      synthRef.current?.setMasterVolume(value);
+    }
   }, []);
 
   const setMonitorChannel = useCallback((channel: MonitorChannel) => {
-    synthRef.current?.setMonitorChannel(channel);
+    if (timelineRef.current) {
+      timelineRef.current.setMonitorChannel(channel);
+    } else {
+      synthRef.current?.setMonitorChannel(channel);
+    }
   }, []);
 
   const updateSynthLayer = useCallback(
@@ -452,6 +556,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         updateSynthVibrato,
         startCustomProgram,
         stopCustomProgram,
+        startTimelinePreview,
         playNatureSound,
         stopNatureSound,
         setNatureVolume,

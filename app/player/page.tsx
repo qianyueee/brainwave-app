@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
-import { getProgramById, isCustomProgramId } from "@/lib/programs";
+import { getProgramById, isCustomProgramId, isTimelineProgram, timelineTotalDuration } from "@/lib/programs";
+import { formatTime, getCurrentSegmentInfo } from "@/lib/utils";
 import Visualizer from "@/components/Visualizer";
 import PlaybackControls from "@/components/PlaybackControls";
 import Timer from "@/components/Timer";
@@ -16,6 +17,10 @@ export default function PlayerPage() {
   const programId = useAppStore((s) => s.selectedProgramId);
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
+  const elapsed = useAppStore((s) => s.elapsed);
+  const timerDuration = useAppStore((s) => s.timerDuration);
+  const setTimerDuration = useAppStore((s) => s.setTimerDuration);
+  const isPlaying = useAppStore((s) => s.isPlaying);
   const [exportOpen, setExportOpen] = useState(false);
 
   const isCustom = isCustomProgramId(programId);
@@ -24,10 +29,23 @@ export default function PlayerPage() {
     ? savedPrograms.find((p) => p.id === programId) ?? publishedPrograms.find((p) => p.id === programId)
     : undefined;
 
+  const isTimeline = !!customProgram && isTimelineProgram(customProgram);
+  const timelineSegments = isTimeline ? customProgram!.preset.timeline!.segments : [];
+  const timelineTotal = isTimeline ? timelineTotalDuration(customProgram!) : 0;
+  const currentSeg = isTimeline ? getCurrentSegmentInfo(timelineSegments, elapsed) : null;
+
+  // Keep the timer/countdown in sync with the timeline's fixed total length.
+  useEffect(() => {
+    if (isTimeline && !isPlaying && timerDuration !== timelineTotal) {
+      setTimerDuration(timelineTotal);
+    }
+  }, [isTimeline, isPlaying, timerDuration, timelineTotal, setTimerDuration]);
+
   const displayName = isCustom ? customProgram?.name : program?.name;
   const displayDesc = isCustom ? customProgram?.description : program?.description;
 
-  const canExport = isCustom ? !!customProgram : !!program;
+  // Timeline export is not supported yet (single-config export only).
+  const canExport = isTimeline ? false : isCustom ? !!customProgram : !!program;
   const exportMode = isCustom ? "synth" : "binaural";
 
   return (
@@ -46,7 +64,20 @@ export default function PlayerPage() {
       <PlaybackControls />
 
       <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-4 neu-raised breathe" style={{ "--breathe-delay": "0.8s" } as React.CSSProperties}>
-        <Timer />
+        {isTimeline ? (
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-text-secondary">
+              タイムライン（合計 {formatTime(timelineTotal)}・{timelineSegments.length}区間）
+            </p>
+            <p className="text-base text-text-primary font-bold">
+              {isPlaying && currentSeg?.segment
+                ? `再生中: ${currentSeg.segment.name || `セグメント ${currentSeg.index + 1}`}（${currentSeg.index + 1}/${timelineSegments.length}）`
+                : "再生で時間ごとに音が切り替わります"}
+            </p>
+          </div>
+        ) : (
+          <Timer />
+        )}
         <Mixer />
       </div>
 

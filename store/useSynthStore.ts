@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import {
   SynthLayer,
   SynthPreset,
+  TimelineSegment,
   TremoloConfig,
   VibratoConfig,
   DEFAULT_TREMOLO,
@@ -68,6 +69,88 @@ function createHarmonicLayers(baseFreq: number): SynthLayer[] {
   return layers;
 }
 
+// --- Timeline helpers ---
+// The editor buffer (layers/leftLayers/rightLayers/vibrato/editorMode/isStereo)
+// doubles as the ACTIVE timeline segment's working config. These convert between
+// that buffer and a SynthPreset, mirroring savePreset (serialize) and loadPreset
+// (hydrate, with fresh layer ids).
+
+type EditorBuffer = {
+  layers: SynthLayer[];
+  leftLayers: SynthLayer[];
+  rightLayers: SynthLayer[];
+  vibrato: VibratoConfig;
+  editorMode: EditorMode;
+  isStereo: boolean;
+};
+
+function bufferToPreset(b: EditorBuffer): SynthPreset {
+  return {
+    id: generateId(),
+    name: "",
+    layers: b.layers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
+    leftLayers: b.leftLayers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
+    rightLayers: b.rightLayers.map((l) => ({ ...l, tremolo: { ...l.tremolo } })),
+    vibrato: { ...b.vibrato },
+    editorMode: b.isStereo ? `${b.editorMode}-stereo` : b.editorMode,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function presetToBuffer(preset: SynthPreset): EditorBuffer & { monitorChannel: MonitorChannel } {
+  const raw = preset.editorMode ?? "free";
+  const isStereo = raw.endsWith("-stereo");
+  const editorMode = (isStereo ? raw.replace("-stereo", "") : raw) as EditorMode;
+  const reId = (layers?: SynthLayer[]) =>
+    (layers ?? [createDefaultLayer()]).map((l) => ({
+      ...l,
+      id: generateId(),
+      tremolo: l.tremolo ? { ...l.tremolo } : { ...DEFAULT_TREMOLO },
+    }));
+  return {
+    editorMode,
+    isStereo,
+    monitorChannel: "both",
+    layers: reId(preset.layers),
+    leftLayers: reId(preset.leftLayers),
+    rightLayers: reId(preset.rightLayers),
+    vibrato: preset.vibrato ? { ...preset.vibrato } : { ...DEFAULT_VIBRATO },
+  };
+}
+
+function defaultSegmentPreset(): SynthPreset {
+  return {
+    id: generateId(),
+    name: "",
+    layers: [createDefaultLayer()],
+    leftLayers: [createDefaultLayer()],
+    rightLayers: [createDefaultLayer()],
+    vibrato: { ...DEFAULT_VIBRATO },
+    editorMode: "free",
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function timelineSum(segments: TimelineSegment[]): number {
+  return segments.reduce((sum, s) => sum + Math.max(1, s.durationSec), 0);
+}
+
+/** Build the program's top-level preset for a timeline (seg0 mirrored + nested timeline). */
+function buildTimelinePreset(name: string, segments: TimelineSegment[]): SynthPreset {
+  const seg0 = segments[0]?.preset;
+  return {
+    id: generateId(),
+    name,
+    layers: seg0?.layers ?? [createDefaultLayer()],
+    leftLayers: seg0?.leftLayers,
+    rightLayers: seg0?.rightLayers,
+    vibrato: seg0?.vibrato ?? { ...DEFAULT_VIBRATO },
+    editorMode: seg0?.editorMode ?? "free",
+    createdAt: new Date().toISOString(),
+    timeline: { segments },
+  };
+}
+
 interface SynthState {
   // Editor state (not persisted)
   layers: SynthLayer[];           // mono layers (used when !isStereo)
@@ -81,6 +164,11 @@ interface SynthState {
   harmonicBaseFreqLeft: number;
   harmonicBaseFreqRight: number;
   monitorChannel: MonitorChannel;
+
+  // Timeline editor state (not persisted; the buffer above = active segment config)
+  isTimelineMode: boolean;
+  timelineSegments: TimelineSegment[];
+  activeSegmentIndex: number;
 
   // Persisted (per-user cache)
   savedPresets: SynthPreset[];
@@ -127,6 +215,18 @@ interface SynthState {
   deleteProgram: (id: string) => Promise<void>;
   loadProgramForEdit: (program: CustomProgram) => void;
 
+  // Timeline editor actions
+  setTimelineMode: (v: boolean) => void;
+  flushActiveSegment: () => void;
+  setActiveSegment: (i: number) => void;
+  addSegment: () => void;
+  removeSegment: (i: number) => void;
+  reorderSegment: (from: number, to: number) => void;
+  setSegmentDuration: (i: number, sec: number) => void;
+  setSegmentCrossfade: (i: number, sec: number) => void;
+  setSegmentName: (i: number, name: string) => void;
+  saveAsTimelineProgram: (name: string, description?: string) => Promise<void>;
+
   // Cloud sync
   loadFromCloud: (userId: string) => Promise<void>;
   clearForLogout: () => void;
@@ -146,6 +246,9 @@ export const useSynthStore = create<SynthState>()(
       harmonicBaseFreqLeft: 220,
       harmonicBaseFreqRight: 220,
       monitorChannel: "both" as MonitorChannel,
+      isTimelineMode: false,
+      timelineSegments: [],
+      activeSegmentIndex: 0,
       savedPresets: [],
       savedPrograms: [],
       cloudUserId: null,
@@ -393,6 +496,9 @@ export const useSynthStore = create<SynthState>()(
           harmonicBaseFreqLeft: 220,
           harmonicBaseFreqRight: 220,
           monitorChannel: "both",
+          isTimelineMode: false,
+          timelineSegments: [],
+          activeSegmentIndex: 0,
           editingPresetId: null,
           editingProgramId: null,
         });
@@ -472,6 +578,36 @@ export const useSynthStore = create<SynthState>()(
       },
 
       updateProgram: async (id, description) => {
+        if (get().isTimelineMode) {
+          get().flushActiveSegment();
+          const { timelineSegments, savedPrograms } = get();
+          const segments = timelineSegments.map((seg) => ({ ...seg, preset: { ...seg.preset } }));
+          const total = timelineSum(segments);
+          const prevPrograms = savedPrograms;
+          const next = savedPrograms.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  defaultDuration: total,
+                  description: description?.trim() || `タイムライン・${segments.length}区間`,
+                  preset: buildTimelinePreset(p.name, segments),
+                }
+              : p
+          );
+          set({ savedPrograms: next });
+          const uid = get().cloudUserId;
+          if (!uid) return;
+          const updated = next.find((p) => p.id === id);
+          if (!updated) return;
+          try {
+            await upsertProgram(uid, updated);
+          } catch (err) {
+            console.error("[synth] updateProgram (timeline) failed:", err);
+            set({ savedPrograms: prevPrograms });
+            throw err;
+          }
+          return;
+        }
         const { layers, leftLayers, rightLayers, vibrato, editorMode, isStereo, savedPrograms } = get();
         const preset: SynthPreset = {
           id: generateId(),
@@ -525,8 +661,210 @@ export const useSynthStore = create<SynthState>()(
       },
 
       loadProgramForEdit: (program) => {
-        get().loadPreset(program.preset);
-        set({ editingProgramId: program.id });
+        const segs = program.preset.timeline?.segments;
+        if (Array.isArray(segs) && segs.length > 0) {
+          // Timeline program: clone segments with fresh ids, hydrate buffer from segment 0.
+          const cloned: TimelineSegment[] = segs.map((s) => ({
+            ...s,
+            id: generateId(),
+            preset: { ...s.preset },
+          }));
+          get().loadPreset(cloned[0].preset);
+          set({
+            isTimelineMode: true,
+            timelineSegments: cloned,
+            activeSegmentIndex: 0,
+            editingProgramId: program.id,
+            editingPresetId: null,
+          });
+        } else {
+          get().loadPreset(program.preset);
+          set({
+            isTimelineMode: false,
+            timelineSegments: [],
+            activeSegmentIndex: 0,
+            editingProgramId: program.id,
+          });
+        }
+      },
+
+      // --- Timeline editor actions ---
+      setTimelineMode: (v) => {
+        if (!v) {
+          set({ isTimelineMode: false });
+          return;
+        }
+        const { timelineSegments } = get();
+        if (timelineSegments.length === 0) {
+          // Seed segment 0 from the current editor buffer.
+          const seg: TimelineSegment = {
+            id: generateId(),
+            name: "セグメント 1",
+            durationSec: 60,
+            crossfadeSec: 0,
+            preset: bufferToPreset(get()),
+          };
+          set({ isTimelineMode: true, timelineSegments: [seg], activeSegmentIndex: 0 });
+        } else {
+          set({ isTimelineMode: true });
+        }
+      },
+
+      flushActiveSegment: () => {
+        const { timelineSegments, activeSegmentIndex } = get();
+        if (activeSegmentIndex < 0 || activeSegmentIndex >= timelineSegments.length) return;
+        const preset = bufferToPreset(get());
+        set({
+          timelineSegments: timelineSegments.map((s, idx) =>
+            idx === activeSegmentIndex ? { ...s, preset } : s
+          ),
+        });
+      },
+
+      setActiveSegment: (i) => {
+        const { timelineSegments, activeSegmentIndex } = get();
+        if (i < 0 || i >= timelineSegments.length) return;
+        // Flush current buffer into the active segment, then hydrate from the target.
+        const flushedPreset = bufferToPreset(get());
+        const flushed = timelineSegments.map((s, idx) =>
+          idx === activeSegmentIndex ? { ...s, preset: flushedPreset } : s
+        );
+        set({
+          timelineSegments: flushed,
+          activeSegmentIndex: i,
+          ...presetToBuffer(flushed[i].preset),
+        });
+      },
+
+      addSegment: () => {
+        const { timelineSegments, activeSegmentIndex } = get();
+        const flushedPreset = bufferToPreset(get());
+        const flushed =
+          activeSegmentIndex >= 0 && activeSegmentIndex < timelineSegments.length
+            ? timelineSegments.map((s, idx) =>
+                idx === activeSegmentIndex ? { ...s, preset: flushedPreset } : s
+              )
+            : timelineSegments;
+        const newSeg: TimelineSegment = {
+          id: generateId(),
+          name: `セグメント ${flushed.length + 1}`,
+          durationSec: 60,
+          crossfadeSec: 2,
+          preset: defaultSegmentPreset(),
+        };
+        const next = [...flushed, newSeg];
+        set({
+          timelineSegments: next,
+          activeSegmentIndex: next.length - 1,
+          ...presetToBuffer(newSeg.preset),
+        });
+      },
+
+      removeSegment: (i) => {
+        const { timelineSegments, activeSegmentIndex } = get();
+        if (timelineSegments.length <= 1 || i < 0 || i >= timelineSegments.length) return;
+        if (i === activeSegmentIndex) {
+          // Active segment goes away: drop it, then hydrate from the new active.
+          const next = timelineSegments.filter((_, idx) => idx !== i);
+          const newActive = Math.min(activeSegmentIndex, next.length - 1);
+          set({
+            timelineSegments: next,
+            activeSegmentIndex: newActive,
+            ...presetToBuffer(next[newActive].preset),
+          });
+        } else {
+          // Removing another segment: flush current buffer first, keep editing it.
+          const flushedPreset = bufferToPreset(get());
+          const flushed = timelineSegments.map((s, idx) =>
+            idx === activeSegmentIndex ? { ...s, preset: flushedPreset } : s
+          );
+          const next = flushed.filter((_, idx) => idx !== i);
+          const newActive = i < activeSegmentIndex ? activeSegmentIndex - 1 : activeSegmentIndex;
+          set({ timelineSegments: next, activeSegmentIndex: newActive });
+        }
+      },
+
+      reorderSegment: (from, to) => {
+        const { timelineSegments, activeSegmentIndex } = get();
+        if (
+          from === to ||
+          from < 0 ||
+          to < 0 ||
+          from >= timelineSegments.length ||
+          to >= timelineSegments.length
+        )
+          return;
+        const flushedPreset = bufferToPreset(get());
+        const flushed = timelineSegments.map((s, idx) =>
+          idx === activeSegmentIndex ? { ...s, preset: flushedPreset } : s
+        );
+        const activeId = flushed[activeSegmentIndex]?.id;
+        const arr = [...flushed];
+        const [moved] = arr.splice(from, 1);
+        arr.splice(to, 0, moved);
+        const newActive = arr.findIndex((s) => s.id === activeId);
+        set({ timelineSegments: arr, activeSegmentIndex: newActive >= 0 ? newActive : 0 });
+      },
+
+      setSegmentDuration: (i, sec) => {
+        const v = Math.max(1, Math.round(sec));
+        set((state) => ({
+          timelineSegments: state.timelineSegments.map((s, idx) =>
+            idx === i ? { ...s, durationSec: v } : s
+          ),
+        }));
+      },
+
+      setSegmentCrossfade: (i, sec) => {
+        set((state) => {
+          const seg = state.timelineSegments[i];
+          if (!seg) return {};
+          const thisDur = Math.max(1, seg.durationSec);
+          const prevDur =
+            i > 0 ? Math.max(1, state.timelineSegments[i - 1].durationSec) : thisDur;
+          const v = Math.max(0, Math.min(Math.round(sec * 10) / 10, thisDur, prevDur));
+          return {
+            timelineSegments: state.timelineSegments.map((s, idx) =>
+              idx === i ? { ...s, crossfadeSec: v } : s
+            ),
+          };
+        });
+      },
+
+      setSegmentName: (i, name) => {
+        set((state) => ({
+          timelineSegments: state.timelineSegments.map((s, idx) =>
+            idx === i ? { ...s, name } : s
+          ),
+        }));
+      },
+
+      saveAsTimelineProgram: async (name, description) => {
+        get().flushActiveSegment();
+        const { timelineSegments, savedPrograms } = get();
+        const segments = timelineSegments.map((seg) => ({ ...seg, preset: { ...seg.preset } }));
+        const total = timelineSum(segments);
+        const program: CustomProgram = {
+          id: "custom-" + generateId(),
+          name,
+          description: description?.trim() || `タイムライン・${segments.length}区間`,
+          icon: "⏱️", // ⏱️
+          defaultDuration: total,
+          preset: buildTimelinePreset(name, segments),
+          createdAt: new Date().toISOString(),
+        };
+        const prevPrograms = savedPrograms;
+        set({ savedPrograms: [...savedPrograms, program], editingProgramId: program.id });
+
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        try {
+          await upsertProgram(uid, program);
+        } catch (err) {
+          console.error("[synth] saveAsTimelineProgram failed:", err);
+          set({ savedPrograms: prevPrograms, editingProgramId: null });
+          throw err;
+        }
       },
 
       // --- Cloud sync ---

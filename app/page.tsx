@@ -23,6 +23,7 @@ export default function HomePage() {
   const savedPresets = useSynthStore((s) => s.savedPresets);
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const resetEditor = useSynthStore((s) => s.resetEditor);
+  const setTimelineMode = useSynthStore((s) => s.setTimelineMode);
   const profile = useBrainProfileStore((s) => s.profile);
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const userGroups = useAdminStore((s) => s.userGroups);
@@ -62,6 +63,12 @@ export default function HomePage() {
 
   const handleNewSynth = () => {
     resetEditor();
+    router.push("/synth");
+  };
+
+  const handleNewTimeline = () => {
+    resetEditor();
+    setTimelineMode(true); // seeds segment 0 from the (reset) editor buffer
     router.push("/synth");
   };
 
@@ -173,13 +180,22 @@ export default function HomePage() {
       {isLoggedIn && isAdmin && (
         <div className="flex flex-col gap-3 breathe-stagger">
           <p className="text-sm text-text-secondary">カスタム</p>
-          <button
-            onClick={handleNewSynth}
-            className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
-          >
-            <Plus size={18} strokeWidth={2} />
-            新規作成
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleNewSynth}
+              className="flex-1 py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
+            >
+              <Plus size={18} strokeWidth={2} />
+              新規作成
+            </button>
+            <button
+              onClick={handleNewTimeline}
+              className="flex-1 py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
+            >
+              <Plus size={18} strokeWidth={2} />
+              タイムライン
+            </button>
+          </div>
           {hydrated &&
             savedPresets.map((preset) => (
               <SynthPresetCard key={preset.id} preset={preset} />

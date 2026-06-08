@@ -47,6 +47,26 @@ export interface SynthPreset {
   vibrato: VibratoConfig;
   editorMode?: string;
   createdAt: string;
+  /**
+   * Optional time-axis timeline. When present, this preset describes an ordered
+   * sequence of segments instead of a single static config. Stored INSIDE the
+   * preset so it rides the `preset` JSONB column through every persistence path
+   * (localStorage, Supabase upsert/list, publish) with no sync-layer changes.
+   * A segment's own `preset` leaves `timeline` undefined.
+   */
+  timeline?: { segments: TimelineSegment[] };
+}
+
+/** One time segment of a timeline custom program. */
+export interface TimelineSegment {
+  id: string;
+  name?: string;
+  /** Length of this segment in seconds (clamped to >= 1). */
+  durationSec: number;
+  /** Crossfade seconds INTO this segment from the previous one (0 = hard cut). */
+  crossfadeSec: number;
+  /** The synth config for this segment (layers + vibrato). `timeline` stays unset. */
+  preset: SynthPreset;
 }
 
 interface TremoloNodes {
@@ -253,6 +273,33 @@ export class SynthSession {
       this.masterGain.gain.cancelScheduledValues(now);
       this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
       this.masterGain.gain.setTargetAtTime(v * scale, now, 0.02);
+    }
+  }
+
+  /**
+   * Linearly ramp the master/channel output toward `value` (0-1 user volume) over
+   * `seconds`. Used by the timeline engine for crossfades between segments.
+   * `seconds <= 0` performs a hard set. When `fromSilent` is true the ramp starts
+   * from 0 (for fading a freshly-started segment in over a previously-running one).
+   */
+  fadeMasterVolume(value: number, seconds: number, fromSilent = false): void {
+    const v = Math.max(0, Math.min(1, value));
+    this._userVolume = v;
+    const now = this.ctx.currentTime;
+    if (this._isStereo) {
+      this.applyChannelGain("left", seconds, true, fromSilent);
+      this.applyChannelGain("right", seconds, true, fromSilent);
+    } else if (this.masterGain) {
+      const scale = 1 / Math.sqrt(Math.max(this.layerNodes.size, 1));
+      const target = v * scale;
+      const g = this.masterGain.gain;
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(fromSilent ? 0 : g.value, now);
+      if (seconds <= 0) {
+        g.setValueAtTime(target, now);
+      } else {
+        g.linearRampToValueAtTime(target, now + seconds);
+      }
     }
   }
 
@@ -471,7 +518,12 @@ export class SynthSession {
     this.applyChannelGain(channel);
   }
 
-  private applyChannelGain(channel: "left" | "right"): void {
+  private applyChannelGain(
+    channel: "left" | "right",
+    rampSeconds = 0.02,
+    useLinear = false,
+    fromSilent = false,
+  ): void {
     const node = channel === "left" ? this.leftGain : this.rightGain;
     if (!node) return;
     let count = 0;
@@ -482,8 +534,15 @@ export class SynthSession {
     const monitorMul = this._monitor === "both" || this._monitor === channel ? 1 : 0;
     const target = baseScale * this._userVolume * monitorMul;
     const now = this.ctx.currentTime;
-    node.gain.cancelScheduledValues(now);
-    node.gain.setValueAtTime(node.gain.value, now);
-    node.gain.setTargetAtTime(target, now, 0.02);
+    const g = node.gain;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(fromSilent ? 0 : g.value, now);
+    if (rampSeconds <= 0) {
+      g.setValueAtTime(target, now);
+    } else if (useLinear) {
+      g.linearRampToValueAtTime(target, now + rampSeconds);
+    } else {
+      g.setTargetAtTime(target, now, rampSeconds);
+    }
   }
 }

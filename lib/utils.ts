@@ -1,10 +1,28 @@
 import { FrequencyPhase } from "./programs";
+import type { TimelineSegment } from "./synth-engine";
 
 /** Format seconds as mm:ss */
 export function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+/** Find the timeline segment active at a given elapsed time (seconds). */
+export function getCurrentSegmentInfo(
+  segments: TimelineSegment[],
+  elapsed: number
+): { index: number; segment: TimelineSegment | null } {
+  let acc = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const dur = Math.max(1, segments[i].durationSec);
+    if (elapsed < acc + dur) {
+      return { index: i, segment: segments[i] };
+    }
+    acc += dur;
+  }
+  const last = segments.length - 1;
+  return last >= 0 ? { index: last, segment: segments[last] } : { index: 0, segment: null };
 }
 
 /**

@@ -186,3 +186,18 @@ export interface CustomProgram {
 export function isCustomProgramId(id: string): boolean {
   return id.startsWith("custom-");
 }
+
+/** True when the custom program is a time-axis timeline (sequence of segments). */
+export function isTimelineProgram(p: CustomProgram): boolean {
+  const segments = p.preset.timeline?.segments;
+  return Array.isArray(segments) && segments.length > 0;
+}
+
+/** Total playback length: sum of segment durations for a timeline, else defaultDuration. */
+export function timelineTotalDuration(p: CustomProgram): number {
+  const segments = p.preset.timeline?.segments;
+  if (Array.isArray(segments) && segments.length > 0) {
+    return segments.reduce((sum, s) => sum + Math.max(1, s.durationSec), 0);
+  }
+  return p.defaultDuration;
+}
