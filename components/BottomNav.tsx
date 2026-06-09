@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Music2, BrainCircuit, BarChart2 } from "lucide-react";
+import { Home, Music2, BrainCircuit, BarChart2, Activity } from "lucide-react";
 
 const tabs = [
   { href: "/", label: "ホーム", icon: Home },
   { href: "/player", label: "プレーヤー", icon: Music2 },
+  { href: "/mind", label: "マインド", icon: Activity },
   { href: "/profile", label: "脳特性", icon: BrainCircuit },
   { href: "/log", label: "ログ", icon: BarChart2 },
 ];

@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# bridge (PC側プログラム)
+bridge/.env
+bridge/logs/
+bridge/__pycache__/
