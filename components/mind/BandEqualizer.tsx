@@ -3,12 +3,14 @@
 import type { EegSample } from "@/lib/mind/types";
 import { relativeBandPowers } from "@/lib/mind/types";
 
+// Theme-coordinated: all bars use the dynamic primary, γ (the 40Hz
+// entrainment target) is set apart with the accent color.
 const BANDS = [
-  { key: "delta", symbol: "δ", label: "デルタ", color: "#3a5fd4" },
-  { key: "theta", symbol: "θ", label: "シータ", color: "#6b6baa" },
-  { key: "alpha", symbol: "α", label: "アルファ", color: "#4a9fd4" },
-  { key: "beta", symbol: "β", label: "ベータ", color: "#4ad48f" },
-  { key: "gamma", symbol: "γ", label: "ガンマ", color: "#e8b84a" },
+  { key: "delta", symbol: "δ", label: "デルタ", color: "var(--color-primary)" },
+  { key: "theta", symbol: "θ", label: "シータ", color: "var(--color-primary)" },
+  { key: "alpha", symbol: "α", label: "アルファ", color: "var(--color-primary)" },
+  { key: "beta", symbol: "β", label: "ベータ", color: "var(--color-primary)" },
+  { key: "gamma", symbol: "γ", label: "ガンマ", color: "var(--color-accent)" },
 ] as const;
 
 export default function BandEqualizer({ sample }: { sample: EegSample | null }) {
@@ -30,7 +32,7 @@ export default function BandEqualizer({ sample }: { sample: EegSample | null }) 
                   style={{ height: `${pct}%`, backgroundColor: band.color }}
                 />
               </div>
-              <span className="text-base font-bold" style={{ color: band.color }}>
+              <span className="text-base font-bold text-text-primary">
                 {band.symbol}
               </span>
               <span className="text-xs text-text-secondary">{band.label}</span>

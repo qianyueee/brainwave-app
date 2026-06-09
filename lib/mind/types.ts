@@ -33,29 +33,22 @@ export function getQuadrant(attention: number, meditation: number): Quadrant {
   return meditation >= 50 ? "deepMeditation" : "fatigue";
 }
 
-export const QUADRANT_INFO: Record<
-  Quadrant,
-  { label: string; message: string; color: string }
-> = {
+export const QUADRANT_INFO: Record<Quadrant, { label: string; message: string }> = {
   flow: {
     label: "ゾーン（フロー）",
     message: "ゾーン状態に入っています",
-    color: "#e8b84a",
   },
   stress: {
     label: "過緊張・ストレス",
     message: "緊張が高まっています。深呼吸をしましょう",
-    color: "#d4604a",
   },
   fatigue: {
     label: "疲労・無気力",
     message: "お疲れのようです。休憩をおすすめします",
-    color: "#5a6478",
   },
   deepMeditation: {
     label: "深い瞑想",
     message: "深い瞑想状態です",
-    color: "#3a5fd4",
   },
 };
 

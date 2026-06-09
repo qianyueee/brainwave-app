@@ -84,7 +84,7 @@ export default function MindPage() {
                     minute: "2-digit",
                   })}
                   {s.source === "demo" && (
-                    <span className="ml-2 text-xs font-normal text-amber-400">デモ</span>
+                    <span className="ml-2 text-xs font-normal text-text-muted">デモ</span>
                   )}
                 </p>
                 <p className="text-sm text-text-secondary">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { EegSample } from "@/lib/mind/types";
+import type { EegSample, Quadrant } from "@/lib/mind/types";
 import { getQuadrant, gammaRatio, QUADRANT_INFO } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
@@ -9,7 +9,7 @@ interface MapParams {
   targetX: number; // 0-1, right = relaxed
   targetY: number; // 0-1, up = focused (already inverted to canvas space)
   gamma: number; // 0-100 relative gamma power
-  color: string; // hex of current quadrant
+  quadrant: Quadrant;
   hasData: boolean;
 }
 
@@ -22,16 +22,50 @@ function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
-/** Corner tint + label layout. Y axis: attention up, X axis: relaxation right. */
-const CORNERS = [
+function rgba(hex: string, alpha: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Quadrant label layout. Y axis: attention up, X axis: relaxation right. */
+const CORNERS: {
+  quadrant: Quadrant;
+  x: 0 | 1;
+  y: 0 | 1;
+  alignX: CanvasTextAlign;
+  alignY: CanvasTextBaseline;
+}[] = [
   { quadrant: "stress", x: 0, y: 0, alignX: "left", alignY: "top" },
   { quadrant: "flow", x: 1, y: 0, alignX: "right", alignY: "top" },
   { quadrant: "fatigue", x: 0, y: 1, alignX: "left", alignY: "bottom" },
   { quadrant: "deepMeditation", x: 1, y: 1, alignX: "right", alignY: "bottom" },
-] as const;
+];
 
 const TRAIL_MAX = 200; // ≈20 s at one point per 100 ms
 const TRAIL_INTERVAL_MS = 100;
+
+/** Theme palette read from the circadian CSS vars. */
+interface ThemeColors {
+  navy: string;
+  primary: string;
+  accent: string;
+  textPrimary: string;
+  textSecondary: string;
+}
+
+function readThemeColors(): ThemeColors {
+  const get = (name: string, fallback: string) => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  };
+  return {
+    navy: get("--dyn-navy", "#020617"),
+    primary: get("--dyn-primary", "#4a7fd4"),
+    accent: get("--dyn-accent", "#6b6baa"),
+    textPrimary: get("--dyn-text-primary", "#d0d8e8"),
+    textSecondary: get("--dyn-text-secondary", "#8890a8"),
+  };
+}
 
 export default function MindMapCanvas({ sample }: { sample: EegSample | null }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -40,7 +74,7 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
     targetX: 0.5,
     targetY: 0.5,
     gamma: 0,
-    color: QUADRANT_INFO.flow.color,
+    quadrant: "flow",
     hasData: false,
   });
 
@@ -50,12 +84,11 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
       paramsRef.current = { ...paramsRef.current, hasData: false };
       return;
     }
-    const quadrant = getQuadrant(sample.attention, sample.meditation);
     paramsRef.current = {
       targetX: sample.meditation / 100,
       targetY: 1 - sample.attention / 100,
       gamma: gammaRatio(sample),
-      color: QUADRANT_INFO[quadrant].color,
+      quadrant: getQuadrant(sample.attention, sample.meditation),
       hasData: true,
     };
   }, [sample]);
@@ -69,18 +102,17 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
     let cssW = 0;
     let cssH = 0;
     let last = performance.now();
+    let colors = readThemeColors();
 
     // Normalized (0-1) coords so the trail survives resizes.
     let x = 0.5;
     let y = 0.5;
-    let rgb = hexToRgb(paramsRef.current.color);
     let gammaNow = 0;
     const trail: { x: number; y: number }[] = [];
     let lastTrailAt = 0;
 
-    // ── Static background (axes, quadrant tints, labels) on an offscreen canvas ──
+    // ── Static background (subtle tints + axes) on an offscreen canvas ──
     const bgCanvas = document.createElement("canvas");
-    let bg = "#020617";
 
     const paintBackground = () => {
       const bgCtx = bgCanvas.getContext("2d");
@@ -90,28 +122,26 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
       bgCanvas.height = Math.round(cssH * dpr);
       bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const navy = getComputedStyle(document.documentElement)
-        .getPropertyValue("--dyn-navy")
-        .trim();
-      if (navy) bg = navy;
-      bgCtx.fillStyle = bg;
+      bgCtx.fillStyle = colors.navy;
       bgCtx.fillRect(0, 0, cssW, cssH);
 
-      // Quadrant tints: soft radial glow from each corner.
-      const radius = Math.max(cssW, cssH) * 0.62;
-      for (const c of CORNERS) {
-        const [r, g, b] = hexToRgb(QUADRANT_INFO[c.quadrant].color);
-        const cx = c.x * cssW;
-        const cy = c.y * cssH;
-        const grad = bgCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.16)`);
-        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-        bgCtx.fillStyle = grad;
-        bgCtx.fillRect(0, 0, cssW, cssH);
-      }
+      // One calm tint: a soft primary glow toward the goal corner (flow,
+      // top-right) and a faint accent counterweight bottom-left.
+      const radius = Math.max(cssW, cssH) * 0.85;
+      const flowGrad = bgCtx.createRadialGradient(cssW, 0, 0, cssW, 0, radius);
+      flowGrad.addColorStop(0, rgba(colors.primary, 0.14));
+      flowGrad.addColorStop(1, rgba(colors.primary, 0));
+      bgCtx.fillStyle = flowGrad;
+      bgCtx.fillRect(0, 0, cssW, cssH);
+
+      const lowGrad = bgCtx.createRadialGradient(0, cssH, 0, 0, cssH, radius);
+      lowGrad.addColorStop(0, rgba(colors.accent, 0.08));
+      lowGrad.addColorStop(1, rgba(colors.accent, 0));
+      bgCtx.fillStyle = lowGrad;
+      bgCtx.fillRect(0, 0, cssW, cssH);
 
       // Center cross axes.
-      bgCtx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+      bgCtx.strokeStyle = rgba(colors.textSecondary, 0.25);
       bgCtx.lineWidth = 1;
       bgCtx.beginPath();
       bgCtx.moveTo(cssW / 2, 8);
@@ -120,29 +150,19 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
       bgCtx.lineTo(cssW - 8, cssH / 2);
       bgCtx.stroke();
 
-      // Quadrant labels in the corners.
-      bgCtx.font = "bold 14px sans-serif";
-      for (const c of CORNERS) {
-        const info = QUADRANT_INFO[c.quadrant];
-        const [r, g, b] = hexToRgb(info.color);
-        bgCtx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.85)`;
-        bgCtx.textAlign = c.alignX;
-        bgCtx.textBaseline = c.alignY;
-        bgCtx.fillText(
-          info.label,
-          c.x === 0 ? 12 : cssW - 12,
-          c.y === 0 ? 12 : cssH - 12
-        );
-      }
-
       // Axis captions along the center cross.
-      bgCtx.fillStyle = "rgba(255, 255, 255, 0.4)";
+      bgCtx.fillStyle = rgba(colors.textSecondary, 0.7);
       bgCtx.font = "12px sans-serif";
       bgCtx.textAlign = "right";
       bgCtx.textBaseline = "top";
       bgCtx.fillText("リラックス →", cssW - 12, cssH / 2 + 6);
       bgCtx.textAlign = "left";
       bgCtx.fillText("↑ 集中", cssW / 2 + 6, 28);
+    };
+
+    const onThemeChange = () => {
+      colors = readThemeColors();
+      paintBackground();
     };
 
     const resize = () => {
@@ -158,7 +178,26 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
 
     resize();
     window.addEventListener("resize", resize);
-    window.addEventListener(THEME_CHANGE_EVENT, paintBackground);
+    window.addEventListener(THEME_CHANGE_EVENT, onThemeChange);
+
+    const drawLabels = (activeQuadrant: Quadrant, hasData: boolean) => {
+      // Labels per frame so the current quadrant can be highlighted in the
+      // high-contrast text color regardless of the palette underneath.
+      for (const c of CORNERS) {
+        const active = hasData && c.quadrant === activeQuadrant;
+        ctx.font = active ? "bold 14px sans-serif" : "13px sans-serif";
+        ctx.fillStyle = active
+          ? colors.textPrimary
+          : rgba(colors.textSecondary, 0.8);
+        ctx.textAlign = c.alignX;
+        ctx.textBaseline = c.alignY;
+        ctx.fillText(
+          QUADRANT_INFO[c.quadrant].label,
+          c.x === 0 ? 12 : cssW - 12,
+          c.y === 0 ? 12 : cssH - 12
+        );
+      }
+    };
 
     const frame = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000); // clamp (tab switches)
@@ -171,16 +210,6 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
       y += (p.targetY - y) * k;
       gammaNow += (p.gamma - gammaNow) * k;
 
-      // Ease the quadrant colour per channel to avoid hard switches.
-      const target = hexToRgb(p.color);
-      rgb = [
-        rgb[0] + (target[0] - rgb[0]) * k,
-        rgb[1] + (target[1] - rgb[1]) * k,
-        rgb[2] + (target[2] - rgb[2]) * k,
-      ];
-      const colorAt = (alpha: number) =>
-        `rgba(${rgb[0].toFixed(0)}, ${rgb[1].toFixed(0)}, ${rgb[2].toFixed(0)}, ${alpha.toFixed(3)})`;
-
       if (p.hasData && now - lastTrailAt >= TRAIL_INTERVAL_MS) {
         trail.push({ x, y });
         if (trail.length > TRAIL_MAX) trail.shift();
@@ -189,14 +218,15 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
 
       ctx.clearRect(0, 0, cssW, cssH);
       ctx.drawImage(bgCanvas, 0, 0, cssW, cssH);
+      drawLabels(p.quadrant, p.hasData);
 
       if (!p.hasData) {
         // Idle: dim dot at center + waiting text.
-        ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+        ctx.fillStyle = rgba(colors.textSecondary, 0.4);
         ctx.beginPath();
         ctx.arc(cssW / 2, cssH / 2, 7, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+        ctx.fillStyle = rgba(colors.textSecondary, 0.9);
         ctx.font = "16px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
@@ -205,20 +235,20 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
         return;
       }
 
-      // Fading trail.
+      // Fading trail in the theme primary (plain alpha compositing so it
+      // stays visible on light palettes too).
       if (trail.length > 1) {
-        ctx.globalCompositeOperation = "lighter";
         const n = trail.length;
+        ctx.lineCap = "round";
         for (let i = 1; i < n; i++) {
           const t = i / n;
-          ctx.strokeStyle = colorAt(t * 0.55);
+          ctx.strokeStyle = rgba(colors.primary, t * 0.5);
           ctx.lineWidth = 1 + t * 2;
           ctx.beginPath();
           ctx.moveTo(trail[i - 1].x * cssW, trail[i - 1].y * cssH);
           ctx.lineTo(trail[i].x * cssW, trail[i].y * cssH);
           ctx.stroke();
         }
-        ctx.globalCompositeOperation = "source-over";
       }
 
       // Glowing dot: size and glow scale with relative gamma power.
@@ -226,8 +256,8 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
       const py = y * cssH;
       const radius = 8 + (gammaNow / 100) * 14;
       ctx.shadowBlur = 16 + gammaNow * 0.6;
-      ctx.shadowColor = colorAt(1);
-      ctx.fillStyle = colorAt(0.9);
+      ctx.shadowColor = colors.primary;
+      ctx.fillStyle = rgba(colors.primary, 0.95);
       ctx.beginPath();
       ctx.arc(px, py, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -243,7 +273,7 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
 
     return () => {
       window.removeEventListener("resize", resize);
-      window.removeEventListener(THEME_CHANGE_EVENT, paintBackground);
+      window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };

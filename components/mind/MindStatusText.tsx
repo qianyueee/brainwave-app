@@ -26,9 +26,7 @@ export default function MindStatusText({ sample }: { sample: EegSample | null })
 
   return (
     <div className="text-center py-2">
-      <p className="text-lg font-bold" style={{ color: info.color }}>
-        {info.message}
-      </p>
+      <p className="text-lg font-bold text-text-primary">{info.message}</p>
       <div className="flex items-center justify-center gap-3 mt-1 text-sm text-text-secondary">
         <span>{info.label}</span>
         {sample.battery !== undefined && (

@@ -53,7 +53,7 @@ export default function SourcePanel() {
       {/* Connection state */}
       {sourceKind === "demo" ? (
         <div className="flex items-center gap-2">
-          <span className="px-3 py-1 rounded-full bg-amber-400/15 text-amber-400 text-sm font-bold">
+          <span className="px-3 py-1 rounded-full bg-navy neu-inset text-text-secondary text-sm font-bold">
             デモデータ表示中
           </span>
         </div>
