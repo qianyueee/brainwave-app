@@ -10,7 +10,9 @@
 // the same code base runs on Linux desktops as well as macOS.
 // ---------------------------------------------------------------------------
 
-#if !defined(__APPLE__) && defined(TINYKEYS_X11_BACKEND)
+// Selected explicitly by the build system (CMake / Makefile on Linux). The
+// X11 guard alone keeps it out of macOS builds, which select platform_mac.c.
+#if defined(TINYKEYS_X11_BACKEND)
 
 #include "../include/platform.h"
 #include "platform_internal.h"
@@ -210,4 +212,4 @@ void platform_shutdown(void) {
     }
 }
 
-#endif // !__APPLE__ && TINYKEYS_X11_BACKEND
+#endif // TINYKEYS_X11_BACKEND

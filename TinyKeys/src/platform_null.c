@@ -7,7 +7,10 @@
 // platform_common.c; this file only stubs keyboard + text input + exe path.
 // ---------------------------------------------------------------------------
 
-#if !defined(__APPLE__) && defined(TINYKEYS_NULL_BACKEND)
+// Selected explicitly by the build system (Makefile `BACKEND=null` / CMake
+// `-DTINYKEYS_NULL_BACKEND`). Compiles on any OS, including macOS, so the unit
+// tests can link against it.
+#if defined(TINYKEYS_NULL_BACKEND)
 
 #include "../include/platform.h"
 #include "platform_internal.h"
@@ -52,4 +55,4 @@ void platform_shutdown(void) {
     tk_terminal_end();
 }
 
-#endif // !__APPLE__ && TINYKEYS_NULL_BACKEND
+#endif // TINYKEYS_NULL_BACKEND
