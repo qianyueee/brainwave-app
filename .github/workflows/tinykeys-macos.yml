@@ -1,0 +1,57 @@
+name: TinyKeys macOS build
+
+# Validates the TinyKeys macOS port on a real Apple runner: compiles against the
+# system frameworks (ApplicationServices / Carbon / CoreAudio), links, runs the
+# unit tests and the input-backend self-test. Triggered only by changes to the
+# port or this workflow, plus manual dispatch.
+on:
+  push:
+    paths:
+      - 'TinyKeys/**'
+      - '.github/workflows/tinykeys-macos.yml'
+  pull_request:
+    paths:
+      - 'TinyKeys/**'
+      - '.github/workflows/tinykeys-macos.yml'
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: TinyKeys
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain versions
+        run: |
+          sw_vers
+          cc --version
+          cmake --version
+
+      - name: Build (Makefile)
+        run: make
+
+      - name: Verify framework linkage
+        run: |
+          echo "Linked libraries / frameworks:"
+          otool -L tinykeys
+          # Fail if our required frameworks did not get linked.
+          otool -L tinykeys | grep -q ApplicationServices || (echo "ApplicationServices not linked" && exit 1)
+          otool -L tinykeys | grep -q Carbon || (echo "Carbon not linked" && exit 1)
+
+      - name: Unit tests (Makefile)
+        run: make test
+
+      - name: Input-backend self-test
+        run: ./tinykeys --selftest
+
+      - name: Build + test (CMake)
+        run: |
+          cmake -S . -B cmbuild
+          cmake --build cmbuild
+          cd cmbuild && ctest --output-on-failure
+
+      - name: CMake self-test
+        run: ./cmbuild/tinykeys --selftest

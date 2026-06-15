@@ -257,6 +257,34 @@ int main(int argc, char *argv[]) {
         load_config("config.ini");
         sync_current_preset_index();
         init_note_map();
+
+        // Exercise the platform input backend once (no main loop). On macOS
+        // this forces the real CGEventSourceKeyState / UCKeyTranslate / terminal
+        // code paths to run and link, which is the part that cannot be verified
+        // off-device. It is side-effect-free when stdin is not a TTY (CI).
+        bool backend_ok = platform_init();
+        if (backend_ok) {
+            int any_down = 0;
+            for (int k = 'A'; k <= 'Z'; k++) any_down |= platform_key_down(k);
+            for (int k = '0'; k <= '9'; k++) any_down |= platform_key_down(k);
+            any_down |= platform_key_down(TK_KEY_SPACE);
+            any_down |= platform_key_down(TK_KEY_CTRL_ANY);
+            any_down |= platform_key_down(TK_KEY_LSHIFT);
+            any_down |= platform_key_down(TK_KEY_UP);
+            platform_text_input_reset();
+            TkTextEvent ev;
+            int drained = 0;
+            while (platform_poll_text_event(&ev) && drained < 64) drained++;
+            (void)platform_poll_wheel();
+            unsigned long t0 = platform_now_ms();
+            platform_sleep_ms(2);
+            unsigned long dt = platform_now_ms() - t0;
+            platform_shutdown();
+            printf("TinyKeys self-test: input backend OK (keys polled, sleep=%lums).\n", dt);
+        } else {
+            printf("TinyKeys self-test: input backend unavailable (expected on headless/no-display).\n");
+        }
+
         printf("TinyKeys self-test OK: presets=%d, exe-relative config resolved, note map initialised.\n",
                g_preset_count);
         free_presets();
