@@ -29,6 +29,18 @@ function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 }
 
+// Pairing code alphabet without ambiguous characters (no 0/O/1/I/L).
+const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+/** A short, human-typeable pairing code shown on the phone, e.g. "AB23-CD45". */
+function generatePairingCode(): string {
+  let s = "";
+  for (let i = 0; i < 8; i++) {
+    s += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  }
+  return `${s.slice(0, 4)}-${s.slice(4)}`;
+}
+
 interface MindState {
   sourceKind: MindSourceKind;
   status: SourceStatus;
@@ -40,7 +52,9 @@ interface MindState {
   recordingStartedAt: number | null;
   recordingSamples: EegSample[]; // in-memory only, never persisted
   sessions: MindSessionSummary[];
+  pairingCode: string;
 
+  ensurePairingCode: () => void;
   setSourceKind: (k: MindSourceKind) => void;
   setStatus: (status: SourceStatus, detail?: string) => void;
   setBridgeOnline: (online: boolean) => void;
@@ -63,6 +77,11 @@ export const useMindStore = create<MindState>()(
       recordingStartedAt: null,
       recordingSamples: [],
       sessions: [],
+      pairingCode: "",
+
+      ensurePairingCode: () => {
+        if (!get().pairingCode) set({ pairingCode: generatePairingCode() });
+      },
 
       setSourceKind: (k) =>
         set({ sourceKind: k, latestSample: null, history: [], bridgeOnline: false }),
@@ -128,6 +147,7 @@ export const useMindStore = create<MindState>()(
       partialize: (state) => ({
         sessions: state.sessions,
         sourceKind: state.sourceKind,
+        pairingCode: state.pairingCode,
       }),
     }
   )

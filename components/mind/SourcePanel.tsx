@@ -1,24 +1,41 @@
 "use client";
 
-import { Play, Square, LogIn } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Play, Square, Copy, Check } from "lucide-react";
 import { useMindStore } from "@/store/useMindStore";
-import { useAuthStore } from "@/store/useAuthStore";
 import { supabase } from "@/lib/supabase";
 import { formatTime } from "@/lib/utils";
 
 export default function SourcePanel() {
   const sourceKind = useMindStore((s) => s.sourceKind);
   const setSourceKind = useMindStore((s) => s.setSourceKind);
-  const status = useMindStore((s) => s.status);
   const statusDetail = useMindStore((s) => s.statusDetail);
   const bridgeOnline = useMindStore((s) => s.bridgeOnline);
   const isRecording = useMindStore((s) => s.isRecording);
   const recordingSamples = useMindStore((s) => s.recordingSamples);
   const startRecording = useMindStore((s) => s.startRecording);
   const stopRecording = useMindStore((s) => s.stopRecording);
+  const status = useMindStore((s) => s.status);
+  const pairingCode = useMindStore((s) => s.pairingCode);
+  const ensurePairingCode = useMindStore((s) => s.ensurePairingCode);
 
-  const user = useAuthStore((s) => s.user);
-  const openAuthModal = useAuthStore((s) => s.openAuthModal);
+  // Generate the code after mount (avoids SSR hydration mismatch).
+  const [mounted, setMounted] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    ensurePairingCode();
+    setMounted(true);
+  }, [ensurePairingCode]);
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(pairingCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard unavailable (e.g. insecure context) — user can read it off-screen
+    }
+  };
 
   const cloudConfigured = supabase !== null;
   const canReceive = status === "connected";
@@ -59,21 +76,29 @@ export default function SourcePanel() {
         </div>
       ) : !cloudConfigured ? (
         <p className="text-base text-text-secondary">クラウド接続が未設定です</p>
-      ) : !user ? (
-        <div className="flex flex-col gap-3">
-          <p className="text-base text-text-secondary">
-            リアルタイム表示にはログインが必要です
-          </p>
-          <button
-            onClick={() => openAuthModal("login")}
-            className="flex items-center justify-center gap-2 min-h-[48px] rounded-xl bg-primary text-white text-base font-medium neu-raised-sm"
-          >
-            <LogIn size={20} />
-            ログイン
-          </button>
-        </div>
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-3">
+          {/* Pairing code */}
+          <div className="flex flex-col gap-1.5">
+            <p className="text-sm text-text-secondary">ペアリングコード</p>
+            <div className="flex items-center gap-2">
+              <span className="flex-1 text-2xl font-bold font-mono tracking-widest text-text-primary tabular-nums">
+                {mounted ? pairingCode : "————————"}
+              </span>
+              <button
+                onClick={copyCode}
+                aria-label="コードをコピー"
+                className="shrink-0 w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
+              >
+                {copied ? <Check size={20} className="text-green-400" /> : <Copy size={20} />}
+              </button>
+            </div>
+            <p className="text-sm text-text-secondary">
+              PCのブリッジに同じコードを入力してください
+            </p>
+          </div>
+
+          {/* Bridge status */}
           <div className="flex items-center gap-2">
             <span
               className={`inline-block w-3 h-3 rounded-full ${
@@ -84,14 +109,7 @@ export default function SourcePanel() {
               ブリッジ：{bridgeOnline ? "オンライン" : "オフライン"}
             </p>
           </div>
-          {statusDetail && (
-            <p className="text-sm text-text-secondary">{statusDetail}</p>
-          )}
-          {!bridgeOnline && (
-            <p className="text-sm text-text-secondary">
-              PCでブリッジプログラムを起動してください
-            </p>
-          )}
+          {statusDetail && <p className="text-sm text-text-secondary">{statusDetail}</p>}
         </div>
       )}
 

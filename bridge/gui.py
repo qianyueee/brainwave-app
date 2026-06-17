@@ -14,7 +14,14 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from bridge_core import run_bridge
-from config import Config, app_dir, load_saved, save_config
+from config import (
+    DEFAULT_SUPABASE_ANON_KEY,
+    DEFAULT_SUPABASE_URL,
+    Config,
+    app_dir,
+    load_saved,
+    save_config,
+)
 
 POLL_MS = 120
 
@@ -48,9 +55,11 @@ class BridgeGUI:
         frm = ttk.Frame(self.root, padding=12)
         frm.pack(fill="both", expand=True)
 
-        ttk.Label(frm, text="アカウント（アプリと同じ）", font=("", 11, "bold")).pack(anchor="w")
-        self.email = self._field(frm, "メールアドレス", self.saved.get("email", ""))
-        self.password = self._field(frm, "パスワード", self.saved.get("password", ""), show="*")
+        ttk.Label(frm, text="ペアリングコード", font=("", 11, "bold")).pack(anchor="w")
+        ttk.Label(
+            frm, text="スマホアプリの「マインド」→「リアルタイム」に表示されるコード"
+        ).pack(anchor="w")
+        self.code = self._field(frm, "", self.saved.get("code", ""))
 
         ttk.Label(frm, text="BrainLink ポート", font=("", 11, "bold")).pack(anchor="w", pady=(10, 0))
         portrow = ttk.Frame(frm)
@@ -67,8 +76,10 @@ class BridgeGUI:
 
         adv = ttk.LabelFrame(frm, text="詳細設定（クラウド接続）", padding=8)
         adv.pack(fill="x", pady=10)
-        self.url = self._field(adv, "Supabase URL", self.saved.get("url", ""))
-        self.key = self._field(adv, "Supabase anon key", self.saved.get("key", ""), show="*")
+        self.url = self._field(adv, "Supabase URL", self.saved.get("url") or DEFAULT_SUPABASE_URL)
+        self.key = self._field(
+            adv, "Supabase anon key", self.saved.get("key") or DEFAULT_SUPABASE_ANON_KEY, show="*"
+        )
 
         btnrow = ttk.Frame(frm)
         btnrow.pack(fill="x", pady=4)
@@ -91,7 +102,8 @@ class BridgeGUI:
         self.log.pack(fill="both", expand=True)
 
     def _field(self, parent: tk.Widget, label: str, value: str, show: str | None = None) -> ttk.Entry:
-        ttk.Label(parent, text=label).pack(anchor="w")
+        if label:
+            ttk.Label(parent, text=label).pack(anchor="w")
         entry = ttk.Entry(parent, show=show)
         entry.insert(0, value)
         entry.pack(fill="x", pady=(0, 4))
@@ -113,31 +125,27 @@ class BridgeGUI:
     # ── Control ─────────────────────────────────────────────────────────
     def start(self) -> None:
         demo = self.demo_var.get()
-        email = self.email.get().strip()
-        password = self.password.get().strip()
+        code = self.code.get().strip()
         port = self.port.get().strip()
         url = self.url.get().strip()
         key = self.key.get().strip()
 
+        if not code:
+            messagebox.showwarning("入力エラー", "ペアリングコードを入力してください。")
+            return
         if not demo and not port:
             messagebox.showwarning("入力エラー", "BrainLink ポートを選択してください。")
             return
         if not url or not key:
             messagebox.showwarning("入力エラー", "Supabase URL と anon key を入力してください。")
             return
-        if not email or not password:
-            messagebox.showwarning("入力エラー", "メールアドレスとパスワードを入力してください。")
-            return
 
-        save_config(
-            {"email": email, "password": password, "port": port, "url": url, "key": key}
-        )
+        save_config({"code": code, "port": port, "url": url, "key": key})
 
         cfg = Config(
             supabase_url=url,
             supabase_anon_key=key,
-            email=email,
-            password=password,
+            pairing_code=code,
             port=port,
             baud=115200,
             csv_dir=os.path.join(app_dir(), "logs"),

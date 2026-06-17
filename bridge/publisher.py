@@ -1,7 +1,11 @@
-"""Supabase auth + Realtime broadcast publisher.
+"""Supabase Realtime broadcast publisher (pairing-code based).
+
+No account login: the bridge connects with the anon key only and publishes to
+`eeg:{pairing_code}`, the same code the phone shows. This works regardless of
+how the user logged into the app (Google, email, ...).
 
 All Realtime calls are isolated in this class so the transport can be swapped
-without touching main.py.
+without touching the rest of the program.
 
 KNOWN RISK: broadcast *publishing* from supabase-py / realtime-py is newer and
 less battle-tested than the JS client, and method names have shifted between
@@ -11,6 +15,7 @@ version, check `pip show realtime` and see the README troubleshooting section.
 """
 
 import asyncio
+import re
 import threading
 import time
 from typing import Callable, Optional
@@ -23,6 +28,11 @@ from config import Config
 CHANNEL_PREFIX = "eeg:"
 SAMPLE_EVENT = "sample"
 
+
+def normalize_code(code: str) -> str:
+    """Mirror of normalizePairingCode() in the web app."""
+    return re.sub(r"[^A-Za-z0-9]", "", code).upper()
+
 MAX_CONSECUTIVE_FAILURES = 3
 BACKOFF_BASE_SEC = 2
 BACKOFF_CAP_SEC = 60
@@ -33,7 +43,7 @@ class SupabasePublisher:
         self.cfg = cfg
         self.client: AsyncClient | None = None
         self.channel = None
-        self.user_id: str | None = None
+        self.channel_name = f"{CHANNEL_PREFIX}{normalize_code(cfg.pairing_code)}"
         self._failures = 0
         self._log = log or (lambda m: print("[publisher]", m))
         self._stop: Optional[threading.Event] = None
@@ -45,7 +55,7 @@ class SupabasePublisher:
         while self._stop is None or not self._stop.is_set():
             try:
                 await self._connect_once()
-                self._log(f"接続完了 channel={CHANNEL_PREFIX}{self.user_id}")
+                self._log(f"接続完了 channel={self.channel_name}")
                 return
             except Exception as e:  # noqa: BLE001 — keep the bridge alive
                 self._log(f"接続失敗: {e} — {backoff}s 後に再試行します")
@@ -59,14 +69,8 @@ class SupabasePublisher:
     async def _connect_once(self) -> None:
         await self._teardown()
         self.client = await acreate_client(self.cfg.supabase_url, self.cfg.supabase_anon_key)
-        auth = await self.client.auth.sign_in_with_password(
-            {"email": self.cfg.email, "password": self.cfg.password}
-        )
-        if auth.user is None:
-            raise RuntimeError("ログインに失敗しました（メール/パスワードを確認してください）")
-        self.user_id = auth.user.id
-
-        self.channel = self.client.channel(f"{CHANNEL_PREFIX}{self.user_id}")
+        # No login: anon key + a public broadcast channel keyed by the code.
+        self.channel = self.client.channel(self.channel_name)
         await self.channel.subscribe()
         try:
             await self.channel.track(
@@ -109,9 +113,4 @@ class SupabasePublisher:
             except Exception:  # noqa: BLE001
                 pass
             self.channel = None
-        if self.client is not None:
-            try:
-                await self.client.auth.sign_out()
-            except Exception:  # noqa: BLE001
-                pass
-            self.client = None
+        self.client = None

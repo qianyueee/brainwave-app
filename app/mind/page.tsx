@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useMindStore } from "@/store/useMindStore";
-import { useAuthStore } from "@/store/useAuthStore";
 import { DummySource } from "@/lib/mind/dummy-source";
 import { RealtimeSource } from "@/lib/mind/realtime-source";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
@@ -20,7 +19,7 @@ export default function MindPage() {
   const history = useMindStore((s) => s.history);
   const sessions = useMindStore((s) => s.sessions);
   const deleteSession = useMindStore((s) => s.deleteSession);
-  const userId = useAuthStore((s) => s.user?.id);
+  const pairingCode = useMindStore((s) => s.pairingCode);
 
   // Guard persisted session list against SSR hydration mismatch.
   const [hydrated, setHydrated] = useState(false);
@@ -37,8 +36,8 @@ export default function MindPage() {
     let source: MindDataSource | null = null;
     if (sourceKind === "demo") {
       source = new DummySource(handlers);
-    } else if (userId) {
-      source = new RealtimeSource(userId, handlers);
+    } else if (pairingCode) {
+      source = new RealtimeSource(pairingCode, handlers);
     } else {
       handlers.onStatus("idle");
     }
@@ -48,7 +47,7 @@ export default function MindPage() {
       useMindStore.getState().setStatus("idle");
       useMindStore.getState().setBridgeOnline(false);
     };
-  }, [sourceKind, userId]);
+  }, [sourceKind, pairingCode]);
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
