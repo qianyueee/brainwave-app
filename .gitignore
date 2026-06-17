@@ -44,3 +44,7 @@ next-env.d.ts
 bridge/.env
 bridge/logs/
 bridge/__pycache__/
+bridge/bridge_config.json
+bridge/build/
+bridge/dist/
+*.pyc

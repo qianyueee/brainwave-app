@@ -11,7 +11,9 @@ version, check `pip show realtime` and see the README troubleshooting section.
 """
 
 import asyncio
+import threading
 import time
+from typing import Callable, Optional
 
 from supabase import AsyncClient, acreate_client
 
@@ -27,23 +29,31 @@ BACKOFF_CAP_SEC = 60
 
 
 class SupabasePublisher:
-    def __init__(self, cfg: Config) -> None:
+    def __init__(self, cfg: Config, log: Optional[Callable[[str], None]] = None) -> None:
         self.cfg = cfg
         self.client: AsyncClient | None = None
         self.channel = None
         self.user_id: str | None = None
         self._failures = 0
+        self._log = log or (lambda m: print("[publisher]", m))
+        self._stop: Optional[threading.Event] = None
 
-    async def connect(self) -> None:
+    async def connect(self, stop: Optional[threading.Event] = None) -> None:
+        if stop is not None:
+            self._stop = stop
         backoff = BACKOFF_BASE_SEC
-        while True:
+        while self._stop is None or not self._stop.is_set():
             try:
                 await self._connect_once()
-                print(f"[publisher] 接続完了 channel={CHANNEL_PREFIX}{self.user_id}")
+                self._log(f"接続完了 channel={CHANNEL_PREFIX}{self.user_id}")
                 return
             except Exception as e:  # noqa: BLE001 — keep the bridge alive
-                print(f"[publisher] 接続失敗: {e} — {backoff}s 後に再試行します")
-                await asyncio.sleep(backoff)
+                self._log(f"接続失敗: {e} — {backoff}s 後に再試行します")
+                # Sleep in small steps so a stop request is honored quickly.
+                for _ in range(backoff * 2):
+                    if self._stop is not None and self._stop.is_set():
+                        return
+                    await asyncio.sleep(0.5)
                 backoff = min(backoff * 2, BACKOFF_CAP_SEC)
 
     async def _connect_once(self) -> None:
@@ -69,7 +79,7 @@ class SupabasePublisher:
         except Exception as e:  # noqa: BLE001
             # Presence is best-effort: the web app also detects the bridge
             # from recent samples, so keep publishing even if track() fails.
-            print(f"[publisher] presence track 失敗（続行します）: {e}")
+            self._log(f"presence track 失敗（続行します）: {e}")
         self._failures = 0
 
     async def publish(self, sample: dict) -> None:
@@ -80,10 +90,10 @@ class SupabasePublisher:
             self._failures = 0
         except Exception as e:  # noqa: BLE001
             self._failures += 1
-            print(f"[publisher] 送信失敗 ({self._failures}/{MAX_CONSECUTIVE_FAILURES}): {e}")
+            self._log(f"送信失敗 ({self._failures}/{MAX_CONSECUTIVE_FAILURES}): {e}")
             if self._failures >= MAX_CONSECUTIVE_FAILURES:
-                print("[publisher] 連続失敗のため再接続します")
-                await self.connect()
+                self._log("連続失敗のため再接続します")
+                await self.connect(self._stop)
 
     async def close(self) -> None:
         await self._teardown()
