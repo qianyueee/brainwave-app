@@ -21,10 +21,19 @@ export interface EegSample {
   ts: number; // epoch ms
 }
 
-/** Supabase Realtime channel name = `eeg:{supabase_user_id}`. */
+/** Supabase Realtime channel name = `eeg:{pairing_code}`. */
 export const MIND_CHANNEL_PREFIX = "eeg:";
 /** Broadcast event name carrying an `EegSample` payload. */
 export const MIND_SAMPLE_EVENT = "sample";
+
+/**
+ * Normalize a pairing code to the canonical channel suffix: strip anything
+ * that isn't alphanumeric (e.g. the display dash in "AB23-CD45") and
+ * uppercase. The bridge applies the identical rule so both ends agree.
+ */
+export function normalizePairingCode(code: string): string {
+  return code.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+}
 
 export type Quadrant = "flow" | "stress" | "fatigue" | "deepMeditation";
 

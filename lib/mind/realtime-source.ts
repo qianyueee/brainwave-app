@@ -1,14 +1,20 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { MindDataSource, MindSourceHandlers } from "./data-source";
-import { isValidSample, MIND_CHANNEL_PREFIX, MIND_SAMPLE_EVENT } from "./types";
+import {
+  isValidSample,
+  MIND_CHANNEL_PREFIX,
+  MIND_SAMPLE_EVENT,
+  normalizePairingCode,
+} from "./types";
 
 /** Bridge counts as online if a sample arrived within this window. */
 const SAMPLE_FRESH_MS = 6000;
 
 /**
- * Subscribes to the per-user Supabase Realtime channel the PC bridge
- * publishes to (`eeg:{user_id}`, broadcast event "sample", 1 Hz).
+ * Subscribes to the pairing-code channel the PC bridge publishes to
+ * (`eeg:{pairing_code}`, broadcast event "sample", 1 Hz). The code is shared
+ * between phone and bridge — no account login is required on either end.
  * Bridge online state combines presence (bridge `.track({ role: "bridge" })`)
  * with a recent-sample heartbeat, since presence from non-JS clients can be
  * unreliable.
@@ -20,7 +26,7 @@ export class RealtimeSource implements MindDataSource {
   private presenceOnline = false;
 
   constructor(
-    private userId: string,
+    private pairingCode: string,
     private handlers: MindSourceHandlers
   ) {}
 
@@ -29,10 +35,15 @@ export class RealtimeSource implements MindDataSource {
       this.handlers.onStatus("error", "クラウド接続が未設定です");
       return;
     }
+    const code = normalizePairingCode(this.pairingCode);
+    if (!code) {
+      this.handlers.onStatus("error", "ペアリングコードがありません");
+      return;
+    }
     this.handlers.onStatus("connecting", "接続中…");
 
     this.channel = supabase
-      .channel(`${MIND_CHANNEL_PREFIX}${this.userId}`, {
+      .channel(`${MIND_CHANNEL_PREFIX}${code}`, {
         config: { broadcast: { self: false }, presence: { key: "web" } },
       })
       .on("broadcast", { event: MIND_SAMPLE_EVENT }, ({ payload }) => {
