@@ -50,6 +50,19 @@ def default_csv_dir() -> str:
     return os.path.join(app_dir(), "logs")
 
 
+# Pre-filled cloud connection so the packaged GUI exe ships ready to use.
+# The anon key is public-safe by Supabase design (the web app exposes the same
+# key to every browser); access is meant to be controlled via RLS / Realtime
+# private channels. Users can still override these in the GUI's 詳細設定.
+DEFAULT_SUPABASE_URL = "https://rbuxxosedsmpctylrzxj.supabase.co"
+DEFAULT_SUPABASE_ANON_KEY = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+    "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidXh4b3NlZHNtcGN0eWxyenhqIiwicm9sZSI6"
+    "ImFub24iLCJpYXQiOjE3NzI2Mjg1ODksImV4cCI6MjA4ODIwNDU4OX0."
+    "7AIjsvuqTyponLG9Mhs_6DB0UWEUfEHqmRWP6zbm14E"
+)
+
+
 
 @dataclass
 class Config:

@@ -14,7 +14,14 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from bridge_core import run_bridge
-from config import Config, app_dir, load_saved, save_config
+from config import (
+    DEFAULT_SUPABASE_ANON_KEY,
+    DEFAULT_SUPABASE_URL,
+    Config,
+    app_dir,
+    load_saved,
+    save_config,
+)
 
 POLL_MS = 120
 
@@ -67,8 +74,10 @@ class BridgeGUI:
 
         adv = ttk.LabelFrame(frm, text="詳細設定（クラウド接続）", padding=8)
         adv.pack(fill="x", pady=10)
-        self.url = self._field(adv, "Supabase URL", self.saved.get("url", ""))
-        self.key = self._field(adv, "Supabase anon key", self.saved.get("key", ""), show="*")
+        self.url = self._field(adv, "Supabase URL", self.saved.get("url") or DEFAULT_SUPABASE_URL)
+        self.key = self._field(
+            adv, "Supabase anon key", self.saved.get("key") or DEFAULT_SUPABASE_ANON_KEY, show="*"
+        )
 
         btnrow = ttk.Frame(frm)
         btnrow.pack(fill="x", pady=4)
