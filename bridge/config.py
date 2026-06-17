@@ -1,10 +1,54 @@
-"""Configuration for the BrainLink bridge: .env file + command-line overrides."""
+"""Configuration for the BrainLink bridge.
+
+Two config sources:
+- CLI (main.py): .env file + command-line overrides (load_config).
+- GUI (gui.py): a JSON file saved next to the program (load_saved/save_config).
+"""
 
 import argparse
+import json
 import os
+import sys
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
+
+
+def app_dir() -> str:
+    """Directory of the program: next to the .exe when frozen, else the source dir."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+CONFIG_FILE = "bridge_config.json"
+
+
+def config_file_path() -> str:
+    return os.path.join(app_dir(), CONFIG_FILE)
+
+
+def load_saved() -> dict:
+    """Load the GUI's saved settings (returns {} if none)."""
+    try:
+        with open(config_file_path(), "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_config(data: dict) -> None:
+    """Persist the GUI's settings next to the program."""
+    try:
+        with open(config_file_path(), "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def default_csv_dir() -> str:
+    return os.path.join(app_dir(), "logs")
+
 
 
 @dataclass
@@ -29,7 +73,7 @@ def load_config() -> Config:
     )
     parser.add_argument("--port", default=os.getenv("EEG_PORT", ""), help="シリアルポート (例: COM3, /dev/cu.BrainLink_Pro)")
     parser.add_argument("--baud", type=int, default=int(os.getenv("EEG_BAUD", "115200")), help="ボーレート")
-    parser.add_argument("--csv-dir", default=os.path.join(os.path.dirname(__file__), "logs"), help="CSVログの保存先")
+    parser.add_argument("--csv-dir", default=default_csv_dir(), help="CSVログの保存先")
     parser.add_argument("--demo", action="store_true", help="実機を使わず合成データを送信（クラウド経路の動作確認用）")
     parser.add_argument("--dry-run", action="store_true", help="クラウドに送信せず、解析とCSV保存のみ行う（実機の動作確認用）")
     args = parser.parse_args()
