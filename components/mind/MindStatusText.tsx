@@ -1,10 +1,16 @@
 "use client";
 
-import { BatteryMedium, AlertTriangle } from "lucide-react";
+import { BatteryMedium, AlertTriangle, Sparkles } from "lucide-react";
 import type { EegSample } from "@/lib/mind/types";
-import { getQuadrant, QUADRANT_INFO } from "@/lib/mind/types";
+import { getQuadrant, boostedPosition, QUADRANT_INFO } from "@/lib/mind/types";
 
-export default function MindStatusText({ sample }: { sample: EegSample | null }) {
+export default function MindStatusText({
+  sample,
+  boost = 0,
+}: {
+  sample: EegSample | null;
+  boost?: number;
+}) {
   if (!sample) {
     return (
       <div className="text-center py-2">
@@ -22,13 +28,21 @@ export default function MindStatusText({ sample }: { sample: EegSample | null })
     );
   }
 
-  const info = QUADRANT_INFO[getQuadrant(sample.attention, sample.meditation)];
+  const eff = boostedPosition(sample.attention, sample.meditation, boost);
+  const info = QUADRANT_INFO[getQuadrant(eff.attention, eff.meditation)];
+  const gammaRising = boost > 0.12; // gamma clearly above the resting baseline
 
   return (
     <div className="text-center py-2">
       <p className="text-lg font-bold text-text-primary">{info.message}</p>
       <div className="flex items-center justify-center gap-3 mt-1 text-sm text-text-secondary">
         <span>{info.label}</span>
+        {gammaRising && (
+          <span className="flex items-center gap-1 text-accent font-medium">
+            <Sparkles size={16} />
+            γ波 上昇中
+          </span>
+        )}
         {sample.battery !== undefined && (
           <span className="flex items-center gap-1">
             <BatteryMedium size={16} />
