@@ -20,6 +20,7 @@ export default function MindPage() {
   const sessions = useMindStore((s) => s.sessions);
   const deleteSession = useMindStore((s) => s.deleteSession);
   const pairingCode = useMindStore((s) => s.pairingCode);
+  const gammaBoost = useMindStore((s) => s.gammaBoost);
 
   // Guard persisted session list against SSR hydration mismatch.
   const [hydrated, setHydrated] = useState(false);
@@ -55,9 +56,9 @@ export default function MindPage() {
 
       <SourcePanel />
 
-      <MindMapCanvas sample={latestSample} />
+      <MindMapCanvas sample={latestSample} boost={gammaBoost} />
 
-      <MindStatusText sample={latestSample} />
+      <MindStatusText sample={latestSample} boost={gammaBoost} />
 
       <BandEqualizer sample={latestSample} />
 

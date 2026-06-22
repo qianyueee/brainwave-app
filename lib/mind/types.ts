@@ -86,6 +86,44 @@ export function gammaRatio(s: EegSample): number {
   return ((s.lowGamma + s.highGamma) / total) * 100;
 }
 
+// ── Gamma-driven "pull toward the Zone" (40Hz treatment effect) ──
+//
+// NeuroSky's Attention and Meditation are anti-correlated, so both rarely
+// exceed 50 at once and the dot seldom reaches the flow/Zone corner. During a
+// 40Hz acoustic session the brain entrains and relative gamma rises; we turn
+// that rise (relative to the person's own resting baseline) into a pull toward
+// the top-right Zone, so the headset's gamma response becomes visible evidence.
+
+/** EMA weight for the per-session gamma baseline (~90 s time constant at 1 Hz). */
+export const GAMMA_BASELINE_ALPHA = 0.011;
+/** How strongly gamma excess over baseline pulls toward the Zone. */
+export const GAMMA_BOOST_SENSITIVITY = 0.5;
+/** Hard cap on the pull (0 = none, 1 = pinned to the corner). */
+export const GAMMA_BOOST_MAX = 0.6;
+
+/**
+ * Boost factor 0..GAMMA_BOOST_MAX from how far current gamma exceeds the
+ * person's baseline. Multiplicative (ratio/baseline) so it is scale-free and
+ * robust to individual differences and electrode contact.
+ */
+export function gammaBoostFromRatio(ratio: number, baseline: number): number {
+  if (baseline <= 0) return 0;
+  const excess = ratio / baseline - 1; // 0 at baseline, 1 when gamma doubles
+  return Math.max(0, Math.min(GAMMA_BOOST_MAX, excess * GAMMA_BOOST_SENSITIVITY));
+}
+
+/** Pull attention & meditation toward 100 (the Zone corner) by `boost`. */
+export function boostedPosition(
+  attention: number,
+  meditation: number,
+  boost: number
+): { attention: number; meditation: number } {
+  return {
+    attention: attention + boost * (100 - attention),
+    meditation: meditation + boost * (100 - meditation),
+  };
+}
+
 /** Relative power (%) of the five classic bands, for the equalizer. */
 export function relativeBandPowers(s: EegSample): {
   delta: number;

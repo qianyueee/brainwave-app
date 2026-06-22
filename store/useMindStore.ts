@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { EegSample } from "@/lib/mind/types";
-import { getQuadrant, gammaRatio } from "@/lib/mind/types";
+import {
+  getQuadrant,
+  gammaRatio,
+  gammaBoostFromRatio,
+  boostedPosition,
+  GAMMA_BASELINE_ALPHA,
+} from "@/lib/mind/types";
 import type { SourceStatus } from "@/lib/mind/data-source";
 
 export type MindSourceKind = "demo" | "realtime";
@@ -48,9 +54,12 @@ interface MindState {
   bridgeOnline: boolean;
   latestSample: EegSample | null;
   history: EegSample[];
+  gammaBaseline: number; // per-session resting gamma EMA (not persisted)
+  gammaBoost: number; // current 0..GAMMA_BOOST_MAX pull toward the Zone
   isRecording: boolean;
   recordingStartedAt: number | null;
   recordingSamples: EegSample[]; // in-memory only, never persisted
+  recordingFlowCount: number; // Zone samples (gamma-boosted) during recording
   sessions: MindSessionSummary[];
   pairingCode: string;
 
@@ -73,9 +82,12 @@ export const useMindStore = create<MindState>()(
       bridgeOnline: false,
       latestSample: null,
       history: [],
+      gammaBaseline: 0,
+      gammaBoost: 0,
       isRecording: false,
       recordingStartedAt: null,
       recordingSamples: [],
+      recordingFlowCount: 0,
       sessions: [],
       pairingCode: "",
 
@@ -84,41 +96,82 @@ export const useMindStore = create<MindState>()(
       },
 
       setSourceKind: (k) =>
-        set({ sourceKind: k, latestSample: null, history: [], bridgeOnline: false }),
+        set({
+          sourceKind: k,
+          latestSample: null,
+          history: [],
+          bridgeOnline: false,
+          gammaBaseline: 0,
+          gammaBoost: 0,
+        }),
 
       setStatus: (status, detail) => set({ status, statusDetail: detail ?? "" }),
 
       setBridgeOnline: (online) => set({ bridgeOnline: online }),
 
       pushSample: (s) =>
-        set((state) => ({
-          latestSample: s,
-          history: [...state.history, s].slice(-HISTORY_MAX),
-          recordingSamples: state.isRecording
-            ? [...state.recordingSamples, s]
-            : state.recordingSamples,
-        })),
+        set((state) => {
+          // Update the per-session gamma baseline (seed on first sample) and
+          // derive the current pull toward the Zone.
+          const ratio = gammaRatio(s);
+          const baseline =
+            state.gammaBaseline <= 0
+              ? ratio
+              : state.gammaBaseline + (ratio - state.gammaBaseline) * GAMMA_BASELINE_ALPHA;
+          const boost = gammaBoostFromRatio(ratio, baseline);
+
+          let recordingSamples = state.recordingSamples;
+          let recordingFlowCount = state.recordingFlowCount;
+          if (state.isRecording) {
+            recordingSamples = [...state.recordingSamples, s];
+            const eff = boostedPosition(s.attention, s.meditation, boost);
+            if (getQuadrant(eff.attention, eff.meditation) === "flow") {
+              recordingFlowCount += 1;
+            }
+          }
+
+          return {
+            latestSample: s,
+            history: [...state.history, s].slice(-HISTORY_MAX),
+            gammaBaseline: baseline,
+            gammaBoost: boost,
+            recordingSamples,
+            recordingFlowCount,
+          };
+        }),
 
       startRecording: () =>
-        set({ isRecording: true, recordingStartedAt: Date.now(), recordingSamples: [] }),
+        // Re-anchor the gamma baseline at measurement start (= resting state
+        // before the 40Hz session), so the rise during treatment is captured.
+        set({
+          isRecording: true,
+          recordingStartedAt: Date.now(),
+          recordingSamples: [],
+          recordingFlowCount: 0,
+          gammaBaseline: 0,
+        }),
 
       stopRecording: () => {
-        const { recordingSamples, recordingStartedAt, sourceKind, sessions } = get();
+        const { recordingSamples, recordingStartedAt, recordingFlowCount, sourceKind, sessions } =
+          get();
         const endedAt = Date.now();
         if (recordingSamples.length === 0 || recordingStartedAt === null) {
-          set({ isRecording: false, recordingStartedAt: null, recordingSamples: [] });
+          set({
+            isRecording: false,
+            recordingStartedAt: null,
+            recordingSamples: [],
+            recordingFlowCount: 0,
+          });
           return;
         }
         const n = recordingSamples.length;
         let attSum = 0;
         let medSum = 0;
         let gammaSum = 0;
-        let flowCount = 0;
         for (const s of recordingSamples) {
           attSum += s.attention;
           medSum += s.meditation;
           gammaSum += gammaRatio(s);
-          if (getQuadrant(s.attention, s.meditation) === "flow") flowCount++;
         }
         const summary: MindSessionSummary = {
           id: generateId(),
@@ -128,13 +181,15 @@ export const useMindStore = create<MindState>()(
           avgAttention: Math.round(attSum / n),
           avgMeditation: Math.round(medSum / n),
           avgGammaRatio: Math.round((gammaSum / n) * 10) / 10,
-          flowRatioPct: Math.round((flowCount / n) * 100),
+          // Zone rate reflects the gamma-boosted position the user actually saw.
+          flowRatioPct: Math.round((recordingFlowCount / n) * 100),
           source: sourceKind,
         };
         set({
           isRecording: false,
           recordingStartedAt: null,
           recordingSamples: [],
+          recordingFlowCount: 0,
           sessions: [summary, ...sessions].slice(0, 100),
         });
       },

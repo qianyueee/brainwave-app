@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { EegSample, Quadrant } from "@/lib/mind/types";
-import { getQuadrant, gammaRatio, QUADRANT_INFO } from "@/lib/mind/types";
+import { getQuadrant, gammaRatio, boostedPosition, QUADRANT_INFO } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
 interface MapParams {
@@ -67,7 +67,13 @@ function readThemeColors(): ThemeColors {
   };
 }
 
-export default function MindMapCanvas({ sample }: { sample: EegSample | null }) {
+export default function MindMapCanvas({
+  sample,
+  boost = 0,
+}: {
+  sample: EegSample | null;
+  boost?: number;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const paramsRef = useRef<MapParams>({
@@ -79,19 +85,22 @@ export default function MindMapCanvas({ sample }: { sample: EegSample | null }) 
   });
 
   // Feed the latest sample into the animation loop without restarting it.
+  // Position uses the gamma-boosted attention/meditation so a 40Hz-driven
+  // gamma rise pulls the dot toward the Zone; the glow still tracks raw gamma.
   useEffect(() => {
     if (!sample) {
       paramsRef.current = { ...paramsRef.current, hasData: false };
       return;
     }
+    const eff = boostedPosition(sample.attention, sample.meditation, boost);
     paramsRef.current = {
-      targetX: sample.meditation / 100,
-      targetY: 1 - sample.attention / 100,
+      targetX: eff.meditation / 100,
+      targetY: 1 - eff.attention / 100,
       gamma: gammaRatio(sample),
-      quadrant: getQuadrant(sample.attention, sample.meditation),
+      quadrant: getQuadrant(eff.attention, eff.meditation),
       hasData: true,
     };
-  }, [sample]);
+  }, [sample, boost]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

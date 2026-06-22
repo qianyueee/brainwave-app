@@ -2,6 +2,7 @@ import { ProgramConfig } from "./programs";
 import { scheduleRamps } from "./ramp-scheduler";
 import { getAudioContext } from "./audio-context";
 import { getAudioDestination } from "./keep-alive";
+import { getSharedAnalyser } from "./audio-analyser";
 import { NaturePlayer } from "./nature-player";
 
 // Re-export so existing imports from "@/lib/audio-engine" keep working
@@ -99,7 +100,7 @@ export class BinauralSession {
 
     // ChannelMergerNode: input 0 = left channel, input 1 = right channel
     this.merger = this.ctx.createChannelMerger(2);
-    this.merger.connect(getAudioDestination());
+    this.merger.connect(getSharedAnalyser() ?? getAudioDestination());
 
     // Create fundamental + harmonic oscillators for each channel
     // Harmonics are at fixed carrier multiples (no beat offset) to keep binaural beat clean
