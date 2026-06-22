@@ -62,11 +62,22 @@ function hexToVec3(hex: string, fallback: [number, number, number]): [number, nu
   return [r / 255, g / 255, b / 255];
 }
 
+/** Stable 0..1 fingerprint from a program id, for per-program pattern variation. */
+function hashSeed(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 10000) / 10000;
+}
+
 interface CymaticsParams {
   isPlaying: boolean;
   sym: number; // target N-fold symmetry
   ring: number; // target radial ring density
   spin: number; // target spin speed (rad/s)
+  seed: number; // per-program fingerprint 0..1
 }
 
 const VERT_SRC = `
@@ -90,6 +101,7 @@ uniform vec3  u_bg;
 uniform float u_level;     // 0..1 live audio amplitude
 uniform float u_intensity; // 0..1 playing vs idle
 uniform float u_spin;      // accumulated rotation phase (rad)
+uniform float u_seed;      // 0..1 per-program fingerprint
 
 const float PI = 3.14159265;
 
@@ -97,37 +109,41 @@ void main() {
   // Centered square coords in -1..1 (canvas is square).
   vec2 p = (v_uv - 0.5) * 2.0;
   float r = length(p);
-  float a = atan(p.y, p.x) + u_spin;
+  // Per-program angular phase offset so each program looks distinct.
+  float a = atan(p.y, p.x) + u_spin + u_seed * 6.2831853;
 
   // Audio breathing: gently expand/contract radial scale.
   float breathe = 1.0 + u_level * 0.18;
   float rr = r / breathe;
 
   // Angular harmonics: N-fold petals + a detuned overtone for intricacy.
+  // The overtone phase + radial overtone ratio vary with the seed so two
+  // programs with similar petal counts still read differently.
   float ang  = cos(u_symmetry * a);
-  float ang2 = cos((u_symmetry * 2.0) * a + 1.5708);
+  float ang2 = cos((u_symmetry * 2.0) * a + 1.5708 + u_seed * 3.1416);
 
   // Concentric radial standing waves travelling inward over time + overtone.
   float radA = sin(u_radialMode * rr * PI - u_time * 1.2);
-  float radB = sin((u_radialMode * 1.6) * rr * PI + u_time * 0.7);
+  float radB = sin((u_radialMode * (1.4 + u_seed * 0.6)) * rr * PI + u_time * 0.7);
 
   float field = ang * radA + 0.6 * ang2 * radB;
 
-  // Nodal lines: thin bright filaments where the field crosses zero.
-  float lineW = 0.06 + 0.04 * (1.0 - u_intensity);
+  // Nodal lines: thin bright filaments where the field crosses zero — the
+  // main feature (keeps the look as "glowing filaments on dark", never a
+  // flooded disc, even when the theme color is pale).
+  float lineW = 0.05 + 0.04 * (1.0 - u_intensity);
   float lines = 1.0 - smoothstep(0.0, lineW, abs(field));
 
-  // Soft glow toward the center.
-  float glow = smoothstep(1.0, 0.0, rr) * 0.5;
-
-  float bright = (lines + glow) * (0.55 + 0.45 * u_intensity) * (0.85 + 0.30 * u_level);
-
-  // Color: mix the two theme colors by radius, scaled by brightness.
+  float bright = lines * (0.6 + 0.4 * u_intensity) * (0.85 + 0.30 * u_level);
   vec3 col = mix(u_colorA, u_colorB, clamp(rr, 0.0, 1.0)) * bright;
+
+  // Subtle central glow, kept low so it never blooms to white.
+  float center = smoothstep(0.85, 0.0, rr) * 0.16 * (0.6 + 0.4 * u_intensity);
+  vec3 glowCol = mix(u_colorA, u_colorB, 0.5) * center;
 
   // Circular vignette: fade to background near the rim so corners match navy.
   float vig = smoothstep(1.0, 0.86, r);
-  vec3 outc = mix(u_bg, u_bg + col, vig);
+  vec3 outc = mix(u_bg, u_bg + col + glowCol, vig);
 
   gl_FragColor = vec4(outc, 1.0);
 }
@@ -160,7 +176,8 @@ export default function Visualizer() {
     isPlaying: false,
     sym: 6,
     ring: 5,
-    spin: 0.1,
+    spin: 0.08,
+    seed: 0,
   });
 
   // ── Resolve what's playing: binaural program vs custom (synth) program ──
@@ -171,19 +188,21 @@ export default function Visualizer() {
       publishedPrograms.find((p) => p.id === programId)
     : undefined;
 
-  let driveFreq: number;
+  // Per-program fingerprint + gentle spin (each program rotates a touch differently).
+  const seed = hashSeed(programId);
+  const targetSpin = 0.05 + seed * 0.06;
+
   let targetSym: number;
   let targetRing: number;
-  let targetSpin: number;
   let displayFreq: number;
   let label: string;
 
   if (isCustom) {
-    driveFreq = customProgram ? dominantFrequency(customProgram) : 0;
-    targetSym = symmetryForFreq(driveFreq);
-    targetRing = radialModeForFreq(driveFreq);
-    targetSpin = 0.1;
-    displayFreq = driveFreq;
+    // Shape signature = dominant layer pitch (stable & distinct per preset).
+    const sig = customProgram ? dominantFrequency(customProgram) : 220;
+    targetSym = symmetryForFreq(sig);
+    targetRing = radialModeForFreq(sig);
+    displayFreq = sig;
     label = customProgram?.name ?? "カスタム";
   } else {
     const timeScale = program ? timerDuration / program.defaultDuration : 1;
@@ -191,10 +210,11 @@ export default function Visualizer() {
     const info = program
       ? getCurrentPhaseInfo(program.phases, scaledElapsed)
       : { phase: null, beatFreq: 0 };
-    driveFreq = info.beatFreq;
-    targetSym = symmetryForBeat(info.beatFreq);
-    targetRing = radialModeForFreq(info.beatFreq);
-    targetSpin = 0.06 + info.beatFreq * 0.01;
+    // Shape signature = the program's TARGET beat (stable per program), so the
+    // three programs read as distinct shapes regardless of phase / elapsed.
+    const sig = program?.targetBeatFreq ?? info.beatFreq;
+    targetSym = symmetryForBeat(sig);
+    targetRing = radialModeForFreq(sig);
     displayFreq =
       info.phase?.name === "導入" && program ? program.targetBeatFreq : info.beatFreq;
     label = info.phase ? info.phase.name : "待機中";
@@ -202,8 +222,14 @@ export default function Visualizer() {
 
   // Feed latest targets into the animation loop without restarting it.
   useEffect(() => {
-    paramsRef.current = { isPlaying, sym: targetSym, ring: targetRing, spin: targetSpin };
-  }, [isPlaying, targetSym, targetRing, targetSpin]);
+    paramsRef.current = {
+      isPlaying,
+      sym: targetSym,
+      ring: targetRing,
+      spin: targetSpin,
+      seed,
+    };
+  }, [isPlaying, targetSym, targetRing, targetSpin, seed]);
 
   // Start the WebGL render loop once; it reads paramsRef each frame.
   useEffect(() => {
@@ -281,6 +307,7 @@ export default function Visualizer() {
         "u_level",
         "u_intensity",
         "u_spin",
+        "u_seed",
       ]) {
         uniforms[name] = gl.getUniformLocation(prog, name);
       }
@@ -327,10 +354,11 @@ export default function Visualizer() {
     canvas.addEventListener("webglcontextrestored", onRestored as EventListener);
 
     // Eased per-frame state.
+    const IDLE_INTENSITY = 0.7;
     let symNow = paramsRef.current.sym;
     let ringNow = paramsRef.current.ring;
     let spinNow = paramsRef.current.spin;
-    let intensityNow = 0.35;
+    let intensityNow = IDLE_INTENSITY;
     let levelNow = 0;
     let time = 0;
     let spinPhase = 0;
@@ -341,7 +369,6 @@ export default function Visualizer() {
       if (lost || !gl || !program) return;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      time += dt;
 
       if (now - lastColor > 800) {
         readColors();
@@ -352,12 +379,16 @@ export default function Visualizer() {
       const k = Math.min(1, dt * 2.0);
       symNow += (p.sym - symNow) * k;
       ringNow += (p.ring - ringNow) * k;
-      const targetSpinSpeed = p.isPlaying ? p.spin : 0.04;
-      spinNow += (targetSpinSpeed - spinNow) * k;
-      spinPhase += spinNow * dt;
-      intensityNow += ((p.isPlaying ? 1 : 0.35) - intensityNow) * k;
+      spinNow += (p.spin - spinNow) * k;
+      intensityNow += ((p.isPlaying ? 1 : IDLE_INTENSITY) - intensityNow) * k;
       const lvl = getAudioLevel();
       levelNow += (lvl - levelNow) * Math.min(1, dt * 6);
+
+      // Freeze all motion (wave flow + rotation) while not playing.
+      if (p.isPlaying) {
+        time += dt;
+        spinPhase += spinNow * dt;
+      }
 
       gl.useProgram(program);
       gl.uniform1f(uniforms.u_time, time);
@@ -369,6 +400,7 @@ export default function Visualizer() {
       gl.uniform1f(uniforms.u_level, levelNow);
       gl.uniform1f(uniforms.u_intensity, intensityNow);
       gl.uniform1f(uniforms.u_spin, spinPhase);
+      gl.uniform1f(uniforms.u_seed, p.seed);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
       rafRef.current = requestAnimationFrame(frame);
@@ -382,7 +414,10 @@ export default function Visualizer() {
       canvas.removeEventListener("webglcontextrestored", onRestored as EventListener);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
-      gl?.getExtension("WEBGL_lose_context")?.loseContext();
+      // NOTE: do not force-loseContext() here. Under React StrictMode the effect
+      // mounts → cleans up → mounts again; losing the context would leave the
+      // second mount with a dead context (blank canvas). The browser reclaims
+      // the context when the canvas is removed.
     };
   }, []);
 
