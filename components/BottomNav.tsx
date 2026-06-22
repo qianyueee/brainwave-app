@@ -16,7 +16,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-navy neu-nav">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-navy neu-nav">
       <div className="mx-auto max-w-[480px] flex justify-around items-center h-16">
         {tabs.map((tab) => {
           const isActive =

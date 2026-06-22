@@ -60,6 +60,9 @@ export default function ProfilePage() {
 
       {profile ? (
         <>
+          {/* Mobile: single column. Desktop: chart | indicators side by side. */}
+          <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
+          <div className="flex flex-col gap-6">
           {/* Radar Chart */}
           <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
             <BrainRadarChart indicators={profile.indicators} size="large" />
@@ -77,7 +80,9 @@ export default function ProfilePage() {
               全 {measurements.length} 件の測定記録を見る →
             </Link>
           )}
+          </div>
 
+          <div className="flex flex-col gap-6">
           {/* 6 Indicator Cards */}
           <div className="flex flex-col gap-3">
             <p className="text-sm text-text-secondary">各指標の詳細</p>
@@ -122,11 +127,13 @@ export default function ProfilePage() {
               すべての記録を削除
             </button>
           </div>
+          </div>
+          </div>
         </>
       ) : (
         <>
           {/* Empty state */}
-          <div className="bg-surface border border-surface-border rounded-3xl p-8 text-center neu-raised">
+          <div className="bg-surface border border-surface-border rounded-3xl p-8 text-center neu-raised md:max-w-2xl md:mx-auto md:w-full">
             <div className="flex justify-center mb-4">
               <BrainCircuit size={48} className="text-primary" strokeWidth={1.5} />
             </div>

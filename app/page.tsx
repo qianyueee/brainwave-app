@@ -117,6 +117,9 @@ export default function HomePage() {
         )}
       </div>
 
+      {/* Mobile: single column. Desktop: two columns (more visible at once). */}
+      <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
+      <div className="flex flex-col gap-6">
       <BrainWeather />
       <MoodSelector />
 
@@ -148,7 +151,9 @@ export default function HomePage() {
           </Link>
         )
       )}
+      </div>
 
+      <div className="flex flex-col gap-6">
       {/* Programs */}
       <div className="flex flex-col gap-3 breathe-stagger">
         <p className="text-sm text-text-secondary">プログラム一覧</p>
@@ -215,6 +220,8 @@ export default function HomePage() {
           </p>
         </button>
       )}
+      </div>
+      </div>
     </div>
   );
 }
