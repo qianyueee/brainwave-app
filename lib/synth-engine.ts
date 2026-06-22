@@ -1,5 +1,6 @@
 import { getAudioContext } from "./audio-context";
 import { getAudioDestination } from "./keep-alive";
+import { getSharedAnalyser } from "./audio-analyser";
 
 export type ToneType = "soft" | "bright";
 export type TremoloMode = "sine" | "decay";
@@ -150,7 +151,7 @@ export class SynthSession {
 
     this.leftGain.connect(this.merger, 0, 0);
     this.rightGain.connect(this.merger, 0, 1);
-    this.merger.connect(getAudioDestination());
+    this.merger.connect(getSharedAnalyser() ?? getAudioDestination());
 
     // Fade in via masterGain (connected to destination for vibrato, but layers bypass it in stereo)
     // Actually for stereo, layers connect to leftGain/rightGain instead of masterGain
@@ -181,7 +182,7 @@ export class SynthSession {
     // masterGain used for mono routing; in stereo it's a dummy
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.setValueAtTime(0, now);
-    this.masterGain.connect(getAudioDestination());
+    this.masterGain.connect(getSharedAnalyser() ?? getAudioDestination());
 
     if (!this._isStereo) {
       const scale = 1 / Math.sqrt(Math.max(totalLayers, 1));
