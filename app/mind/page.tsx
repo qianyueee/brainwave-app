@@ -54,12 +54,17 @@ export default function MindPage() {
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       <h1 className="text-2xl font-bold text-text-primary">マインドマップ</h1>
 
+      {/* Mobile: single column. Desktop: map+status | meters side by side. */}
+      <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
+      <div className="flex flex-col gap-6">
       <SourcePanel />
 
       <MindMapCanvas sample={latestSample} boost={gammaBoost} />
 
       <MindStatusText sample={latestSample} boost={gammaBoost} />
+      </div>
 
+      <div className="flex flex-col gap-6">
       <BandEqualizer sample={latestSample} />
 
       <MindTrendChart history={history} />
@@ -103,6 +108,8 @@ export default function MindPage() {
           ))
         )}
       </section>
+      </div>
+      </div>
     </div>
   );
 }

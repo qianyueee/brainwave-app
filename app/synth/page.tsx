@@ -303,7 +303,7 @@ export default function SynthPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+    <div className="flex flex-col gap-6 pt-6 md:max-w-2xl md:mx-auto md:w-full" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Header */}
       <div className="flex items-center gap-3">
         <button

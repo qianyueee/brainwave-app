@@ -131,6 +131,9 @@ export default function LogPage() {
         <p className="text-sm text-text-secondary mt-1">あなたのチューニング記録</p>
       </div>
 
+      {/* Mobile: single column. Desktop: stats+calendar | history side by side. */}
+      <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
+      <div className="flex flex-col gap-6">
       {/* Stats summary */}
       <div className="flex gap-3">
         <div className="flex-1 bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised">
@@ -144,7 +147,9 @@ export default function LogPage() {
       </div>
 
       <SimpleCalendar />
+      </div>
 
+      <div className="flex flex-col gap-6">
       {/* Brainwave measurement history */}
       <div className="flex flex-col gap-3">
         <div>
@@ -195,6 +200,8 @@ export default function LogPage() {
             <EegUploader />
           </>
         )}
+      </div>
+      </div>
       </div>
     </div>
   );
