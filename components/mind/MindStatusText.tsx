@@ -3,6 +3,7 @@
 import { BatteryMedium, AlertTriangle, Sparkles } from "lucide-react";
 import type { EegSample } from "@/lib/mind/types";
 import { getQuadrant, boostedPosition, QUADRANT_INFO } from "@/lib/mind/types";
+import { nearestEmotion } from "@/lib/mind/emotions";
 
 export default function MindStatusText({
   sample,
@@ -29,14 +30,16 @@ export default function MindStatusText({
   }
 
   const eff = boostedPosition(sample.attention, sample.meditation, boost);
-  const info = QUADRANT_INFO[getQuadrant(eff.attention, eff.meditation)];
+  // Closest Russell-circumplex emotion anchor to the current position.
+  const emotion = nearestEmotion(eff.attention, eff.meditation);
+  const zone = QUADRANT_INFO[getQuadrant(eff.attention, eff.meditation)].label;
   const gammaRising = boost > 0.12; // gamma clearly above the resting baseline
 
   return (
     <div className="text-center py-2">
-      <p className="text-lg font-bold text-text-primary">{info.message}</p>
+      <p className="text-xl font-bold text-text-primary">{emotion.name}</p>
       <div className="flex items-center justify-center gap-3 mt-1 text-sm text-text-secondary">
-        <span>{info.label}</span>
+        <span>{zone}</span>
         {gammaRising && (
           <span className="flex items-center gap-1 text-accent font-medium">
             <Sparkles size={16} />
