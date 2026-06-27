@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useMindStore } from "@/store/useMindStore";
+import { useAppStore } from "@/store/useAppStore";
 import { DummySource } from "@/lib/mind/dummy-source";
 import { RealtimeSource } from "@/lib/mind/realtime-source";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
@@ -13,6 +14,7 @@ import MindStatusText from "@/components/mind/MindStatusText";
 import BandEqualizer from "@/components/mind/BandEqualizer";
 import MindTrendChart from "@/components/mind/MindTrendChart";
 import SourcePanel from "@/components/mind/SourcePanel";
+import Visualizer from "@/components/Visualizer";
 
 export default function MindPage() {
   const sourceKind = useMindStore((s) => s.sourceKind);
@@ -22,6 +24,8 @@ export default function MindPage() {
   const deleteSession = useMindStore((s) => s.deleteSession);
   const pairingCode = useMindStore((s) => s.pairingCode);
   const gammaBoost = useMindStore((s) => s.gammaBoost);
+  // Audio playback state — drives the "now playing" water-mandala hint.
+  const isPlaying = useAppStore((s) => s.isPlaying);
 
   // Guard persisted session list against SSR hydration mismatch.
   const [hydrated, setHydrated] = useState(false);
@@ -63,6 +67,21 @@ export default function MindPage() {
       <MindMapCanvas sample={latestSample} boost={gammaBoost} />
 
       <MindStatusText sample={latestSample} boost={gammaBoost} />
+
+      {/* 再生中プログラムの水曼荼羅（聴いている刺激）。AudioProvider は layout に
+          あるため、別ページで開始した再生はこのページでもそのまま継続する。 */}
+      <section className="flex flex-col gap-2">
+        <h2 className="text-lg font-bold text-text-primary">再生中の水曼荼羅</h2>
+        <p className="text-sm text-text-secondary">
+          再生中のプログラムの音が水曼荼羅としてリアルタイムに描かれます
+        </p>
+        <Visualizer />
+        {!isPlaying && (
+          <p className="text-sm text-text-muted text-center">
+            プログラムを再生すると模様が動き出します
+          </p>
+        )}
+      </section>
 
       {/* リアルタイム脳波アート（ニューロフィードバック） */}
       <section className="flex flex-col gap-3">
