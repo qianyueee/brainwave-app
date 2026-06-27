@@ -245,17 +245,32 @@ export default function MindMapCanvas({
       }
 
       // Fading trail in the theme primary (plain alpha compositing so it
-      // stays visible on light palettes too).
+      // stays visible on light palettes too). Each segment is a quadratic
+      // curve passing through the midpoints with the sampled point as the
+      // control handle, so the polyline reads as one smooth, flowing path
+      // instead of angular straight hops.
       if (trail.length > 1) {
         const n = trail.length;
         ctx.lineCap = "round";
-        for (let i = 1; i < n; i++) {
-          const t = i / n;
+        ctx.lineJoin = "round";
+        const pts = trail.map((pt) => ({ x: pt.x * cssW, y: pt.y * cssH }));
+        for (let i = 0; i < n - 1; i++) {
+          const t = (i + 1) / n;
+          const p0 = pts[i];
+          const p1 = pts[i + 1];
+          const start =
+            i === 0
+              ? p0
+              : { x: (pts[i - 1].x + p0.x) / 2, y: (pts[i - 1].y + p0.y) / 2 };
+          const end =
+            i === n - 2
+              ? p1
+              : { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
           ctx.strokeStyle = rgba(colors.primary, t * 0.5);
           ctx.lineWidth = 1 + t * 2;
           ctx.beginPath();
-          ctx.moveTo(trail[i - 1].x * cssW, trail[i - 1].y * cssH);
-          ctx.lineTo(trail[i].x * cssW, trail[i].y * cssH);
+          ctx.moveTo(start.x, start.y);
+          ctx.quadraticCurveTo(p0.x, p0.y, end.x, end.y);
           ctx.stroke();
         }
       }
