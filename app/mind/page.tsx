@@ -8,6 +8,7 @@ import { RealtimeSource } from "@/lib/mind/realtime-source";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
 import { formatTime } from "@/lib/utils";
 import MindMapCanvas from "@/components/mind/MindMapCanvas";
+import MindArtCanvas from "@/components/mind/MindArtCanvas";
 import MindStatusText from "@/components/mind/MindStatusText";
 import BandEqualizer from "@/components/mind/BandEqualizer";
 import MindTrendChart from "@/components/mind/MindTrendChart";
@@ -62,6 +63,15 @@ export default function MindPage() {
       <MindMapCanvas sample={latestSample} boost={gammaBoost} />
 
       <MindStatusText sample={latestSample} boost={gammaBoost} />
+
+      {/* リアルタイム脳波アート（ニューロフィードバック） */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
+        <p className="text-sm text-text-secondary">
+          脳波がリアルタイムに幾何学模様として紡ぎ出されます
+        </p>
+        <MindArtCanvas sample={latestSample} boost={gammaBoost} />
+      </section>
       </div>
 
       <div className="flex flex-col gap-6">
