@@ -8,9 +8,13 @@ import { nearestEmotion } from "@/lib/mind/emotions";
 export default function MindStatusText({
   sample,
   boost = 0,
+  gammaBoost = 0,
 }: {
   sample: EegSample | null;
+  /** Combined gamma + program pull — positions the emotion/zone readout. */
   boost?: number;
+  /** Gamma-only pull — gates the honest "γ波 上昇中" badge. */
+  gammaBoost?: number;
 }) {
   if (!sample) {
     return (
@@ -33,7 +37,7 @@ export default function MindStatusText({
   // Closest Russell-circumplex emotion anchor to the current position.
   const emotion = nearestEmotion(eff.attention, eff.meditation);
   const zone = QUADRANT_INFO[getQuadrant(eff.attention, eff.meditation)].label;
-  const gammaRising = boost > 0.12; // gamma clearly above the resting baseline
+  const gammaRising = gammaBoost > 0.12; // gamma clearly above the resting baseline
 
   return (
     <div className="text-center py-2">

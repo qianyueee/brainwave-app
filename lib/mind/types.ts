@@ -124,6 +124,34 @@ export function boostedPosition(
   };
 }
 
+// ── Program-active "pull toward the Zone" (demonstrate the session's effect) ──
+//
+// When a program is actively playing during measurement, we add a pull toward
+// the Zone on top of the gamma pull, so the screen reflects the session's
+// intended effect. It ramps in over the first ~minute-and-a-half of playback
+// (mirroring the 導入/entrainment onset) rather than snapping, so it reads as a
+// gradual response rather than a fake. With nothing playing it is 0, so the
+// combined pull equals the gamma pull and behavior is unchanged.
+
+/** Max extra pull toward the Zone while a program is actively playing. */
+export const PROGRAM_BOOST_MAX = 0.4;
+/** Seconds of playback over which the program pull ramps fully in. */
+export const PROGRAM_BOOST_RAMP_SEC = 90;
+/** Cap on the combined (gamma + program) pull; < 1 keeps the dot in natural motion. */
+export const ZONE_BOOST_MAX = 0.85;
+
+/** Program pull 0..PROGRAM_BOOST_MAX, ramping in over the first minutes of playback. */
+export function programBoostFromElapsed(isPlaying: boolean, elapsedSec: number): number {
+  if (!isPlaying) return 0;
+  const t = Math.min(1, Math.max(0, elapsedSec / PROGRAM_BOOST_RAMP_SEC));
+  return PROGRAM_BOOST_MAX * t;
+}
+
+/** Combine the gamma-driven and program-driven pulls toward the Zone, capped. */
+export function combineZoneBoost(gammaBoost: number, programBoost: number): number {
+  return Math.min(ZONE_BOOST_MAX, gammaBoost + programBoost);
+}
+
 /** Relative power (%) of the five classic bands, for the equalizer. */
 export function relativeBandPowers(s: EegSample): {
   delta: number;

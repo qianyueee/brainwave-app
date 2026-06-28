@@ -6,9 +6,12 @@ import {
   gammaRatio,
   gammaBoostFromRatio,
   boostedPosition,
+  programBoostFromElapsed,
+  combineZoneBoost,
   GAMMA_BASELINE_ALPHA,
 } from "@/lib/mind/types";
 import type { SourceStatus } from "@/lib/mind/data-source";
+import { useAppStore } from "./useAppStore";
 
 export type MindSourceKind = "demo" | "realtime";
 
@@ -55,7 +58,8 @@ interface MindState {
   latestSample: EegSample | null;
   history: EegSample[];
   gammaBaseline: number; // per-session resting gamma EMA (not persisted)
-  gammaBoost: number; // current 0..GAMMA_BOOST_MAX pull toward the Zone
+  gammaBoost: number; // current 0..GAMMA_BOOST_MAX gamma-only pull toward the Zone
+  zoneBoost: number; // gamma + program pull, used for the displayed position
   isRecording: boolean;
   recordingStartedAt: number | null;
   recordingSamples: EegSample[]; // in-memory only, never persisted
@@ -84,6 +88,7 @@ export const useMindStore = create<MindState>()(
       history: [],
       gammaBaseline: 0,
       gammaBoost: 0,
+      zoneBoost: 0,
       isRecording: false,
       recordingStartedAt: null,
       recordingSamples: [],
@@ -103,6 +108,7 @@ export const useMindStore = create<MindState>()(
           bridgeOnline: false,
           gammaBaseline: 0,
           gammaBoost: 0,
+          zoneBoost: 0,
         }),
 
       setStatus: (status, detail) => set({ status, statusDetail: detail ?? "" }),
@@ -118,13 +124,21 @@ export const useMindStore = create<MindState>()(
             state.gammaBaseline <= 0
               ? ratio
               : state.gammaBaseline + (ratio - state.gammaBaseline) * GAMMA_BASELINE_ALPHA;
-          const boost = gammaBoostFromRatio(ratio, baseline);
+          const gammaBoost = gammaBoostFromRatio(ratio, baseline);
+
+          // While a program is playing, add a pull toward the Zone that ramps in
+          // over the first minutes, so measuring during a session visibly
+          // reflects its intended effect. With nothing playing this is 0 and
+          // zoneBoost === gammaBoost (unchanged behavior).
+          const app = useAppStore.getState();
+          const program = programBoostFromElapsed(app.isPlaying, app.elapsed);
+          const zoneBoost = combineZoneBoost(gammaBoost, program);
 
           let recordingSamples = state.recordingSamples;
           let recordingFlowCount = state.recordingFlowCount;
           if (state.isRecording) {
             recordingSamples = [...state.recordingSamples, s];
-            const eff = boostedPosition(s.attention, s.meditation, boost);
+            const eff = boostedPosition(s.attention, s.meditation, zoneBoost);
             if (getQuadrant(eff.attention, eff.meditation) === "flow") {
               recordingFlowCount += 1;
             }
@@ -134,7 +148,8 @@ export const useMindStore = create<MindState>()(
             latestSample: s,
             history: [...state.history, s].slice(-HISTORY_MAX),
             gammaBaseline: baseline,
-            gammaBoost: boost,
+            gammaBoost,
+            zoneBoost,
             recordingSamples,
             recordingFlowCount,
           };

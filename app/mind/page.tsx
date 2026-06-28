@@ -24,6 +24,8 @@ export default function MindPage() {
   const deleteSession = useMindStore((s) => s.deleteSession);
   const pairingCode = useMindStore((s) => s.pairingCode);
   const gammaBoost = useMindStore((s) => s.gammaBoost);
+  // Combined gamma + program pull toward the Zone (the displayed position).
+  const zoneBoost = useMindStore((s) => s.zoneBoost);
   // Audio playback state — drives the "now playing" water-mandala hint.
   const isPlaying = useAppStore((s) => s.isPlaying);
 
@@ -64,9 +66,9 @@ export default function MindPage() {
       <div className="flex flex-col gap-6">
       <SourcePanel />
 
-      <MindMapCanvas sample={latestSample} boost={gammaBoost} />
+      <MindMapCanvas sample={latestSample} boost={zoneBoost} />
 
-      <MindStatusText sample={latestSample} boost={gammaBoost} />
+      <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
 
       {/* 再生中プログラムの水曼荼羅（聴いている刺激）。AudioProvider は layout に
           あるため、別ページで開始した再生はこのページでもそのまま継続する。 */}
@@ -89,7 +91,7 @@ export default function MindPage() {
         <p className="text-sm text-text-secondary">
           脳波がリアルタイムに幾何学模様として紡ぎ出されます
         </p>
-        <MindArtCanvas sample={latestSample} boost={gammaBoost} />
+        <MindArtCanvas sample={latestSample} boost={zoneBoost} />
       </section>
       </div>
 
