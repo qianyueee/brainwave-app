@@ -135,7 +135,11 @@ export default function Visualizer() {
         aria-label="全画面で表示"
         className="relative w-56 h-56 rounded-full active:scale-[0.98] transition-transform"
       >
-        <CymaticsCanvas {...params} className="w-full h-full rounded-full neu-raised" />
+        {/* Unmount the inline canvas while fullscreen so only one WebGL
+            context (the overlay's) is live at a time. */}
+        {!fullscreen && (
+          <CymaticsCanvas {...params} className="w-full h-full rounded-full neu-raised" />
+        )}
         <span className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white/70 pointer-events-none">
           <Maximize2 size={16} />
         </span>

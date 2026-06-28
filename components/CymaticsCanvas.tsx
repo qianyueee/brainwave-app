@@ -244,6 +244,19 @@ export default function CymaticsCanvas({
     canvas.addEventListener("webglcontextlost", onLost as EventListener);
     canvas.addEventListener("webglcontextrestored", onRestored as EventListener);
 
+    // Pause GPU draws while the canvas is scrolled out of view.
+    let visible = true;
+    let io: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined") {
+      io = new IntersectionObserver(
+        (entries) => {
+          visible = entries[0]?.isIntersecting ?? true;
+        },
+        { rootMargin: "100px" }
+      );
+      io.observe(canvas);
+    }
+
     const IDLE_INTENSITY = 0.7;
     let symNow = paramsRef.current.sym;
     let ringNow = paramsRef.current.ring;
@@ -257,6 +270,11 @@ export default function CymaticsCanvas({
 
     const frame = (now: number) => {
       if (lost || !gl || !program) return;
+      if (!visible) {
+        last = now;
+        rafRef.current = requestAnimationFrame(frame);
+        return;
+      }
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
 
@@ -302,9 +320,18 @@ export default function CymaticsCanvas({
       window.removeEventListener(THEME_CHANGE_EVENT, readColors);
       canvas.removeEventListener("webglcontextlost", onLost as EventListener);
       canvas.removeEventListener("webglcontextrestored", onRestored as EventListener);
+      io?.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
-      // NOTE: do not force-loseContext() here (StrictMode double-mount safety).
+      // Release the GPU context promptly so pages that each mount a
+      // CymaticsCanvas (player, mind, fullscreen overlay) don't accumulate live
+      // contexts toward the browser's per-document cap. Gated to production
+      // because React StrictMode double-mounts effects in dev — there the
+      // canvas element is reused and we rely on GC instead. The static export
+      // build runs effects once, so loseContext() is safe.
+      if (process.env.NODE_ENV === "production") {
+        gl?.getExtension("WEBGL_lose_context")?.loseContext();
+      }
     };
   }, []);
 

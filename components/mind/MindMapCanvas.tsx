@@ -119,6 +119,7 @@ export default function MindMapCanvas({
     let gammaNow = 0;
     const trail: { x: number; y: number }[] = [];
     let lastTrailAt = 0;
+    let visible = true; // false while scrolled out of view → pause drawing
 
     // ── Static background (subtle tints + axes) on an offscreen canvas ──
     const bgCanvas = document.createElement("canvas");
@@ -189,6 +190,18 @@ export default function MindMapCanvas({
     window.addEventListener("resize", resize);
     window.addEventListener(THEME_CHANGE_EVENT, onThemeChange);
 
+    // Pause the render loop while the canvas is scrolled out of view.
+    let io: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined") {
+      io = new IntersectionObserver(
+        (entries) => {
+          visible = entries[0]?.isIntersecting ?? true;
+        },
+        { rootMargin: "100px" }
+      );
+      io.observe(canvas);
+    }
+
     const drawLabels = (activeQuadrant: Quadrant, hasData: boolean) => {
       // Labels per frame so the current quadrant can be highlighted in the
       // high-contrast text color regardless of the palette underneath.
@@ -209,6 +222,11 @@ export default function MindMapCanvas({
     };
 
     const frame = (now: number) => {
+      if (!visible) {
+        last = now;
+        rafRef.current = requestAnimationFrame(frame);
+        return;
+      }
       const dt = Math.min(0.05, (now - last) / 1000); // clamp (tab switches)
       last = now;
       const p = paramsRef.current;
@@ -298,6 +316,7 @@ export default function MindMapCanvas({
     return () => {
       window.removeEventListener("resize", resize);
       window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange);
+      io?.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };

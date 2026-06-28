@@ -115,6 +115,7 @@ export default function MindArtCanvas({
     let gammaNow = 0;
     let rot = 0; // accumulated base rotation (rad)
     const particles: Particle[] = [];
+    let visible = true; // false while scrolled out of view → pause drawing
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -136,6 +137,18 @@ export default function MindArtCanvas({
     resize();
     window.addEventListener("resize", resize);
     window.addEventListener(THEME_CHANGE_EVENT, onThemeChange);
+
+    // Pause the render loop while the canvas is scrolled out of view.
+    let io: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined") {
+      io = new IntersectionObserver(
+        (entries) => {
+          visible = entries[0]?.isIntersecting ?? true;
+        },
+        { rootMargin: "100px" }
+      );
+      io.observe(canvas);
+    }
 
     // One closed polar curve with `segments`-fold rotational symmetry. The
     // shape blends between sharp spikes (tense) and smooth lobes (relaxed).
@@ -166,6 +179,11 @@ export default function MindArtCanvas({
     };
 
     const frame = (now: number) => {
+      if (!visible) {
+        last = now;
+        rafRef.current = requestAnimationFrame(frame);
+        return;
+      }
       const dt = Math.min(0.05, (now - last) / 1000); // clamp on tab switches
       last = now;
       const p = paramsRef.current;
@@ -207,6 +225,26 @@ export default function MindArtCanvas({
       ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = `rgba(${nr}, ${ng}, ${nb}, ${lerp(0.14, 0.3, medN)})`;
       ctx.fillRect(0, 0, cssW, cssH);
+
+      // Idle fast-path: with no EEG data, skip the heavy multi-ring shadowBlur
+      // mandala and just show a calm dim core + waiting hint.
+      if (!p.hasData) {
+        const idleR = R * 0.22;
+        const idleGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, idleR);
+        idleGrad.addColorStop(0, "hsla(210, 40%, 60%, 0.28)");
+        idleGrad.addColorStop(1, "hsla(210, 40%, 50%, 0)");
+        ctx.fillStyle = idleGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, idleR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(200, 210, 230, 0.85)";
+        ctx.font = "16px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("データ待機中…", cx, cssH - 24);
+        rafRef.current = requestAnimationFrame(frame);
+        return;
+      }
 
       // Glowing strokes add light where they overlap.
       ctx.globalCompositeOperation = "lighter";
@@ -296,15 +334,6 @@ export default function MindArtCanvas({
       ctx.shadowBlur = 0;
       ctx.globalCompositeOperation = "source-over";
 
-      // Waiting hint while no data is flowing.
-      if (!p.hasData) {
-        ctx.fillStyle = "rgba(200, 210, 230, 0.85)";
-        ctx.font = "16px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("データ待機中…", cx, cssH - 24);
-      }
-
       rafRef.current = requestAnimationFrame(frame);
     };
     rafRef.current = requestAnimationFrame(frame);
@@ -312,6 +341,7 @@ export default function MindArtCanvas({
     return () => {
       window.removeEventListener("resize", resize);
       window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange);
+      io?.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
