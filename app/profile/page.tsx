@@ -5,6 +5,7 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { INDICATOR_META } from "@/lib/brain-profile";
 import BrainRadarChart from "@/components/BrainRadarChart";
+import BandBars from "@/components/mind/BandBars";
 import IndicatorInfoTooltip from "@/components/IndicatorInfoTooltip";
 import EegUploader from "@/components/EegUploader";
 import { BrainCircuit, Lock } from "lucide-react";
@@ -72,6 +73,14 @@ export default function ProfilePage() {
               {new Date(profile.uploadedAt).toLocaleDateString("ja-JP")}
             </p>
           </div>
+
+          {/* 8-band balance (when the measurement carries raw band data) */}
+          {profile.bands && (
+            <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
+              <p className="text-base font-bold text-text-primary mb-3">脳波バランス</p>
+              <BandBars powers={profile.bands} />
+            </div>
+          )}
 
           {measurements.length > 0 && (
             <Link

@@ -6,7 +6,7 @@ import { Play, Square, BrainCircuit, Check, ArrowRight } from "lucide-react";
 import { useMindStore } from "@/store/useMindStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
-import { computeIndicators, eegRowsFromSamples } from "@/lib/brain-profile";
+import { computeIndicators, computeBandPowers, eegRowsFromSamples } from "@/lib/brain-profile";
 import { formatTime } from "@/lib/utils";
 
 /** Below this many samples (~seconds) the timing-based indicators are unreliable. */
@@ -64,14 +64,16 @@ export default function MindRecorder() {
     setError(null);
     setImporting(true);
     try {
-      const indicators = computeIndicators(eegRowsFromSamples(samples));
+      const rows = eegRowsFromSamples(samples);
+      const indicators = computeIndicators(rows);
+      const bands = computeBandPowers(rows);
       const tag = `リアルタイム測定 ${new Date().toLocaleString("ja-JP", {
         month: "numeric",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
       })}`;
-      await addMeasurement({ indicators, uploadedAt: new Date().toISOString(), sessionTag: tag });
+      await addMeasurement({ indicators, bands, uploadedAt: new Date().toISOString(), sessionTag: tag });
       useMindStore.getState().markRecordingImported();
       setPendingImport(false);
     } catch (e) {

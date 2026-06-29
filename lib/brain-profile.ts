@@ -1,5 +1,6 @@
 import type { ProgramConfig, FrequencyPhase } from "./programs";
 import { getProgramById } from "./programs";
+import type { BandPowers } from "./mind/types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -14,6 +15,7 @@ export interface BrainIndicators {
 
 export interface BrainProfile {
   indicators: BrainIndicators;
+  bands?: BandPowers;   // session-average relative power of the 8 raw bands (optional for legacy records)
   uploadedAt: string;   // ISO date
   sessionTag: string;   // from Tag column
 }
@@ -438,6 +440,54 @@ function trimPoorSignalEdges(rows: EegRow[]): EegRow[] {
   while (lo <= hi && rows[lo].attention <= 0 && rows[lo].relaxation <= 0) lo++;
   while (hi >= lo && rows[hi].attention <= 0 && rows[hi].relaxation <= 0) hi--;
   return rows.slice(lo, hi + 1);
+}
+
+/**
+ * Session-average relative power (%) of the 8 raw bands, summed across all rows
+ * so the result is the overall band balance. Returns all zeros for empty input.
+ */
+export function computeBandPowers(rows: EegRow[]): BandPowers {
+  const sums = {
+    delta: 0,
+    theta: 0,
+    lowAlpha: 0,
+    highAlpha: 0,
+    lowBeta: 0,
+    highBeta: 0,
+    lowGamma: 0,
+    highGamma: 0,
+  };
+  for (const r of rows) {
+    sums.delta += r.delta;
+    sums.theta += r.theta;
+    sums.lowAlpha += r.lowAlpha;
+    sums.highAlpha += r.highAlpha;
+    sums.lowBeta += r.lowBeta;
+    sums.highBeta += r.highBeta;
+    sums.lowGamma += r.lowGamma;
+    sums.highGamma += r.highGamma;
+  }
+  const total =
+    sums.delta +
+    sums.theta +
+    sums.lowAlpha +
+    sums.highAlpha +
+    sums.lowBeta +
+    sums.highBeta +
+    sums.lowGamma +
+    sums.highGamma;
+  if (total <= 0) return { ...sums };
+  const pct = (v: number) => (v / total) * 100;
+  return {
+    delta: pct(sums.delta),
+    theta: pct(sums.theta),
+    lowAlpha: pct(sums.lowAlpha),
+    highAlpha: pct(sums.highAlpha),
+    lowBeta: pct(sums.lowBeta),
+    highBeta: pct(sums.highBeta),
+    lowGamma: pct(sums.lowGamma),
+    highGamma: pct(sums.highGamma),
+  };
 }
 
 /** Compute all 6 indicators from raw EEG rows (0-100, no post-hoc rescaling) */

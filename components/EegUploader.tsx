@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { parseEegFile, computeIndicators } from "@/lib/brain-profile";
+import { parseEegFile, computeIndicators, computeBandPowers } from "@/lib/brain-profile";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { Upload } from "lucide-react";
 
@@ -17,8 +17,10 @@ export default function EegUploader() {
     try {
       const { rows, tag } = await parseEegFile(file);
       const indicators = computeIndicators(rows);
+      const bands = computeBandPowers(rows);
       await addMeasurement({
         indicators,
+        bands,
         uploadedAt: new Date().toISOString(),
         sessionTag: tag,
       });

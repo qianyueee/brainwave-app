@@ -61,7 +61,7 @@ export const QUADRANT_INFO: Record<Quadrant, { label: string; message: string }>
   },
 };
 
-const BAND_KEYS = [
+export const BAND_KEYS = [
   "delta",
   "theta",
   "lowAlpha",
@@ -71,6 +71,33 @@ const BAND_KEYS = [
   "lowGamma",
   "highGamma",
 ] as const;
+
+export type BandKey = (typeof BAND_KEYS)[number];
+/** Relative power (%) for each of the 8 raw bands. */
+export type BandPowers = Record<BandKey, number>;
+
+/** Display metadata for the 8 raw bands (bilingual, per the design doc). */
+export const BAND_META: { key: BandKey; en: string; ja: string; isGamma?: boolean }[] = [
+  { key: "delta", en: "Delta", ja: "δ波" },
+  { key: "theta", en: "Theta", ja: "θ波" },
+  { key: "lowAlpha", en: "Low-Alpha", ja: "低α波" },
+  { key: "highAlpha", en: "High-Alpha", ja: "高α波" },
+  { key: "lowBeta", en: "Low-Beta", ja: "低β波" },
+  { key: "highBeta", en: "High-Beta", ja: "高β波" },
+  { key: "lowGamma", en: "Low-Gamma", ja: "低γ波", isGamma: true },
+  { key: "highGamma", en: "Mid-Gamma", ja: "高γ波", isGamma: true },
+];
+
+export const EMPTY_BAND_POWERS: BandPowers = {
+  delta: 0,
+  theta: 0,
+  lowAlpha: 0,
+  highAlpha: 0,
+  lowBeta: 0,
+  highBeta: 0,
+  lowGamma: 0,
+  highGamma: 0,
+};
 
 /** Sum of all 8 raw band powers. */
 export function totalPower(s: EegSample): number {
@@ -169,6 +196,23 @@ export function relativeBandPowers(s: EegSample): {
     alpha: pct(s.lowAlpha + s.highAlpha),
     beta: pct(s.lowBeta + s.highBeta),
     gamma: pct(s.lowGamma + s.highGamma),
+  };
+}
+
+/** Relative power (%) of all 8 raw bands, for the detailed equalizer. */
+export function rawBandPowers(s: EegSample): BandPowers {
+  const total = totalPower(s);
+  if (total <= 0) return { ...EMPTY_BAND_POWERS };
+  const pct = (v: number) => (v / total) * 100;
+  return {
+    delta: pct(s.delta),
+    theta: pct(s.theta),
+    lowAlpha: pct(s.lowAlpha),
+    highAlpha: pct(s.highAlpha),
+    lowBeta: pct(s.lowBeta),
+    highBeta: pct(s.highBeta),
+    lowGamma: pct(s.lowGamma),
+    highGamma: pct(s.highGamma),
   };
 }
 
