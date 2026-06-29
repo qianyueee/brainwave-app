@@ -64,6 +64,7 @@ interface MindState {
   recordingStartedAt: number | null;
   recordingSamples: EegSample[]; // in-memory only, never persisted
   recordingFlowCount: number; // Zone samples (gamma-boosted) during recording
+  lastRecording: EegSample[] | null; // samples of the most recent finished measurement (for 脳特性 import)
   sessions: MindSessionSummary[];
   pairingCode: string;
 
@@ -93,6 +94,7 @@ export const useMindStore = create<MindState>()(
       recordingStartedAt: null,
       recordingSamples: [],
       recordingFlowCount: 0,
+      lastRecording: null,
       sessions: [],
       pairingCode: "",
 
@@ -109,6 +111,7 @@ export const useMindStore = create<MindState>()(
           gammaBaseline: 0,
           gammaBoost: 0,
           zoneBoost: 0,
+          lastRecording: null,
         }),
 
       setStatus: (status, detail) => set({ status, statusDetail: detail ?? "" }),
@@ -163,6 +166,7 @@ export const useMindStore = create<MindState>()(
           recordingStartedAt: Date.now(),
           recordingSamples: [],
           recordingFlowCount: 0,
+          lastRecording: null,
           gammaBaseline: 0,
         }),
 
@@ -176,6 +180,7 @@ export const useMindStore = create<MindState>()(
             recordingStartedAt: null,
             recordingSamples: [],
             recordingFlowCount: 0,
+            lastRecording: null,
           });
           return;
         }
@@ -205,6 +210,9 @@ export const useMindStore = create<MindState>()(
           recordingStartedAt: null,
           recordingSamples: [],
           recordingFlowCount: 0,
+          // Keep the raw per-second samples so the user can import this
+          // measurement into their 脳特性 chart from the recorder UI.
+          lastRecording: recordingSamples,
           sessions: [summary, ...sessions].slice(0, 100),
         });
       },

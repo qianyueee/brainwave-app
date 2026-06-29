@@ -13,7 +13,8 @@ import MindArtCanvas from "@/components/mind/MindArtCanvas";
 import MindStatusText from "@/components/mind/MindStatusText";
 import BandEqualizer from "@/components/mind/BandEqualizer";
 import MindTrendChart from "@/components/mind/MindTrendChart";
-import SourcePanel from "@/components/mind/SourcePanel";
+import MindRecorder from "@/components/mind/MindRecorder";
+import SourceDialog from "@/components/mind/SourceDialog";
 import Visualizer from "@/components/Visualizer";
 
 export default function MindPage() {
@@ -64,11 +65,13 @@ export default function MindPage() {
       {/* Mobile: single column. Desktop: map+status | meters side by side. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
       <div className="flex flex-col gap-6">
-      <SourcePanel />
-
+      {/* Quadrant map first — the page opens straight onto it. */}
       <MindMapCanvas sample={latestSample} boost={zoneBoost} />
 
       <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
+
+      {/* 測定 + 脳特性への取り込み */}
+      <MindRecorder />
 
       {/* 再生中プログラムの水曼荼羅（聴いている刺激）。AudioProvider は layout に
           あるため、別ページで開始した再生はこのページでもそのまま継続する。 */}
@@ -141,6 +144,9 @@ export default function MindPage() {
       </section>
       </div>
       </div>
+
+      {/* Data-source / connection settings, tucked into a dialog at the bottom. */}
+      <SourceDialog />
     </div>
   );
 }

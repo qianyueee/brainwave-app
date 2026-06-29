@@ -390,6 +390,40 @@ function computeCalmnessStability(rows: EegRow[]): number {
   return clamp(Math.round(((cvCap - cv) / (cvCap - cvGood)) * 100), 0, 100);
 }
 
+/**
+ * Map live mind-map samples to EegRow[] for computeIndicators. Mind-map samples
+ * are ~1 Hz (index ≈ seconds, like an uploaded file) and use `meditation` for
+ * what the indicators call `relaxation`. Typed structurally to avoid coupling
+ * brain-profile to the mind-map module.
+ */
+export function eegRowsFromSamples(
+  samples: {
+    attention: number;
+    meditation: number;
+    delta: number;
+    theta: number;
+    lowAlpha: number;
+    highAlpha: number;
+    lowBeta: number;
+    highBeta: number;
+    lowGamma: number;
+    highGamma: number;
+  }[]
+): EegRow[] {
+  return samples.map((s) => ({
+    attention: s.attention,
+    relaxation: s.meditation,
+    delta: s.delta,
+    theta: s.theta,
+    lowAlpha: s.lowAlpha,
+    highAlpha: s.highAlpha,
+    lowBeta: s.lowBeta,
+    highBeta: s.highBeta,
+    lowGamma: s.lowGamma,
+    highGamma: s.highGamma,
+  }));
+}
+
 /** Compute all 6 indicators from raw EEG rows (0-100, no post-hoc rescaling) */
 export function computeIndicators(rows: EegRow[]): BrainIndicators {
   return {
