@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Play, Square, BrainCircuit, Check, ArrowRight } from "lucide-react";
 import { useMindStore } from "@/store/useMindStore";
@@ -9,6 +9,9 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { computeIndicators, eegRowsFromSamples } from "@/lib/brain-profile";
 import { formatTime } from "@/lib/utils";
 
+/** Below this many samples (~seconds) the timing-based indicators are unreliable. */
+const MIN_IMPORT_SAMPLES = 20;
+
 /**
  * Measurement control for the mind-map page: start/stop the live recording and,
  * once a measurement finishes, import it straight into the 脳特性 (brain
@@ -16,38 +19,46 @@ import { formatTime } from "@/lib/utils";
  */
 export default function MindRecorder() {
   const status = useMindStore((s) => s.status);
+  const sourceKind = useMindStore((s) => s.sourceKind);
+  const bridgeOnline = useMindStore((s) => s.bridgeOnline);
   const isRecording = useMindStore((s) => s.isRecording);
   const recordingSamples = useMindStore((s) => s.recordingSamples);
   const startRecording = useMindStore((s) => s.startRecording);
   const stopRecording = useMindStore((s) => s.stopRecording);
   const lastRecording = useMindStore((s) => s.lastRecording);
+  const imported = useMindStore((s) => s.lastRecordingImported);
 
   const user = useAuthStore((s) => s.user);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
   const addMeasurement = useBrainProfileStore((s) => s.addMeasurement);
+  const cloudUserId = useBrainProfileStore((s) => s.cloudUserId);
 
   const router = useRouter();
   const [importing, setImporting] = useState(false);
-  const [imported, setImported] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set when an import is requested but blocked on login / cloud hydrate; an
+  // effect resumes the import once both are ready.
+  const [pendingImport, setPendingImport] = useState(false);
 
-  // Reset the import state whenever the recording buffer changes (a new
-  // measurement starts or finishes), so the "取り込みました" confirmation never
-  // leaks onto a different measurement.
-  useEffect(() => {
-    setImported(false);
-    setError(null);
-  }, [lastRecording]);
+  // Realtime needs an online bridge actually sending data; demo is self-feeding.
+  const canReceive = status === "connected" && (sourceKind === "demo" || bridgeOnline);
+  const sampleCount = lastRecording?.length ?? 0;
+  const finished = !isRecording && sampleCount > 0;
+  const enoughData = sampleCount >= MIN_IMPORT_SAMPLES;
 
-  const canReceive = status === "connected";
-  const finished = !isRecording && (lastRecording?.length ?? 0) > 0;
-
-  const handleImport = async () => {
+  const handleImport = useCallback(async () => {
     const samples = useMindStore.getState().lastRecording;
-    if (!samples || samples.length === 0) return;
-    // 脳特性 is saved per account, so importing requires login.
+    if (!samples || samples.length < MIN_IMPORT_SAMPLES) return;
+    // 脳特性 is saved per account → require login first.
     if (!user) {
+      setPendingImport(true);
       openAuthModal("login");
+      return;
+    }
+    // Wait until the account's cloud data has loaded; importing before that
+    // races with loadFromCloud, which would overwrite the fresh measurement.
+    if (!cloudUserId) {
+      setPendingImport(true);
       return;
     }
     setError(null);
@@ -60,18 +71,27 @@ export default function MindRecorder() {
         hour: "2-digit",
         minute: "2-digit",
       })}`;
-      await addMeasurement({
-        indicators,
-        uploadedAt: new Date().toISOString(),
-        sessionTag: tag,
-      });
-      setImported(true);
+      await addMeasurement({ indicators, uploadedAt: new Date().toISOString(), sessionTag: tag });
+      useMindStore.getState().markRecordingImported();
+      setPendingImport(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "取り込みに失敗しました");
     } finally {
       setImporting(false);
     }
-  };
+  }, [user, cloudUserId, openAuthModal, addMeasurement]);
+
+  // Resume a pending import once login + cloud hydrate complete.
+  useEffect(() => {
+    if (pendingImport && user && cloudUserId && finished && !imported && !importing) {
+      handleImport();
+    }
+  }, [pendingImport, user, cloudUserId, finished, imported, importing, handleImport]);
+
+  // Drop a stale pending request once there's nothing left to import.
+  useEffect(() => {
+    if (!finished) setPendingImport(false);
+  }, [finished]);
 
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-3">
@@ -102,7 +122,9 @@ export default function MindRecorder() {
 
       {!isRecording && !canReceive && !finished && (
         <p className="text-sm text-text-muted text-center">
-          データソースに接続すると測定できます
+          {sourceKind === "realtime"
+            ? "ブリッジに接続すると測定できます"
+            : "データソースに接続すると測定できます"}
         </p>
       )}
 
@@ -110,8 +132,9 @@ export default function MindRecorder() {
       {finished && (
         <div className="flex flex-col gap-2 border-t border-surface-border pt-3">
           <p className="text-base font-bold text-text-primary">
-            測定完了（{formatTime(lastRecording?.length ?? 0)}）
+            測定完了（{formatTime(sampleCount)}）
           </p>
+
           {imported ? (
             <button
               onClick={() => router.push("/profile")}
@@ -121,6 +144,10 @@ export default function MindRecorder() {
               脳特性に取り込みました
               <ArrowRight size={18} />
             </button>
+          ) : !enoughData ? (
+            <p className="text-sm text-text-muted text-center">
+              測定が短いため取り込めません（20秒以上の測定が必要です）
+            </p>
           ) : (
             <>
               <button
@@ -132,8 +159,13 @@ export default function MindRecorder() {
                 {importing ? "取り込み中..." : "脳特性に取り込む"}
               </button>
               <p className="text-xs text-text-muted text-center">
-                この測定結果を脳特性チャートの6指標に反映します
-                {(lastRecording?.length ?? 0) < 60 && "（1分以上の測定を推奨）"}
+                {!user
+                  ? "ログインすると脳特性チャートに反映されます"
+                  : pendingImport && !cloudUserId
+                    ? "同期の準備中です…"
+                    : sampleCount < 60
+                      ? "この測定結果を6指標に反映します（1分以上の測定を推奨）"
+                      : "この測定結果を脳特性チャートの6指標に反映します"}
               </p>
             </>
           )}

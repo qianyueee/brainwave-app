@@ -424,8 +424,25 @@ export function eegRowsFromSamples(
   }));
 }
 
+/**
+ * Trim leading/trailing poor-signal rows (attention ≤ 0 && relaxation ≤ 0) while
+ * keeping interior gaps, so the timing indicators (②⑤), which read the array
+ * index as elapsed seconds, aren't shifted by contact-stabilization seconds at
+ * the start. parseEegFile already does this for uploads; live recordings begin
+ * the instant the user taps 測定開始 (before good electrode contact), so the
+ * same trim must run for both paths to keep scores consistent.
+ */
+function trimPoorSignalEdges(rows: EegRow[]): EegRow[] {
+  let lo = 0;
+  let hi = rows.length - 1;
+  while (lo <= hi && rows[lo].attention <= 0 && rows[lo].relaxation <= 0) lo++;
+  while (hi >= lo && rows[hi].attention <= 0 && rows[hi].relaxation <= 0) hi--;
+  return rows.slice(lo, hi + 1);
+}
+
 /** Compute all 6 indicators from raw EEG rows (0-100, no post-hoc rescaling) */
-export function computeIndicators(rows: EegRow[]): BrainIndicators {
+export function computeIndicators(input: EegRow[]): BrainIndicators {
+  const rows = trimPoorSignalEdges(input);
   return {
     focusIntensity: computeFocusIntensity(rows),
     focusSpeed: computeFocusSpeed(rows),

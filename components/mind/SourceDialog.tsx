@@ -18,6 +18,7 @@ export default function SourceDialog() {
   const bridgeOnline = useMindStore((s) => s.bridgeOnline);
   const pairingCode = useMindStore((s) => s.pairingCode);
   const ensurePairingCode = useMindStore((s) => s.ensurePairingCode);
+  const isRecording = useMindStore((s) => s.isRecording);
 
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -110,7 +111,8 @@ export default function SourceDialog() {
                   <button
                     key={opt.kind}
                     onClick={() => setSourceKind(opt.kind)}
-                    className={`flex-1 min-h-[48px] rounded-xl text-base font-medium transition-colors ${
+                    disabled={isRecording}
+                    className={`flex-1 min-h-[48px] rounded-xl text-base font-medium transition-colors disabled:opacity-50 ${
                       active
                         ? "bg-primary text-white neu-press"
                         : "bg-navy text-text-secondary neu-raised-sm"
@@ -121,6 +123,9 @@ export default function SourceDialog() {
                 );
               })}
             </div>
+            {isRecording && (
+              <p className="text-sm text-text-muted">測定中はデータソースを変更できません</p>
+            )}
 
             {/* Connection state */}
             {sourceKind === "demo" ? (
