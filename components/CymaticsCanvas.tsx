@@ -133,13 +133,6 @@ export default function CymaticsCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const fallbackFill = () => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.fillStyle = "#040711";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    };
-
     let gl: WebGLRenderingContext | null = null;
     let program: WebGLProgram | null = null;
     let uniforms: Record<string, WebGLUniformLocation | null> = {};
@@ -147,11 +140,23 @@ export default function CymaticsCanvas({
 
     let colorA: [number, number, number] = [0.39, 0.4, 0.95];
     let colorB: [number, number, number] = [0.51, 0.55, 0.97];
-    const bg: [number, number, number] = [0.016, 0.027, 0.067];
+    // Background follows the circadian theme navy (updated on THEME_CHANGE_EVENT).
+    let bg: [number, number, number] = [0.016, 0.027, 0.067];
     const readColors = () => {
       const css = getComputedStyle(document.documentElement);
       colorA = hexToVec3(css.getPropertyValue("--dyn-primary"), colorA);
       colorB = hexToVec3(css.getPropertyValue("--dyn-accent"), colorB);
+      bg = hexToVec3(css.getPropertyValue("--dyn-navy"), bg);
+    };
+
+    const fallbackFill = () => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const navy = getComputedStyle(document.documentElement)
+        .getPropertyValue("--dyn-navy")
+        .trim();
+      ctx.fillStyle = navy || "#040711";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
     };
 
     const initGL = (): boolean => {
@@ -339,7 +344,7 @@ export default function CymaticsCanvas({
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ backgroundColor: "#040711", ...style }}
+      style={{ backgroundColor: "var(--dyn-navy, #040711)", ...style }}
     />
   );
 }
