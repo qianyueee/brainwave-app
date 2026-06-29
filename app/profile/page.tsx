@@ -5,6 +5,7 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { INDICATOR_META } from "@/lib/brain-profile";
 import BrainRadarChart from "@/components/BrainRadarChart";
+import IndicatorInfoTooltip from "@/components/IndicatorInfoTooltip";
 import EegUploader from "@/components/EegUploader";
 import { BrainCircuit, Lock } from "lucide-react";
 import Link from "next/link";
@@ -85,19 +86,21 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-6">
           {/* 6 Indicator Cards */}
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-text-secondary">各指標の詳細</p>
+            <p className="text-sm text-text-secondary">
+              各指標（名前にカーソルを合わせる/タップで説明を表示）
+            </p>
             {INDICATOR_META.map((meta) => {
               const score = profile.indicators[meta.key];
               return (
                 <div key={meta.key} className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-base font-bold text-text-primary">{meta.label}</p>
+                    <IndicatorInfoTooltip label={meta.label} description={meta.description} />
                     <p className="text-lg font-mono font-bold text-primary tabular-nums">
                       {score}
                     </p>
                   </div>
                   {/* Score bar */}
-                  <div className="w-full h-2 bg-navy-lighter rounded-full overflow-hidden mb-2 neu-inset">
+                  <div className="w-full h-2 bg-navy-lighter rounded-full overflow-hidden neu-inset">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{
@@ -107,7 +110,6 @@ export default function ProfilePage() {
                       }}
                     />
                   </div>
-                  <p className="text-sm text-text-secondary">{meta.description}</p>
                 </div>
               );
             })}
