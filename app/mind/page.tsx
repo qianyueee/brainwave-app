@@ -62,7 +62,8 @@ export default function MindPage() {
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       <h1 className="text-2xl font-bold text-text-primary">マインドマップ</h1>
 
-      {/* Mobile: single column. Desktop: map+status | meters side by side. */}
+      {/* Mobile: single column. Desktop: quadrant map (left) | water-mandala +
+          meters (right) — the map and water-mandala sit side by side. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
       <div className="flex flex-col gap-6">
       {/* Quadrant map first — the page opens straight onto it. */}
@@ -73,8 +74,19 @@ export default function MindPage() {
       {/* 測定 + 脳特性への取り込み */}
       <MindRecorder />
 
-      {/* 再生中プログラムの水曼荼羅（聴いている刺激）。AudioProvider は layout に
-          あるため、別ページで開始した再生はこのページでもそのまま継続する。 */}
+      {/* リアルタイム脳波アート（ニューロフィードバック） */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
+        <p className="text-sm text-text-secondary">
+          脳波がリアルタイムに幾何学模様として紡ぎ出されます
+        </p>
+        <MindArtCanvas sample={latestSample} boost={zoneBoost} />
+      </section>
+      </div>
+
+      <div className="flex flex-col gap-6">
+      {/* PC では四象限マップの右隣に並ぶ（再生中プログラムの水曼荼羅）。
+          AudioProvider は layout にあるため、別ページで開始した再生も継続する。 */}
       <section className="flex flex-col gap-2">
         <h2 className="text-lg font-bold text-text-primary">再生中の水曼荼羅</h2>
         <p className="text-sm text-text-secondary">
@@ -88,17 +100,6 @@ export default function MindPage() {
         )}
       </section>
 
-      {/* リアルタイム脳波アート（ニューロフィードバック） */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
-        <p className="text-sm text-text-secondary">
-          脳波がリアルタイムに幾何学模様として紡ぎ出されます
-        </p>
-        <MindArtCanvas sample={latestSample} boost={zoneBoost} />
-      </section>
-      </div>
-
-      <div className="flex flex-col gap-6">
       <BandEqualizer sample={latestSample} />
 
       <MindTrendChart history={history} />
