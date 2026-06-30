@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import type { EegSample } from "@/lib/mind/types";
 import { boostedPosition, gammaRatio } from "@/lib/mind/types";
-import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
 /**
  * MindArtCanvas — リアルタイム脳波ジェネレーティブ・アート。
@@ -34,12 +33,9 @@ interface Particle {
   hue: number;
 }
 
-function readNavy(): string {
-  const v = getComputedStyle(document.documentElement)
-    .getPropertyValue("--dyn-navy")
-    .trim();
-  return v || "#020617";
-}
+// Brain art always renders on a fixed dark backdrop so the neon mandala stays
+// clearly visible even when the circadian theme navy is light.
+const ART_BG = "#0a1628";
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
@@ -107,7 +103,7 @@ export default function MindArtCanvas({
     let cssW = 0;
     let cssH = 0;
     let last = performance.now();
-    let navy = readNavy();
+    const navy = ART_BG;
 
     // Smoothed live state.
     let att = 40;
@@ -130,13 +126,8 @@ export default function MindArtCanvas({
       ctx.fillRect(0, 0, cssW, cssH);
     };
 
-    const onThemeChange = () => {
-      navy = readNavy();
-    };
-
     resize();
     window.addEventListener("resize", resize);
-    window.addEventListener(THEME_CHANGE_EVENT, onThemeChange);
 
     // Pause the render loop while the canvas is scrolled out of view.
     let io: IntersectionObserver | null = null;
@@ -340,7 +331,6 @@ export default function MindArtCanvas({
 
     return () => {
       window.removeEventListener("resize", resize);
-      window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange);
       io?.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -351,7 +341,7 @@ export default function MindArtCanvas({
     <canvas
       ref={canvasRef}
       className="w-full aspect-square rounded-3xl neu-raised"
-      style={{ backgroundColor: "var(--color-navy)" }}
+      style={{ backgroundColor: ART_BG }}
     />
   );
 }

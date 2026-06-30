@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { EegSample } from "@/lib/mind/types";
+import type { BandPowers, EegSample } from "@/lib/mind/types";
 import {
   getQuadrant,
   gammaRatio,
@@ -11,6 +11,8 @@ import {
   GAMMA_BASELINE_ALPHA,
 } from "@/lib/mind/types";
 import type { SourceStatus } from "@/lib/mind/data-source";
+import type { BrainIndicators } from "@/lib/brain-profile";
+import { computeIndicators, computeBandPowers, eegRowsFromSamples } from "@/lib/brain-profile";
 import { useAppStore } from "./useAppStore";
 
 export type MindSourceKind = "demo" | "realtime";
@@ -26,6 +28,11 @@ export interface MindSessionSummary {
   /** % of samples spent in the flow quadrant（ゾーン率）. */
   flowRatioPct: number;
   source: MindSourceKind;
+  /** 6 indicators + 8-band balance computed at stop, so a past measurement can
+   *  be opened in the 脳特性 chart without re-storing raw samples. Optional so
+   *  sessions persisted before this feature still load. */
+  indicators?: BrainIndicators;
+  bands?: BandPowers;
 }
 
 /** Last 5 minutes of 1 Hz samples kept for the trend chart. */
@@ -64,8 +71,6 @@ interface MindState {
   recordingStartedAt: number | null;
   recordingSamples: EegSample[]; // in-memory only, never persisted
   recordingFlowCount: number; // Zone samples (gamma-boosted) during recording
-  lastRecording: EegSample[] | null; // samples of the most recent finished measurement (for 脳特性 import)
-  lastRecordingImported: boolean; // true once the last measurement was imported into 脳特性
   sessions: MindSessionSummary[];
   pairingCode: string;
 
@@ -76,7 +81,6 @@ interface MindState {
   pushSample: (s: EegSample) => void;
   startRecording: () => void;
   stopRecording: () => void;
-  markRecordingImported: () => void;
   deleteSession: (id: string) => void;
 }
 
@@ -96,8 +100,6 @@ export const useMindStore = create<MindState>()(
       recordingStartedAt: null,
       recordingSamples: [],
       recordingFlowCount: 0,
-      lastRecording: null,
-      lastRecordingImported: false,
       sessions: [],
       pairingCode: "",
 
@@ -121,8 +123,6 @@ export const useMindStore = create<MindState>()(
           recordingStartedAt: null,
           recordingSamples: [],
           recordingFlowCount: 0,
-          lastRecording: null,
-          lastRecordingImported: false,
         }),
 
       setStatus: (status, detail) => set({ status, statusDetail: detail ?? "" }),
@@ -177,8 +177,6 @@ export const useMindStore = create<MindState>()(
           recordingStartedAt: Date.now(),
           recordingSamples: [],
           recordingFlowCount: 0,
-          lastRecording: null,
-          lastRecordingImported: false,
           gammaBaseline: 0,
         }),
 
@@ -192,8 +190,6 @@ export const useMindStore = create<MindState>()(
             recordingStartedAt: null,
             recordingSamples: [],
             recordingFlowCount: 0,
-            lastRecording: null,
-            lastRecordingImported: false,
           });
           return;
         }
@@ -206,6 +202,9 @@ export const useMindStore = create<MindState>()(
           medSum += s.meditation;
           gammaSum += gammaRatio(s);
         }
+        // Compute the 6 indicators + 8-band balance now, so the measurement can
+        // later be opened in the 脳特性 chart without keeping the raw samples.
+        const rows = eegRowsFromSamples(recordingSamples);
         const summary: MindSessionSummary = {
           id: generateId(),
           startedAt: recordingStartedAt,
@@ -217,21 +216,17 @@ export const useMindStore = create<MindState>()(
           // Zone rate reflects the gamma-boosted position the user actually saw.
           flowRatioPct: Math.round((recordingFlowCount / n) * 100),
           source: sourceKind,
+          indicators: computeIndicators(rows),
+          bands: computeBandPowers(rows),
         };
         set({
           isRecording: false,
           recordingStartedAt: null,
           recordingSamples: [],
           recordingFlowCount: 0,
-          // Keep the raw per-second samples so the user can import this
-          // measurement into their 脳特性 chart from the recorder UI.
-          lastRecording: recordingSamples,
-          lastRecordingImported: false,
           sessions: [summary, ...sessions].slice(0, 100),
         });
       },
-
-      markRecordingImported: () => set({ lastRecordingImported: true }),
 
       deleteSession: (id) =>
         set((state) => ({ sessions: state.sessions.filter((s) => s.id !== id) })),

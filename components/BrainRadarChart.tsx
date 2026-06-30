@@ -9,6 +9,7 @@ import {
   PolarRadiusAxis,
   ResponsiveContainer,
 } from "recharts";
+import type { BaseTickContentProps } from "recharts";
 import type { BrainIndicators } from "@/lib/brain-profile";
 import { INDICATOR_META } from "@/lib/brain-profile";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
@@ -16,6 +17,8 @@ import { THEME_CHANGE_EVENT } from "@/lib/theme";
 interface BrainRadarChartProps {
   indicators: BrainIndicators;
   size?: "small" | "large";
+  /** Render each indicator's score under its axis label. */
+  showScores?: boolean;
 }
 
 function getThemeColor(varName: string, fallback: string): string {
@@ -24,19 +27,30 @@ function getThemeColor(varName: string, fallback: string): string {
   return val || fallback;
 }
 
-export default function BrainRadarChart({ indicators, size = "large" }: BrainRadarChartProps) {
+function scoreColor(score: number): string {
+  return score >= 70 ? "#22c55e" : score >= 40 ? "#f97316" : "#ef4444";
+}
+
+export default function BrainRadarChart({
+  indicators,
+  size = "large",
+  showScores = false,
+}: BrainRadarChartProps) {
   const data = INDICATOR_META.map((meta) => ({
     label: meta.shortLabel,
     value: indicators[meta.key],
   }));
+  const scoreByLabel: Record<string, number> = {};
+  for (const d of data) scoreByLabel[d.label] = d.value;
 
   const isSmall = size === "small";
-  const height = isSmall ? 180 : 280;
+  const height = isSmall ? 180 : showScores ? 320 : 280;
 
   const [colors, setColors] = useState({
     primary: "#4a7fd4",
     grid: "#1e3a5f",
     text: "#8890a8",
+    strong: "#d0d8e8",
     muted: "#5c6478",
   });
 
@@ -45,6 +59,7 @@ export default function BrainRadarChart({ indicators, size = "large" }: BrainRad
       primary: getThemeColor("--color-primary", "#4a7fd4"),
       grid: getThemeColor("--color-navy-lighter", "#1e3a5f"),
       text: getThemeColor("--color-text-secondary", "#8890a8"),
+      strong: getThemeColor("--color-text-primary", "#d0d8e8"),
       muted: getThemeColor("--color-text-muted", "#5c6478"),
     });
   }, []);
@@ -55,15 +70,36 @@ export default function BrainRadarChart({ indicators, size = "large" }: BrainRad
     return () => window.removeEventListener(THEME_CHANGE_EVENT, readColors);
   }, [readColors]);
 
+  // Custom tick: indicator name with its score on a second line.
+  const renderTick = (props: BaseTickContentProps) => {
+    const { x, y, textAnchor, payload } = props;
+    const label = String(payload?.value ?? "");
+    const score = scoreByLabel[label] ?? 0;
+    return (
+      <text x={x} y={y} textAnchor={textAnchor} fill={colors.text}>
+        <tspan x={x} dy="-2" fontSize={12}>
+          {label}
+        </tspan>
+        <tspan x={x} dy="17" fontSize={15} fontWeight={700} fill={scoreColor(score)}>
+          {score}
+        </tspan>
+      </text>
+    );
+  };
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <RadarChart data={data} cx="50%" cy="50%" outerRadius={isSmall ? "70%" : "75%"}>
+      <RadarChart data={data} cx="50%" cy="50%" outerRadius={isSmall ? "70%" : showScores ? "62%" : "75%"}>
         <PolarGrid stroke={colors.grid} />
         <PolarAngleAxis
           dataKey="label"
-          tick={{ fill: colors.text, fontSize: isSmall ? 10 : 12 }}
+          tick={
+            showScores
+              ? renderTick
+              : { fill: colors.text, fontSize: isSmall ? 10 : 12 }
+          }
         />
-        {!isSmall && (
+        {!isSmall && !showScores && (
           <PolarRadiusAxis
             angle={90}
             domain={[0, 100]}

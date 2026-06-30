@@ -3,10 +3,9 @@
 import { useState, useEffect } from "react";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
-import { INDICATOR_META } from "@/lib/brain-profile";
 import BrainRadarChart from "@/components/BrainRadarChart";
-import BandBars from "@/components/mind/BandBars";
-import IndicatorInfoTooltip from "@/components/IndicatorInfoTooltip";
+import BrainBandPie from "@/components/BrainBandPie";
+import IndicatorHelp from "@/components/IndicatorHelp";
 import EegUploader from "@/components/EegUploader";
 import { BrainCircuit, Lock } from "lucide-react";
 import Link from "next/link";
@@ -62,25 +61,21 @@ export default function ProfilePage() {
 
       {profile ? (
         <>
-          {/* Mobile: single column. Desktop: chart | indicators side by side. */}
+          {/* Mobile: single column. Desktop: radar (scores) | 8-band pie. */}
           <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
           <div className="flex flex-col gap-6">
-          {/* Radar Chart */}
+          {/* Radar chart — scores shown directly on each vertex */}
           <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-            <BrainRadarChart indicators={profile.indicators} size="large" />
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <h2 className="text-base font-bold text-text-primary">大脳特性</h2>
+              <IndicatorHelp />
+            </div>
+            <BrainRadarChart indicators={profile.indicators} size="large" showScores />
             <p className="text-xs text-text-muted text-center mt-2">
               セッション: {profile.sessionTag} ・ 最終更新:{" "}
               {new Date(profile.uploadedAt).toLocaleDateString("ja-JP")}
             </p>
           </div>
-
-          {/* 8-band balance (when the measurement carries raw band data) */}
-          {profile.bands && (
-            <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-              <p className="text-base font-bold text-text-primary mb-3">脳波バランス</p>
-              <BandBars powers={profile.bands} />
-            </div>
-          )}
 
           {measurements.length > 0 && (
             <Link
@@ -93,36 +88,15 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-col gap-6">
-          {/* 6 Indicator Cards */}
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-text-secondary">
-              各指標（名前にカーソルを合わせる/タップで説明を表示）
-            </p>
-            {INDICATOR_META.map((meta) => {
-              const score = profile.indicators[meta.key];
-              return (
-                <div key={meta.key} className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-                  <div className="flex items-center justify-between mb-2">
-                    <IndicatorInfoTooltip label={meta.label} description={meta.description} />
-                    <p className="text-lg font-mono font-bold text-primary tabular-nums">
-                      {score}
-                    </p>
-                  </div>
-                  {/* Score bar */}
-                  <div className="w-full h-2 bg-navy-lighter rounded-full overflow-hidden neu-inset">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${score}%`,
-                        backgroundColor:
-                          score >= 70 ? "#22c55e" : score >= 40 ? "#f97316" : "#ef4444",
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {/* 8-band balance pie (when the measurement carries band data) */}
+          {profile.bands && (
+            <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
+              <p className="text-base font-bold text-text-primary mb-2 text-center">
+                8種類の脳波バランス
+              </p>
+              <BrainBandPie powers={profile.bands} />
+            </div>
+          )}
 
           {/* Re-upload & Clear */}
           <div className="flex flex-col gap-3">

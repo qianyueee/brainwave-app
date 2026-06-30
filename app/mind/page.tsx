@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useEffect } from "react";
 import { useMindStore } from "@/store/useMindStore";
-import { useAppStore } from "@/store/useAppStore";
 import { DummySource } from "@/lib/mind/dummy-source";
 import { RealtimeSource } from "@/lib/mind/realtime-source";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
-import { formatTime } from "@/lib/utils";
 import MindMapCanvas from "@/components/mind/MindMapCanvas";
 import MindArtCanvas from "@/components/mind/MindArtCanvas";
 import MindStatusText from "@/components/mind/MindStatusText";
@@ -15,24 +12,16 @@ import BandEqualizer from "@/components/mind/BandEqualizer";
 import MindTrendChart from "@/components/mind/MindTrendChart";
 import MindRecorder from "@/components/mind/MindRecorder";
 import SourceDialog from "@/components/mind/SourceDialog";
-import Visualizer from "@/components/Visualizer";
+import SessionList from "@/components/mind/SessionList";
 
 export default function MindPage() {
   const sourceKind = useMindStore((s) => s.sourceKind);
   const latestSample = useMindStore((s) => s.latestSample);
   const history = useMindStore((s) => s.history);
-  const sessions = useMindStore((s) => s.sessions);
-  const deleteSession = useMindStore((s) => s.deleteSession);
   const pairingCode = useMindStore((s) => s.pairingCode);
   const gammaBoost = useMindStore((s) => s.gammaBoost);
   // Combined gamma + program pull toward the Zone (the displayed position).
   const zoneBoost = useMindStore((s) => s.zoneBoost);
-  // Audio playback state — drives the "now playing" water-mandala hint.
-  const isPlaying = useAppStore((s) => s.isPlaying);
-
-  // Guard persisted session list against SSR hydration mismatch.
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
 
   // Create/destroy the active data source. getState() actions are stable
   // references, so the handlers never go stale.
@@ -60,94 +49,45 @@ export default function MindPage() {
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      <h1 className="text-2xl font-bold text-text-primary">マインドマップ</h1>
+      {/* Top bar: 測定 + データソース side by side. */}
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <MindRecorder />
+        </div>
+        <div className="flex-1">
+          <SourceDialog />
+        </div>
+      </div>
 
-      {/* Mobile: single column. Desktop: quadrant map (left) | water-mandala +
-          meters (right) — the map and water-mandala sit side by side. */}
+      {/* Mobile: single column. Desktop: map+meters (left) | art+history (right). */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-      <div className="flex flex-col gap-6">
-      {/* Quadrant map first — the page opens straight onto it. */}
-      <MindMapCanvas sample={latestSample} boost={zoneBoost} />
+        <div className="flex flex-col gap-6">
+          {/* マインドマップ（四象限マップ + 状態） */}
+          <section className="flex flex-col gap-3">
+            <h1 className="text-2xl font-bold text-text-primary">マインドマップ</h1>
+            <MindMapCanvas sample={latestSample} boost={zoneBoost} />
+            <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
+          </section>
 
-      <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
+          <BandEqualizer sample={latestSample} />
 
-      {/* 測定 + 脳特性への取り込み */}
-      <MindRecorder />
+          <MindTrendChart history={history} />
+        </div>
 
-      {/* リアルタイム脳波アート（ニューロフィードバック） */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
-        <p className="text-sm text-text-secondary">
-          脳波がリアルタイムに幾何学模様として紡ぎ出されます
-        </p>
-        <MindArtCanvas sample={latestSample} boost={zoneBoost} />
-      </section>
+        <div className="flex flex-col gap-6">
+          {/* リアルタイム脳波アート（ニューロフィードバック） */}
+          <section className="flex flex-col gap-3">
+            <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
+            <p className="text-sm text-text-secondary">
+              脳波がリアルタイムに幾何学模様として紡ぎ出されます
+            </p>
+            <MindArtCanvas sample={latestSample} boost={zoneBoost} />
+          </section>
+
+          {/* 過去の測定（タップで脳特性チャートを表示） */}
+          <SessionList />
+        </div>
       </div>
-
-      <div className="flex flex-col gap-6">
-      {/* PC では四象限マップの右隣に並ぶ（再生中プログラムの水曼荼羅）。
-          AudioProvider は layout にあるため、別ページで開始した再生も継続する。 */}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-bold text-text-primary">再生中の水曼荼羅</h2>
-        <p className="text-sm text-text-secondary">
-          再生中のプログラムの音が水曼荼羅としてリアルタイムに描かれます
-        </p>
-        <Visualizer />
-        {!isPlaying && (
-          <p className="text-sm text-text-muted text-center">
-            プログラムを再生すると模様が動き出します
-          </p>
-        )}
-      </section>
-
-      <BandEqualizer sample={latestSample} />
-
-      <MindTrendChart history={history} />
-
-      {/* Past sessions */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold text-text-primary">過去の測定</h2>
-        {!hydrated || sessions.length === 0 ? (
-          <p className="text-base text-text-secondary">まだ測定記録がありません</p>
-        ) : (
-          sessions.map((s) => (
-            <div
-              key={s.id}
-              className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex items-center justify-between gap-3"
-            >
-              <div className="min-w-0">
-                <p className="text-base font-bold text-text-primary">
-                  {new Date(s.startedAt).toLocaleString("ja-JP", {
-                    month: "long",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                  {s.source === "demo" && (
-                    <span className="ml-2 text-xs font-normal text-text-muted">デモ</span>
-                  )}
-                </p>
-                <p className="text-sm text-text-secondary">
-                  {formatTime(s.durationSec)}・集中 {s.avgAttention}・リラックス{" "}
-                  {s.avgMeditation}・ゾーン率 {s.flowRatioPct}%
-                </p>
-              </div>
-              <button
-                onClick={() => deleteSession(s.id)}
-                aria-label="削除"
-                className="shrink-0 w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-muted"
-              >
-                <Trash2 size={20} />
-              </button>
-            </div>
-          ))
-        )}
-      </section>
-      </div>
-      </div>
-
-      {/* Data-source / connection settings, tucked into a dialog at the bottom. */}
-      <SourceDialog />
     </div>
   );
 }
