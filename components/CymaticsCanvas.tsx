@@ -84,11 +84,20 @@ void main() {
   float center = smoothstep(0.85, 0.0, rr) * 0.16 * (0.6 + 0.4 * u_intensity);
   vec3 glowCol = mix(u_colorA, u_colorB, 0.5) * center;
 
-  // Circular vignette: fade to background near the rim so corners match navy.
-  float vig = smoothstep(1.0, 0.86, r);
-  vec3 outc = mix(u_bg, u_bg + col + glowCol, vig);
+  // Adapt to the theme background luminance so the filaments stay legible:
+  // glow additively on dark themes, but darken (subtractive) on light themes
+  // where adding bright color would just wash out toward white.
+  float bgLum = dot(u_bg, vec3(0.299, 0.587, 0.114));
+  float lightMix = smoothstep(0.4, 0.62, bgLum);
+  vec3 add = u_bg + col + glowCol;            // bright filaments on a dark bg
+  vec3 sub = u_bg - (col + glowCol) * 1.9;    // dark filaments on a light bg
+  vec3 content = mix(add, sub, lightMix);
 
-  gl_FragColor = vec4(outc, 1.0);
+  // Circular vignette: fade to background near the rim so corners match the bg.
+  float vig = smoothstep(1.0, 0.86, r);
+  vec3 outc = mix(u_bg, content, vig);
+
+  gl_FragColor = vec4(clamp(outc, 0.0, 1.0), 1.0);
 }
 `;
 
