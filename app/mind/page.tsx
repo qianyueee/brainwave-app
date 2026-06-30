@@ -62,9 +62,9 @@ export default function MindPage() {
       {/* Mobile: single column. Desktop: map+meters (left) | art+history (right). */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
         <div className="flex flex-col gap-6">
-          {/* マインドマップ（四象限マップ + 状態） */}
+          {/* マインドマップ（四象限マップ + 状態）— ブレインアートと左右対称 */}
           <section className="flex flex-col gap-3">
-            <h1 className="text-2xl font-bold text-text-primary">マインドマップ</h1>
+            <h1 className="text-lg font-bold text-text-primary">マインドマップ</h1>
             <MindMapCanvas sample={latestSample} boost={zoneBoost} />
             <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
           </section>
@@ -75,13 +75,14 @@ export default function MindPage() {
         </div>
 
         <div className="flex flex-col gap-6">
-          {/* リアルタイム脳波アート（ニューロフィードバック） */}
+          {/* リアルタイム脳波アート（ニューロフィードバック）— マインドマップと左右対称：
+              見出し → 正方形キャンバス → 下に説明文 */}
           <section className="flex flex-col gap-3">
             <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
-            <p className="text-sm text-text-secondary">
+            <MindArtCanvas sample={latestSample} boost={zoneBoost} />
+            <p className="text-sm text-text-secondary text-center">
               脳波がリアルタイムに幾何学模様として紡ぎ出されます
             </p>
-            <MindArtCanvas sample={latestSample} boost={zoneBoost} />
           </section>
 
           {/* 過去の測定（タップで脳特性チャートを表示） */}
