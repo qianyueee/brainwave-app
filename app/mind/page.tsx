@@ -5,12 +5,10 @@ import { useMindStore } from "@/store/useMindStore";
 import { DummySource } from "@/lib/mind/dummy-source";
 import { RealtimeSource } from "@/lib/mind/realtime-source";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
-import { rawBandPowers, EMPTY_BAND_POWERS } from "@/lib/mind/types";
 import MindMapCanvas from "@/components/mind/MindMapCanvas";
 import MindArtCanvas from "@/components/mind/MindArtCanvas";
 import MindStatusText from "@/components/mind/MindStatusText";
 import BandEqualizer from "@/components/mind/BandEqualizer";
-import BrainBandPie from "@/components/BrainBandPie";
 import MindTrendChart from "@/components/mind/MindTrendChart";
 import MindRecorder from "@/components/mind/MindRecorder";
 import SourceDialog from "@/components/mind/SourceDialog";
@@ -72,16 +70,6 @@ export default function MindPage() {
           </section>
 
           <BandEqualizer sample={latestSample} />
-
-          {/* 8種類の脳波バランス（割合の円グラフ・リアルタイム） */}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-bold text-text-primary">8種類の脳波の割合</h2>
-            <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-              <BrainBandPie
-                powers={latestSample ? rawBandPowers(latestSample) : EMPTY_BAND_POWERS}
-              />
-            </div>
-          </section>
 
           <MindTrendChart history={history} />
         </div>
