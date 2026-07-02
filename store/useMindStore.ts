@@ -80,7 +80,9 @@ interface MindState {
   setBridgeOnline: (online: boolean) => void;
   pushSample: (s: EegSample) => void;
   startRecording: () => void;
-  stopRecording: () => void;
+  /** Stops the recording and returns the finished session's summary (null if
+   *  no samples were captured), so the UI can offer importing it right away. */
+  stopRecording: () => MindSessionSummary | null;
   deleteSession: (id: string) => void;
 }
 
@@ -191,7 +193,7 @@ export const useMindStore = create<MindState>()(
             recordingSamples: [],
             recordingFlowCount: 0,
           });
-          return;
+          return null;
         }
         const n = recordingSamples.length;
         let attSum = 0;
@@ -226,6 +228,7 @@ export const useMindStore = create<MindState>()(
           recordingFlowCount: 0,
           sessions: [summary, ...sessions].slice(0, 100),
         });
+        return summary;
       },
 
       deleteSession: (id) =>
