@@ -88,15 +88,22 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-col gap-6">
-          {/* 8-band balance pie (when the measurement carries band data) */}
-          {profile.bands && (
-            <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-              <p className="text-base font-bold text-text-primary mb-2 text-center">
-                8種類の脳波バランス
-              </p>
+          {/* 8-band balance pie — always shown, with an explanation when the
+              measurement predates band data (legacy records omit it) */}
+          <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
+            <p className="text-base font-bold text-text-primary mb-2 text-center">
+              8種類の脳波バランス
+            </p>
+            {profile.bands ? (
               <BrainBandPie powers={profile.bands} />
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-text-secondary text-center py-8">
+                この測定には脳波バランスのデータが含まれていません。
+                <br />
+                マインドマップで再測定するか、脳波ファイルを再アップロードすると表示されます。
+              </p>
+            )}
+          </div>
 
           {/* Re-upload & Clear */}
           <div className="flex flex-col gap-3">
