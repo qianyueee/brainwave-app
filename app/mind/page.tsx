@@ -22,6 +22,7 @@ export default function MindPage() {
   const gammaBoost = useMindStore((s) => s.gammaBoost);
   // Combined gamma + program pull toward the Zone (the displayed position).
   const zoneBoost = useMindStore((s) => s.zoneBoost);
+  const isRecording = useMindStore((s) => s.isRecording);
 
   // Create/destroy the active data source. getState() actions are stable
   // references, so the handlers never go stale.
@@ -65,7 +66,7 @@ export default function MindPage() {
           {/* マインドマップ（四象限マップ + 状態）— ブレインアートと左右対称 */}
           <section className="flex flex-col gap-3">
             <h1 className="text-lg font-bold text-text-primary">マインドマップ</h1>
-            <MindMapCanvas sample={latestSample} boost={zoneBoost} />
+            <MindMapCanvas sample={latestSample} boost={zoneBoost} isRecording={isRecording} />
             <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
           </section>
 
