@@ -127,6 +127,10 @@ export const GAMMA_BASELINE_ALPHA = 0.011;
 export const GAMMA_BOOST_SENSITIVITY = 0.5;
 /** Hard cap on the pull (0 = none, 1 = pinned to the corner). */
 export const GAMMA_BOOST_MAX = 0.6;
+/** Gamma-pull strength with no program playing (fraction of full strength).
+ *  Natural gamma swings should barely move the dot; the clear pull toward the
+ *  Zone is reserved for playback, when entrainment is actually expected. */
+export const GAMMA_BOOST_IDLE_SCALE = 0.25;
 
 /**
  * Boost factor 0..GAMMA_BOOST_MAX from how far current gamma exceeds the
@@ -172,6 +176,20 @@ export function programBoostFromElapsed(isPlaying: boolean, elapsedSec: number):
   if (!isPlaying) return 0;
   const t = Math.min(1, Math.max(0, elapsedSec / PROGRAM_BOOST_RAMP_SEC));
   return PROGRAM_BOOST_MAX * t;
+}
+
+/**
+ * Strength multiplier applied to the gamma pull before it moves the dot:
+ * weak (GAMMA_BOOST_IDLE_SCALE) while nothing is playing, ramping to full
+ * strength over the first PROGRAM_BOOST_RAMP_SEC of playback — the same ramp
+ * as the program pull, so nothing jumps when playback starts or stops.
+ * Scales only the displayed position; the raw gamma boost still drives the
+ * "γ波 上昇中" badge.
+ */
+export function gammaBoostScale(isPlaying: boolean, elapsedSec: number): number {
+  if (!isPlaying) return GAMMA_BOOST_IDLE_SCALE;
+  const t = Math.min(1, Math.max(0, elapsedSec / PROGRAM_BOOST_RAMP_SEC));
+  return GAMMA_BOOST_IDLE_SCALE + (1 - GAMMA_BOOST_IDLE_SCALE) * t;
 }
 
 /** Combine the gamma-driven and program-driven pulls toward the Zone, capped. */

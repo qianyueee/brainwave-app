@@ -5,6 +5,7 @@ import {
   getQuadrant,
   gammaRatio,
   gammaBoostFromRatio,
+  gammaBoostScale,
   boostedPosition,
   programBoostFromElapsed,
   combineZoneBoost,
@@ -144,11 +145,16 @@ export const useMindStore = create<MindState>()(
 
           // While a program is playing, add a pull toward the Zone that ramps in
           // over the first minutes, so measuring during a session visibly
-          // reflects its intended effect. With nothing playing this is 0 and
-          // zoneBoost === gammaBoost (unchanged behavior).
+          // reflects its intended effect. The gamma pull is attenuated while
+          // nothing plays (natural gamma swings barely move the dot) and ramps
+          // to full strength alongside the program pull; the raw gammaBoost is
+          // kept so the "γ波 上昇中" badge stays an honest physiological signal.
           const app = useAppStore.getState();
           const program = programBoostFromElapsed(app.isPlaying, app.elapsed);
-          const zoneBoost = combineZoneBoost(gammaBoost, program);
+          const zoneBoost = combineZoneBoost(
+            gammaBoost * gammaBoostScale(app.isPlaying, app.elapsed),
+            program
+          );
 
           let recordingSamples = state.recordingSamples;
           let recordingFlowCount = state.recordingFlowCount;
