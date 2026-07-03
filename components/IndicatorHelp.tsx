@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { HelpCircle, X } from "lucide-react";
-import { INDICATOR_META } from "@/lib/brain-profile";
+import { INDICATOR_GROUPS } from "@/lib/brain-profile";
 
 /**
- * "?" button that opens a popup listing all 6 indicators with their
- * descriptions — replaces the per-card always-on description text.
+ * "?" button that opens a popup explaining the 6 indicators, grouped into the
+ * two categories from the design document (認知・注意力 / 情緒・自己調整), each
+ * with an intro and an evaluation-point note.
  */
 export default function IndicatorHelp() {
   const [open, setOpen] = useState(false);
@@ -44,7 +45,7 @@ export default function IndicatorHelp() {
           aria-label="閉じる"
         >
           <div
-            className="w-full max-w-[480px] max-h-[80vh] overflow-y-auto bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
+            className="w-full max-w-[480px] max-h-[80vh] overflow-y-auto bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-6 neu-raised-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between sticky top-0">
@@ -57,10 +58,24 @@ export default function IndicatorHelp() {
                 <X size={20} />
               </button>
             </div>
-            {INDICATOR_META.map((m) => (
-              <div key={m.key} className="flex flex-col gap-1">
-                <p className="text-base font-bold text-text-primary">{m.label}</p>
-                <p className="text-sm text-text-secondary leading-relaxed">{m.description}</p>
+
+            {INDICATOR_GROUPS.map((group) => (
+              <div key={group.title} className="flex flex-col gap-3">
+                <p className="text-base font-bold text-text-primary">{group.title}</p>
+                <p className="text-sm text-text-secondary leading-relaxed">{group.intro}</p>
+                <div className="flex flex-col gap-3">
+                  {group.items.map((item) => (
+                    <div key={item.key} className="flex flex-col gap-1">
+                      <p className="text-sm font-bold text-text-primary">{item.label}</p>
+                      <p className="text-sm text-text-secondary leading-relaxed">
+                        {item.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-text-secondary leading-relaxed bg-navy rounded-2xl p-3 neu-inset">
+                  {group.evaluationPoint}
+                </p>
               </div>
             ))}
           </div>

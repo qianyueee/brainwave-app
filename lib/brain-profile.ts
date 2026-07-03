@@ -599,51 +599,92 @@ export interface IndicatorMeta {
   key: keyof BrainIndicators;
   label: string;
   shortLabel: string;
+}
+
+// Order matches the radar/hexagon vertex order; names follow the "6指標説明"
+// design document. Per-indicator explanations live in INDICATOR_GROUPS below.
+export const INDICATOR_META: IndicatorMeta[] = [
+  { key: "focusIntensity", label: "集中の強さ", shortLabel: "集中の強さ" },
+  { key: "sustainedFocus", label: "集中の持続度", shortLabel: "集中の持続度" },
+  { key: "focusSpeed", label: "集中の速度", shortLabel: "集中の速度" },
+  { key: "relaxationDepth", label: "リラックスの深さ", shortLabel: "リラックスの深さ" },
+  { key: "calmnessStability", label: "平静の持続度", shortLabel: "平静の持続度" },
+  { key: "calmnessSpeed", label: "入定の速度", shortLabel: "入定の速度" },
+];
+
+// ─── Indicator Explanation Groups (脳特性 help popup) ─────────────────────────
+// Two categories per the "6指標説明" design document: cognitive / attention
+// (①②③, the brain "on" state) and emotional / self-regulation (④⑤⑥, the
+// brain "off" state). Numbering follows the document, not the radar order.
+
+export interface IndicatorGroupItem {
+  key: keyof BrainIndicators;
+  /** Numbered name shown in the popup, e.g. "① 集中の強さ（選択的注意力）". */
+  label: string;
   description: string;
 }
 
-// Order, names and descriptions follow the "6指標説明" design document.
-export const INDICATOR_META: IndicatorMeta[] = [
+export interface IndicatorGroup {
+  title: string;
+  intro: string;
+  items: IndicatorGroupItem[];
+  /** 【評価のポイント】note shown under the group. */
+  evaluationPoint: string;
+}
+
+export const INDICATOR_GROUPS: IndicatorGroup[] = [
   {
-    key: "focusIntensity",
-    label: "集中の強さ",
-    shortLabel: "集中の強さ",
-    description:
-      "集中の強さ（集中的注意力）は、私たちの注意力が到達する強度を反映するものです。これは選択的注意力の重要な能力要素の一つでもあり、個人が関連情報を優先的に処理し、無関係な入力を無視することを可能にします。これにより、妨害のある環境下でもタスクの効率を効果的に維持することができます。また、意識的に注意力を特定の物事に集中させると同時に、他の妨害をフィルタリングしたり無視したりすることを可能にします。",
+    title: "1. 認知・注意力の評価（①②③）：脳の「処理能力と制御力」",
+    intro:
+      "これらは主にベータ波（Beta波）やSMR（感覚運動リズム）などの脳波の活動と関連し、脳の「オン」の状態におけるパフォーマンスを評価します。",
+    items: [
+      {
+        key: "focusIntensity",
+        label: "① 集中の強さ（選択的注意力）",
+        description:
+          "目標に向けた脳のエネルギーの強さを示します。ここが高いと、雑音や妨害をシャットアウトする「ノイズキャンセリング機能」が優れており、情報処理の精度が高いと評価されます。",
+      },
+      {
+        key: "focusSpeed",
+        label: "② 集中の速度（交替性注意力）",
+        description:
+          "脳の「柔軟性（フレキシビリティ）」を評価します。異なるタスク間をスムーズに移行できるかは、脳のワーキングメモリや処理速度の若々しさを示す指標となります。",
+      },
+      {
+        key: "sustainedFocus",
+        label: "③ 集中の持続度（持続的注意力）",
+        description:
+          "脳の「持久力」を評価します。長時間にわたり安定した脳波を維持できるかは、根気強さや学習能力に直結します。加齢に伴い最も低下しやすい指標の一つでもあります。",
+      },
+    ],
+    evaluationPoint:
+      "【評価のポイント】①〜③のスコアのバランスを見ます。「①と②が高く③が低い」場合は瞬発力やマルチタスクは得意だが飽きっぽいタイプ、「③が高く②が低い」場合は地道な作業は得意だが、急な変化への対応にエネルギーを使うタイプ、といった特性が浮かび上がります。",
   },
   {
-    key: "sustainedFocus",
-    label: "集中の持続度",
-    shortLabel: "集中の持続度",
-    description:
-      "集中の持続度（持続的注意力）とは、個人が長時間にわたり一定レベルの認知的集中と覚醒を維持する能力を指します。これは長時間の取り組みを要するタスクにとって極めて重要であり、集中力を維持し、妨害に抵抗して、集中力の持続性を保つのに役立つからです。",
-  },
-  {
-    key: "focusSpeed",
-    label: "集中の速度",
-    shortLabel: "集中の速度",
-    description:
-      "集中の速度は、異なるタスクや刺激の間で注意力を迅速かつ柔軟に切り替えることを指します。これは交替性注意力の重要な能力の一つであり、個人が異なる認知的要求の間で効果的に移行し、注意力のリソースを配分し、絶えず変化する環境やニーズに迅速に適応することを可能にします。",
-  },
-  {
-    key: "relaxationDepth",
-    label: "リラックスの深さ",
-    shortLabel: "リラックスの深さ",
-    description:
-      "リラックスの深さは、体験されるリラクゼーションの深さと完全性を指し、心の静けさ、身体の快適さ、そして情緒の安定が含まれます。これは、個人が様々な側面で内面の深い平静とリラックス状態に達している程度を測定するものです。",
-  },
-  {
-    key: "calmnessStability",
-    label: "平静の持続度",
-    shortLabel: "平静の持続度",
-    description:
-      "平静の持続度は、長時間にわたり継続的なストレスに直面しても、リラックスし、内面の平静さと落ち着きを保ち続ける能力を指します。これは、外部からのストレスや内面的な変動の影響下においても、内面の静けさとリラックス状態を維持し続ける能力を表しています。",
-  },
-  {
-    key: "calmnessSpeed",
-    label: "入定の速度",
-    shortLabel: "入定の速度",
-    description:
-      "入定の速度は、個人が緊張、不安、または張り詰めた状態から、迅速にリラックスし、落ち着いた状態へ移行する速度を示します。これは、緊張の引き金となる要因に対処したり、意図的なリラクゼーション技法を用いたりする際の、リラックスプロセスの有効性と状態移行の速さを反映しています。",
+    title: "2. 情緒・自己調整の評価（④⑤⑥）：脳の「回復力と安定性」",
+    intro:
+      "これらは主にアルファ波（Alpha波）やシータ波（Theta波）の活動と関連し、脳の「オフ」の状態における自律神経の調整力やストレス耐性を評価します。",
+    items: [
+      {
+        key: "relaxationDepth",
+        label: "④ リラックスの深さ",
+        description:
+          "脳と身体の「回復力」を評価します。深いリラックス状態（アルファ波の増加など）にどれだけ到達できるかは、睡眠の質や疲労回復能力の高さを示します。",
+      },
+      {
+        key: "calmnessSpeed",
+        label: "⑤ 入定の速度",
+        description:
+          "自律神経の「切り替えの良さ」を評価します。緊張状態（交感神経優位）からリラックス状態（副交感神経優位）へいかに早くスイッチを切り替えられるかは、不眠や不安の解消能力に関わります。",
+      },
+      {
+        key: "calmnessStability",
+        label: "⑥ 平静の持続度",
+        description:
+          "ストレスに対する「レジリエンス（回復弾性）」を評価します。外的なストレスがかかっても脳の平静さを保てるかは、メンタルヘルスの安定性や感情制御の成熟度を表します。",
+      },
+    ],
+    evaluationPoint:
+      "【評価のポイント】現代社会ではストレスが多いため、④〜⑥の「オフの能力」が脳の健康寿命を左右します。ここが低いと、脳が常にオーバーヒート気味（慢性疲労・不眠・イライラ）であると評価されます。",
   },
 ];
