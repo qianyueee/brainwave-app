@@ -5,7 +5,6 @@ import { useAppStore } from "@/store/useAppStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { BrainProfile } from "@/lib/brain-profile";
-import { INDICATOR_META } from "@/lib/brain-profile";
 import { compositeScore } from "@/lib/brain-measurements";
 import SimpleCalendar from "@/components/SimpleCalendar";
 import BrainTrendChart from "@/components/BrainTrendChart";
@@ -63,31 +62,7 @@ function MeasurementItem({
 
       {open && (
         <div className="px-4 pb-4 flex flex-col gap-3 border-t border-surface-border pt-3">
-          <BrainRadarChart indicators={m.indicators} size="small" />
-          <div className="flex flex-col gap-2">
-            {INDICATOR_META.map((meta) => {
-              const score = m.indicators[meta.key];
-              return (
-                <div key={meta.key}>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-text-primary">{meta.label}</p>
-                    <p
-                      className="text-sm font-mono font-bold tabular-nums"
-                      style={{ color: scoreColor(score) }}
-                    >
-                      {score}
-                    </p>
-                  </div>
-                  <div className="w-full h-2 bg-navy-lighter rounded-full overflow-hidden neu-inset">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${score}%`, backgroundColor: scoreColor(score) }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <BrainRadarChart indicators={m.indicators} size="small" showScores />
           <button
             onClick={() => {
               if (window.confirm("この記録を削除しますか？")) onDelete(m.uploadedAt);

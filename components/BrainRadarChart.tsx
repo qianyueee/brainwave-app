@@ -44,7 +44,7 @@ export default function BrainRadarChart({
   for (const d of data) scoreByLabel[d.label] = d.value;
 
   const isSmall = size === "small";
-  const height = isSmall ? 180 : showScores ? 320 : 280;
+  const height = isSmall ? (showScores ? 230 : 180) : showScores ? 320 : 280;
 
   const [colors, setColors] = useState({
     primary: "#4a7fd4",
@@ -77,10 +77,16 @@ export default function BrainRadarChart({
     const score = scoreByLabel[label] ?? 0;
     return (
       <text x={x} y={y} textAnchor={textAnchor} fill={colors.text}>
-        <tspan x={x} dy="-2" fontSize={12}>
+        <tspan x={x} dy="-2" fontSize={isSmall ? 10 : 12}>
           {label}
         </tspan>
-        <tspan x={x} dy="17" fontSize={15} fontWeight={700} fill={scoreColor(score)}>
+        <tspan
+          x={x}
+          dy={isSmall ? 15 : 17}
+          fontSize={isSmall ? 13 : 15}
+          fontWeight={700}
+          fill={scoreColor(score)}
+        >
           {score}
         </tspan>
       </text>
@@ -89,7 +95,12 @@ export default function BrainRadarChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <RadarChart data={data} cx="50%" cy="50%" outerRadius={isSmall ? "70%" : showScores ? "62%" : "75%"}>
+      <RadarChart
+        data={data}
+        cx="50%"
+        cy="50%"
+        outerRadius={isSmall ? (showScores ? "58%" : "70%") : showScores ? "62%" : "75%"}
+      >
         <PolarGrid stroke={colors.grid} />
         <PolarAngleAxis
           dataKey="label"

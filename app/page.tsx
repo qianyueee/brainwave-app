@@ -131,7 +131,7 @@ export default function HomePage() {
               <p className="text-sm text-text-secondary">脳特性チャート</p>
               <span className="text-xs text-primary font-medium">詳細 →</span>
             </div>
-            <BrainRadarChart indicators={profile.indicators} size="small" />
+            <BrainRadarChart indicators={profile.indicators} size="small" showScores />
             <p className="text-xs text-text-muted text-center">
               最終更新: {new Date(profile.uploadedAt).toLocaleDateString("ja-JP")}
             </p>
