@@ -601,15 +601,17 @@ export interface IndicatorMeta {
   shortLabel: string;
 }
 
-// Order matches the radar/hexagon vertex order; names follow the "6指標説明"
-// design document. Per-indicator explanations live in INDICATOR_GROUPS below.
+// Array order = radar/hexagon vertex order, clockwise from the top vertex:
+// 集中の強さ → 集中の持続度 → 平静の持続度 → リラックスの深さ → 入定の速度 → 集中の速度.
+// Names follow the "6指標説明" document; per-indicator explanations (with the
+// ①〜⑥ numbering, which is independent of this layout) live in INDICATOR_GROUPS.
 export const INDICATOR_META: IndicatorMeta[] = [
   { key: "focusIntensity", label: "集中の強さ", shortLabel: "集中の強さ" },
   { key: "sustainedFocus", label: "集中の持続度", shortLabel: "集中の持続度" },
-  { key: "focusSpeed", label: "集中の速度", shortLabel: "集中の速度" },
-  { key: "relaxationDepth", label: "リラックスの深さ", shortLabel: "リラックスの深さ" },
   { key: "calmnessStability", label: "平静の持続度", shortLabel: "平静の持続度" },
+  { key: "relaxationDepth", label: "リラックスの深さ", shortLabel: "リラックスの深さ" },
   { key: "calmnessSpeed", label: "入定の速度", shortLabel: "入定の速度" },
+  { key: "focusSpeed", label: "集中の速度", shortLabel: "集中の速度" },
 ];
 
 // ─── Indicator Explanation Groups (脳特性 help popup) ─────────────────────────
