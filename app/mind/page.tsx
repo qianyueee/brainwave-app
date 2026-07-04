@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useMindStore } from "@/store/useMindStore";
 import { DummySource } from "@/lib/mind/dummy-source";
 import { RealtimeSource } from "@/lib/mind/realtime-source";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
+import { rawBandPowers, EMPTY_BAND_POWERS } from "@/lib/mind/types";
+import { computeBandPowers, eegRowsFromSamples } from "@/lib/brain-profile";
 import MindMapCanvas from "@/components/mind/MindMapCanvas";
 import MindArtCanvas from "@/components/mind/MindArtCanvas";
 import MindStatusText from "@/components/mind/MindStatusText";
@@ -23,6 +25,19 @@ export default function MindPage() {
   // Combined gamma + program pull toward the Zone (the displayed position).
   const zoneBoost = useMindStore((s) => s.zoneBoost);
   const isRecording = useMindStore((s) => s.isRecording);
+  const recordingSamples = useMindStore((s) => s.recordingSamples);
+
+  // 脳波バランス values. While recording, show the running session-average via
+  // the same computeBandPowers path the import uses, so the bars at the moment
+  // you stop equal the pie chart that lands in 脳特性 (the program pull never
+  // touches band powers — it only moves the dot — so raw averaging aligns the
+  // two). Idle: the instantaneous latest sample for a live feel.
+  const bandPowers = useMemo(() => {
+    if (isRecording && recordingSamples.length > 0) {
+      return computeBandPowers(eegRowsFromSamples(recordingSamples));
+    }
+    return latestSample ? rawBandPowers(latestSample) : EMPTY_BAND_POWERS;
+  }, [isRecording, recordingSamples, latestSample]);
 
   // Create/destroy the active data source. getState() actions are stable
   // references, so the handlers never go stale.
@@ -70,7 +85,10 @@ export default function MindPage() {
             <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
           </section>
 
-          <BandEqualizer sample={latestSample} />
+          <BandEqualizer
+            powers={bandPowers}
+            note={isRecording ? "測定中の平均（脳特性に取り込まれる値）" : undefined}
+          />
 
           <MindTrendChart history={history} />
         </div>
