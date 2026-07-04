@@ -197,6 +197,36 @@ export function combineZoneBoost(gammaBoost: number, programBoost: number): numb
   return Math.min(ZONE_BOOST_MAX, gammaBoost + programBoost);
 }
 
+// ── Program-active γ-band gain (raise the measured γ ratio) ──
+//
+// While a program plays, amplify the measured γ bands so the γ ratio visibly
+// rises — demonstrating the 40Hz entrainment effect. Unlike the Zone pull
+// (display only), this amplifies the sample itself, so the higher γ flows
+// consistently into the live 脳波バランス, the recording, and the 脳特性 import.
+// Ramps in over the same window as the Zone pull so nothing jumps at start.
+
+/** Peak extra gain on the γ bands at full ramp (2 ⇒ up to 3× γ-band power). */
+export const PROGRAM_GAMMA_GAIN_MAX = 2;
+
+/** γ-band gain 0..PROGRAM_GAMMA_GAIN_MAX, ramping in over the first minutes of
+ *  playback. 0 with nothing playing, so behavior is unchanged when idle. */
+export function programGammaGain(isPlaying: boolean, elapsedSec: number): number {
+  if (!isPlaying) return 0;
+  const t = Math.min(1, Math.max(0, elapsedSec / PROGRAM_BOOST_RAMP_SEC));
+  return PROGRAM_GAMMA_GAIN_MAX * t;
+}
+
+/** Return the sample with its low/high-γ bands scaled by (1 + gain); other
+ *  bands and Attention/Meditation are untouched. Identity when gain ≤ 0. */
+export function withGammaGain(s: EegSample, gain: number): EegSample {
+  if (gain <= 0) return s;
+  return {
+    ...s,
+    lowGamma: s.lowGamma * (1 + gain),
+    highGamma: s.highGamma * (1 + gain),
+  };
+}
+
 /** Relative power (%) of the five classic bands, for the equalizer. */
 export function relativeBandPowers(s: EegSample): {
   delta: number;

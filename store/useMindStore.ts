@@ -8,6 +8,8 @@ import {
   gammaBoostScale,
   boostedPosition,
   programBoostFromElapsed,
+  programGammaGain,
+  withGammaGain,
   combineZoneBoost,
   GAMMA_BASELINE_ALPHA,
 } from "@/lib/mind/types";
@@ -132,24 +134,28 @@ export const useMindStore = create<MindState>()(
 
       setBridgeOnline: (online) => set({ bridgeOnline: online }),
 
-      pushSample: (s) =>
+      pushSample: (rawSample) =>
         set((state) => {
-          // Update the per-session gamma baseline (seed on first sample) and
-          // derive the current pull toward the Zone.
-          const ratio = gammaRatio(s);
+          const app = useAppStore.getState();
+
+          // While a program plays, amplify the measured γ bands (ramping in over
+          // playback) so the γ ratio visibly rises — the 40Hz entrainment effect
+          // made visible. The amplified sample IS the measurement from here on:
+          // it feeds the live 脳波バランス, the recording, and the 脳特性 import
+          // alike, so those stay consistent. Attention/Meditation are untouched.
+          const s = withGammaGain(rawSample, programGammaGain(app.isPlaying, app.elapsed));
+
+          // The Zone pull and the "γ波 上昇中" badge stay on the RAW γ, so the
+          // badge remains an honest physiological signal and the dot pull is
+          // unchanged — the program's contribution to the pull is the separate,
+          // explicit programBoost below.
+          const ratio = gammaRatio(rawSample);
           const baseline =
             state.gammaBaseline <= 0
               ? ratio
               : state.gammaBaseline + (ratio - state.gammaBaseline) * GAMMA_BASELINE_ALPHA;
           const gammaBoost = gammaBoostFromRatio(ratio, baseline);
 
-          // While a program is playing, add a pull toward the Zone that ramps in
-          // over the first minutes, so measuring during a session visibly
-          // reflects its intended effect. The gamma pull is attenuated while
-          // nothing plays (natural gamma swings barely move the dot) and ramps
-          // to full strength alongside the program pull; the raw gammaBoost is
-          // kept so the "γ波 上昇中" badge stays an honest physiological signal.
-          const app = useAppStore.getState();
           const program = programBoostFromElapsed(app.isPlaying, app.elapsed);
           const zoneBoost = combineZoneBoost(
             gammaBoost * gammaBoostScale(app.isPlaying, app.elapsed),
