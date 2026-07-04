@@ -74,6 +74,10 @@ export default function BrainBandPie({ powers }: { powers: BandPowers }) {
           cx="50%"
           cy="50%"
           outerRadius="62%"
+          // Start Delta at 12 o'clock and run clockwise through the 8 bands
+          // (Delta → … → Mid-Gamma), matching the reference layout.
+          startAngle={90}
+          endAngle={-270}
           label={renderLabel}
           labelLine={{ stroke: labelColor, strokeWidth: 1 }}
           isAnimationActive={false}
