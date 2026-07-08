@@ -36,6 +36,8 @@ export interface MindSessionSummary {
    *  sessions persisted before this feature still load. */
   indicators?: BrainIndicators;
   bands?: BandPowers;
+  /** Free-text memo the user can attach to a measurement (optional). */
+  note?: string;
 }
 
 /** Last 5 minutes of 1 Hz samples kept for the trend chart. */
@@ -87,6 +89,8 @@ interface MindState {
    *  no samples were captured), so the UI can offer importing it right away. */
   stopRecording: () => MindSessionSummary | null;
   deleteSession: (id: string) => void;
+  /** Set (or clear, with "") the free-text memo on a measurement. */
+  setSessionNote: (id: string, note: string) => void;
 }
 
 export const useMindStore = create<MindState>()(
@@ -245,6 +249,15 @@ export const useMindStore = create<MindState>()(
 
       deleteSession: (id) =>
         set((state) => ({ sessions: state.sessions.filter((s) => s.id !== id) })),
+
+      setSessionNote: (id, note) => {
+        const trimmed = note.trim();
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === id ? { ...s, note: trimmed || undefined } : s
+          ),
+        }));
+      },
     }),
     {
       name: "mind-map",
