@@ -8,7 +8,7 @@ import { BAND_META } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
 /** Distinct color per band (gamma = magenta/purple, matching the equalizer accent). */
-const BAND_COLORS: Record<string, string> = {
+export const BAND_COLORS: Record<string, string> = {
   delta: "#94a3b8",
   theta: "#fcd34d",
   lowAlpha: "#38bdf8",
