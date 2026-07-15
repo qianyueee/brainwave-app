@@ -113,6 +113,32 @@ export const BAND_META: { key: BandKey; en: string; ja: string; isGamma?: boolea
   { key: "highGamma", en: "Mid-Gamma", ja: "高γ波", isGamma: true },
 ];
 
+/** Single source of truth for band colors — shared by the 8-band pie and the
+ *  frequency-spectrum shading so the two always correspond. */
+export const BAND_COLORS: Record<BandKey, string> = {
+  delta: "#94a3b8",
+  theta: "#fcd34d",
+  lowAlpha: "#38bdf8",
+  highAlpha: "#3b82f6",
+  lowBeta: "#fdba74",
+  highBeta: "#fb923c",
+  lowGamma: "#d946ef",
+  highGamma: "#a855f7",
+};
+
+/** Approximate contiguous frequency range (Hz) of each band, for shading the
+ *  per-Hz spectrum. Based on the ThinkGear band definitions, made contiguous. */
+export const BAND_HZ_RANGE: Record<BandKey, [number, number]> = {
+  delta: [1, 4],
+  theta: [4, 8],
+  lowAlpha: [8, 10],
+  highAlpha: [10, 13],
+  lowBeta: [13, 18],
+  highBeta: [18, 30],
+  lowGamma: [30, 40],
+  highGamma: [40, 45],
+};
+
 export const EMPTY_BAND_POWERS: BandPowers = {
   delta: 0,
   theta: 0,

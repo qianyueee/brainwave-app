@@ -124,11 +124,23 @@ export default function LogPage() {
     setHydrated(true);
   }, []);
 
-  // Up to two measurements picked (by uploadedAt) for the Hz spectrum compare.
+  // Desktop (md+) shows the spectrum comparison below the calendar; mobile keeps
+  // it below the record list. Tracked so only one instance mounts (no 0-width
+  // chart in a hidden container).
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  // Up to three measurements picked (by uploadedAt) for the Hz spectrum compare.
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const toggleSelect = (id: string) =>
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-2)
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-3)
     );
 
   const totalSessions = sessionLogs.length;
@@ -142,12 +154,45 @@ export default function LogPage() {
   // How many measurements carry a per-Hz spectrum (only those are comparable).
   const spectrumCount = measurements.filter((m) => m.spectrum?.length).length;
 
-  // The two picked measurements, ordered oldest→newest (前 → 後) for the chart.
+  // The picked measurements (2–3), ordered oldest→newest for the chart.
   const picked = selectedIds
     .map((id) => measurements.find((m) => m.uploadedAt === id))
     .filter((m): m is BrainProfile => Boolean(m?.spectrum?.length))
     .sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
-  const canCompare = picked.length === 2;
+  const canCompare = picked.length >= 2;
+
+  // Comparison block (card + hint), placed responsively (desktop: under the
+  // calendar; mobile: under the record list) — rendered in one slot only.
+  const compareSection =
+    hydrated && user && measurements.length > 0 ? (
+      <>
+        {canCompare && (
+          <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-base font-bold text-text-primary">周波数スペクトル比較</p>
+              <button
+                onClick={() => setSelectedIds([])}
+                aria-label="選択を解除"
+                className="w-8 h-8 rounded-lg bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <BrainSpectrumCompare
+              series={picked.map((m) => ({
+                spectrum: m.spectrum!,
+                label: measurementLabel(m),
+              }))}
+            />
+          </div>
+        )}
+        {selectedIds.length === 1 && (
+          <p className="text-sm text-text-secondary text-center">
+            もう1件選ぶと比較を表示します
+          </p>
+        )}
+      </>
+    ) : null;
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
@@ -172,6 +217,9 @@ export default function LogPage() {
       </div>
 
       <SimpleCalendar />
+
+      {/* Desktop: comparison sits under the calendar (the date section). */}
+      {isDesktop && compareSection}
       </div>
 
       <div className="flex flex-col gap-6">
@@ -182,7 +230,7 @@ export default function LogPage() {
           <p className="text-sm text-text-secondary mt-1">測定ごとの6指標の推移</p>
           {hydrated && spectrumCount >= 2 && (
             <p className="text-xs text-text-muted mt-1">
-              周波数スペクトルのある測定を2件選ぶと、前後を比較できます
+              周波数スペクトルのある測定を2〜3件選ぶと、スペクトルを比較できます
             </p>
           )}
         </div>
@@ -232,32 +280,8 @@ export default function LogPage() {
               ))}
             </div>
 
-            {/* Hz spectrum before/after comparison of the two picked measurements. */}
-            {canCompare && (
-              <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-base font-bold text-text-primary">周波数スペクトル比較</p>
-                  <button
-                    onClick={() => setSelectedIds([])}
-                    aria-label="選択を解除"
-                    className="w-8 h-8 rounded-lg bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-                <BrainSpectrumCompare
-                  beforeSpectrum={picked[0].spectrum!}
-                  afterSpectrum={picked[1].spectrum!}
-                  beforeLabel={measurementLabel(picked[0])}
-                  afterLabel={measurementLabel(picked[1])}
-                />
-              </div>
-            )}
-            {selectedIds.length === 1 && (
-              <p className="text-sm text-text-secondary text-center">
-                もう1件選ぶと比較を表示します
-              </p>
-            )}
+            {/* Mobile: comparison sits under the record list. */}
+            {!isDesktop && compareSection}
 
             <EegUploader />
           </>

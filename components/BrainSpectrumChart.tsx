@@ -10,24 +10,19 @@ import {
   ReferenceArea,
   ResponsiveContainer,
 } from "recharts";
+import { BAND_META, BAND_COLORS, BAND_HZ_RANGE } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
-/** Classic EEG band ranges (Hz), used to shade + label the spectrum. `to` is
- *  clamped to the data length for the last (γ) band. Shared with the compare
- *  chart. */
-export const SPECTRUM_BANDS: {
-  key: string;
-  label: string;
-  from: number;
-  to: number;
-  color: string;
-}[] = [
-  { key: "delta", label: "δ波", from: 1, to: 4, color: "#94a3b8" },
-  { key: "theta", label: "θ波", from: 4, to: 8, color: "#38bdf8" },
-  { key: "alpha", label: "α波", from: 8, to: 13, color: "#22c55e" },
-  { key: "beta", label: "β波", from: 13, to: 30, color: "#fb923c" },
-  { key: "gamma", label: "γ波", from: 30, to: 45, color: "#d946ef" },
-];
+/** The 8 spectrum bands — same colors and names as the 8-band pie, positioned
+ *  on the Hz axis by their frequency range. Single source keeps the spectrum
+ *  shading and the pie in correspondence. Shared with the compare chart. */
+export const SPECTRUM_BANDS = BAND_META.map((b) => ({
+  key: b.key,
+  label: b.ja,
+  color: BAND_COLORS[b.key],
+  from: BAND_HZ_RANGE[b.key][0],
+  to: BAND_HZ_RANGE[b.key][1],
+}));
 
 const SERVER_COLORS = "#4a7fd4|#1e3a5f|#8890a8";
 
@@ -71,17 +66,16 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false} />
 
-          {/* Band ranges: tinted regions + a label at the top of each. */}
+          {/* Band ranges tinted in the pie's colors (labels live in the legend). */}
           {SPECTRUM_BANDS.map((b) => (
             <ReferenceArea
               key={b.key}
               x1={b.from}
               x2={Math.min(b.to, maxHz)}
               fill={b.color}
-              fillOpacity={0.12}
+              fillOpacity={0.16}
               stroke={grid}
-              strokeOpacity={0.4}
-              label={{ value: b.label, position: "insideTop", fill: axis, fontSize: 10 }}
+              strokeOpacity={0.35}
             />
           ))}
 
@@ -113,15 +107,15 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
         </AreaChart>
       </ResponsiveContainer>
 
-      {/* Band legend with Hz ranges. */}
+      {/* Band legend: color + wave type only (no Hz ranges). */}
       <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-1 text-xs text-text-secondary">
         {SPECTRUM_BANDS.map((b) => (
           <span key={b.key} className="flex items-center gap-1">
             <span
               className="inline-block w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: b.color, opacity: 0.7 }}
+              style={{ backgroundColor: b.color }}
             />
-            {b.label} {b.from}–{Math.min(b.to, maxHz)}Hz
+            {b.label}
           </span>
         ))}
       </div>

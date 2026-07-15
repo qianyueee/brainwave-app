@@ -2,19 +2,7 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import type { BandPowers } from "@/lib/mind/types";
-import { BAND_META } from "@/lib/mind/types";
-
-/** Distinct color per band (gamma = magenta/purple, matching the equalizer accent). */
-const BAND_COLORS: Record<string, string> = {
-  delta: "#94a3b8",
-  theta: "#fcd34d",
-  lowAlpha: "#38bdf8",
-  highAlpha: "#3b82f6",
-  lowBeta: "#fdba74",
-  highBeta: "#fb923c",
-  lowGamma: "#d946ef",
-  highGamma: "#a855f7",
-};
+import { BAND_META, BAND_COLORS } from "@/lib/mind/types";
 
 /**
  * 8-band brainwave balance: a colored pie (Delta at 12 o'clock, clockwise) with
