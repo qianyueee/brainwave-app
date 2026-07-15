@@ -137,6 +137,10 @@ export default function LogPage() {
   }, []);
 
   // Up to three measurements picked (by uploadedAt) for the Hz spectrum compare.
+  // Stale ids (measurements array replaced out-of-band on an account switch)
+  // are simply ignored downstream — `picked` and the hint derive from the
+  // current measurements, so a stale selection never drives wrong feedback and
+  // ages out within a couple of picks via slice(-3).
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const toggleSelect = (id: string) =>
     setSelectedIds((prev) =>
@@ -186,7 +190,7 @@ export default function LogPage() {
             />
           </div>
         )}
-        {selectedIds.length === 1 && (
+        {picked.length === 1 && (
           <p className="text-sm text-text-secondary text-center">
             もう1件選ぶと比較を表示します
           </p>
