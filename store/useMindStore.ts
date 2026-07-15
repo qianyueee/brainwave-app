@@ -11,6 +11,7 @@ import {
   programGammaGain,
   withGammaGain,
   combineZoneBoost,
+  averageSpectra,
   GAMMA_BASELINE_ALPHA,
 } from "@/lib/mind/types";
 import type { SourceStatus } from "@/lib/mind/data-source";
@@ -36,6 +37,9 @@ export interface MindSessionSummary {
    *  sessions persisted before this feature still load. */
   indicators?: BrainIndicators;
   bands?: BandPowers;
+  /** Session-average per-Hz FFT spectrum (1..SPECTRUM_MAX_HZ Hz). Realtime
+   *  measurements only — the demo and the bridge provide it; uploads don't. */
+  spectrum?: number[];
   /** Free-text memo the user can attach to a measurement (optional). */
   note?: string;
 }
@@ -236,6 +240,7 @@ export const useMindStore = create<MindState>()(
           source: sourceKind,
           indicators: computeIndicators(rows),
           bands: computeBandPowers(rows),
+          spectrum: averageSpectra(recordingSamples.map((s) => s.spectrum)),
         };
         set({
           isRecording: false,

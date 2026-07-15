@@ -16,6 +16,7 @@ export interface BrainIndicators {
 export interface BrainProfile {
   indicators: BrainIndicators;
   bands?: BandPowers;   // session-average relative power of the 8 raw bands (optional for legacy records)
+  spectrum?: number[];  // session-average per-Hz FFT spectrum (1..45Hz); realtime measurements only
   uploadedAt: string;   // ISO date
   sessionTag: string;   // from Tag column
 }

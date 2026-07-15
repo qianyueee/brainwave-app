@@ -67,6 +67,7 @@ export function useImportSession() {
         await addMeasurement({
           indicators: s.indicators,
           bands: s.bands,
+          spectrum: s.spectrum,
           uploadedAt,
           sessionTag: sessionLabel(s),
         });

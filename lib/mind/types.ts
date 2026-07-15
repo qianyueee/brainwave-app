@@ -18,7 +18,32 @@ export interface EegSample {
   highGamma: number;
   signal?: number; // ThinkGear POOR_SIGNAL: 0 = good, 200 = no skin contact
   battery?: number; // 0-100
+  /** Per-Hz FFT magnitudes for 1..SPECTRUM_MAX_HZ Hz (index i ⇒ (i+1) Hz),
+   *  computed on the bridge from the raw 512Hz waveform. Realtime only —
+   *  file uploads and older bridges omit it. */
+  spectrum?: number[];
   ts: number; // epoch ms
+}
+
+/** Highest frequency (Hz) in the per-Hz spectrum; the array has this length,
+ *  index 0 = 1 Hz … index SPECTRUM_MAX_HZ-1 = SPECTRUM_MAX_HZ Hz. */
+export const SPECTRUM_MAX_HZ = 45;
+
+/** Element-wise mean of equal-length spectra (skips empty/missing ones).
+ *  Returns undefined when no usable spectrum is present. */
+export function averageSpectra(spectra: (number[] | undefined)[]): number[] | undefined {
+  const valid = spectra.filter((s): s is number[] => Array.isArray(s) && s.length > 0);
+  if (!valid.length) return undefined;
+  const len = valid[0].length;
+  const out = new Array<number>(len).fill(0);
+  let count = 0;
+  for (const s of valid) {
+    if (s.length !== len) continue;
+    for (let i = 0; i < len; i++) out[i] += s[i];
+    count++;
+  }
+  if (count === 0) return undefined;
+  return out.map((v) => v / count);
 }
 
 /** Supabase Realtime channel name = `eeg:{pairing_code}`. */

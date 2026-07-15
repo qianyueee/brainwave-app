@@ -5,7 +5,7 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainBandPie from "@/components/BrainBandPie";
-import BrainBandCompare from "@/components/BrainBandCompare";
+import BrainSpectrumChart from "@/components/BrainSpectrumChart";
 import IndicatorHelp from "@/components/IndicatorHelp";
 import EegUploader from "@/components/EegUploader";
 import { BrainCircuit, Lock } from "lucide-react";
@@ -24,13 +24,6 @@ export default function ProfilePage() {
   useEffect(() => {
     setHydrated(true);
   }, []);
-
-  // Before/after 8-band comparison uses the two most recent measurements that
-  // carry band data (体験前 = previous, 体験後 = latest).
-  const withBands = measurements.filter((m) => m.bands);
-  const cmpAfter = withBands[withBands.length - 1];
-  const cmpBefore = withBands[withBands.length - 2];
-  const canCompare = Boolean(cmpBefore?.bands && cmpAfter?.bands);
 
   if (!hydrated) return null;
 
@@ -113,6 +106,19 @@ export default function ProfilePage() {
             )}
           </div>
 
+          {/* Per-Hz frequency spectrum (realtime measurements only). */}
+          {profile.spectrum && profile.spectrum.length > 0 && (
+            <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
+              <p className="text-base font-bold text-text-primary mb-1 text-center">
+                周波数スペクトル
+              </p>
+              <p className="text-xs text-text-muted text-center mb-2">
+                1〜{profile.spectrum.length}Hz の相対振幅
+              </p>
+              <BrainSpectrumChart spectrum={profile.spectrum} />
+            </div>
+          )}
+
           {/* Re-upload & Clear */}
           <div className="flex flex-col gap-3">
             <EegUploader />
@@ -129,30 +135,6 @@ export default function ProfilePage() {
           </div>
           </div>
           </div>
-
-          {/* Before/after 8-band spectrum comparison (full width). */}
-          {profile.bands && (
-            <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-              <p className="text-base font-bold text-text-primary mb-1 text-center">
-                脳波の変化（前回 → 今回）
-              </p>
-              {canCompare ? (
-                <>
-                  <BrainBandCompare before={cmpBefore.bands!} after={cmpAfter.bands!} />
-                  <p className="text-xs text-text-muted text-center mt-2">
-                    体験前:{" "}
-                    {new Date(cmpBefore.uploadedAt).toLocaleDateString("ja-JP")} → 体験後:{" "}
-                    {new Date(cmpAfter.uploadedAt).toLocaleDateString("ja-JP")}
-                    <br />※ 各測定内の相対比率（%）での比較です
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-text-secondary text-center py-8">
-                  もう一度測定すると、前回と今回の脳波バランスの変化を比較できます。
-                </p>
-              )}
-            </div>
-          )}
         </>
       ) : (
         <>
