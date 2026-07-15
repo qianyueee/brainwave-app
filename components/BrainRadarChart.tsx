@@ -44,7 +44,7 @@ export default function BrainRadarChart({
   for (const d of data) scoreByLabel[d.label] = d.value;
 
   const isSmall = size === "small";
-  const height = isSmall ? (showScores ? 230 : 180) : showScores ? 320 : 280;
+  const height = isSmall ? (showScores ? 240 : 180) : showScores ? 360 : 280;
 
   const [colors, setColors] = useState({
     primary: "#4a7fd4",
@@ -70,19 +70,31 @@ export default function BrainRadarChart({
     return () => window.removeEventListener(THEME_CHANGE_EVENT, readColors);
   }, [readColors]);
 
-  // Custom tick: indicator name with its score on a second line.
+  // Custom tick: indicator name + score, pushed radially outward from the
+  // center so the text clears the radar polygon (which reaches the vertex at
+  // score 100) instead of overlapping it.
   const renderTick = (props: BaseTickContentProps) => {
-    const { x, y, textAnchor, payload } = props;
-    const label = String(payload?.value ?? "");
+    const p = props as BaseTickContentProps & { cx?: number; cy?: number };
+    const x = Number(p.x);
+    const y = Number(p.y);
+    const cx = Number(p.cx ?? x);
+    const cy = Number(p.cy ?? y);
+    const label = String(p.payload?.value ?? "");
     const score = scoreByLabel[label] ?? 0;
+    const dx = x - cx;
+    const dy = y - cy;
+    const dist = Math.hypot(dx, dy) || 1;
+    const push = isSmall ? 8 : 14;
+    const lx = x + (dx / dist) * push;
+    const ly = y + (dy / dist) * push;
     return (
-      <text x={x} y={y} textAnchor={textAnchor} fill={colors.text}>
-        <tspan x={x} dy="-2" fontSize={isSmall ? 10 : 12}>
+      <text x={lx} y={ly} textAnchor={p.textAnchor} fill={colors.text}>
+        <tspan x={lx} dy={isSmall ? -2 : -3} fontSize={isSmall ? 10 : 12}>
           {label}
         </tspan>
         <tspan
-          x={x}
-          dy={isSmall ? 15 : 17}
+          x={lx}
+          dy={isSmall ? 14 : 17}
           fontSize={isSmall ? 13 : 15}
           fontWeight={700}
           fill={scoreColor(score)}
@@ -99,7 +111,7 @@ export default function BrainRadarChart({
         data={data}
         cx="50%"
         cy="50%"
-        outerRadius={isSmall ? (showScores ? "58%" : "70%") : showScores ? "62%" : "75%"}
+        outerRadius={isSmall ? (showScores ? "54%" : "70%") : showScores ? "50%" : "75%"}
       >
         <PolarGrid stroke={colors.grid} />
         <PolarAngleAxis
