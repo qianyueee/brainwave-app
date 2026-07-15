@@ -9,56 +9,89 @@ import { compositeScore } from "@/lib/brain-measurements";
 import SimpleCalendar from "@/components/SimpleCalendar";
 import BrainTrendChart from "@/components/BrainTrendChart";
 import BrainRadarChart from "@/components/BrainRadarChart";
+import BrainSpectrumCompare from "@/components/BrainSpectrumCompare";
 import EegUploader from "@/components/EegUploader";
-import { ChevronDown, Trash2, BrainCircuit, Lock } from "lucide-react";
+import { ChevronDown, Trash2, BrainCircuit, Lock, CheckSquare, Square, X } from "lucide-react";
 
 function scoreColor(score: number): string {
   return score >= 70 ? "#22c55e" : score >= 40 ? "#f97316" : "#ef4444";
 }
 
+/** Short date-time label for a measurement, e.g. "7月13日 17:50". */
+function measurementLabel(m: BrainProfile): string {
+  return new Date(m.uploadedAt).toLocaleString("ja-JP", {
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function MeasurementItem({
   m,
   onDelete,
+  selectable,
+  selected,
+  onToggleSelect,
 }: {
   m: BrainProfile;
   onDelete: (uploadedAt: string) => void;
+  /** Only measurements with a spectrum can be picked for the Hz comparison. */
+  selectable: boolean;
+  selected: boolean;
+  onToggleSelect: (uploadedAt: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const total = compositeScore(m.indicators);
   const date = new Date(m.uploadedAt);
 
   return (
-    <div className="bg-surface border border-surface-border rounded-3xl neu-raised overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 p-4 text-left"
-      >
-        <div className="min-w-0">
-          <p className="text-base font-bold text-text-primary">
-            {date.toLocaleDateString("ja-JP", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-          <p className="text-sm text-text-secondary truncate">{m.sessionTag}</p>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="text-right">
-            <p
-              className="text-xl font-mono font-bold tabular-nums"
-              style={{ color: scoreColor(total) }}
-            >
-              {total}
+    <div
+      className={`bg-surface border rounded-3xl neu-raised overflow-hidden transition-colors ${
+        selected ? "border-primary" : "border-surface-border"
+      }`}
+    >
+      <div className="flex items-center gap-1">
+        {selectable && (
+          <button
+            onClick={() => onToggleSelect(m.uploadedAt)}
+            aria-label={selected ? "選択を解除" : "比較に選択"}
+            className="shrink-0 pl-3 pr-1 py-4 flex items-center text-primary"
+          >
+            {selected ? <CheckSquare size={22} /> : <Square size={22} className="text-text-muted" />}
+          </button>
+        )}
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="min-w-0 flex-1 flex items-center justify-between gap-3 p-4 text-left"
+        >
+          <div className="min-w-0">
+            <p className="text-base font-bold text-text-primary">
+              {date.toLocaleDateString("ja-JP", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
             </p>
-            <p className="text-xs text-text-muted">総合</p>
+            <p className="text-sm text-text-secondary truncate">{m.sessionTag}</p>
           </div>
-          <ChevronDown
-            size={20}
-            className={`text-text-muted transition-transform ${open ? "rotate-180" : ""}`}
-          />
-        </div>
-      </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="text-right">
+              <p
+                className="text-xl font-mono font-bold tabular-nums"
+                style={{ color: scoreColor(total) }}
+              >
+                {total}
+              </p>
+              <p className="text-xs text-text-muted">総合</p>
+            </div>
+            <ChevronDown
+              size={20}
+              className={`text-text-muted transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </div>
+        </button>
+      </div>
 
       {open && (
         <div className="px-4 pb-4 flex flex-col gap-3 border-t border-surface-border pt-3">
@@ -91,6 +124,13 @@ export default function LogPage() {
     setHydrated(true);
   }, []);
 
+  // Up to two measurements picked (by uploadedAt) for the Hz spectrum compare.
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-2)
+    );
+
   const totalSessions = sessionLogs.length;
   const totalMinutes = Math.round(
     sessionLogs.reduce((sum, log) => sum + log.duration, 0) / 60
@@ -98,6 +138,16 @@ export default function LogPage() {
 
   // Newest first for the list
   const ordered = [...measurements].reverse();
+
+  // How many measurements carry a per-Hz spectrum (only those are comparable).
+  const spectrumCount = measurements.filter((m) => m.spectrum?.length).length;
+
+  // The two picked measurements, ordered oldest→newest (前 → 後) for the chart.
+  const picked = selectedIds
+    .map((id) => measurements.find((m) => m.uploadedAt === id))
+    .filter((m): m is BrainProfile => Boolean(m?.spectrum?.length))
+    .sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
+  const canCompare = picked.length === 2;
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
@@ -130,6 +180,11 @@ export default function LogPage() {
         <div>
           <h2 className="text-xl font-bold text-text-primary">脳波の記録</h2>
           <p className="text-sm text-text-secondary mt-1">測定ごとの6指標の推移</p>
+          {hydrated && spectrumCount >= 2 && (
+            <p className="text-xs text-text-muted mt-1">
+              周波数スペクトルのある測定を2件選ぶと、前後を比較できます
+            </p>
+          )}
         </div>
 
         {!hydrated ? null : !authLoading && !user ? (
@@ -167,11 +222,43 @@ export default function LogPage() {
                   key={m.uploadedAt}
                   m={m}
                   onDelete={(t) => {
+                    setSelectedIds((prev) => prev.filter((x) => x !== t));
                     deleteMeasurement(t).catch((err) => console.error(err));
                   }}
+                  selectable={Boolean(m.spectrum?.length)}
+                  selected={selectedIds.includes(m.uploadedAt)}
+                  onToggleSelect={toggleSelect}
                 />
               ))}
             </div>
+
+            {/* Hz spectrum before/after comparison of the two picked measurements. */}
+            {canCompare && (
+              <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-base font-bold text-text-primary">周波数スペクトル比較</p>
+                  <button
+                    onClick={() => setSelectedIds([])}
+                    aria-label="選択を解除"
+                    className="w-8 h-8 rounded-lg bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <BrainSpectrumCompare
+                  beforeSpectrum={picked[0].spectrum!}
+                  afterSpectrum={picked[1].spectrum!}
+                  beforeLabel={measurementLabel(picked[0])}
+                  afterLabel={measurementLabel(picked[1])}
+                />
+              </div>
+            )}
+            {selectedIds.length === 1 && (
+              <p className="text-sm text-text-secondary text-center">
+                もう1件選ぶと比較を表示します
+              </p>
+            )}
+
             <EegUploader />
           </>
         )}

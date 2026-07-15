@@ -13,8 +13,15 @@ import {
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
 /** Classic EEG band ranges (Hz), used to shade + label the spectrum. `to` is
- *  clamped to the data length for the last (γ) band. */
-const BANDS: { key: string; label: string; from: number; to: number; color: string }[] = [
+ *  clamped to the data length for the last (γ) band. Shared with the compare
+ *  chart. */
+export const SPECTRUM_BANDS: {
+  key: string;
+  label: string;
+  from: number;
+  to: number;
+  color: string;
+}[] = [
   { key: "delta", label: "δ波", from: 1, to: 4, color: "#94a3b8" },
   { key: "theta", label: "θ波", from: 4, to: 8, color: "#38bdf8" },
   { key: "alpha", label: "α波", from: 8, to: 13, color: "#22c55e" },
@@ -65,7 +72,7 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
           <CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false} />
 
           {/* Band ranges: tinted regions + a label at the top of each. */}
-          {BANDS.map((b) => (
+          {SPECTRUM_BANDS.map((b) => (
             <ReferenceArea
               key={b.key}
               x1={b.from}
@@ -108,7 +115,7 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
 
       {/* Band legend with Hz ranges. */}
       <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-1 text-xs text-text-secondary">
-        {BANDS.map((b) => (
+        {SPECTRUM_BANDS.map((b) => (
           <span key={b.key} className="flex items-center gap-1">
             <span
               className="inline-block w-2.5 h-2.5 rounded-sm"
