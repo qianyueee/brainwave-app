@@ -18,18 +18,20 @@ function getThemeColor(varName: string, fallback: string): string {
   return val || fallback;
 }
 
+// High-contrast, temperature-coded pair: 集中 = cool cyan-blue, リラックス =
+// warm orange. Fixed (not theme-derived) so the two lines stay easy to tell
+// apart on both light and dark themes.
+const ATTENTION_COLOR = "#38bdf8"; // 集中（冷）
+const MEDITATION_COLOR = "#fb923c"; // リラックス（暖）
+
 export default function MindTrendChart({ history }: { history: EegSample[] }) {
   const [colors, setColors] = useState({
-    primary: "#4a7fd4",
-    accent: "#6b6baa",
     grid: "#162440",
     text: "#8890a8",
   });
 
   const readColors = useCallback(() => {
     setColors({
-      primary: getThemeColor("--color-primary", "#4a7fd4"),
-      accent: getThemeColor("--color-accent", "#6b6baa"),
       grid: getThemeColor("--color-navy-lighter", "#162440"),
       text: getThemeColor("--color-text-secondary", "#8890a8"),
     });
@@ -58,14 +60,14 @@ export default function MindTrendChart({ history }: { history: EegSample[] }) {
           <span className="flex items-center gap-1.5 text-text-secondary">
             <span
               className="inline-block w-3 h-3 rounded-full"
-              style={{ backgroundColor: colors.primary }}
+              style={{ backgroundColor: ATTENTION_COLOR }}
             />
             集中
           </span>
           <span className="flex items-center gap-1.5 text-text-secondary">
             <span
               className="inline-block w-3 h-3 rounded-full"
-              style={{ backgroundColor: colors.accent }}
+              style={{ backgroundColor: MEDITATION_COLOR }}
             />
             リラックス
           </span>
@@ -95,7 +97,7 @@ export default function MindTrendChart({ history }: { history: EegSample[] }) {
             <Line
               type="monotone"
               dataKey="attention"
-              stroke={colors.primary}
+              stroke={ATTENTION_COLOR}
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}
@@ -103,7 +105,7 @@ export default function MindTrendChart({ history }: { history: EegSample[] }) {
             <Line
               type="monotone"
               dataKey="meditation"
-              stroke={colors.accent}
+              stroke={MEDITATION_COLOR}
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}
