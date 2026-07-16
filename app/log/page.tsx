@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -11,7 +12,7 @@ import BrainTrendChart from "@/components/BrainTrendChart";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainSpectrumCompare from "@/components/BrainSpectrumCompare";
 import EegUploader from "@/components/EegUploader";
-import { ChevronDown, Trash2, BrainCircuit, Lock, CheckSquare, Square, X } from "lucide-react";
+import { ChevronDown, Trash2, BrainCircuit, Lock, CheckSquare, Square, X, BarChart3 } from "lucide-react";
 
 function scoreColor(score: number): string {
   return score >= 70 ? "#22c55e" : score >= 40 ? "#f97316" : "#ef4444";
@@ -30,12 +31,15 @@ function measurementLabel(m: BrainProfile): string {
 function MeasurementItem({
   m,
   onDelete,
+  onView,
   selectable,
   selected,
   onToggleSelect,
 }: {
   m: BrainProfile;
   onDelete: (uploadedAt: string) => void;
+  /** Open this measurement on the 脳特性 page. */
+  onView: (uploadedAt: string) => void;
   /** Only measurements with a spectrum can be picked for the Hz comparison. */
   selectable: boolean;
   selected: boolean;
@@ -96,14 +100,22 @@ function MeasurementItem({
       {open && (
         <div className="px-4 pb-4 flex flex-col gap-3 border-t border-surface-border pt-3">
           <BrainRadarChart indicators={m.indicators} size="small" showScores />
-          <button
-            onClick={() => {
-              if (window.confirm("この記録を削除しますか？")) onDelete(m.uploadedAt);
-            }}
-            className="self-end flex items-center gap-2 px-4 py-2 rounded-2xl bg-navy text-red-400 text-sm font-medium neu-raised-sm neu-press transition-transform"
-          >
-            <Trash2 size={16} /> 削除
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={() => onView(m.uploadedAt)}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
+            >
+              <BarChart3 size={16} /> 脳特性で見る
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm("この記録を削除しますか？")) onDelete(m.uploadedAt);
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-navy text-red-400 text-sm font-medium neu-raised-sm neu-press transition-transform"
+            >
+              <Trash2 size={16} /> 削除
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -111,12 +123,19 @@ function MeasurementItem({
 }
 
 export default function LogPage() {
+  const router = useRouter();
   const sessionLogs = useAppStore((s) => s.sessionLogs);
   const measurements = useBrainProfileStore((s) => s.measurements);
   const deleteMeasurement = useBrainProfileStore((s) => s.deleteMeasurement);
+  const setViewingMeasurement = useBrainProfileStore((s) => s.setViewingMeasurement);
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
+
+  const viewOnProfile = (uploadedAt: string) => {
+    setViewingMeasurement(uploadedAt);
+    router.push("/profile");
+  };
 
   // Guard hydration mismatch from persisted measurements
   const [hydrated, setHydrated] = useState(false);
@@ -277,6 +296,7 @@ export default function LogPage() {
                     setSelectedIds((prev) => prev.filter((x) => x !== t));
                     deleteMeasurement(t).catch((err) => console.error(err));
                   }}
+                  onView={viewOnProfile}
                   selectable={Boolean(m.spectrum?.length)}
                   selected={selectedIds.includes(m.uploadedAt)}
                   onToggleSelect={toggleSelect}

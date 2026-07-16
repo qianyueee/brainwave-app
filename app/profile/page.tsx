@@ -15,6 +15,8 @@ export default function ProfilePage() {
   const profile = useBrainProfileStore((s) => s.profile);
   const measurements = useBrainProfileStore((s) => s.measurements);
   const clearProfile = useBrainProfileStore((s) => s.clearProfile);
+  const viewingUploadedAt = useBrainProfileStore((s) => s.viewingUploadedAt);
+  const setViewingMeasurement = useBrainProfileStore((s) => s.setViewingMeasurement);
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
@@ -24,6 +26,14 @@ export default function ProfilePage() {
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  // Which measurement to show: a past one picked from the log page (if it still
+  // exists), otherwise the latest. `profile` is always the latest.
+  const viewed = viewingUploadedAt
+    ? measurements.find((m) => m.uploadedAt === viewingUploadedAt) ?? null
+    : null;
+  const displayed = viewed ?? profile;
+  const isViewingPast = Boolean(viewed && profile && viewed.uploadedAt !== profile.uploadedAt);
 
   if (!hydrated) return null;
 
@@ -60,7 +70,30 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      {profile ? (
+      {/* Viewing a past measurement (opened from the log) — offer a way back. */}
+      {isViewingPast && displayed && (
+        <div className="flex items-center justify-between gap-3 bg-surface border border-primary rounded-2xl px-4 py-3 neu-raised">
+          <p className="text-sm text-text-secondary">
+            過去の測定を表示中：
+            <span className="font-bold text-text-primary">
+              {new Date(displayed.uploadedAt).toLocaleString("ja-JP", {
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </p>
+          <button
+            onClick={() => setViewingMeasurement(null)}
+            className="shrink-0 px-3 py-1.5 rounded-xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
+          >
+            最新に戻る
+          </button>
+        </div>
+      )}
+
+      {displayed ? (
         <>
           {/* Mobile: single column. Desktop: radar (scores) | 8-band pie. */}
           <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
@@ -71,10 +104,10 @@ export default function ProfilePage() {
               <h2 className="text-base font-bold text-text-primary">大脳特性</h2>
               <IndicatorHelp />
             </div>
-            <BrainRadarChart indicators={profile.indicators} size="large" showScores />
+            <BrainRadarChart indicators={displayed.indicators} size="large" showScores />
             <p className="text-xs text-text-muted text-center mt-2">
-              セッション: {profile.sessionTag} ・ 最終更新:{" "}
-              {new Date(profile.uploadedAt).toLocaleDateString("ja-JP")}
+              セッション: {displayed.sessionTag} ・ 測定日:{" "}
+              {new Date(displayed.uploadedAt).toLocaleDateString("ja-JP")}
             </p>
           </div>
 
@@ -95,8 +128,8 @@ export default function ProfilePage() {
             <p className="text-base font-bold text-text-primary mb-2 text-center">
               8種類の脳波バランス
             </p>
-            {profile.bands ? (
-              <BrainBandPie powers={profile.bands} />
+            {displayed.bands ? (
+              <BrainBandPie powers={displayed.bands} />
             ) : (
               <p className="text-sm text-text-secondary text-center py-8">
                 この測定には脳波バランスのデータが含まれていません。
@@ -107,15 +140,15 @@ export default function ProfilePage() {
           </div>
 
           {/* Per-Hz frequency spectrum (realtime measurements only). */}
-          {profile.spectrum && profile.spectrum.length > 0 && (
+          {displayed.spectrum && displayed.spectrum.length > 0 && (
             <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
               <p className="text-base font-bold text-text-primary mb-1 text-center">
                 周波数スペクトル
               </p>
               <p className="text-xs text-text-muted text-center mb-2">
-                1〜{profile.spectrum.length}Hz の相対振幅
+                1〜{displayed.spectrum.length}Hz の相対振幅
               </p>
-              <BrainSpectrumChart spectrum={profile.spectrum} />
+              <BrainSpectrumChart spectrum={displayed.spectrum} />
             </div>
           )}
 

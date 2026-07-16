@@ -13,12 +13,16 @@ interface BrainProfileState {
   profile: BrainProfile | null;
   /** Full measurement history, oldest→newest. */
   measurements: BrainProfile[];
+  /** uploadedAt of a past measurement the user chose to view on /profile
+   *  (from the log page). null = show the latest. Transient (not persisted). */
+  viewingUploadedAt: string | null;
   cloudUserId: string | null;
   addMeasurement: (profile: BrainProfile) => Promise<void>;
   deleteMeasurement: (uploadedAt: string) => Promise<void>;
   clearProfile: () => Promise<void>;
   loadFromCloud: (userId: string) => Promise<void>;
   clearForLogout: () => void;
+  setViewingMeasurement: (uploadedAt: string | null) => void;
 }
 
 const latest = (list: BrainProfile[]): BrainProfile | null =>
@@ -29,12 +33,14 @@ export const useBrainProfileStore = create<BrainProfileState>()(
     (set, get) => ({
       profile: null,
       measurements: [],
+      viewingUploadedAt: null,
       cloudUserId: null,
 
       addMeasurement: async (profile) => {
         const prev = get().measurements;
         const next = [...prev, profile];
-        set({ measurements: next, profile: latest(next) });
+        // A fresh import shows the new latest, not a previously-viewed record.
+        set({ measurements: next, profile: latest(next), viewingUploadedAt: null });
         const uid = get().cloudUserId;
         if (!uid) return;
         try {
@@ -64,7 +70,7 @@ export const useBrainProfileStore = create<BrainProfileState>()(
 
       clearProfile: async () => {
         const prev = get().measurements;
-        set({ measurements: [], profile: null });
+        set({ measurements: [], profile: null, viewingUploadedAt: null });
         const uid = get().cloudUserId;
         if (!uid) return;
         try {
@@ -87,8 +93,10 @@ export const useBrainProfileStore = create<BrainProfileState>()(
       },
 
       clearForLogout: () => {
-        set({ profile: null, measurements: [], cloudUserId: null });
+        set({ profile: null, measurements: [], cloudUserId: null, viewingUploadedAt: null });
       },
+
+      setViewingMeasurement: (uploadedAt) => set({ viewingUploadedAt: uploadedAt }),
     }),
     {
       name: "brain-profile",
