@@ -2,6 +2,7 @@
 
 import type { BandPowers } from "@/lib/mind/types";
 import BandBars from "./BandBars";
+import Fullscreenable from "@/components/Fullscreenable";
 
 /**
  * 脳波バランス card. Presentational: the parent decides what `powers` to show —
@@ -23,7 +24,9 @@ export default function BandEqualizer({
         <p className="text-base font-bold text-text-primary">脳波バランス</p>
         {note && <p className="text-xs text-text-muted shrink-0">{note}</p>}
       </div>
-      <BandBars powers={powers} />
+      <Fullscreenable title="脳波バランス">
+        <BandBars powers={powers} />
+      </Fullscreenable>
     </div>
   );
 }

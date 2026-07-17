@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { EegSample } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
+import Fullscreenable from "@/components/Fullscreenable";
 
 function getThemeColor(varName: string, fallback: string): string {
   if (typeof window === "undefined") return fallback;
@@ -18,11 +19,11 @@ function getThemeColor(varName: string, fallback: string): string {
   return val || fallback;
 }
 
-// High-contrast, temperature-coded pair: 集中 = cool cyan-blue, リラックス =
-// warm orange. Fixed (not theme-derived) so the two lines stay easy to tell
-// apart on both light and dark themes.
-const ATTENTION_COLOR = "#38bdf8"; // 集中（冷）
-const MEDITATION_COLOR = "#fb923c"; // リラックス（暖）
+// High-contrast, temperature-coded pair (fixed, not theme-derived, so the two
+// lines stay easy to tell apart on both themes): 集中 = warm orange,
+// リラックス = cool cyan-blue.
+const ATTENTION_COLOR = "#fb923c"; // 集中（暖）
+const MEDITATION_COLOR = "#38bdf8"; // リラックス（冷）
 
 export default function MindTrendChart({ history }: { history: EegSample[] }) {
   const [colors, setColors] = useState({
@@ -79,39 +80,41 @@ export default function MindTrendChart({ history }: { history: EegSample[] }) {
           データを集めています…
         </p>
       ) : (
-        <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={data} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-            <XAxis
-              dataKey="time"
-              tick={{ fill: colors.text, fontSize: 12 }}
-              axisLine={{ stroke: colors.grid }}
-              interval="preserveStartEnd"
-              minTickGap={40}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tick={{ fill: colors.text, fontSize: 12 }}
-              axisLine={{ stroke: colors.grid }}
-            />
-            <Line
-              type="monotone"
-              dataKey="attention"
-              stroke={ATTENTION_COLOR}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="meditation"
-              stroke={MEDITATION_COLOR}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <Fullscreenable title="推移（直近5分）">
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={data} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
+              <XAxis
+                dataKey="time"
+                tick={{ fill: colors.text, fontSize: 12 }}
+                axisLine={{ stroke: colors.grid }}
+                interval="preserveStartEnd"
+                minTickGap={40}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: colors.text, fontSize: 12 }}
+                axisLine={{ stroke: colors.grid }}
+              />
+              <Line
+                type="monotone"
+                dataKey="attention"
+                stroke={ATTENTION_COLOR}
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="meditation"
+                stroke={MEDITATION_COLOR}
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Fullscreenable>
       )}
     </div>
   );

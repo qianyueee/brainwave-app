@@ -11,6 +11,7 @@ import SimpleCalendar from "@/components/SimpleCalendar";
 import BrainTrendChart from "@/components/BrainTrendChart";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainSpectrumCompare from "@/components/BrainSpectrumCompare";
+import Fullscreenable from "@/components/Fullscreenable";
 import EegUploader from "@/components/EegUploader";
 import { ChevronDown, Trash2, BrainCircuit, Lock, CheckSquare, Square, X, BarChart3 } from "lucide-react";
 
@@ -99,7 +100,9 @@ function MeasurementItem({
 
       {open && (
         <div className="px-4 pb-4 flex flex-col gap-3 border-t border-surface-border pt-3">
-          <BrainRadarChart indicators={m.indicators} size="small" showScores />
+          <Fullscreenable title={measurementLabel(m)}>
+            <BrainRadarChart indicators={m.indicators} size="small" showScores />
+          </Fullscreenable>
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => onView(m.uploadedAt)}
@@ -201,12 +204,14 @@ export default function LogPage() {
                 <X size={18} />
               </button>
             </div>
-            <BrainSpectrumCompare
-              series={picked.map((m) => ({
-                spectrum: m.spectrum!,
-                label: measurementLabel(m),
-              }))}
-            />
+            <Fullscreenable title="周波数スペクトル比較">
+              <BrainSpectrumCompare
+                series={picked.map((m) => ({
+                  spectrum: m.spectrum!,
+                  label: measurementLabel(m),
+                }))}
+              />
+            </Fullscreenable>
           </div>
         )}
         {picked.length === 1 && (

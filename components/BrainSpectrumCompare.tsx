@@ -55,9 +55,11 @@ export default function BrainSpectrumCompare({ series }: { series: SpectrumSerie
 
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
   const [primary, grid, axis, muted] = colorStr.split("|");
-  // Oldest → newest; distinct hues (grey · amber · primary), newest most
-  // prominent. Amber for the middle keeps 3 lines clearly separable.
-  const lineColors = series.length >= 3 ? [muted, "#f59e0b", primary] : [muted, primary];
+  // Oldest → newest. For 3 lines use three highly distinct, saturated hues
+  // (cyan · amber · rose) so they're easy to tell apart over the band shading;
+  // for 2 keep the muted→primary before/after pairing.
+  const lineColors =
+    series.length >= 3 ? ["#06b6d4", "#f59e0b", "#f43f5e"] : [muted, primary];
 
   return (
     <div>

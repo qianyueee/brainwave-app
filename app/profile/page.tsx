@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainBandPie from "@/components/BrainBandPie";
 import BrainSpectrumChart from "@/components/BrainSpectrumChart";
+import Fullscreenable from "@/components/Fullscreenable";
 import IndicatorHelp from "@/components/IndicatorHelp";
 import EegUploader from "@/components/EegUploader";
 import { BrainCircuit, Lock } from "lucide-react";
@@ -104,7 +105,9 @@ export default function ProfilePage() {
               <h2 className="text-base font-bold text-text-primary">大脳特性</h2>
               <IndicatorHelp />
             </div>
-            <BrainRadarChart indicators={displayed.indicators} size="large" showScores />
+            <Fullscreenable title="大脳特性">
+              <BrainRadarChart indicators={displayed.indicators} size="large" showScores />
+            </Fullscreenable>
             <p className="text-xs text-text-muted text-center mt-2">
               セッション: {displayed.sessionTag} ・ 測定日:{" "}
               {new Date(displayed.uploadedAt).toLocaleDateString("ja-JP")}
@@ -129,7 +132,9 @@ export default function ProfilePage() {
               8種類の脳波バランス
             </p>
             {displayed.bands ? (
-              <BrainBandPie powers={displayed.bands} />
+              <Fullscreenable title="8種類の脳波バランス">
+                <BrainBandPie powers={displayed.bands} />
+              </Fullscreenable>
             ) : (
               <p className="text-sm text-text-secondary text-center py-8">
                 この測定には脳波バランスのデータが含まれていません。
@@ -148,7 +153,9 @@ export default function ProfilePage() {
               <p className="text-xs text-text-muted text-center mb-2">
                 1〜{displayed.spectrum.length}Hz の相対振幅
               </p>
-              <BrainSpectrumChart spectrum={displayed.spectrum} />
+              <Fullscreenable title="周波数スペクトル">
+                <BrainSpectrumChart spectrum={displayed.spectrum} />
+              </Fullscreenable>
             </div>
           )}
 

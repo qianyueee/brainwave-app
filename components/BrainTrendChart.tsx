@@ -14,6 +14,7 @@ import type { BrainProfile } from "@/lib/brain-profile";
 import { INDICATOR_META } from "@/lib/brain-profile";
 import { compositeScore } from "@/lib/brain-measurements";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
+import Fullscreenable from "@/components/Fullscreenable";
 
 type MetricKey = "composite" | (typeof INDICATOR_META)[number]["key"];
 
@@ -95,40 +96,42 @@ export default function BrainTrendChart({ measurements }: { measurements: BrainP
         })}
       </div>
 
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={data} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: colors.text, fontSize: 12 }}
-            axisLine={{ stroke: colors.grid }}
-          />
-          <YAxis
-            domain={[0, 100]}
-            tick={{ fill: colors.text, fontSize: 12 }}
-            axisLine={{ stroke: colors.grid }}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: colors.bg,
-              border: `1px solid ${colors.grid}`,
-              borderRadius: "12px",
-              color: colors.textPrimary,
-              fontSize: "14px",
-              boxShadow: "4px 4px 10px rgba(0,0,0,0.4), -2px -2px 6px rgba(255,255,255,0.04)",
-            }}
-            formatter={(value: number | undefined) => [`${value ?? 0}`, activeLabel]}
-          />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={colors.primary}
-            strokeWidth={2}
-            dot={{ fill: colors.primary, r: 4 }}
-            activeDot={{ fill: colors.accent, r: 6 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <Fullscreenable title={`推移グラフ・${activeLabel}`}>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={data} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: colors.text, fontSize: 12 }}
+              axisLine={{ stroke: colors.grid }}
+            />
+            <YAxis
+              domain={[0, 100]}
+              tick={{ fill: colors.text, fontSize: 12 }}
+              axisLine={{ stroke: colors.grid }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: colors.bg,
+                border: `1px solid ${colors.grid}`,
+                borderRadius: "12px",
+                color: colors.textPrimary,
+                fontSize: "14px",
+                boxShadow: "4px 4px 10px rgba(0,0,0,0.4), -2px -2px 6px rgba(255,255,255,0.04)",
+              }}
+              formatter={(value: number | undefined) => [`${value ?? 0}`, activeLabel]}
+            />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke={colors.primary}
+              strokeWidth={2}
+              dot={{ fill: colors.primary, r: 4 }}
+              activeDot={{ fill: colors.accent, r: 6 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </Fullscreenable>
     </div>
   );
 }
