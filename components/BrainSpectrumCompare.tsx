@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { SPECTRUM_BANDS } from "./BrainSpectrumChart";
+import { compareSeriesColors } from "@/lib/compare-colors";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
 const SERVER_COLORS = "#4a7fd4|#1e3a5f|#8890a8|#8890a8";
@@ -55,11 +56,8 @@ export default function BrainSpectrumCompare({ series }: { series: SpectrumSerie
 
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
   const [primary, grid, axis, muted] = colorStr.split("|");
-  // Oldest → newest. For 3 lines use three highly distinct, saturated hues
-  // (cyan · amber · rose) so they're easy to tell apart over the band shading;
-  // for 2 keep the muted→primary before/after pairing.
-  const lineColors =
-    series.length >= 3 ? ["#06b6d4", "#f59e0b", "#f43f5e"] : [muted, primary];
+  // Oldest → newest, shared with the 6-indicator radar so colors correspond.
+  const lineColors = compareSeriesColors(series.length, muted, primary);
 
   return (
     <div>

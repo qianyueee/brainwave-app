@@ -11,6 +11,7 @@ import SimpleCalendar from "@/components/SimpleCalendar";
 import BrainTrendChart from "@/components/BrainTrendChart";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainSpectrumCompare from "@/components/BrainSpectrumCompare";
+import BrainRadarCompare from "@/components/BrainRadarCompare";
 import Fullscreenable from "@/components/Fullscreenable";
 import EegUploader from "@/components/EegUploader";
 import { syncNoteFromMeasurement } from "@/lib/mind/note-sync";
@@ -261,9 +262,9 @@ export default function LogPage() {
     hydrated && user && measurements.length > 0 ? (
       <>
         {canCompare && (
-          <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-base font-bold text-text-primary">周波数スペクトル比較</p>
+          <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <p className="text-base font-bold text-text-primary">測定の比較</p>
               <button
                 onClick={() => setSelectedIds([])}
                 aria-label="選択を解除"
@@ -272,14 +273,32 @@ export default function LogPage() {
                 <X size={18} />
               </button>
             </div>
-            <Fullscreenable title="周波数スペクトル比較">
-              <BrainSpectrumCompare
-                series={picked.map((m) => ({
-                  spectrum: m.spectrum!,
-                  label: measurementLabel(m),
-                }))}
-              />
-            </Fullscreenable>
+
+            <div>
+              <p className="text-sm font-medium text-text-secondary mb-1 text-center">6指標</p>
+              <Fullscreenable title="6指標の比較">
+                <BrainRadarCompare
+                  series={picked.map((m) => ({
+                    indicators: m.indicators,
+                    label: measurementLabel(m),
+                  }))}
+                />
+              </Fullscreenable>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-text-secondary mb-1 text-center">
+                周波数スペクトル
+              </p>
+              <Fullscreenable title="周波数スペクトル比較">
+                <BrainSpectrumCompare
+                  series={picked.map((m) => ({
+                    spectrum: m.spectrum!,
+                    label: measurementLabel(m),
+                  }))}
+                />
+              </Fullscreenable>
+            </div>
           </div>
         )}
         {picked.length === 1 && (
