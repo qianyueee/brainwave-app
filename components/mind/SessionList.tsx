@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Trash2, ChevronRight, Pencil, StickyNote } from "lucide-react";
 import { useMindStore } from "@/store/useMindStore";
 import { useImportSession, sessionLabel, type ImportStatus } from "./useImportSession";
+import { syncNoteFromSession } from "@/lib/mind/note-sync";
 import { formatTime } from "@/lib/utils";
 
 /** Default number of rows shown before the 全て toggle is pressed. */
@@ -29,7 +30,6 @@ const STATUS_TEXT: Partial<Record<ImportStatus, string>> = {
 export default function SessionList() {
   const sessions = useMindStore((s) => s.sessions);
   const deleteSession = useMindStore((s) => s.deleteSession);
-  const setSessionNote = useMindStore((s) => s.setSessionNote);
   const { importSession, statusFor } = useImportSession();
 
   // false during SSR/hydration, true after — persisted sessions only render
@@ -48,7 +48,9 @@ export default function SessionList() {
     setDraft(note ?? "");
   };
   const saveEdit = (id: string) => {
-    setSessionNote(id, draft);
+    const s = sessions.find((x) => x.id === id);
+    // Save on the session and mirror to its imported 脳特性 measurement.
+    if (s) syncNoteFromSession({ id: s.id, startedAt: s.startedAt }, draft);
     setEditingId(null);
   };
 

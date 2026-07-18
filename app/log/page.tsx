@@ -13,11 +13,15 @@ import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainSpectrumCompare from "@/components/BrainSpectrumCompare";
 import Fullscreenable from "@/components/Fullscreenable";
 import EegUploader from "@/components/EegUploader";
-import { ChevronDown, Trash2, BrainCircuit, Lock, CheckSquare, Square, X, BarChart3 } from "lucide-react";
+import { syncNoteFromMeasurement } from "@/lib/mind/note-sync";
+import { ChevronDown, Trash2, BrainCircuit, Lock, CheckSquare, Square, X, BarChart3, Pencil, StickyNote } from "lucide-react";
 
 function scoreColor(score: number): string {
   return score >= 70 ? "#22c55e" : score >= 40 ? "#f97316" : "#ef4444";
 }
+
+/** Max length of a measurement memo (matches the mind-map list). */
+const NOTE_MAX = 200;
 
 /** Short date-time label for a measurement, e.g. "7月13日 17:50". */
 function measurementLabel(m: BrainProfile): string {
@@ -47,6 +51,8 @@ function MeasurementItem({
   onToggleSelect: (uploadedAt: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [draft, setDraft] = useState("");
   const total = compositeScore(m.indicators);
   const date = new Date(m.uploadedAt);
 
@@ -103,6 +109,68 @@ function MeasurementItem({
           <Fullscreenable title={measurementLabel(m)}>
             <BrainRadarChart indicators={m.indicators} size="small" showScores />
           </Fullscreenable>
+
+          {/* Memo — kept in sync with the mind-map session's memo. */}
+          {editingNote ? (
+            <div className="flex flex-col gap-2">
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={2}
+                maxLength={NOTE_MAX}
+                autoFocus
+                placeholder="メモを入力…（体調・気分・状況など）"
+                className="w-full rounded-xl bg-navy neu-inset p-3 text-sm text-text-primary placeholder:text-text-muted resize-none outline-none focus:ring-1 focus:ring-primary"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-muted tabular-nums">
+                  {draft.length}/{NOTE_MAX}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingNote(false)}
+                    className="px-4 py-2 rounded-xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={() => {
+                      syncNoteFromMeasurement(m.uploadedAt, draft);
+                      setEditingNote(false);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
+                  >
+                    保存
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : m.note ? (
+            <button
+              onClick={() => {
+                setDraft(m.note ?? "");
+                setEditingNote(true);
+              }}
+              className="w-full text-left flex items-start gap-2 rounded-xl bg-navy neu-inset p-3 active:opacity-70"
+            >
+              <StickyNote size={16} className="shrink-0 mt-0.5 text-text-muted" />
+              <span className="flex-1 text-sm text-text-secondary whitespace-pre-wrap break-words">
+                {m.note}
+              </span>
+              <Pencil size={14} className="shrink-0 mt-0.5 text-text-muted" />
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setDraft("");
+                setEditingNote(true);
+              }}
+              className="self-start flex items-center gap-1.5 text-sm text-text-muted active:opacity-70"
+            >
+              <Pencil size={14} /> メモを追加
+            </button>
+          )}
+
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => onView(m.uploadedAt)}

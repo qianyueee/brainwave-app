@@ -68,6 +68,7 @@ export function useImportSession() {
           indicators: s.indicators,
           bands: s.bands,
           spectrum: s.spectrum,
+          note: s.note,
           uploadedAt,
           sessionTag: sessionLabel(s),
         });

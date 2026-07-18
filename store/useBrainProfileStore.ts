@@ -19,6 +19,8 @@ interface BrainProfileState {
   cloudUserId: string | null;
   addMeasurement: (profile: BrainProfile) => Promise<void>;
   deleteMeasurement: (uploadedAt: string) => Promise<void>;
+  /** Set (or clear, with "") the memo on the measurement at `uploadedAt`. */
+  setMeasurementNote: (uploadedAt: string, note: string) => Promise<void>;
   clearProfile: () => Promise<void>;
   loadFromCloud: (userId: string) => Promise<void>;
   clearForLogout: () => void;
@@ -63,6 +65,30 @@ export const useBrainProfileStore = create<BrainProfileState>()(
           await upsertBrainMeasurements(uid, next);
         } catch (err) {
           console.error("[brain-profile] delete (upsert) failed:", err);
+          set({ measurements: prev, profile: latest(prev) });
+          throw err;
+        }
+      },
+
+      setMeasurementNote: async (uploadedAt, note) => {
+        const prev = get().measurements;
+        const trimmed = note.trim();
+        let changed = false;
+        const next = prev.map((m) => {
+          if (m.uploadedAt !== uploadedAt) return m;
+          const nextNote = trimmed || undefined;
+          if (m.note === nextNote) return m;
+          changed = true;
+          return { ...m, note: nextNote };
+        });
+        if (!changed) return;
+        set({ measurements: next, profile: latest(next) });
+        const uid = get().cloudUserId;
+        if (!uid) return;
+        try {
+          await upsertBrainMeasurements(uid, next);
+        } catch (err) {
+          console.error("[brain-profile] note upsert failed:", err);
           set({ measurements: prev, profile: latest(prev) });
           throw err;
         }
