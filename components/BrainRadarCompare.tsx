@@ -45,9 +45,9 @@ function subscribeTheme(cb: () => void): () => void {
  */
 export default function BrainRadarCompare({ series }: { series: RadarSeries[] }) {
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
-  const [grid, text, muted, primary] = colorStr.split("|");
+  const [grid, text, , primary] = colorStr.split("|");
 
-  const lineColors = compareSeriesColors(series.length, muted, primary);
+  const lineColors = compareSeriesColors(series.length);
 
   const data = INDICATOR_META.map((meta) => {
     const row: Record<string, string | number> = { label: meta.shortLabel };

@@ -55,9 +55,9 @@ export default function BrainSpectrumCompare({ series }: { series: SpectrumSerie
   });
 
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
-  const [primary, grid, axis, muted] = colorStr.split("|");
+  const [primary, grid, axis] = colorStr.split("|");
   // Oldest → newest, shared with the 6-indicator radar so colors correspond.
-  const lineColors = compareSeriesColors(series.length, muted, primary);
+  const lineColors = compareSeriesColors(series.length);
 
   return (
     <div>
