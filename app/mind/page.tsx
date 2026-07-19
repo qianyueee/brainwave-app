@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useMindStore } from "@/store/useMindStore";
 import { DummySource } from "@/lib/mind/dummy-source";
 import { RealtimeSource } from "@/lib/mind/realtime-source";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
 import { rawBandPowers, EMPTY_BAND_POWERS } from "@/lib/mind/types";
-import { computeBandPowers, eegRowsFromSamples } from "@/lib/brain-profile";
 import MindMapCanvas from "@/components/mind/MindMapCanvas";
 import MindArtCanvas from "@/components/mind/MindArtCanvas";
 import MindStatusText from "@/components/mind/MindStatusText";
@@ -15,9 +14,6 @@ import MindTrendChart from "@/components/mind/MindTrendChart";
 import MindRecorder from "@/components/mind/MindRecorder";
 import SourceDialog from "@/components/mind/SourceDialog";
 import SessionList from "@/components/mind/SessionList";
-
-/** Rolling window (seconds ≈ samples at 1 Hz) for the live 脳波バランス. */
-const BALANCE_WINDOW_SEC = 30;
 
 export default function MindPage() {
   const sourceKind = useMindStore((s) => s.sourceKind);
@@ -28,20 +24,11 @@ export default function MindPage() {
   // Combined gamma + program pull toward the Zone (the displayed position).
   const zoneBoost = useMindStore((s) => s.zoneBoost);
   const isRecording = useMindStore((s) => s.isRecording);
-  const recordingSamples = useMindStore((s) => s.recordingSamples);
 
-  // 脳波バランス values. While recording, show a rolling average over the last
-  // BALANCE_WINDOW_SEC seconds: smooth (not jumpy like a single sample) yet
-  // always moving. A full-session cumulative average would converge and appear
-  // frozen after a minute, which read as the bars "not moving". The 脳特性
-  // import still summarizes the whole session (computed at stop). Idle: the
-  // instantaneous latest sample.
-  const bandPowers = useMemo(() => {
-    if (isRecording && recordingSamples.length > 0) {
-      return computeBandPowers(eegRowsFromSamples(recordingSamples.slice(-BALANCE_WINDOW_SEC)));
-    }
-    return latestSample ? rawBandPowers(latestSample) : EMPTY_BAND_POWERS;
-  }, [isRecording, recordingSamples, latestSample]);
+  // 脳波バランス always shows the instantaneous latest sample so the bars stay
+  // live and moving, during recording and idle alike. The 脳特性 import
+  // separately summarizes the whole session as a full average (computed at stop).
+  const bandPowers = latestSample ? rawBandPowers(latestSample) : EMPTY_BAND_POWERS;
 
   // Create/destroy the active data source. getState() actions are stable
   // references, so the handlers never go stale.
@@ -89,10 +76,7 @@ export default function MindPage() {
             <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
           </section>
 
-          <BandEqualizer
-            powers={bandPowers}
-            note={isRecording ? "測定中（直近30秒）" : undefined}
-          />
+          <BandEqualizer powers={bandPowers} />
 
           <MindTrendChart history={history} />
         </div>
