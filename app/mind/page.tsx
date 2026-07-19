@@ -16,6 +16,9 @@ import MindRecorder from "@/components/mind/MindRecorder";
 import SourceDialog from "@/components/mind/SourceDialog";
 import SessionList from "@/components/mind/SessionList";
 
+/** Rolling window (seconds ≈ samples at 1 Hz) for the live 脳波バランス. */
+const BALANCE_WINDOW_SEC = 30;
+
 export default function MindPage() {
   const sourceKind = useMindStore((s) => s.sourceKind);
   const latestSample = useMindStore((s) => s.latestSample);
@@ -27,14 +30,15 @@ export default function MindPage() {
   const isRecording = useMindStore((s) => s.isRecording);
   const recordingSamples = useMindStore((s) => s.recordingSamples);
 
-  // 脳波バランス values. While recording, show the running session-average via
-  // the same computeBandPowers path the import uses, so the bars at the moment
-  // you stop equal the pie chart that lands in 脳特性 (the program pull never
-  // touches band powers — it only moves the dot — so raw averaging aligns the
-  // two). Idle: the instantaneous latest sample for a live feel.
+  // 脳波バランス values. While recording, show a rolling average over the last
+  // BALANCE_WINDOW_SEC seconds: smooth (not jumpy like a single sample) yet
+  // always moving. A full-session cumulative average would converge and appear
+  // frozen after a minute, which read as the bars "not moving". The 脳特性
+  // import still summarizes the whole session (computed at stop). Idle: the
+  // instantaneous latest sample.
   const bandPowers = useMemo(() => {
     if (isRecording && recordingSamples.length > 0) {
-      return computeBandPowers(eegRowsFromSamples(recordingSamples));
+      return computeBandPowers(eegRowsFromSamples(recordingSamples.slice(-BALANCE_WINDOW_SEC)));
     }
     return latestSample ? rawBandPowers(latestSample) : EMPTY_BAND_POWERS;
   }, [isRecording, recordingSamples, latestSample]);
@@ -87,7 +91,7 @@ export default function MindPage() {
 
           <BandEqualizer
             powers={bandPowers}
-            note={isRecording ? "測定中の平均（脳特性に取り込まれる値）" : undefined}
+            note={isRecording ? "測定中（直近30秒）" : undefined}
           />
 
           <MindTrendChart history={history} />
