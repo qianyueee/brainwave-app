@@ -135,18 +135,20 @@ gammaBoost = clamp(0, (ratio/baseline - 1) * 0.5, 0.6)  // 乘法比，抗个体
 录制开始 `startRecording` 把 `gammaBaseline` 重置为 0（`store:194-203`），以捕捉安静态→40Hz 过程中的 γ 上升。`gammaBoost > 0.12` 时状态文本显示「γ波 上昇中」徽章。
 
 ### 3.3 ゾーン牵引 `zoneBoost`（**决定所有显示位置**）
-`types.ts:219-249`, `store:167-171`
+`lib/mind/types.ts`, `store:167-171`
 ```
-program     = isPlaying ? 0.4 * min(1, elapsed/90) : 0                 // 程序牵引，90s ramp
-gammaScale  = isPlaying ? 0.25 + 0.75*min(1, elapsed/90) : 0.25        // 待机时 γ 牵引仅 0.25×
-zoneBoost   = min(0.85, gammaBoost*gammaScale + program)              // 上限 ZONE_BOOST_MAX=0.85
+program     = isPlaying ? 0.25 * min(1, elapsed/90) : 0                // PROGRAM_BOOST_MAX=0.25，90s ramp
+gammaScale  = isPlaying ? 0 + 0.5*min(1, elapsed/90) : 0               // IDLE_SCALE=0 → PLAY_SCALE=0.5
+zoneBoost   = min(0.6, gammaBoost*gammaScale + program)                // 上限 ZONE_BOOST_MAX=0.6
 ```
 配合 `boostedPosition(att, med, boost)`（`types.ts:197`）把点朝右上「ゾーン角(100,100)」拉：
 ```
 attention_eff  = att + boost*(100 - att)
 meditation_eff = med + boost*(100 - med)
 ```
-待机时 program=0、γ 牵引仅 0.25×，所以自然 γ 波动几乎不动点；牵引效果主要留给播放时。
+**待机时 program=0、γ 牵引=0，所以 zoneBoost 恒为 0**——辉点显示原始位置、ゾーン率不被牵引。牵引完全留给播放时：满档合计约 **0.25–0.55**（program 基线 0.25 + γ 贡献 ≤0.3），30 秒时仅 0.08–0.18 平滑渐入。
+
+> 参数（`lib/mind/types.ts`）：`GAMMA_BOOST_IDLE_SCALE=0`、`GAMMA_BOOST_PLAY_SCALE=0.5`、`PROGRAM_BOOST_MAX=0.25`、`ZONE_BOOST_MAX=0.6`、`GAMMA_BOOST_MAX=0.6`（gammaBoost 上限）。**历史值**（更强的旧牵引）：IDLE=0.25 / PLAY=1.0 / PROGRAM=0.4 / ZONE_MAX=0.85。
 
 **三者的区别（关键）**：
 | 变换 | 改的是 | 影响 |
@@ -227,7 +229,7 @@ meditation_eff = med + boost*(100 - med)
 | `avgAttention` | `round(Σattention / n)` | 仅列表/对话框展示 |
 | `avgMeditation` | `round(Σmeditation / n)` | 仅展示 |
 | `avgGammaRatio` | `round(ΣgammaRatio(s)/n *10)/10` | 仅展示 |
-| `flowRatioPct` | 录制期每样本 `eff=boostedPosition(att,med,zoneBoost)`，落 flow 计数 `recordingFlowCount`；`round(flowCount/n*100)`（`:175-181,239`） | 仅展示（含 zoneBoost 牵引） |
+| `flowRatioPct` | 录制期每样本 `eff=boostedPosition(att,med,zoneBoost)`，落 flow 计数 `recordingFlowCount`；`round(flowCount/n*100)`（`:175-181,239`） | 仅展示（不放音乐时 zoneBoost=0，即原始位置；放音乐时含牵引） |
 | `indicators` | `computeIndicators(eegRowsFromSamples(recordingSamples))` | **导入脳特性** |
 | `bands` | `computeBandPowers(rows)` | **导入脳特性** |
 | `spectrum` | `averageSpectra(recordingSamples.map(s=>s.spectrum))` | **导入脳特性**（仅 realtime 有） |
@@ -369,7 +371,8 @@ addMeasurement({ indicators: computeIndicators(rows), bands: computeBandPowers(r
 
 2. **`docs/6指标算法说明.md` 第 2 节分组有误**：其称「数值统计类 ①③④⑥ 用 `isValidSample` 排除坏信号秒」，但代码里 ③ `computeSustainedFocus`（`brain-profile.ts:357`）**不做** `isValidSample` 过滤，直接用裁剪后全行（坏信号秒被当作低于阈值，从而拉低覆盖率）。正确分组应为 **①④⑥ 用 isValidSample、②③⑤ 用全行**（该文档第 4 节 ③ 的备注反而是对的）。其余常量与公式与代码一致。
 
-3. **导入数据非纯原始生理值**：放程序测量时 `withGammaGain` 把 γ 带放大（最高 ×3）后的样本才被存储和用于 `computeBandPowers/computeIndicators`，故导入脳特性的 bands 与真实原始 γ 不同；④指标的 `relaxBandRatio` 分母含 γ 会略降 bandScore（①②③⑤⑥ 基于 attention/relaxation 或 α/β 不受影响）。若要脳特性完全不受程序影响，应在不放程序时测量。`flowRatioPct` 还叠加了 display-only 的 zoneBoost 牵引。
+3. **导入数据非纯原始生理值（仅放程序时）**：放程序测量时 `withGammaGain` 把 γ 带放大（最高 ×3）后的样本才被存储和用于 `computeBandPowers/computeIndicators`，故导入脳特性的 bands 与真实原始 γ 不同；④指标的 `relaxBandRatio` 分母含 γ 会略降 bandScore（①②③⑤⑥ 基于 attention/relaxation 或 α/β 不受影响）。**不放程序时 γ 增益=0，导入数据是头环原样输出。** 若要脳特性完全不受程序影响，应在不放程序时测量。
+   注意区分两个独立机制：**γ 增益**（`withGammaGain`，改样本、影响导入）与 **ゾーン牵引**（`zoneBoost`，只改显示位置和 `flowRatioPct`，不进导入）。当前牵引已调为：**不放音乐=0，放音乐时更弱**（见 §3.3）；γ 增益仍在放音乐时 ×3，若也想弱化需另调 `PROGRAM_GAMMA_GAIN_MAX`。
 
 4. **两条入口去重不对称**：mind 路径先 `deleteMeasurement(uploadedAt)` 再 add = 按时间戳 upsert；`EegUploader` 不去重且 `uploadedAt=Date.now()`，同一文件重复上传会叠加多条。
 
