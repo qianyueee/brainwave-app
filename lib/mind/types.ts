@@ -178,10 +178,14 @@ export const GAMMA_BASELINE_ALPHA = 0.011;
 export const GAMMA_BOOST_SENSITIVITY = 0.5;
 /** Hard cap on the pull (0 = none, 1 = pinned to the corner). */
 export const GAMMA_BOOST_MAX = 0.6;
-/** Gamma-pull strength with no program playing (fraction of full strength).
- *  Natural gamma swings should barely move the dot; the clear pull toward the
- *  Zone is reserved for playback, when entrainment is actually expected. */
-export const GAMMA_BOOST_IDLE_SCALE = 0.25;
+/** Gamma-pull strength with no program playing. 0 = natural gamma never moves
+ *  the dot, so an idle measurement shows the raw position (and keeps ゾーン率
+ *  honest); the pull is reserved entirely for playback, when 40Hz entrainment
+ *  is actually expected. */
+export const GAMMA_BOOST_IDLE_SCALE = 0;
+/** Gamma-pull strength at full playback ramp (fraction of the raw gamma boost).
+ *  Kept small so even a strong gamma rise only nudges the dot gently. */
+export const GAMMA_BOOST_PLAY_SCALE = 0.3;
 
 /**
  * Boost factor 0..GAMMA_BOOST_MAX from how far current gamma exceeds the
@@ -208,19 +212,21 @@ export function boostedPosition(
 
 // ── Program-active "pull toward the Zone" (demonstrate the session's effect) ──
 //
-// When a program is actively playing during measurement, we add a pull toward
-// the Zone on top of the gamma pull, so the screen reflects the session's
-// intended effect. It ramps in over the first ~minute-and-a-half of playback
-// (mirroring the 導入/entrainment onset) rather than snapping, so it reads as a
-// gradual response rather than a fake. With nothing playing it is 0, so the
-// combined pull equals the gamma pull and behavior is unchanged.
+// When a program is actively playing during measurement, we add a gentle pull
+// toward the Zone on top of the (playback-only) gamma pull, so the screen
+// reflects the session's intended effect. It ramps in over the first
+// ~minute-and-a-half of playback (mirroring the 導入/entrainment onset) rather
+// than snapping, so it reads as a gradual response rather than a fake. With
+// nothing playing both this and the gamma pull are 0, so an idle measurement
+// shows the raw, untugged position.
 
 /** Max extra pull toward the Zone while a program is actively playing. */
-export const PROGRAM_BOOST_MAX = 0.4;
+export const PROGRAM_BOOST_MAX = 0.15;
 /** Seconds of playback over which the program pull ramps fully in. */
 export const PROGRAM_BOOST_RAMP_SEC = 90;
-/** Cap on the combined (gamma + program) pull; < 1 keeps the dot in natural motion. */
-export const ZONE_BOOST_MAX = 0.85;
+/** Cap on the combined (gamma + program) pull; kept low so the dot always keeps
+ *  its natural motion and never pins to the corner. */
+export const ZONE_BOOST_MAX = 0.4;
 
 /** Program pull 0..PROGRAM_BOOST_MAX, ramping in over the first minutes of playback. */
 export function programBoostFromElapsed(isPlaying: boolean, elapsedSec: number): number {
@@ -231,16 +237,16 @@ export function programBoostFromElapsed(isPlaying: boolean, elapsedSec: number):
 
 /**
  * Strength multiplier applied to the gamma pull before it moves the dot:
- * weak (GAMMA_BOOST_IDLE_SCALE) while nothing is playing, ramping to full
- * strength over the first PROGRAM_BOOST_RAMP_SEC of playback — the same ramp
- * as the program pull, so nothing jumps when playback starts or stops.
- * Scales only the displayed position; the raw gamma boost still drives the
- * "γ波 上昇中" badge.
+ * GAMMA_BOOST_IDLE_SCALE (0) while nothing is playing — so natural gamma never
+ * tugs the dot — ramping to GAMMA_BOOST_PLAY_SCALE over the first
+ * PROGRAM_BOOST_RAMP_SEC of playback, the same ramp as the program pull so
+ * nothing jumps when playback starts or stops. Scales only the displayed
+ * position; the raw gamma boost still drives the "γ波 上昇中" badge.
  */
 export function gammaBoostScale(isPlaying: boolean, elapsedSec: number): number {
   if (!isPlaying) return GAMMA_BOOST_IDLE_SCALE;
   const t = Math.min(1, Math.max(0, elapsedSec / PROGRAM_BOOST_RAMP_SEC));
-  return GAMMA_BOOST_IDLE_SCALE + (1 - GAMMA_BOOST_IDLE_SCALE) * t;
+  return GAMMA_BOOST_IDLE_SCALE + (GAMMA_BOOST_PLAY_SCALE - GAMMA_BOOST_IDLE_SCALE) * t;
 }
 
 /** Combine the gamma-driven and program-driven pulls toward the Zone, capped. */
