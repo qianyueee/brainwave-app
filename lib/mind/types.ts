@@ -184,8 +184,8 @@ export const GAMMA_BOOST_MAX = 0.6;
  *  is actually expected. */
 export const GAMMA_BOOST_IDLE_SCALE = 0;
 /** Gamma-pull strength at full playback ramp (fraction of the raw gamma boost).
- *  Kept well below 1 so even a strong gamma rise only nudges the dot gently. */
-export const GAMMA_BOOST_PLAY_SCALE = 0.5;
+ *  Kept small so even a strong gamma rise only nudges the dot gently. */
+export const GAMMA_BOOST_PLAY_SCALE = 0.3;
 
 /**
  * Boost factor 0..GAMMA_BOOST_MAX from how far current gamma exceeds the
@@ -221,12 +221,12 @@ export function boostedPosition(
 // shows the raw, untugged position.
 
 /** Max extra pull toward the Zone while a program is actively playing. */
-export const PROGRAM_BOOST_MAX = 0.25;
+export const PROGRAM_BOOST_MAX = 0.15;
 /** Seconds of playback over which the program pull ramps fully in. */
 export const PROGRAM_BOOST_RAMP_SEC = 90;
 /** Cap on the combined (gamma + program) pull; kept low so the dot always keeps
  *  its natural motion and never pins to the corner. */
-export const ZONE_BOOST_MAX = 0.6;
+export const ZONE_BOOST_MAX = 0.4;
 
 /** Program pull 0..PROGRAM_BOOST_MAX, ramping in over the first minutes of playback. */
 export function programBoostFromElapsed(isPlaying: boolean, elapsedSec: number): number {
