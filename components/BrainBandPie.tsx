@@ -1,53 +1,128 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import type { BandPowers } from "@/lib/mind/types";
+import type { BandKey, BandPowers } from "@/lib/mind/types";
 import { BAND_META, BAND_COLORS } from "@/lib/mind/types";
 
 /**
  * 8-band brainwave balance: a colored pie (Delta at 12 o'clock, clockwise) with
  * a two-column legend below (swatch · name · %). The legend replaces on-slice
  * labels so the values stay large and never overlap on the tiny γ slices.
+ *
+ * Tapping a legend row hides that band and dims the row. δ normally dominates
+ * the total, which squeezes every other band into a sliver — hiding it lets the
+ * pie renormalize over what is left, so the small bands become readable. The
+ * printed percentages always stay each band's measured share of ALL 8 bands, so
+ * a number never silently changes meaning; only the pie is recalculated.
+ *
+ * Controlled (the selection lives in the page) because Fullscreenable renders
+ * its children twice — inline and inside the overlay — and both copies must
+ * show the same selection.
  */
-export default function BrainBandPie({ powers }: { powers: BandPowers }) {
+export default function BrainBandPie({
+  powers,
+  hiddenKeys = [],
+  onChangeHidden,
+}: {
+  powers: BandPowers;
+  hiddenKeys?: BandKey[];
+  /** Omit to render a plain, non-interactive legend. */
+  onChangeHidden?: (next: BandKey[]) => void;
+}) {
   const data = BAND_META.map((b) => ({ key: b.key, name: b.ja, value: powers[b.key] }));
+  const shown = data.filter((d) => !hiddenKeys.includes(d.key));
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={220}>
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="name"
-            cx="50%"
-            cy="50%"
-            outerRadius="82%"
-            startAngle={90}
-            endAngle={-270}
-            stroke="none"
-            isAnimationActive={false}
-          >
-            {data.map((d) => (
-              <Cell key={d.key} fill={BAND_COLORS[d.key]} />
-            ))}
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
+      {shown.length > 0 ? (
+        <ResponsiveContainer width="100%" height={220}>
+          <PieChart>
+            <Pie
+              data={shown}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius="82%"
+              startAngle={90}
+              endAngle={-270}
+              stroke="none"
+              isAnimationActive={false}
+            >
+              {shown.map((d) => (
+                <Cell key={d.key} fill={BAND_COLORS[d.key]} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="h-[220px] flex items-center justify-center px-4">
+          <p className="text-base text-text-secondary text-center">
+            表示する波を選んでください
+          </p>
+        </div>
+      )}
 
-      <div className="grid grid-cols-2 gap-x-5 gap-y-2 mt-3 px-1">
-        {data.map((d) => (
-          <div key={d.key} className="flex items-center gap-2 text-sm">
-            <span
-              className="inline-block w-3 h-3 rounded-sm shrink-0"
-              style={{ backgroundColor: BAND_COLORS[d.key] }}
-            />
-            <span className="flex-1 min-w-0 truncate text-text-secondary">{d.name}</span>
-            <span className="font-mono tabular-nums font-bold text-text-primary">
-              {d.value.toFixed(1)}%
-            </span>
-          </div>
-        ))}
+      {/* Only meaningful once something is hidden: the pie no longer covers the
+          whole measurement, and tapping rows back on one by one is tedious. */}
+      {onChangeHidden && hiddenKeys.length > 0 && (
+        <div className="flex items-center justify-between gap-3 mt-2 px-1">
+          <p className="text-xs text-text-muted">円グラフは表示中の波で再計算</p>
+          <button
+            type="button"
+            onClick={() => onChangeHidden([])}
+            className="shrink-0 px-3 py-1.5 rounded-xl bg-navy text-text-secondary text-sm font-bold neu-raised-sm neu-press transition-transform"
+          >
+            すべて表示
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-x-5 gap-y-1 mt-2 px-1">
+        {data.map((d) => {
+          const hidden = hiddenKeys.includes(d.key);
+          const row = (
+            <>
+              <span
+                className="inline-block w-3 h-3 rounded-sm shrink-0"
+                style={{ backgroundColor: BAND_COLORS[d.key] }}
+              />
+              <span className="flex-1 min-w-0 truncate text-text-secondary">{d.name}</span>
+              <span className="font-mono tabular-nums font-bold text-text-primary">
+                {d.value.toFixed(1)}%
+              </span>
+            </>
+          );
+
+          if (!onChangeHidden) {
+            return (
+              <div key={d.key} className="flex items-center gap-2 text-sm py-1">
+                {row}
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={d.key}
+              type="button"
+              onClick={() =>
+                onChangeHidden(
+                  hidden
+                    ? hiddenKeys.filter((k) => k !== d.key)
+                    : [...hiddenKeys, d.key]
+                )
+              }
+              aria-pressed={!hidden}
+              aria-label={`${d.name}を${hidden ? "表示する" : "非表示にする"}`}
+              className={`flex items-center gap-2 text-sm min-h-[48px] px-2 -mx-1 rounded-xl text-left transition-opacity active:opacity-60 ${
+                hidden ? "opacity-40" : ""
+              }`}
+            >
+              {row}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

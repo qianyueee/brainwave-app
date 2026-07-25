@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { BandKey } from "@/lib/mind/types";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import BrainRadarChart from "@/components/BrainRadarChart";
@@ -27,6 +28,10 @@ export default function ProfilePage() {
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  // Bands hidden from the balance pie (δ usually dwarfs the rest). Held here,
+  // not in the chart, so the inline and fullscreen copies stay in sync.
+  const [hiddenBands, setHiddenBands] = useState<BandKey[]>([]);
 
   // Which measurement to show: a past one picked from the log page (if it still
   // exists), otherwise the latest. `profile` is always the latest.
@@ -133,7 +138,11 @@ export default function ProfilePage() {
             </p>
             {displayed.bands ? (
               <Fullscreenable title="8種類の脳波バランス">
-                <BrainBandPie powers={displayed.bands} />
+                <BrainBandPie
+                  powers={displayed.bands}
+                  hiddenKeys={hiddenBands}
+                  onChangeHidden={setHiddenBands}
+                />
               </Fullscreenable>
             ) : (
               <p className="text-sm text-text-secondary text-center py-8">
