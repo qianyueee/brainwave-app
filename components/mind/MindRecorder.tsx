@@ -34,8 +34,10 @@ export default function MindRecorder() {
       return;
     }
     const summary = stopRecording();
-    // Only offer the import when the session carries analysis data.
-    if (summary?.indicators && summary.bands) setFinished(summary);
+    // Show the result whenever something was recorded — including a measurement
+    // the headset never read, which the dialog explains instead of offering an
+    // all-zero import.
+    if (summary) setFinished(summary);
   };
 
   // Lock body scroll + Escape to close while the dialog is open.
@@ -54,6 +56,12 @@ export default function MindRecorder() {
   }, [finished]);
 
   const importStatus = finished ? statusFor(finished.id) : "idle";
+  // Older sessions predate usableSec; treat them as usable so nothing regresses.
+  const usableSec = finished?.usableSec ?? finished?.durationSec ?? 0;
+  const unusable = !!finished && usableSec === 0;
+  // Enough seconds were lost to poor contact that the scores are worth a caveat.
+  const patchy =
+    !!finished && !unusable && usableSec < Math.max(1, finished.durationSec) * 0.7;
 
   return (
     <>
@@ -94,7 +102,9 @@ export default function MindRecorder() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-text-primary">測定が完了しました</h2>
+              <h2 className="text-lg font-bold text-text-primary">
+                {unusable ? "測定できませんでした" : "測定が完了しました"}
+              </h2>
               <button
                 onClick={() => setFinished(null)}
                 aria-label="閉じる"
@@ -104,46 +114,81 @@ export default function MindRecorder() {
               </button>
             </div>
 
-            <p className="text-base text-text-secondary">
-              測定時間 {formatTime(finished.durationSec)}・集中 {finished.avgAttention}
-              ・リラックス {finished.avgMeditation}・ゾーン率 {finished.flowRatioPct}%
-            </p>
+            {unusable ? (
+              <>
+                <p className="text-base text-text-secondary">
+                  測定時間 {formatTime(finished.durationSec)}
+                </p>
+                <p className="text-base text-text-primary">
+                  ヘッドセットが脳波を読み取れませんでした。電極が額に密着しているか、
+                  電源が入っているかをご確認のうえ、もう一度お試しください。
+                </p>
+                <p className="text-sm text-text-muted">
+                  この測定は記録されません（有効なデータが0秒のため）
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-base text-text-secondary">
+                  測定時間 {formatTime(finished.durationSec)}・集中 {finished.avgAttention}
+                  ・リラックス {finished.avgMeditation}・ゾーン率 {finished.flowRatioPct}%
+                </p>
 
-            <p className="text-base text-text-primary">
-              この測定結果を脳特性チャートに取り込みますか？
-            </p>
+                {patchy && (
+                  <p className="text-sm text-amber-400">
+                    有効なデータは {formatTime(usableSec)} でした。
+                    装着が不安定だったため、スコアは目安としてご覧ください
+                  </p>
+                )}
 
-            {importStatus === "waitingLogin" && (
+                <p className="text-base text-text-primary">
+                  この測定結果を脳特性チャートに取り込みますか？
+                </p>
+              </>
+            )}
+
+            {!unusable && importStatus === "waitingLogin" && (
               <p className="text-sm text-text-muted">ログインすると自動で取り込まれます</p>
             )}
-            {importStatus === "waitingCloud" && (
+            {!unusable && importStatus === "waitingCloud" && (
               <p className="text-sm text-text-muted">データの同期を待っています…</p>
             )}
-            {importStatus === "error" && (
+            {!unusable && importStatus === "error" && (
               <p className="text-sm text-red-400">
                 取り込みに失敗しました。通信環境をご確認のうえ、もう一度お試しください
               </p>
             )}
 
-            <div className="flex gap-3">
+            {unusable ? (
               <button
                 onClick={() => setFinished(null)}
-                className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
+                className="min-h-[52px] rounded-2xl bg-primary text-white text-base font-bold neu-raised-sm neu-press transition-transform"
               >
-                あとで
+                閉じる
               </button>
-              <button
-                onClick={() => importSession(finished)}
-                disabled={importStatus === "busy" || importStatus === "waitingCloud"}
-                className="flex-1 min-h-[52px] rounded-2xl bg-primary text-white text-base font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"
-              >
-                {importStatus === "busy" ? "取り込み中…" : "取り込む"}
-              </button>
-            </div>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setFinished(null)}
+                  className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
+                >
+                  あとで
+                </button>
+                <button
+                  onClick={() => importSession(finished)}
+                  disabled={importStatus === "busy" || importStatus === "waitingCloud"}
+                  className="flex-1 min-h-[52px] rounded-2xl bg-primary text-white text-base font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"
+                >
+                  {importStatus === "busy" ? "取り込み中…" : "取り込む"}
+                </button>
+              </div>
+            )}
 
-            <p className="text-sm text-text-muted">
-              あとからでも「過去の測定」をタップすると取り込めます
-            </p>
+            {!unusable && (
+              <p className="text-sm text-text-muted">
+                あとからでも「過去の測定」をタップすると取り込めます
+              </p>
+            )}
           </div>
         </div>
       )}

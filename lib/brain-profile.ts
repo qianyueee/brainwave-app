@@ -1,6 +1,7 @@
 import type { ProgramConfig, FrequencyPhase } from "./programs";
 import { getProgramById } from "./programs";
 import type { BandPowers } from "./mind/types";
+import { POOR_SIGNAL_LIMIT } from "./mind/types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,13 @@ export interface EegRow {
   lowGamma: number;
   highGamma: number;
   tag?: string;
+  /**
+   * The headset reported poor electrode contact for this second, so the row is
+   * *missing data* rather than a genuine low reading. Set only on the realtime
+   * path — an uploaded export carries no POOR_SIGNAL column, so its rows leave
+   * this undefined and every indicator scores exactly as it did before.
+   */
+  poorSignal?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -266,17 +274,27 @@ function runsAbove(values: number[], threshold: number): number[] {
   return runs;
 }
 
-/** Index where value first stays ≥ threshold for `sustainSecs` consecutive samples (else null) */
+/**
+ * Index where value first stays ≥ threshold for `sustainSecs` consecutive
+ * readings (else null). A `null` entry is a second the headset couldn't read:
+ * it neither counts toward the run nor resets it, because missing data is not
+ * evidence that the value dropped. Returns the index the run started at, which
+ * for gap-free input is the same `i - sustainSecs + 1` as before.
+ */
 function firstSustainedCrossing(
-  values: number[],
+  values: (number | null)[],
   threshold: number,
   sustainSecs: number
 ): number | null {
   let run = 0;
+  let runStart = 0;
   for (let i = 0; i < values.length; i++) {
-    if (values[i] >= threshold) {
+    const v = values[i];
+    if (v === null) continue;
+    if (v >= threshold) {
+      if (run === 0) runStart = i;
       run++;
-      if (run >= sustainSecs) return i - sustainSecs + 1;
+      if (run >= sustainSecs) return runStart;
     } else {
       run = 0;
     }
@@ -286,9 +304,23 @@ function firstSustainedCrossing(
 
 // ─── EEG-specific helpers ─────────────────────────────────────────────────────
 
-/** A sample is usable when the device reported a non-zero eSense value (poor-signal seconds are 0) */
+/** A second the headset could not actually read. Must not be treated as a low
+ *  reading: it neither breaks a run nor counts as "below threshold". */
+function isMissing(r: EegRow): boolean {
+  return r.poorSignal === true;
+}
+
+/** A sample is usable when contact was good and the device reported a non-zero
+ *  eSense value (poor-signal seconds are 0) */
 function isValidSample(r: EegRow): boolean {
+  if (isMissing(r)) return false;
   return r.attention > 0 || r.relaxation > 0;
+}
+
+/** Seconds the headset actually read. 0 means the measurement carries no
+ *  information at all, and every indicator would be a meaningless 0. */
+export function countUsableSeconds(rows: EegRow[]): number {
+  return trimPoorSignalEdges(rows).filter(isValidSample).length;
 }
 
 const alphaPower = (r: EegRow): number => r.lowAlpha + r.highAlpha;
@@ -316,11 +348,14 @@ function speedScore(seconds: number, tau: number): number {
 function findSettlingIndex(rows: EegRow[]): number | null {
   const { restThreshold, sustainSecs } = INDICATOR_CONFIG.settle;
   let run = 0;
+  let runStart = 0;
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
+    if (isMissing(r)) continue; // unreadable second: neither satisfies nor breaks
     if (r.relaxation >= restThreshold && alphaPower(r) >= betaPower(r)) {
+      if (run === 0) runStart = i;
       run++;
-      if (run >= sustainSecs) return i - sustainSecs + 1;
+      if (run >= sustainSecs) return runStart;
     } else {
       run = 0;
     }
@@ -343,7 +378,7 @@ function computeFocusIntensity(rows: EegRow[]): number {
 function computeFocusSpeed(rows: EegRow[]): number {
   const { threshold, sustainSecs, speedTau } = INDICATOR_CONFIG.focus;
   const t = firstSustainedCrossing(
-    rows.map((r) => r.attention),
+    rows.map((r) => (isMissing(r) ? null : r.attention)),
     threshold,
     sustainSecs
   );
@@ -353,8 +388,12 @@ function computeFocusSpeed(rows: EegRow[]): number {
 /** ③ 持続的集中: ≥閾値の連続片段のカバー率と最長持続を合成（点ではなく線で続いたか） */
 function computeSustainedFocus(rows: EegRow[]): number {
   const { threshold, longestRefSecs, coverWeight, longestWeight } = INDICATOR_CONFIG.sustain;
-  if (!rows.length) return 0;
-  const att = rows.map((r) => r.attention);
+  // Unreadable seconds drop out of both the numerator and the denominator —
+  // counting them as "below threshold" would let bad electrode contact
+  // masquerade as lost concentration. Readable seconds either side of a gap
+  // form one run, matching how ②⑤ treat a gap.
+  const att = rows.filter((r) => !isMissing(r)).map((r) => r.attention);
+  if (!att.length) return 0;
   const runs = runsAbove(att, threshold);
   const coverage = (runs.reduce((s, r) => s + r, 0) / att.length) * 100;
   const longest = runs.length ? Math.max(...runs) : 0;
@@ -399,6 +438,11 @@ function computeCalmnessStability(rows: EegRow[]): number {
  * are ~1 Hz (index ≈ seconds, like an uploaded file) and use `meditation` for
  * what the indicators call `relaxation`. Typed structurally to avoid coupling
  * brain-profile to the mind-map module.
+ *
+ * Seconds the headset reported poor contact for are kept in place and flagged
+ * rather than dropped: the timing indicators (②⑤) read the array index as
+ * elapsed seconds, so removing a gap would report a faster crossing than
+ * actually happened. Flagged rows are then skipped by every indicator.
  */
 export function eegRowsFromSamples(
   samples: {
@@ -412,6 +456,7 @@ export function eegRowsFromSamples(
     highBeta: number;
     lowGamma: number;
     highGamma: number;
+    signal?: number;
   }[]
 ): EegRow[] {
   return samples.map((s) => ({
@@ -425,6 +470,7 @@ export function eegRowsFromSamples(
     highBeta: s.highBeta,
     lowGamma: s.lowGamma,
     highGamma: s.highGamma,
+    poorSignal: (s.signal ?? 0) > POOR_SIGNAL_LIMIT,
   }));
 }
 
@@ -439,8 +485,8 @@ export function eegRowsFromSamples(
 function trimPoorSignalEdges(rows: EegRow[]): EegRow[] {
   let lo = 0;
   let hi = rows.length - 1;
-  while (lo <= hi && rows[lo].attention <= 0 && rows[lo].relaxation <= 0) lo++;
-  while (hi >= lo && rows[hi].attention <= 0 && rows[hi].relaxation <= 0) hi--;
+  while (lo <= hi && !isValidSample(rows[lo])) lo++;
+  while (hi >= lo && !isValidSample(rows[hi])) hi--;
   return rows.slice(lo, hi + 1);
 }
 
@@ -460,6 +506,7 @@ export function computeBandPowers(rows: EegRow[]): BandPowers {
     highGamma: 0,
   };
   for (const r of rows) {
+    if (isMissing(r)) continue; // band powers during poor contact are noise
     sums.delta += r.delta;
     sums.theta += r.theta;
     sums.lowAlpha += r.lowAlpha;

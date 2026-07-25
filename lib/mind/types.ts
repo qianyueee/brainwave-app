@@ -29,6 +29,15 @@ export interface EegSample {
  *  index 0 = 1 Hz … index SPECTRUM_MAX_HZ-1 = SPECTRUM_MAX_HZ Hz. */
 export const SPECTRUM_MAX_HZ = 45;
 
+/**
+ * POOR_SIGNAL above this means the electrodes aren't reading the scalp (0 =
+ * perfect contact, 200 = none). Such a second carries *no data* — TGAM zeroes
+ * Attention/Meditation and the band powers are noise — so it must be treated as
+ * missing rather than as a genuinely low reading. Shared by the live warning
+ * and the 6-indicator math so both draw the line in the same place.
+ */
+export const POOR_SIGNAL_LIMIT = 50;
+
 /** Element-wise mean of equal-length spectra (skips empty/missing ones).
  *  Returns undefined when no usable spectrum is present. */
 export function averageSpectra(spectra: (number[] | undefined)[]): number[] | undefined {
