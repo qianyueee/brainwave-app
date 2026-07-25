@@ -12,8 +12,10 @@ import { BAND_META, BAND_COLORS } from "@/lib/mind/types";
  * Tapping a legend row hides that band and dims the row. δ normally dominates
  * the total, which squeezes every other band into a sliver — hiding it lets the
  * pie renormalize over what is left, so the small bands become readable. The
- * printed percentages always stay each band's measured share of ALL 8 bands, so
- * a number never silently changes meaning; only the pie is recalculated.
+ * printed percentages renormalize with it (each band's share of the *shown*
+ * bands) so a number always matches its slice; hidden rows show — since they
+ * are out of that calculation. With nothing hidden the shares are the measured
+ * share of all 8 bands, exactly as computeBandPowers produced them.
  *
  * Controlled (the selection lives in the page) because Fullscreenable renders
  * its children twice — inline and inside the overlay — and both copies must
@@ -31,6 +33,9 @@ export default function BrainBandPie({
 }) {
   const data = BAND_META.map((b) => ({ key: b.key, name: b.ja, value: powers[b.key] }));
   const shown = data.filter((d) => !hiddenKeys.includes(d.key));
+  // Share of the shown bands, so every printed number matches its slice. With
+  // nothing hidden this total is 100, leaving the measured values untouched.
+  const shownTotal = shown.reduce((s, d) => s + d.value, 0);
 
   return (
     <div>
@@ -67,7 +72,7 @@ export default function BrainBandPie({
           whole measurement, and tapping rows back on one by one is tedious. */}
       {onChangeHidden && hiddenKeys.length > 0 && (
         <div className="flex items-center justify-between gap-3 mt-2 px-1">
-          <p className="text-xs text-text-muted">円グラフは表示中の波で再計算</p>
+          <p className="text-xs text-text-muted">割合は表示中の波で再計算</p>
           <button
             type="button"
             onClick={() => onChangeHidden([])}
@@ -89,7 +94,9 @@ export default function BrainBandPie({
               />
               <span className="flex-1 min-w-0 truncate text-text-secondary">{d.name}</span>
               <span className="font-mono tabular-nums font-bold text-text-primary">
-                {d.value.toFixed(1)}%
+                {hidden || shownTotal <= 0
+                  ? "—"
+                  : `${((d.value / shownTotal) * 100).toFixed(1)}%`}
               </span>
             </>
           );
