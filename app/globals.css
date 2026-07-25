@@ -1,19 +1,20 @@
 @import "tailwindcss";
 
-/* Dynamic color variables — updated at runtime by ThemeProvider */
+/* Dynamic color variables — updated at runtime by ThemeProvider.
+   Defaults mirror the midnight palette (TIME_PERIODS[0] in lib/theme.ts). */
 :root {
-  --dyn-navy: #020617;
-  --dyn-navy-light: #0a1025;
-  --dyn-navy-lighter: #131c35;
-  --dyn-primary: #6366F1;
-  --dyn-primary-dark: #4F46E5;
-  --dyn-accent: #818CF8;
-  --dyn-accent-dark: #6366F1;
-  --dyn-surface: #0e1628;
-  --dyn-surface-border: #1e2840;
-  --dyn-text-primary: #e2e4f0;
-  --dyn-text-secondary: #8890a8;
-  --dyn-text-muted: #505870;
+  --dyn-navy: #1E1B4B;
+  --dyn-navy-light: #282558;
+  --dyn-navy-lighter: #322e68;
+  --dyn-primary: #A78BFA;
+  --dyn-primary-dark: #8B5CF6;
+  --dyn-accent: #6EE7B7;
+  --dyn-accent-dark: #34D399;
+  --dyn-surface: #252250;
+  --dyn-surface-border: #383468;
+  --dyn-text-primary: #e8e4f8;
+  --dyn-text-secondary: #a8a0d0;
+  --dyn-text-muted: #7870a8;
   --shadow-neu-dark: rgba(0, 0, 0, 0.45);
   --shadow-neu-light: rgba(255, 255, 255, 0.05);
 }
