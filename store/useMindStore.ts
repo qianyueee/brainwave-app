@@ -16,7 +16,12 @@ import {
 } from "@/lib/mind/types";
 import type { SourceStatus } from "@/lib/mind/data-source";
 import type { BrainIndicators } from "@/lib/brain-profile";
-import { computeIndicators, computeBandPowers, eegRowsFromSamples } from "@/lib/brain-profile";
+import {
+  computeIndicators,
+  computeBandPowers,
+  countUsableSeconds,
+  eegRowsFromSamples,
+} from "@/lib/brain-profile";
 import { useAppStore } from "./useAppStore";
 
 export type MindSourceKind = "demo" | "realtime";
@@ -42,6 +47,10 @@ export interface MindSessionSummary {
   spectrum?: number[];
   /** Free-text memo the user can attach to a measurement (optional). */
   note?: string;
+  /** Seconds the headset actually read. 0 means every second was poor-signal,
+   *  so the indicators are a meaningless all-zero and the measurement is not
+   *  filed as a session. Optional so sessions persisted before this load. */
+  usableSec?: number;
 }
 
 /** Last 5 minutes of 1 Hz samples kept for the trend chart. */
@@ -227,7 +236,9 @@ export const useMindStore = create<MindState>()(
         // Compute the 6 indicators + 8-band balance now, so the measurement can
         // later be opened in the 脳特性 chart without keeping the raw samples.
         const rows = eegRowsFromSamples(recordingSamples);
+        const usableSec = countUsableSeconds(rows);
         const summary: MindSessionSummary = {
+          usableSec,
           id: generateId(),
           startedAt: recordingStartedAt,
           endedAt,
@@ -247,7 +258,10 @@ export const useMindStore = create<MindState>()(
           recordingStartedAt: null,
           recordingSamples: [],
           recordingFlowCount: 0,
-          sessions: [summary, ...sessions].slice(0, 100),
+          // A recording the headset never read is not a measurement — every
+          // indicator is 0 for lack of data. Return it so the UI can say so,
+          // but keep it out of 過去の測定 and out of the 脳特性 history.
+          sessions: usableSec > 0 ? [summary, ...sessions].slice(0, 100) : sessions,
         });
         return summary;
       },

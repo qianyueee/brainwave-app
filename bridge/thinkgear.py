@@ -137,7 +137,18 @@ class ThinkGearParser:
         return samples
 
     def _parse_payload(self, payload: bytes) -> dict | None:
-        sample: dict | None = None
+        """Parse one packet payload; return a sample if it carried band powers.
+
+        The sample is assembled *after* the whole payload has been walked rather
+        than at the moment the ASIC_EEG_POWER row is seen. TGAM's once-per-second
+        packet lists POOR_SIGNAL and ASIC_EEG_POWER *before* ATTENTION and
+        MEDITATION, so reading the eSense values mid-walk shipped each second's
+        bands with the *previous* second's attention/meditation (and made the
+        very first sample 0/0). That one-second skew broke the indicators that
+        require an eSense value and a band value from the same second. Building
+        the dict at the end makes the result independent of row order.
+        """
+        bands: list[int] | None = None
         i = 0
         n = len(payload)
         while i < n:
@@ -175,15 +186,18 @@ class ThinkGearParser:
                         int.from_bytes(value_bytes[j : j + 3], "big")
                         for j in range(0, 24, 3)
                     ]
-                    sample = {
-                        "attention": self._attention,
-                        "meditation": self._meditation,
-                        **dict(zip(BAND_KEYS, bands)),
-                        "signal": self._signal,
-                        "ts": int(time.time() * 1000),
-                    }
-                    spectrum = _spectrum(self._raw)
-                    if spectrum is not None:
-                        sample["spectrum"] = spectrum
                 # other unknown rows: skipped
+
+        if bands is None:
+            return None
+        sample = {
+            "attention": self._attention,
+            "meditation": self._meditation,
+            **dict(zip(BAND_KEYS, bands)),
+            "signal": self._signal,
+            "ts": int(time.time() * 1000),
+        }
+        spectrum = _spectrum(self._raw)
+        if spectrum is not None:
+            sample["spectrum"] = spectrum
         return sample

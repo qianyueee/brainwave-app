@@ -1,4 +1,6 @@
-// Time-based dynamic theme system — 10 palettes mapped to circadian rhythm
+// Time-based dynamic theme system — 4 palettes mapped to time of day.
+// TIME_PERIODS must stay sorted by startHour and cover 0-24 without gaps:
+// getEffectivePalette() crossfades to the array neighbours at each boundary.
 
 export interface ThemePalette {
   navy: string;
@@ -25,74 +27,32 @@ export interface TimePeriod {
 
 export const TIME_PERIODS: TimePeriod[] = [
   {
-    // 00-03: Reset 無 — 漆黒 (jet black)
-    id: "reset",
-    name: "無",
+    // 00-06: Midnight 癒 — ミッドナイト (midnight indigo)
+    id: "midnight",
+    name: "癒",
     startHour: 0,
-    endHour: 3,
+    endHour: 6,
     palette: {
-      navy: "#020617",
-      navyLight: "#0a1025",
-      navyLighter: "#1c2845",
-      primary: "#6366F1",
-      primaryDark: "#4F46E5",
-      accent: "#818CF8",
-      accentDark: "#6366F1",
-      surface: "#0e1628",
-      surfaceBorder: "#1e2840",
-      textPrimary: "#e2e4f0",
-      textSecondary: "#8890a8",
-      textMuted: "#586080",
+      navy: "#1E1B4B",
+      navyLight: "#282558",
+      navyLighter: "#322e68",
+      primary: "#A78BFA",
+      primaryDark: "#8B5CF6",
+      accent: "#6EE7B7",
+      accentDark: "#34D399",
+      surface: "#252250",
+      surfaceBorder: "#383468",
+      textPrimary: "#e8e4f8",
+      textSecondary: "#a8a0d0",
+      textMuted: "#7870a8",
     },
   },
   {
-    // 03-05: Spiritual 霊 — インディゴ (indigo) → pastel indigo
-    id: "spiritual",
-    name: "霊",
-    startHour: 3,
-    endHour: 5,
-    palette: {
-      navy: "#d0c8f0",
-      navyLight: "#dcd6f5",
-      navyLighter: "#b0a4d8",
-      primary: "#4338CA",
-      primaryDark: "#3730A3",
-      accent: "#6d28d9",
-      accentDark: "#5b21b6",
-      surface: "#d6d0f2",
-      surfaceBorder: "#b8aee0",
-      textPrimary: "#1a1540",
-      textSecondary: "#3d3578",
-      textMuted: "#6860a0",
-    },
-  },
-  {
-    // 05-07: Awaken 醒 — ローズレッド (rose red) → rose tint
-    id: "awaken",
-    name: "醒",
-    startHour: 5,
-    endHour: 7,
-    palette: {
-      navy: "#f0c8d0",
-      navyLight: "#f5d8de",
-      navyLighter: "#d09aa8",
-      primary: "#E11D48",
-      primaryDark: "#BE123C",
-      accent: "#b85210",
-      accentDark: "#9c4408",
-      surface: "#f2d0d8",
-      surfaceBorder: "#d8a8b2",
-      textPrimary: "#1c0a10",
-      textSecondary: "#7a2838",
-      textMuted: "#985060",
-    },
-  },
-  {
-    // 07-09: Fresh 純 — サンイエロー (sun yellow) → warm cream
-    id: "fresh",
+    // 06-12: Day 純 — サンイエロー (sun yellow) → warm cream
+    id: "day",
     name: "純",
-    startHour: 7,
-    endHour: 9,
+    startHour: 6,
+    endHour: 12,
     palette: {
       navy: "#f5e8c0",
       navyLight: "#f8efd0",
@@ -109,53 +69,11 @@ export const TIME_PERIODS: TimePeriod[] = [
     },
   },
   {
-    // 09-12: Focus 集 — スカイブルー (sky blue) → sky blue
-    id: "focus",
-    name: "集",
-    startHour: 9,
-    endHour: 12,
-    palette: {
-      navy: "#c8e2f8",
-      navyLight: "#d8ecfa",
-      navyLighter: "#a0c4e0",
-      primary: "#0284C7",
-      primaryDark: "#0369A1",
-      accent: "#0e7490",
-      accentDark: "#0c5e75",
-      surface: "#d0e8f8",
-      surfaceBorder: "#a0c8e0",
-      textPrimary: "#082030",
-      textSecondary: "#285878",
-      textMuted: "#507890",
-    },
-  },
-  {
-    // 12-14: Zenith 頂 — 純白 (pure white) → near-white warm
-    id: "zenith",
-    name: "頂",
-    startHour: 12,
-    endHour: 14,
-    palette: {
-      navy: "#faf9f6",
-      navyLight: "#fdfcfa",
-      navyLighter: "#ddd8ce",
-      primary: "#78716C",
-      primaryDark: "#57534E",
-      accent: "#0880b8",
-      accentDark: "#0369A1",
-      surface: "#ffffff",
-      surfaceBorder: "#d5d0c8",
-      textPrimary: "#1c1917",
-      textSecondary: "#57534E",
-      textMuted: "#8a847e",
-    },
-  },
-  {
-    // 14-16: Stable 定 — エメラルド (emerald) → mint green
-    id: "stable",
+    // 12-18: Afternoon 定 — エメラルド (emerald) → mint green
+    id: "afternoon",
     name: "定",
-    startHour: 14,
-    endHour: 16,
+    startHour: 12,
+    endHour: 18,
     palette: {
       navy: "#c0e8d4",
       navyLight: "#d0f0e0",
@@ -172,32 +90,11 @@ export const TIME_PERIODS: TimePeriod[] = [
     },
   },
   {
-    // 16-18: Harvest 実 — アンバー (amber) → amber
-    id: "harvest",
-    name: "実",
-    startHour: 16,
-    endHour: 18,
-    palette: {
-      navy: "#f5e0b8",
-      navyLight: "#f8e8c8",
-      navyLighter: "#d4bc80",
-      primary: "#b06005",
-      primaryDark: "#924e04",
-      accent: "#c42020",
-      accentDark: "#a01818",
-      surface: "#f6e4c0",
-      surfaceBorder: "#d4c088",
-      textPrimary: "#1c1408",
-      textSecondary: "#684810",
-      textMuted: "#907030",
-    },
-  },
-  {
-    // 18-21: Release 放 — バイオレット (violet) → pastel violet
-    id: "release",
+    // 18-00: Evening 放 — バイオレット (violet) → pastel violet
+    id: "evening",
     name: "放",
     startHour: 18,
-    endHour: 21,
+    endHour: 24,
     palette: {
       navy: "#dcc8f0",
       navyLight: "#e4d6f5",
@@ -211,27 +108,6 @@ export const TIME_PERIODS: TimePeriod[] = [
       textPrimary: "#1c1040",
       textSecondary: "#4a3080",
       textMuted: "#7860a8",
-    },
-  },
-  {
-    // 21-00: Heal 癒 — ミッドナイト (midnight indigo)
-    id: "heal",
-    name: "癒",
-    startHour: 21,
-    endHour: 24,
-    palette: {
-      navy: "#1E1B4B",
-      navyLight: "#282558",
-      navyLighter: "#322e68",
-      primary: "#A78BFA",
-      primaryDark: "#8B5CF6",
-      accent: "#6EE7B7",
-      accentDark: "#34D399",
-      surface: "#252250",
-      surfaceBorder: "#383468",
-      textPrimary: "#e8e4f8",
-      textSecondary: "#a8a0d0",
-      textMuted: "#7870a8",
     },
   },
 ];
@@ -315,9 +191,11 @@ export function getEffectivePalette(date: Date): ThemePalette {
   const distToEnd = endBoundarySeconds - totalSeconds;
 
   if (distToEnd > 0 && distToEnd <= HALF_TRANSITION) {
-    // In the first half of transition (about to leave current period)
+    // In the first half of transition (about to leave current period).
+    // distToEnd 30s -> 0s maps to t 0 -> 0.5, so the branch above resumes at
+    // 0.5 on the same pair of palettes and the fade stays continuous.
     const nextIdx = (idx + 1) % TIME_PERIODS.length;
-    const t = 1 - distToEnd / TRANSITION_DURATION;
+    const t = 0.5 - distToEnd / TRANSITION_DURATION;
     return interpolatePalettes(period.palette, TIME_PERIODS[nextIdx].palette, t);
   }
 

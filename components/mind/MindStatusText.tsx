@@ -2,7 +2,7 @@
 
 import { BatteryMedium, AlertTriangle, Sparkles } from "lucide-react";
 import type { EegSample } from "@/lib/mind/types";
-import { getQuadrant, boostedPosition, QUADRANT_INFO } from "@/lib/mind/types";
+import { getQuadrant, boostedPosition, QUADRANT_INFO, POOR_SIGNAL_LIMIT } from "@/lib/mind/types";
 import { nearestEmotion } from "@/lib/mind/emotions";
 
 export default function MindStatusText({
@@ -24,7 +24,7 @@ export default function MindStatusText({
     );
   }
 
-  if (sample.signal !== undefined && sample.signal > 50) {
+  if (sample.signal !== undefined && sample.signal > POOR_SIGNAL_LIMIT) {
     return (
       <div className="flex items-center justify-center gap-2 py-2 text-amber-400">
         <AlertTriangle size={22} />
