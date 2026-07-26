@@ -67,6 +67,7 @@ export default function SynthPage() {
   const saveAsProgram = useSynthStore((s) => s.saveAsProgram);
   const updateProgram = useSynthStore((s) => s.updateProgram);
   const editingProgramId = useSynthStore((s) => s.editingProgramId);
+  const savedPrograms = useSynthStore((s) => s.savedPrograms);
 
   // Timeline editor state
   const isTimelineMode = useSynthStore((s) => s.isTimelineMode);
@@ -84,6 +85,7 @@ export default function SynthPage() {
   const [presetName, setPresetName] = useState("");
   const [programName, setProgramName] = useState("");
   const [programDesc, setProgramDesc] = useState("");
+  const [programMsg, setProgramMsg] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
   const [baseFreqInput, setBaseFreqInput] = useState(harmonicBaseFreq.toString());
   const [baseFreqInputLeft, setBaseFreqInputLeft] = useState(harmonicBaseFreqLeft.toString());
@@ -101,6 +103,16 @@ export default function SynthPage() {
   useEffect(() => {
     setBaseFreqInputRight(harmonicBaseFreqRight.toString());
   }, [harmonicBaseFreqRight]);
+
+  // Editing target changed (opened a program, or just saved a copy): refill the
+  // description from it so "更新" doesn't overwrite it with the auto-generated one.
+  // Reads the store directly so typing in the textarea doesn't re-trigger this.
+  useEffect(() => {
+    const target = useSynthStore
+      .getState()
+      .savedPrograms.find((p) => p.id === editingProgramId);
+    setProgramDesc(target?.description ?? "");
+  }, [editingProgramId]);
 
   // Destructive edits rebuild the active buffer, so stop any preview (segment or
   // whole-timeline) first to keep the live nodes consistent with the buffer.
@@ -181,20 +193,40 @@ export default function SynthPage() {
     ? savedPresets.find((p) => p.id === editingPresetId)?.name
     : null;
 
-  const handleSaveAsProgram = () => {
-    if (editingProgramId) {
+  const editingProgramName = editingProgramId
+    ? savedPrograms.find((p) => p.id === editingProgramId)?.name
+    : null;
+
+  /** Overwrite the program currently open in the editor. */
+  const handleUpdateProgram = async () => {
+    if (!editingProgramId) return;
+    try {
       // updateProgram is timeline-aware (branches on isTimelineMode internally).
-      updateProgram(editingProgramId, programDesc);
-    } else {
-      const name = programName.trim();
-      if (!name) return;
+      await updateProgram(editingProgramId, programDesc);
+      setProgramMsg(`「${editingProgramName}」を更新しました`);
+    } catch {
+      setProgramMsg("保存に失敗しました");
+    }
+  };
+
+  /**
+   * Save the current editor state as a brand-new program. The program that was
+   * open stays untouched; the editor switches to the new copy (the save actions
+   * move editingProgramId onto it).
+   */
+  const handleSaveAsNewProgram = async () => {
+    const name = programName.trim();
+    if (!name) return;
+    try {
       if (isTimelineMode) {
-        saveAsTimelineProgram(name, programDesc);
+        await saveAsTimelineProgram(name, programDesc);
       } else {
-        saveAsProgram(name, programDesc);
+        await saveAsProgram(name, programDesc);
       }
       setProgramName("");
-      setProgramDesc("");
+      setProgramMsg(`「${name}」として保存しました`);
+    } catch {
+      setProgramMsg("保存に失敗しました");
     }
   };
 
@@ -659,12 +691,40 @@ export default function SynthPage() {
               rows={2}
               className="w-full bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent resize-none"
             />
+
+            {/* Overwrite the program that is open */}
             <button
-              onClick={handleSaveAsProgram}
+              onClick={handleUpdateProgram}
               className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
             >
-              プログラムを更新
+              <span className="block truncate px-2">
+                {editingProgramName ? `「${editingProgramName}」を更新` : "プログラムを更新"}
+              </span>
             </button>
+
+            {/* Save a copy under a new name; the original stays in the list */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={programName}
+                onChange={(e) => setProgramName(e.target.value)}
+                placeholder="新しいプログラム名を入力"
+                maxLength={30}
+                className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent"
+              />
+              <button
+                onClick={handleSaveAsNewProgram}
+                disabled={!programName.trim()}
+                className="px-5 py-3 rounded-xl bg-navy-light text-accent text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm whitespace-nowrap"
+              >
+                別名保存
+              </button>
+            </div>
+            <p className="text-xs text-text-muted">
+              別名保存すると
+              {editingProgramName ? `「${editingProgramName}」` : "元のプログラム"}
+              はそのまま残り、新しいプログラムが追加されます
+            </p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -678,7 +738,7 @@ export default function SynthPage() {
                 className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent"
               />
               <button
-                onClick={handleSaveAsProgram}
+                onClick={handleSaveAsNewProgram}
                 disabled={!programName.trim()}
                 className="px-5 py-3 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
               >
@@ -694,6 +754,9 @@ export default function SynthPage() {
               className="w-full bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent resize-none"
             />
           </div>
+        )}
+        {programMsg && (
+          <p className="text-xs text-primary font-bold" role="status">{programMsg}</p>
         )}
         <p className="text-xs text-text-muted">ホーム画面にカードとして表示されます</p>
       </div>
