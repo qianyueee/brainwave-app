@@ -14,6 +14,7 @@ import BrainSpectrumCompare from "@/components/BrainSpectrumCompare";
 import BrainRadarCompare from "@/components/BrainRadarCompare";
 import Fullscreenable from "@/components/Fullscreenable";
 import EegUploader from "@/components/EegUploader";
+import SignalQualityBadge from "@/components/SignalQualityBadge";
 import { syncNoteFromMeasurement } from "@/lib/mind/note-sync";
 import { ChevronDown, Trash2, BrainCircuit, Lock, CheckSquare, Square, X, BarChart3, Pencil, StickyNote } from "lucide-react";
 
@@ -86,6 +87,7 @@ function MeasurementItem({
               })}
             </p>
             <p className="text-sm text-text-secondary truncate">{m.sessionTag}</p>
+            <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">

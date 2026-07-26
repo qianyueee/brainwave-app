@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMindStore, type MindSessionSummary } from "@/store/useMindStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
+import { signalQualityPct } from "@/lib/brain-profile";
 
 export function sessionLabel(s: MindSessionSummary): string {
   return new Date(s.startedAt).toLocaleString("ja-JP", {
@@ -71,6 +72,10 @@ export function useImportSession() {
           note: s.note,
           uploadedAt,
           sessionTag: sessionLabel(s),
+          // Travels with the record so the caveat survives the import: the
+          // 脳特性 chart shows scores long after the post-measurement prompt
+          // that used to be the only place contact loss was mentioned.
+          qualityPct: signalQualityPct(s.usableSec, s.durationSec),
         });
         setPendingId(null);
         router.push("/profile");

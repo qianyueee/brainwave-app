@@ -10,6 +10,8 @@ import BrainSpectrumChart from "@/components/BrainSpectrumChart";
 import Fullscreenable from "@/components/Fullscreenable";
 import IndicatorHelp from "@/components/IndicatorHelp";
 import EegUploader from "@/components/EegUploader";
+import SignalQualityBadge from "@/components/SignalQualityBadge";
+import { isLowQuality } from "@/lib/brain-profile";
 import { BrainCircuit, Lock } from "lucide-react";
 import Link from "next/link";
 
@@ -117,6 +119,16 @@ export default function ProfilePage() {
               セッション: {displayed.sessionTag} ・ 測定日:{" "}
               {new Date(displayed.uploadedAt).toLocaleDateString("ja-JP")}
             </p>
+            {displayed.qualityPct !== undefined && (
+              <div className="flex flex-col items-center gap-1 mt-2">
+                <SignalQualityBadge qualityPct={displayed.qualityPct} />
+                {isLowQuality(displayed.qualityPct) && (
+                  <p className="text-xs text-amber-400 text-center">
+                    装着が不安定だったため、スコアは目安としてご覧ください
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {measurements.length > 0 && (

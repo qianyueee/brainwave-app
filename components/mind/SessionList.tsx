@@ -6,6 +6,8 @@ import { useMindStore } from "@/store/useMindStore";
 import { useImportSession, sessionLabel, type ImportStatus } from "./useImportSession";
 import { syncNoteFromSession } from "@/lib/mind/note-sync";
 import { formatTime } from "@/lib/utils";
+import { signalQualityPct } from "@/lib/brain-profile";
+import SignalQualityBadge from "@/components/SignalQualityBadge";
 
 /** Default number of rows shown before the 全て toggle is pressed. */
 const DEFAULT_COUNT = 4;
@@ -98,6 +100,10 @@ export default function SessionList() {
                       {formatTime(s.durationSec)}・集中 {s.avgAttention}・リラックス{" "}
                       {s.avgMeditation}・ゾーン率 {s.flowRatioPct}%
                     </p>
+                    <SignalQualityBadge
+                      qualityPct={signalQualityPct(s.usableSec, s.durationSec)}
+                      className="mt-1"
+                    />
                     {STATUS_TEXT[status] && (
                       <p
                         className={`text-xs mt-1 ${

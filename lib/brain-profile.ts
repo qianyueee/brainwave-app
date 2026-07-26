@@ -21,6 +21,13 @@ export interface BrainProfile {
   note?: string;        // free-text memo; kept in sync with the mind-map session's note
   uploadedAt: string;   // ISO date
   sessionTag: string;   // from Tag column
+  /**
+   * Share (0-100) of the recorded seconds the headset actually read — how much
+   * of this measurement rests on real data. Undefined means unknown: uploaded
+   * files carry no POOR_SIGNAL column, and records saved before this field
+   * existed never stored it. Never assume 100 in its place.
+   */
+  qualityPct?: number;
 }
 
 /** Per-second EEG row from the uploaded file */
@@ -321,6 +328,32 @@ function isValidSample(r: EegRow): boolean {
  *  information at all, and every indicator would be a meaningless 0. */
 export function countUsableSeconds(rows: EegRow[]): number {
   return trimPoorSignalEdges(rows).filter(isValidSample).length;
+}
+
+/**
+ * Below this share of readable seconds, enough of the session was lost to poor
+ * electrode contact that the scores are a rough guide rather than a
+ * measurement. One threshold for the post-measurement prompt, the 過去の測定
+ * list and the 脳特性 record, so they never disagree about the same session.
+ */
+export const QUALITY_WARN_PCT = 70;
+
+/**
+ * Share (0-100) of the recorded seconds the headset actually read. Returns
+ * undefined when it cannot be known — a legacy session with no usableSec, or a
+ * duration of zero — so callers render "unknown" instead of a made-up 100.
+ */
+export function signalQualityPct(
+  usableSec: number | undefined,
+  durationSec: number
+): number | undefined {
+  if (usableSec === undefined || durationSec <= 0) return undefined;
+  return clamp(Math.round((usableSec / durationSec) * 100), 0, 100);
+}
+
+/** True only for a known-and-low quality; unknown is never reported as low. */
+export function isLowQuality(qualityPct: number | undefined): boolean {
+  return qualityPct !== undefined && qualityPct < QUALITY_WARN_PCT;
 }
 
 const alphaPower = (r: EegRow): number => r.lowAlpha + r.highAlpha;

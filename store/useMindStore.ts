@@ -13,6 +13,7 @@ import {
   combineZoneBoost,
   averageSpectra,
   GAMMA_BASELINE_ALPHA,
+  POOR_SIGNAL_LIMIT,
 } from "@/lib/mind/types";
 import type { SourceStatus } from "@/lib/mind/data-source";
 import type { BrainIndicators } from "@/lib/brain-profile";
@@ -251,7 +252,17 @@ export const useMindStore = create<MindState>()(
           source: sourceKind,
           indicators: computeIndicators(rows),
           bands: computeBandPowers(rows),
-          spectrum: averageSpectra(recordingSamples.map((s) => s.spectrum)),
+          // Poor-contact seconds are excluded here for the same reason the
+          // indicators and the band balance exclude them: with the electrodes
+          // off the scalp the raw waveform is amplifier and mains pickup, not
+          // brain activity. Its FFT magnitudes are far larger than real EEG, so
+          // leaving those seconds in let a handful of them dominate the linear
+          // average and shape the whole session's spectrum.
+          spectrum: averageSpectra(
+            recordingSamples
+              .filter((s) => (s.signal ?? 0) <= POOR_SIGNAL_LIMIT)
+              .map((s) => s.spectrum)
+          ),
         };
         set({
           isRecording: false,

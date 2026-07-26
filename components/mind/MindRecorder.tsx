@@ -5,6 +5,7 @@ import { Play, Square, X } from "lucide-react";
 import { useMindStore, type MindSessionSummary } from "@/store/useMindStore";
 import { useImportSession } from "./useImportSession";
 import { formatTime } from "@/lib/utils";
+import { isLowQuality, signalQualityPct } from "@/lib/brain-profile";
 
 /**
  * Record start/stop button for the mind-map top bar. When a measurement
@@ -60,8 +61,11 @@ export default function MindRecorder() {
   const usableSec = finished?.usableSec ?? finished?.durationSec ?? 0;
   const unusable = !!finished && usableSec === 0;
   // Enough seconds were lost to poor contact that the scores are worth a caveat.
-  const patchy =
-    !!finished && !unusable && usableSec < Math.max(1, finished.durationSec) * 0.7;
+  // Same threshold the stored record and the 過去の測定 list use.
+  const qualityPct = finished
+    ? signalQualityPct(usableSec, finished.durationSec)
+    : undefined;
+  const patchy = !!finished && !unusable && isLowQuality(qualityPct);
 
   return (
     <>
@@ -136,7 +140,7 @@ export default function MindRecorder() {
 
                 {patchy && (
                   <p className="text-sm text-amber-400">
-                    有効なデータは {formatTime(usableSec)} でした。
+                    有効なデータは {formatTime(usableSec)}（{qualityPct}%）でした。
                     装着が不安定だったため、スコアは目安としてご覧ください
                   </p>
                 )}
