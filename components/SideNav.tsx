@@ -19,8 +19,8 @@ export default function SideNav() {
   return (
     <nav className="hidden md:flex md:flex-col md:w-60 md:shrink-0 md:sticky md:top-0 md:h-screen bg-navy border-r border-surface-border px-4 py-6 gap-2">
       <div className="px-3 mb-6">
-        <p className="text-lg font-bold text-text-primary leading-tight">脳波チューニング</p>
-        <p className="text-xs text-text-secondary mt-0.5">Brainwave Tuning</p>
+        <p className="text-lg font-bold text-text-primary leading-tight">NeuroSync</p>
+        <p className="text-xs text-text-secondary mt-0.5">ニューロシンク</p>
       </div>
       {tabs.map((tab) => {
         const isActive =

@@ -7,8 +7,8 @@ import ThemeProvider from "@/components/ThemeProvider";
 import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "脳波チューニング",
-  description: "パーソナライズド・バイノーラルビート",
+  title: "NeuroSync（ニューロシンク）",
+  description: "音で脳を整える、脳波コンディション分析 ＆ セルフケア",
 };
 
 export const viewport: Viewport = {

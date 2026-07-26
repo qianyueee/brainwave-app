@@ -66,8 +66,8 @@ export function startKeepAlive(title?: string): void {
   // Media Session API (lock-screen metadata)
   if ("mediaSession" in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: title ?? "脳波チューニング",
-      artist: "Brainwave App",
+      title: title ?? "NeuroSync",
+      artist: "NeuroSync",
       album: "Binaural Beats",
     });
   }

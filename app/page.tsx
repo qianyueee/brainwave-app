@@ -75,11 +75,11 @@ export default function HomePage() {
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">脳波チューニング</h1>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-text-primary">NeuroSync（ニューロシンク）</h1>
           <p className="text-sm text-text-secondary mt-1">
-            バイノーラルビートで脳をチューニング
+            〜 音で脳を整える、脳波コンディション分析 ＆ セルフケア 〜
           </p>
         </div>
         {!authLoading && (
