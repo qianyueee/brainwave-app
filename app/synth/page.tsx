@@ -10,6 +10,7 @@ import SynthPlaybackButton from "@/components/SynthPlaybackButton";
 import SynthTimelineStrip from "@/components/SynthTimelineStrip";
 import SynthVibratoPanel from "@/components/SynthVibratoPanel";
 import ExportDialog from "@/components/ExportDialog";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { ChevronLeft, Plus, Download, Upload, FileDown, Lock, Play, Square } from "lucide-react";
 import { downloadBlob } from "@/lib/audio-export";
 import { SynthPreset } from "@/lib/synth-engine";
@@ -20,6 +21,15 @@ const MAX_LAYERS = 8;
 const FREQ_MIN = 20;
 const FREQ_MAX = 10000;
 const HARMONIC_BASE_MIN = 1;
+
+/** A save action held back until the user confirms it in the dialog. */
+interface ConfirmRequest {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  tone: "primary" | "accent";
+  run: () => Promise<void>;
+}
 
 export default function SynthPage() {
   const router = useRouter();
@@ -83,9 +93,12 @@ export default function SynthPage() {
   const segmentPreviewPlaying = isSynthPlaying && !appIsPlaying;
 
   const [presetName, setPresetName] = useState("");
+  const [presetMsg, setPresetMsg] = useState("");
   const [programName, setProgramName] = useState("");
   const [programDesc, setProgramDesc] = useState("");
   const [programMsg, setProgramMsg] = useState("");
+  const [confirmState, setConfirmState] = useState<ConfirmRequest | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [baseFreqInput, setBaseFreqInput] = useState(harmonicBaseFreq.toString());
   const [baseFreqInputLeft, setBaseFreqInputLeft] = useState(harmonicBaseFreqLeft.toString());
@@ -177,18 +190,6 @@ export default function SynthPage() {
     }
   };
 
-  const handleSave = () => {
-    const name = presetName.trim();
-    if (!name) return;
-    savePreset(name);
-    setPresetName("");
-  };
-
-  const handleOverwriteSave = () => {
-    if (!editingPresetId) return;
-    updatePreset(editingPresetId);
-  };
-
   const editingPresetName = editingPresetId
     ? savedPresets.find((p) => p.id === editingPresetId)?.name
     : null;
@@ -196,6 +197,30 @@ export default function SynthPage() {
   const editingProgramName = editingProgramId
     ? savedPrograms.find((p) => p.id === editingProgramId)?.name
     : null;
+
+  // --- Save actions (each runs only after the confirm dialog) ---
+
+  const handleSave = async () => {
+    const name = presetName.trim();
+    if (!name) return;
+    try {
+      await savePreset(name);
+      setPresetName("");
+      setPresetMsg(`「${name}」を保存しました`);
+    } catch {
+      setPresetMsg("保存に失敗しました");
+    }
+  };
+
+  const handleOverwriteSave = async () => {
+    if (!editingPresetId) return;
+    try {
+      await updatePreset(editingPresetId);
+      setPresetMsg(`「${editingPresetName}」を上書きしました`);
+    } catch {
+      setPresetMsg("保存に失敗しました");
+    }
+  };
 
   /** Overwrite the program currently open in the editor. */
   const handleUpdateProgram = async () => {
@@ -228,6 +253,68 @@ export default function SynthPage() {
     } catch {
       setProgramMsg("保存に失敗しました");
     }
+  };
+
+  // --- Confirm dialog plumbing ---
+
+  const runConfirmed = async () => {
+    if (!confirmState || confirmBusy) return;
+    setConfirmBusy(true);
+    try {
+      // The save handlers report their own success/failure below the buttons.
+      await confirmState.run();
+    } finally {
+      setConfirmBusy(false);
+      setConfirmState(null);
+    }
+  };
+
+  const requestSavePreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+    setConfirmState({
+      title: "プリセットを保存しますか？",
+      message: `「${name}」という名前で新しいプリセットを保存します。`,
+      confirmLabel: "保存する",
+      tone: "primary",
+      run: handleSave,
+    });
+  };
+
+  const requestOverwritePreset = () => {
+    if (!editingPresetId) return;
+    setConfirmState({
+      title: "プリセットを上書きしますか？",
+      message: `「${editingPresetName}」の内容が現在の設定に置き換わります。\n元に戻すことはできません。`,
+      confirmLabel: "上書きする",
+      tone: "accent",
+      run: handleOverwriteSave,
+    });
+  };
+
+  const requestUpdateProgram = () => {
+    if (!editingProgramId) return;
+    setConfirmState({
+      title: "プログラムを更新しますか？",
+      message: `「${editingProgramName}」の内容が現在の設定に置き換わります。\n元に戻すことはできません。`,
+      confirmLabel: "更新する",
+      tone: "accent",
+      run: handleUpdateProgram,
+    });
+  };
+
+  const requestSaveAsNewProgram = () => {
+    const name = programName.trim();
+    if (!name) return;
+    setConfirmState({
+      title: editingProgramId ? "別名で保存しますか？" : "プログラムを保存しますか？",
+      message: editingProgramId
+        ? `「${name}」を新しいプログラムとして追加します。\n「${editingProgramName}」はそのまま残ります。`
+        : `「${name}」をホーム画面にカードとして追加します。`,
+      confirmLabel: "保存する",
+      tone: "primary",
+      run: handleSaveAsNewProgram,
+    });
   };
 
   // --- Timeline preview controls ---
@@ -616,7 +703,7 @@ export default function SynthPage() {
         {/* Overwrite existing preset */}
         {editingPresetName && (
           <button
-            onClick={handleOverwriteSave}
+            onClick={requestOverwritePreset}
             className="w-full py-3 rounded-xl bg-primary text-white text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
           >
             「{editingPresetName}」を上書き保存
@@ -634,7 +721,7 @@ export default function SynthPage() {
             className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-primary"
           />
           <button
-            onClick={handleSave}
+            onClick={requestSavePreset}
             disabled={!presetName.trim()}
             className={`px-5 py-3 rounded-xl text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm ${
               editingPresetName
@@ -645,6 +732,10 @@ export default function SynthPage() {
             {editingPresetName ? "別名保存" : "保存"}
           </button>
         </div>
+
+        {presetMsg && (
+          <p className="text-xs text-primary font-bold" role="status">{presetMsg}</p>
+        )}
       </div>
       )}
 
@@ -694,7 +785,7 @@ export default function SynthPage() {
 
             {/* Overwrite the program that is open */}
             <button
-              onClick={handleUpdateProgram}
+              onClick={requestUpdateProgram}
               className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
             >
               <span className="block truncate px-2">
@@ -713,7 +804,7 @@ export default function SynthPage() {
                 className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent"
               />
               <button
-                onClick={handleSaveAsNewProgram}
+                onClick={requestSaveAsNewProgram}
                 disabled={!programName.trim()}
                 className="px-5 py-3 rounded-xl bg-navy-light text-accent text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm whitespace-nowrap"
               >
@@ -738,7 +829,7 @@ export default function SynthPage() {
                 className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent"
               />
               <button
-                onClick={handleSaveAsNewProgram}
+                onClick={requestSaveAsNewProgram}
                 disabled={!programName.trim()}
                 className="px-5 py-3 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
               >
@@ -760,6 +851,17 @@ export default function SynthPage() {
         )}
         <p className="text-xs text-text-muted">ホーム画面にカードとして表示されます</p>
       </div>
+
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message}
+        confirmLabel={confirmState?.confirmLabel}
+        tone={confirmState?.tone}
+        busy={confirmBusy}
+        onConfirm={runConfirmed}
+        onClose={() => setConfirmState(null)}
+      />
     </div>
   );
 }
