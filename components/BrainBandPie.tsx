@@ -83,13 +83,13 @@ export default function BrainBandPie({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-x-5 gap-y-1 mt-2 px-1">
+      <div className="grid grid-cols-2 gap-x-3 mt-1 px-1">
         {data.map((d) => {
           const hidden = hiddenKeys.includes(d.key);
           const row = (
             <>
               <span
-                className="inline-block w-3 h-3 rounded-sm shrink-0"
+                className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
                 style={{ backgroundColor: BAND_COLORS[d.key] }}
               />
               <span className="flex-1 min-w-0 truncate text-text-secondary">{d.name}</span>
@@ -103,7 +103,7 @@ export default function BrainBandPie({
 
           if (!onChangeHidden) {
             return (
-              <div key={d.key} className="flex items-center gap-2 text-sm py-1">
+              <div key={d.key} className="flex items-center gap-1.5 text-xs py-0.5">
                 {row}
               </div>
             );
@@ -122,7 +122,10 @@ export default function BrainBandPie({
               }
               aria-pressed={!hidden}
               aria-label={`${d.name}を${hidden ? "表示する" : "非表示にする"}`}
-              className={`flex items-center gap-2 text-sm min-h-[48px] px-2 -mx-1 rounded-xl text-left transition-opacity active:opacity-60 ${
+              // Rows stay tappable (they toggle a band), so the height only comes
+              // down to 44px — the practical floor — rather than shrinking with
+              // the type.
+              className={`flex items-center gap-1.5 text-xs min-h-[44px] px-2 -mx-1 rounded-xl text-left transition-opacity active:opacity-60 ${
                 hidden ? "opacity-40" : ""
               }`}
             >

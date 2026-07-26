@@ -77,8 +77,16 @@ export default function HomePage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-text-primary">NeuroSync（ニューロシンク）</h1>
-          <p className="text-sm text-text-secondary mt-1">
+          {/* Beside the admin account buttons a phone leaves ~195px for the title.
+              At a uniform 24px the name needs 289px, so it wrapped on every phone.
+              The katakana is a reading gloss and takes the deeper cut, keeping the
+              brand itself at the 16px floor: 195px, one line from 375px up. Both
+              go full size once there is room. */}
+          <h1 className="text-base md:text-2xl font-bold text-text-primary">
+            NeuroSync
+            <span className="text-xs md:text-2xl">（ニューロシンク）</span>
+          </h1>
+          <p className="text-xs md:text-sm text-text-secondary mt-1">
             〜 音で脳を整える、脳波コンディション分析 ＆ セルフケア 〜
           </p>
         </div>
