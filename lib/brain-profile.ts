@@ -265,6 +265,13 @@ function coefficientOfVariation(values: number[]): number {
   return m === 0 ? 0 : stdDev(values) / m;
 }
 
+/** Middle value (lower of the two middles for an even count). 0 for empty input. */
+function median(values: number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor((sorted.length - 1) / 2)];
+}
+
 /** Lengths (in seconds) of each run where value stays ≥ threshold */
 function runsAbove(values: number[], threshold: number): number[] {
   const runs: number[] = [];
@@ -523,12 +530,46 @@ function trimPoorSignalEdges(rows: EegRow[]): EegRow[] {
   return rows.slice(lo, hi + 1);
 }
 
+const BAND_FIELDS = [
+  "delta",
+  "theta",
+  "lowAlpha",
+  "highAlpha",
+  "lowBeta",
+  "highBeta",
+  "lowGamma",
+  "highGamma",
+] as const;
+
+const rowTotal = (r: EegRow): number =>
+  BAND_FIELDS.reduce((s, b) => s + r[b], 0);
+
 /**
- * Session-average relative power (%) of the 8 raw bands, summed across all rows
- * so the result is the overall band balance. Returns all zeros for empty input.
+ * A second whose total band power is a rounding error next to the session's own
+ * scale: a dropped or malformed packet, not a quiet moment. Under the old
+ * sum-then-normalise aggregation these contributed ~nothing on their own; giving
+ * every second an equal vote would promote them to full weight, so they are
+ * dropped explicitly. The cut is relative because the raw ASIC values are
+ * uncalibrated and differ by ~50x between headsets — one recording's noise floor
+ * is another's normal second.
+ */
+const DEAD_SECOND_FRACTION = 0.01;
+
+/**
+ * Relative power (%) of the 8 raw bands for the session — the balance of a
+ * typical second.
+ *
+ * Each second is normalised to its own total *before* averaging, so every second
+ * carries equal weight. Summing the raw powers first (the previous approach)
+ * weights each second by how loud it was, which hands the result to blinks and
+ * movement: in one measured session the loudest 10% of seconds carried 42% of
+ * the summed power, reporting δ at 61% where the typical second was 32%. Because
+ * each second's shares total 100%, so does their mean — the property a pie needs.
+ *
+ * Returns all zeros when no second is usable.
  */
 export function computeBandPowers(rows: EegRow[]): BandPowers {
-  const sums = {
+  const zero: BandPowers = {
     delta: 0,
     theta: 0,
     lowAlpha: 0,
@@ -538,38 +579,22 @@ export function computeBandPowers(rows: EegRow[]): BandPowers {
     lowGamma: 0,
     highGamma: 0,
   };
-  for (const r of rows) {
-    if (isMissing(r)) continue; // band powers during poor contact are noise
-    sums.delta += r.delta;
-    sums.theta += r.theta;
-    sums.lowAlpha += r.lowAlpha;
-    sums.highAlpha += r.highAlpha;
-    sums.lowBeta += r.lowBeta;
-    sums.highBeta += r.highBeta;
-    sums.lowGamma += r.lowGamma;
-    sums.highGamma += r.highGamma;
+
+  // Band powers during poor contact are noise, not a reading.
+  const readable = rows.filter((r) => !isMissing(r) && rowTotal(r) > 0);
+  if (!readable.length) return zero;
+
+  const floor = median(readable.map(rowTotal)) * DEAD_SECOND_FRACTION;
+  const usable = readable.filter((r) => rowTotal(r) >= floor);
+  if (!usable.length) return zero;
+
+  const out = { ...zero };
+  for (const r of usable) {
+    const total = rowTotal(r);
+    for (const b of BAND_FIELDS) out[b] += (r[b] / total) * 100;
   }
-  const total =
-    sums.delta +
-    sums.theta +
-    sums.lowAlpha +
-    sums.highAlpha +
-    sums.lowBeta +
-    sums.highBeta +
-    sums.lowGamma +
-    sums.highGamma;
-  if (total <= 0) return { ...sums };
-  const pct = (v: number) => (v / total) * 100;
-  return {
-    delta: pct(sums.delta),
-    theta: pct(sums.theta),
-    lowAlpha: pct(sums.lowAlpha),
-    highAlpha: pct(sums.highAlpha),
-    lowBeta: pct(sums.lowBeta),
-    highBeta: pct(sums.highBeta),
-    lowGamma: pct(sums.lowGamma),
-    highGamma: pct(sums.highGamma),
-  };
+  for (const b of BAND_FIELDS) out[b] /= usable.length;
+  return out;
 }
 
 /** Compute all 6 indicators from raw EEG rows (0-100, no post-hoc rescaling) */

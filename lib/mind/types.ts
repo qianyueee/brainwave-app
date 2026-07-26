@@ -38,21 +38,31 @@ export const SPECTRUM_MAX_HZ = 45;
  */
 export const POOR_SIGNAL_LIMIT = 50;
 
-/** Element-wise mean of equal-length spectra (skips empty/missing ones).
- *  Returns undefined when no usable spectrum is present. */
-export function averageSpectra(spectra: (number[] | undefined)[]): number[] | undefined {
+/**
+ * One representative spectrum for a session: the per-bin **median** across the
+ * given seconds (skips empty/mismatched ones). Returns undefined when no usable
+ * spectrum is present.
+ *
+ * Median rather than mean because these are raw FFT magnitudes, and a blink or a
+ * flinch produces a second whose amplitude dwarfs ordinary EEG — averaging lets
+ * a handful of those seconds set the shape of the whole curve. A line chart has
+ * no "must total 100%" constraint, so the median can be taken per bin directly;
+ * it also keeps the amplitude meaningful, which normalising each second away
+ * would not.
+ */
+export function medianSpectrum(spectra: (number[] | undefined)[]): number[] | undefined {
   const valid = spectra.filter((s): s is number[] => Array.isArray(s) && s.length > 0);
   if (!valid.length) return undefined;
   const len = valid[0].length;
+  const sameLength = valid.filter((s) => s.length === len);
+  if (!sameLength.length) return undefined;
+  const mid = Math.floor((sameLength.length - 1) / 2);
   const out = new Array<number>(len).fill(0);
-  let count = 0;
-  for (const s of valid) {
-    if (s.length !== len) continue;
-    for (let i = 0; i < len; i++) out[i] += s[i];
-    count++;
+  for (let i = 0; i < len; i++) {
+    const column = sameLength.map((s) => s[i]).sort((a, b) => a - b);
+    out[i] = column[mid];
   }
-  if (count === 0) return undefined;
-  return out.map((v) => v / count);
+  return out;
 }
 
 /** Supabase Realtime channel name = `eeg:{pairing_code}`. */

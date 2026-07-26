@@ -11,7 +11,7 @@ import {
   programGammaGain,
   withGammaGain,
   combineZoneBoost,
-  averageSpectra,
+  medianSpectrum,
   GAMMA_BASELINE_ALPHA,
   POOR_SIGNAL_LIMIT,
 } from "@/lib/mind/types";
@@ -256,9 +256,8 @@ export const useMindStore = create<MindState>()(
           // indicators and the band balance exclude them: with the electrodes
           // off the scalp the raw waveform is amplifier and mains pickup, not
           // brain activity. Its FFT magnitudes are far larger than real EEG, so
-          // leaving those seconds in let a handful of them dominate the linear
-          // average and shape the whole session's spectrum.
-          spectrum: averageSpectra(
+          // leaving those seconds in let a handful of them dominate the curve.
+          spectrum: medianSpectrum(
             recordingSamples
               .filter((s) => (s.signal ?? 0) <= POOR_SIGNAL_LIMIT)
               .map((s) => s.spectrum)
