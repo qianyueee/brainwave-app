@@ -28,6 +28,13 @@ export interface BrainProfile {
    * existed never stored it. Never assume 100 in its place.
    */
   qualityPct?: number;
+  /**
+   * Who this was measured on, copied from the mind-map session at import time.
+   * A name rather than an id: the history has to stay readable even after the
+   * subject is renamed or removed. Undefined for uploads and for records made
+   * before subjects existed.
+   */
+  subject?: string;
 }
 
 /** Per-second EEG row from the uploaded file */

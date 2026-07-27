@@ -14,6 +14,7 @@ import MindTrendChart from "@/components/mind/MindTrendChart";
 import MindRecorder from "@/components/mind/MindRecorder";
 import SourceDialog from "@/components/mind/SourceDialog";
 import SessionList from "@/components/mind/SessionList";
+import SubjectSelector from "@/components/mind/SubjectSelector";
 
 export default function MindPage() {
   const sourceKind = useMindStore((s) => s.sourceKind);
@@ -56,6 +57,10 @@ export default function MindPage() {
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+      {/* Who is being measured — chosen before recording, since the session is
+          stamped with it and the history is grouped by it. */}
+      <SubjectSelector />
+
       {/* Top bar: 測定 + データソース side by side. */}
       <div className="flex gap-3">
         <div className="flex-1">

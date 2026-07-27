@@ -86,6 +86,9 @@ function MeasurementItem({
                 day: "numeric",
               })}
             </p>
+            {m.subject && (
+              <p className="text-sm font-bold text-primary truncate">{m.subject}</p>
+            )}
             <p className="text-sm text-text-secondary truncate">{m.sessionTag}</p>
             <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
           </div>

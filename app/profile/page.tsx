@@ -115,6 +115,11 @@ export default function ProfilePage() {
             <Fullscreenable title="大脳特性">
               <BrainRadarChart indicators={displayed.indicators} size="large" showScores />
             </Fullscreenable>
+            {displayed.subject && (
+              <p className="text-sm font-bold text-primary text-center mt-2">
+                測定者: {displayed.subject}
+              </p>
+            )}
             <p className="text-xs text-text-muted text-center mt-2">
               セッション: {displayed.sessionTag} ・ 測定日:{" "}
               {new Date(displayed.uploadedAt).toLocaleDateString("ja-JP")}

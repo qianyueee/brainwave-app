@@ -52,6 +52,11 @@ export interface MindSessionSummary {
    *  so the indicators are a meaningless all-zero and the measurement is not
    *  filed as a session. Optional so sessions persisted before this load. */
   usableSec?: number;
+  /** Who this was measured on. The name is a snapshot taken at recording time,
+   *  so renaming or deleting a subject never orphans past measurements.
+   *  Undefined on recordings made before subjects existed. */
+  subjectId?: string;
+  subjectName?: string;
 }
 
 /** Last 5 minutes of 1 Hz samples kept for the trend chart. */
@@ -90,6 +95,9 @@ interface MindState {
   recordingStartedAt: number | null;
   recordingSamples: EegSample[]; // in-memory only, never persisted
   recordingFlowCount: number; // Zone samples (gamma-boosted) during recording
+  /** Subject captured when 測定開始 was pressed, so switching subjects mid-run
+   *  cannot relabel a measurement that is already underway. */
+  recordingSubject: { id: string; name: string } | null;
   sessions: MindSessionSummary[];
   pairingCode: string;
 
@@ -98,7 +106,7 @@ interface MindState {
   setStatus: (status: SourceStatus, detail?: string) => void;
   setBridgeOnline: (online: boolean) => void;
   pushSample: (s: EegSample) => void;
-  startRecording: () => void;
+  startRecording: (subject?: { id: string; name: string } | null) => void;
   /** Stops the recording and returns the finished session's summary (null if
    *  no samples were captured), so the UI can offer importing it right away. */
   stopRecording: () => MindSessionSummary | null;
@@ -123,6 +131,7 @@ export const useMindStore = create<MindState>()(
       recordingStartedAt: null,
       recordingSamples: [],
       recordingFlowCount: 0,
+      recordingSubject: null,
       sessions: [],
       pairingCode: "",
 
@@ -146,6 +155,7 @@ export const useMindStore = create<MindState>()(
           recordingStartedAt: null,
           recordingSamples: [],
           recordingFlowCount: 0,
+          recordingSubject: null,
         }),
 
       setStatus: (status, detail) => set({ status, statusDetail: detail ?? "" }),
@@ -201,7 +211,7 @@ export const useMindStore = create<MindState>()(
           };
         }),
 
-      startRecording: () =>
+      startRecording: (subject) =>
         // Re-anchor the gamma baseline at measurement start (= resting state
         // before the 40Hz session), so the rise during treatment is captured.
         set({
@@ -209,12 +219,19 @@ export const useMindStore = create<MindState>()(
           recordingStartedAt: Date.now(),
           recordingSamples: [],
           recordingFlowCount: 0,
+          recordingSubject: subject ?? null,
           gammaBaseline: 0,
         }),
 
       stopRecording: () => {
-        const { recordingSamples, recordingStartedAt, recordingFlowCount, sourceKind, sessions } =
-          get();
+        const {
+          recordingSamples,
+          recordingStartedAt,
+          recordingFlowCount,
+          recordingSubject,
+          sourceKind,
+          sessions,
+        } = get();
         const endedAt = Date.now();
         if (recordingSamples.length === 0 || recordingStartedAt === null) {
           set({
@@ -222,6 +239,7 @@ export const useMindStore = create<MindState>()(
             recordingStartedAt: null,
             recordingSamples: [],
             recordingFlowCount: 0,
+            recordingSubject: null,
           });
           return null;
         }
@@ -250,6 +268,8 @@ export const useMindStore = create<MindState>()(
           // Zone rate reflects the gamma-boosted position the user actually saw.
           flowRatioPct: Math.round((recordingFlowCount / n) * 100),
           source: sourceKind,
+          subjectId: recordingSubject?.id,
+          subjectName: recordingSubject?.name,
           indicators: computeIndicators(rows),
           bands: computeBandPowers(rows),
           // Poor-contact seconds are excluded here for the same reason the
@@ -268,6 +288,7 @@ export const useMindStore = create<MindState>()(
           recordingStartedAt: null,
           recordingSamples: [],
           recordingFlowCount: 0,
+          recordingSubject: null,
           // A recording the headset never read is not a measurement — every
           // indicator is 0 for lack of data. Return it so the UI can say so,
           // but keep it out of 過去の測定 and out of the 脳特性 history.

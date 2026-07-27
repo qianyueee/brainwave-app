@@ -76,6 +76,9 @@ export function useImportSession() {
           // 脳特性 chart shows scores long after the post-measurement prompt
           // that used to be the only place contact loss was mentioned.
           qualityPct: signalQualityPct(s.usableSec, s.durationSec),
+          // Likewise for who it was measured on — without it the 脳特性 history
+          // silently merges everyone the headset has been worn by.
+          subject: s.subjectName,
         });
         setPendingId(null);
         router.push("/profile");

@@ -6,6 +6,7 @@ import { useMindStore, type MindSessionSummary } from "@/store/useMindStore";
 import { useImportSession } from "./useImportSession";
 import { formatTime } from "@/lib/utils";
 import { isLowQuality, signalQualityPct } from "@/lib/brain-profile";
+import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
 
 /**
  * Record start/stop button for the mind-map top bar. When a measurement
@@ -22,6 +23,8 @@ export default function MindRecorder() {
   const startRecording = useMindStore((s) => s.startRecording);
   const stopRecording = useMindStore((s) => s.stopRecording);
 
+  const subject = useSubjectStore(activeSubject);
+
   // The just-finished measurement awaiting the import decision.
   const [finished, setFinished] = useState<MindSessionSummary | null>(null);
   const { importSession, statusFor } = useImportSession();
@@ -31,7 +34,9 @@ export default function MindRecorder() {
 
   const handleToggle = () => {
     if (!isRecording) {
-      startRecording();
+      // Stamped at start, not at stop, so switching subjects mid-run cannot
+      // relabel a measurement that is already underway.
+      startRecording(subject && { id: subject.id, name: subject.name });
       return;
     }
     const summary = stopRecording();
@@ -133,6 +138,11 @@ export default function MindRecorder() {
               </>
             ) : (
               <>
+                {finished.subjectName && (
+                  <p className="text-base text-text-primary font-bold">
+                    測定者: {finished.subjectName}
+                  </p>
+                )}
                 <p className="text-base text-text-secondary">
                   測定時間 {formatTime(finished.durationSec)}・集中 {finished.avgAttention}
                   ・リラックス {finished.avgMeditation}・ゾーン率 {finished.flowRatioPct}%

@@ -8,6 +8,7 @@ import { syncNoteFromSession } from "@/lib/mind/note-sync";
 import { formatTime } from "@/lib/utils";
 import { signalQualityPct } from "@/lib/brain-profile";
 import SignalQualityBadge from "@/components/SignalQualityBadge";
+import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
 
 /** Default number of rows shown before the 全て toggle is pressed. */
 const DEFAULT_COUNT = 4;
@@ -33,6 +34,9 @@ export default function SessionList() {
   const sessions = useMindStore((s) => s.sessions);
   const deleteSession = useMindStore((s) => s.deleteSession);
   const { importSession, statusFor } = useImportSession();
+  const subjectCount = useSubjectStore((s) => s.subjects.length);
+  const subject = useSubjectStore(activeSubject);
+  const [allSubjects, setAllSubjects] = useState(false);
 
   // false during SSR/hydration, true after — persisted sessions only render
   // client-side, avoiding a hydration mismatch.
@@ -56,23 +60,54 @@ export default function SessionList() {
     setEditingId(null);
   };
 
-  const visible = hydrated ? (showAll ? sessions : sessions.slice(0, DEFAULT_COUNT)) : [];
+  // With a single subject there is nothing to separate, so the filter stays out
+  // of the way — and recordings made before subjects existed keep showing up.
+  // It appears only once a second person has actually been measured.
+  const filtering = subjectCount > 1 && !allSubjects && !!subject;
+  const forSubject = filtering
+    ? sessions.filter((s) => s.subjectId === subject.id)
+    : sessions;
+  const hiddenCount = sessions.length - forSubject.length;
+
+  const visible = hydrated
+    ? showAll
+      ? forSubject
+      : forSubject.slice(0, DEFAULT_COUNT)
+    : [];
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-text-primary">過去の測定</h2>
-        {hydrated && sessions.length > DEFAULT_COUNT && (
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="min-w-0 truncate text-lg font-bold text-text-primary">
+          過去の測定
+          {filtering && (
+            <span className="ml-2 text-sm font-normal text-text-secondary">
+              {subject.name}
+            </span>
+          )}
+        </h2>
+        {hydrated && forSubject.length > DEFAULT_COUNT && (
           <button
             onClick={() => setShowAll((v) => !v)}
-            className="px-3 py-1.5 rounded-xl border border-surface-border text-sm font-medium text-primary neu-raised-sm neu-press transition-transform"
+            className="shrink-0 px-3 py-1.5 rounded-xl border border-surface-border text-sm font-medium text-primary neu-raised-sm neu-press transition-transform"
           >
             {showAll ? "閉じる" : "全て"}
           </button>
         )}
       </div>
 
-      {!hydrated || sessions.length === 0 ? (
+      {hydrated && subjectCount > 1 && (hiddenCount > 0 || allSubjects) && (
+        <button
+          onClick={() => setAllSubjects((v) => !v)}
+          className="self-start text-sm text-primary underline underline-offset-4 active:opacity-70"
+        >
+          {allSubjects
+            ? `${subject?.name ?? "測定者"}のみ表示`
+            : `他の測定者の記録も表示（${hiddenCount}件）`}
+        </button>
+      )}
+
+      {!hydrated || forSubject.length === 0 ? (
         <p className="text-base text-text-secondary">まだ測定記録がありません</p>
       ) : (
         visible.map((s) => {
@@ -96,6 +131,12 @@ export default function SessionList() {
                         <span className="ml-2 text-xs font-normal text-text-muted">デモ</span>
                       )}
                     </p>
+                    {/* Only when the list mixes people — otherwise it is noise. */}
+                    {!filtering && subjectCount > 1 && (
+                      <p className="text-xs font-bold text-primary">
+                        {s.subjectName ?? "測定者未設定"}
+                      </p>
+                    )}
                     <p className="text-sm text-text-secondary">
                       {formatTime(s.durationSec)}・集中 {s.avgAttention}・リラックス{" "}
                       {s.avgMeditation}・ゾーン率 {s.flowRatioPct}%
