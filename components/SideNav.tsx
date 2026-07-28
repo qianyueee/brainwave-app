@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Music2, BrainCircuit, BarChart2, Activity } from "lucide-react";
-
-const tabs = [
-  { href: "/", label: "ホーム", icon: Home },
-  { href: "/player", label: "プレーヤー", icon: Music2 },
-  { href: "/mind", label: "マインド", icon: Activity },
-  { href: "/profile", label: "脳特性", icon: BrainCircuit },
-  { href: "/log", label: "ログ", icon: BarChart2 },
-];
+import { NAV_TABS, isTabActive } from "@/components/nav-tabs";
 
 /** Desktop-only left navigation rail. Hidden on mobile (BottomNav is used there). */
 export default function SideNav() {
@@ -22,22 +14,24 @@ export default function SideNav() {
         <p className="text-lg font-bold text-text-primary leading-tight">NeuroSync</p>
         <p className="text-xs text-text-secondary mt-0.5">ニューロシンク</p>
       </div>
-      {tabs.map((tab) => {
-        const isActive =
-          tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
+      {NAV_TABS.map((tab) => {
+        const isActive = isTabActive(tab.href, pathname);
         const Icon = tab.icon;
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            className={`flex items-center gap-3 h-12 px-3 rounded-2xl text-base font-medium transition-colors ${
+            className={`flex items-center gap-3 min-h-[56px] py-2 px-3 rounded-2xl text-base font-medium transition-colors ${
               isActive
                 ? "bg-navy-light neu-inset text-primary"
                 : "text-text-muted hover:text-text-secondary"
             }`}
           >
-            <Icon size={22} strokeWidth={isActive ? 2 : 1.5} />
-            <span>{tab.label}</span>
+            <Icon size={22} strokeWidth={isActive ? 2 : 1.5} className="shrink-0" />
+            <span className="flex flex-col">
+              <span className="text-base leading-tight">{tab.en}</span>
+              <span className="text-xs text-text-muted leading-tight mt-0.5">{tab.kana}</span>
+            </span>
           </Link>
         );
       })}

@@ -15,7 +15,7 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import PublishedProgramCard from "@/components/PublishedProgramCard";
-import { BrainCircuit, Plus, User, LogOut, Settings } from "lucide-react";
+import { BrainCircuit, Plus, User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function HomePage() {
@@ -34,7 +34,6 @@ export default function HomePage() {
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
-  const signOut = useAuthStore((s) => s.signOut);
   const isLoggedIn = !!user;
 
   // Guard against hydration mismatch from persist middleware
@@ -75,54 +74,48 @@ export default function HomePage() {
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          {/* Beside the admin account buttons a phone leaves ~195px for the title.
+      <div className="flex flex-col gap-1">
+        <div className="flex items-start justify-between gap-3">
+          {/* Beside the header buttons a phone leaves limited width for the title.
               At a uniform 24px the name needs 289px, so it wrapped on every phone.
               The katakana is a reading gloss and takes the deeper cut, keeping the
-              brand itself at the 16px floor: 195px, one line from 375px up. Both
-              go full size once there is room. */}
-          <h1 className="text-base md:text-2xl font-bold text-text-primary">
+              brand itself at the 16px floor; nowrap makes it break as a unit when
+              the login button squeezes the line. The subtitle sits below the row
+              at full width. Everything goes full size once there is room. */}
+          <h1 className="min-w-0 text-base md:text-2xl font-bold text-text-primary">
             NeuroSync
-            <span className="text-xs md:text-2xl">（ニューロシンク）</span>
+            <span className="text-xs md:text-2xl whitespace-nowrap">（ニューロシンク）</span>
           </h1>
-          <p className="text-xs md:text-sm text-text-secondary mt-1">
-            〜 音で脳を整える、脳波コンディション分析 ＆ セルフケア 〜
-          </p>
-        </div>
-        {!authLoading && (
-          isLoggedIn ? (
-            <div className="flex items-center gap-2">
-              {isAdmin && (
-                <button
-                  onClick={() => router.push("/admin")}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl text-amber-400 active:scale-95"
-                  title="管理パネル"
-                >
-                  <Settings size={20} strokeWidth={1.5} />
-                </button>
-              )}
+          <div className="flex items-center gap-2 shrink-0">
+          {!authLoading && (
+            isLoggedIn ? (
               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
                 {user.email?.charAt(0).toUpperCase() ?? "U"}
               </div>
+            ) : (
               <button
-                onClick={signOut}
-                className="w-10 h-10 flex items-center justify-center rounded-xl text-text-muted active:scale-95"
-                title="ログアウト"
+                onClick={() => openAuthModal("login")}
+                className="flex items-center gap-2 h-10 px-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium whitespace-nowrap neu-raised-sm neu-press active:scale-95"
               >
-                <LogOut size={20} strokeWidth={1.5} />
+                <User size={18} strokeWidth={1.5} />
+                ログイン
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => openAuthModal("login")}
-              className="flex items-center gap-2 h-10 px-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press active:scale-95"
-            >
-              <User size={18} strokeWidth={1.5} />
-              ログイン
-            </button>
-          )
-        )}
+            )
+          )}
+          {/* Settings entry — the corner gear (the admin gear that used to sit
+              here moved into the Settings page). */}
+          <button
+            onClick={() => router.push("/settings")}
+            className="w-10 h-10 flex items-center justify-center rounded-xl text-text-muted active:scale-95"
+            title="設定"
+          >
+            <Settings size={20} strokeWidth={1.5} />
+          </button>
+          </div>
+        </div>
+        <p className="text-xs md:text-sm text-text-secondary">
+          〜 音波×光波×脳波シンクロ誘導 ＆ 脳コンディション管理 〜
+        </p>
       </div>
 
       {/* Mobile: single column. Desktop: two columns (more visible at once). */}
@@ -134,7 +127,7 @@ export default function HomePage() {
       {/* Brain Profile Card */}
       {hydrated && (
         profile ? (
-          <Link href="/profile" className="block bg-surface border border-surface-border rounded-3xl p-4 neu-raised neu-press transition-transform breathe">
+          <Link href="/report" className="block bg-surface border border-surface-border rounded-3xl p-4 neu-raised neu-press transition-transform breathe">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-text-secondary">脳特性チャート</p>
               <span className="text-xs text-primary font-medium">詳細 →</span>
@@ -146,7 +139,7 @@ export default function HomePage() {
           </Link>
         ) : (
           <Link
-            href="/profile"
+            href="/report"
             className="block w-full bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised neu-press transition-transform breathe"
           >
             <div className="flex justify-center mb-2">
@@ -162,9 +155,9 @@ export default function HomePage() {
       </div>
 
       <div className="flex flex-col gap-6">
-      {/* Programs */}
+      {/* Programs — the "Sync Sound" lineup */}
       <div className="flex flex-col gap-3 breathe-stagger">
-        <p className="text-sm text-text-secondary">プログラム一覧</p>
+        <p className="text-sm text-text-secondary">Sync Sound（シンク・サウンド / 脳波同期サウンド）</p>
         {PROGRAMS.map((program) => (
           <ProgramCard key={program.id} program={program} />
         ))}

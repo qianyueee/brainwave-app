@@ -16,8 +16,13 @@ export default function MoodSelector() {
   const setSelectedProgramId = useAppStore((s) => s.setSelectedProgramId);
 
   const handleMood = (mood: (typeof MOODS)[number]) => {
-    setMood(mood.label);
-    setSelectedProgramId(mood.programId);
+    // Re-tapping the mood whose program is already sounding must not reset
+    // the live session's selection/mood — just return to the player.
+    const { isPlaying, selectedProgramId } = useAppStore.getState();
+    if (!(isPlaying && selectedProgramId === mood.programId)) {
+      setMood(mood.label);
+      setSelectedProgramId(mood.programId);
+    }
     router.push("/player");
   };
 
