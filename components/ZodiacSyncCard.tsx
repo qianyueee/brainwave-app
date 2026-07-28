@@ -8,11 +8,13 @@ import {
   ZODIAC_SIGNS,
   getZodiacSign,
   getTodaySky,
+  isNightNow,
   zodiacProgramId,
   type TodaySky,
 } from "@/lib/zodiac";
 import { getProgramById } from "@/lib/programs";
 import ZodiacSignPicker from "@/components/ZodiacSignPicker";
+import { Sun, Moon } from "lucide-react";
 
 /**
  * Cosmic & Brain Sync — today's sun × moon sign plus the 12-sign program
@@ -48,12 +50,18 @@ export default function ZodiacSyncCard() {
     };
   }, []);
 
-  // Effective sign: the saved choice, else today's sun sign once computed.
+  // Hero = today's sign in the sky right now: sun by day, moon by night
+  // (same 6:00/18:00 boundaries as the time-of-day theme). Only meaningful
+  // once `sky` resolves, which happens client-side — so reading the clock
+  // inline can't cause an SSR mismatch.
+  const night = isNightNow();
+  const heroSign = sky ? ZODIAC_SIGNS[night ? sky.moonIndex : sky.sunIndex] : undefined;
+  const otherSign = sky ? ZODIAC_SIGNS[night ? sky.sunIndex : sky.moonIndex] : undefined;
+
+  // Effective sign: the saved choice, else today's hero sign once computed.
   // The fallback is deliberately NOT written to the store — a default is not
   // a choice; only a tap persists.
-  const effectiveKey = hydrated
-    ? selectedSign ?? (sky ? ZODIAC_SIGNS[sky.sunIndex].key : null)
-    : null;
+  const effectiveKey = hydrated ? selectedSign ?? heroSign?.key ?? null : null;
   const sign = effectiveKey ? getZodiacSign(effectiveKey) : undefined;
   const program = effectiveKey ? getProgramById(zodiacProgramId(effectiveKey)) : undefined;
 
@@ -71,16 +79,38 @@ export default function ZodiacSyncCard() {
 
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-5 neu-raised breathe flex flex-col gap-4">
-      {/* Header + today's sky */}
-      <div>
-        <p className="text-sm text-text-secondary">Cosmic & Brain Sync</p>
-        <p className="text-base text-text-primary mt-1">
-          {sky
-            ? `今日の空：太陽 ${ZODIAC_SIGNS[sky.sunIndex].glyph}${ZODIAC_SIGNS[sky.sunIndex].nameJa} × 月 ${ZODIAC_SIGNS[sky.moonIndex].glyph}${ZODIAC_SIGNS[sky.moonIndex].nameJa}`
-            : skyFailed
-              ? "今日の空は取得できませんでした"
-              : "今日の空を計算中…"}
-        </p>
+      {/* Hero — today's big sign: sun sign by day, moon sign by night */}
+      <div className="flex flex-col items-center text-center gap-3">
+        <p className="text-sm text-text-secondary self-start">Cosmic & Brain Sync</p>
+        {heroSign && otherSign ? (
+          <>
+            <div className="w-28 h-28 rounded-full bg-navy neu-inset flex items-center justify-center">
+              <span className="text-6xl leading-none">{heroSign.glyph}</span>
+            </div>
+            <div>
+              <p className="text-sm text-text-secondary flex items-center justify-center gap-1.5">
+                {night ? (
+                  <Moon size={16} strokeWidth={1.5} />
+                ) : (
+                  <Sun size={16} strokeWidth={1.5} />
+                )}
+                {night ? "今夜の月星座" : "今日の太陽星座"}
+              </p>
+              <p className="text-2xl font-bold text-text-primary mt-0.5">{heroSign.nameJa}</p>
+              <p className="text-xs text-text-muted mt-1">
+                {night
+                  ? `太陽は ${otherSign.glyph}${otherSign.nameJa}`
+                  : `月は ${otherSign.glyph}${otherSign.nameJa}`}
+              </p>
+            </div>
+          </>
+        ) : skyFailed ? (
+          <p className="text-base text-text-primary py-6">今日の空は取得できませんでした</p>
+        ) : (
+          <div className="w-28 h-28 rounded-full bg-navy neu-inset flex items-center justify-center">
+            <span className="text-sm text-text-muted">計算中…</span>
+          </div>
+        )}
       </div>
 
       {hydrated && <ZodiacSignPicker value={effectiveKey} onChange={setSelectedSign} />}

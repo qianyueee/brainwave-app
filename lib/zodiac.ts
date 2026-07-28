@@ -74,6 +74,15 @@ export interface TodaySky {
 }
 
 /**
+ * アプリ共通の昼夜区分（lib/theme.ts の時間帯と同じ境界）：
+ * 6:00–17:59 は昼 → 太陽星座、18:00–5:59 は夜 → 月星座をヒーロー表示する。
+ */
+export function isNightNow(date: Date = new Date()): boolean {
+  const h = date.getHours();
+  return h < 6 || h >= 18;
+}
+
+/**
  * 今この瞬間の太陽星座×月星座。トロピカル方式（真黄道 of-date の経度を
  * 30°で区切る）— 日本の星座占いと同じ区分。astronomy-engine は重いので
  * ここでだけ動的 import し、別チャンクとして遅延ロードさせる。
