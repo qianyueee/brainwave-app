@@ -7,6 +7,7 @@ import { useAdminStore } from "@/store/useAdminStore";
 import { useZodiacStore } from "@/store/useZodiacStore";
 import { getZodiacSign } from "@/lib/zodiac";
 import ZodiacSignPicker from "@/components/ZodiacSignPicker";
+import ZodiacConstellation from "@/components/ZodiacConstellation";
 import { User, LogOut, Settings, ChevronRight } from "lucide-react";
 
 /**
@@ -77,10 +78,19 @@ export default function SettingsPage() {
       <div className="flex flex-col gap-3">
         <p className="text-sm text-text-secondary">マイ星座</p>
         <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-3">
-          <p className="text-base text-text-primary">
-            {hydrated && mySign
-              ? `${mySign.glyph} ${mySign.nameJa}`
-              : "未設定（今日の太陽星座を表示します）"}
+          <p className="text-base text-text-primary flex items-center gap-2">
+            {hydrated && mySign ? (
+              <>
+                <ZodiacConstellation
+                  sign={mySign.key}
+                  variant="icon"
+                  className="w-7 h-7 text-primary shrink-0"
+                />
+                {mySign.nameJa}
+              </>
+            ) : (
+              "未設定（今日の太陽星座を表示します）"
+            )}
           </p>
           {hydrated && <ZodiacSignPicker value={selectedSign} onChange={setSelectedSign} />}
         </div>

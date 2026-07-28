@@ -257,6 +257,25 @@ input[type="range"]:disabled::-moz-range-thumb {
 .breathe-stagger > .breathe:nth-of-type(5) { --breathe-delay: 2.4s; }
 .breathe-stagger > .breathe:nth-of-type(6) { --breathe-delay: 3.0s; }
 
+/* Constellation star-map: staggered star twinkle + slow whole-figure breathe */
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.constellation-star {
+  animation: star-twinkle 3.8s ease-in-out infinite;
+  animation-delay: var(--twinkle-delay, 0s);
+}
+
+@keyframes constellation-breathe {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+.constellation-breathe {
+  animation: constellation-breathe 5.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   @keyframes pulse-ring {
     0%, 50%, 100% { transform: scale(1); opacity: 0.5; }
@@ -266,5 +285,11 @@ input[type="range"]:disabled::-moz-range-thumb {
   }
   @keyframes gentle-breathe {
     0%, 50%, 100% { transform: scale(1); }
+  }
+  @keyframes star-twinkle {
+    0%, 50%, 100% { opacity: 0.85; }
+  }
+  @keyframes constellation-breathe {
+    0%, 50%, 100% { opacity: 1; transform: scale(1); }
   }
 }

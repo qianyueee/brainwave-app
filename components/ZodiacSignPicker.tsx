@@ -1,6 +1,7 @@
 "use client";
 
 import { ZODIAC_SIGNS, type ZodiacKey } from "@/lib/zodiac";
+import ZodiacConstellation from "@/components/ZodiacConstellation";
 
 interface ZodiacSignPickerProps {
   /** Highlighted sign (the card passes the effective sign, settings the stored one). */
@@ -30,7 +31,7 @@ export default function ZodiacSignPicker({ value, onChange, disabled }: ZodiacSi
                 : "bg-navy text-text-secondary neu-raised-sm neu-press"
             }`}
           >
-            <span className="text-xl leading-none">{sign.glyph}</span>
+            <ZodiacConstellation sign={sign.key} variant="icon" className="w-8 h-8" />
             <span className="text-sm leading-tight">{sign.nameJa}</span>
           </button>
         );

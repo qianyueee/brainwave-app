@@ -14,7 +14,12 @@ import {
 } from "@/lib/zodiac";
 import { getProgramById } from "@/lib/programs";
 import ZodiacSignPicker from "@/components/ZodiacSignPicker";
+import ZodiacConstellation from "@/components/ZodiacConstellation";
 import { Sun, Moon } from "lucide-react";
+
+/** Fixed deep-night gradient — the star map stays on a dark sky in every theme. */
+const NIGHT_SKY =
+  "radial-gradient(130% 130% at 30% 15%, #2a3670 0%, #19224f 45%, #0a102e 100%)";
 
 /**
  * Cosmic & Brain Sync — today's sun × moon sign plus the 12-sign program
@@ -84,8 +89,15 @@ export default function ZodiacSyncCard() {
         <p className="text-sm text-text-secondary self-start">Cosmic & Brain Sync</p>
         {heroSign && otherSign ? (
           <>
-            <div className="w-28 h-28 rounded-full bg-navy neu-inset flex items-center justify-center">
-              <span className="text-6xl leading-none">{heroSign.glyph}</span>
+            <div
+              className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden neu-inset"
+              style={{ background: NIGHT_SKY }}
+            >
+              <ZodiacConstellation
+                sign={heroSign.key}
+                animated
+                className="constellation-breathe absolute inset-0 w-full h-full text-[#dfe9ff]"
+              />
             </div>
             <div>
               <p className="text-sm text-text-secondary flex items-center justify-center gap-1.5">
@@ -98,17 +110,18 @@ export default function ZodiacSyncCard() {
               </p>
               <p className="text-2xl font-bold text-text-primary mt-0.5">{heroSign.nameJa}</p>
               <p className="text-xs text-text-muted mt-1">
-                {night
-                  ? `太陽は ${otherSign.glyph}${otherSign.nameJa}`
-                  : `月は ${otherSign.glyph}${otherSign.nameJa}`}
+                {night ? `太陽は ${otherSign.nameJa}` : `月は ${otherSign.nameJa}`}
               </p>
             </div>
           </>
         ) : skyFailed ? (
           <p className="text-base text-text-primary py-6">今日の空は取得できませんでした</p>
         ) : (
-          <div className="w-28 h-28 rounded-full bg-navy neu-inset flex items-center justify-center">
-            <span className="text-sm text-text-muted">計算中…</span>
+          <div
+            className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden neu-inset flex items-center justify-center"
+            style={{ background: NIGHT_SKY }}
+          >
+            <span className="text-sm text-[#8f9cc9]">計算中…</span>
           </div>
         )}
       </div>
@@ -118,9 +131,7 @@ export default function ZodiacSyncCard() {
       {/* Recommendation for the selected sign — swaps in place on tap */}
       {sign && program ? (
         <div className="rounded-2xl bg-navy neu-inset p-4 flex flex-col gap-1">
-          <p className="text-sm text-text-secondary">
-            {sign.glyph} {sign.nameJa}のおすすめ
-          </p>
+          <p className="text-sm text-text-secondary">{sign.nameJa}のおすすめ</p>
           <p className="text-base font-bold text-text-primary">{program.name}</p>
           <p className="text-sm text-text-secondary">{program.description}</p>
           <button
