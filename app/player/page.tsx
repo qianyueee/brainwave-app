@@ -52,6 +52,7 @@ export default function PlayerPage() {
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Program name */}
       <div className="text-center">
+        <p className="text-xs font-bold text-primary tracking-wider">Sync Sound</p>
         <h1 className="text-xl font-bold text-text-primary">
           {displayName ?? "プログラムを選択"}
         </h1>

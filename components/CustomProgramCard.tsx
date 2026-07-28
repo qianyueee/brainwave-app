@@ -25,8 +25,13 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
   const [publishing, setPublishing] = useState(false);
 
   const handleClick = () => {
-    setSelectedProgramId(program.id);
-    setTimerDuration(program.defaultDuration);
+    // Re-tapping the program that is already sounding must not reset the
+    // running countdown/selection — just return to the player.
+    const { isPlaying, selectedProgramId } = useAppStore.getState();
+    if (!(isPlaying && selectedProgramId === program.id)) {
+      setSelectedProgramId(program.id);
+      setTimerDuration(program.defaultDuration);
+    }
     router.push("/player");
   };
 

@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Music2, BrainCircuit, BarChart2, Activity } from "lucide-react";
-
-const tabs = [
-  { href: "/", label: "ホーム", icon: Home },
-  { href: "/player", label: "プレーヤー", icon: Music2 },
-  { href: "/mind", label: "マインド", icon: Activity },
-  { href: "/profile", label: "脳特性", icon: BrainCircuit },
-  { href: "/log", label: "ログ", icon: BarChart2 },
-];
+import { NAV_TABS, isTabActive } from "@/components/nav-tabs";
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -18,9 +10,8 @@ export default function BottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-navy neu-nav">
       <div className="mx-auto max-w-[480px] flex justify-around items-center h-16">
-        {tabs.map((tab) => {
-          const isActive =
-            tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
+        {NAV_TABS.map((tab) => {
+          const isActive = isTabActive(tab.href, pathname);
           const Icon = tab.icon;
           return (
             <Link
@@ -37,7 +28,7 @@ export default function BottomNav() {
               ) : (
                 <Icon size={22} strokeWidth={1.5} />
               )}
-              <span className="text-xs">{tab.label}</span>
+              <span className="text-xs whitespace-nowrap">{tab.short}</span>
             </Link>
           );
         })}

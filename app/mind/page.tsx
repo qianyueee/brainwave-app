@@ -1,106 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { useMindStore } from "@/store/useMindStore";
-import { DummySource } from "@/lib/mind/dummy-source";
-import { RealtimeSource } from "@/lib/mind/realtime-source";
-import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
-import { rawBandPowers, EMPTY_BAND_POWERS } from "@/lib/mind/types";
-import MindMapCanvas from "@/components/mind/MindMapCanvas";
-import MindArtCanvas from "@/components/mind/MindArtCanvas";
-import MindStatusText from "@/components/mind/MindStatusText";
-import BandEqualizer from "@/components/mind/BandEqualizer";
-import MindTrendChart from "@/components/mind/MindTrendChart";
-import MindRecorder from "@/components/mind/MindRecorder";
-import SourceDialog from "@/components/mind/SourceDialog";
-import SessionList from "@/components/mind/SessionList";
-import SubjectSelector from "@/components/mind/SubjectSelector";
+import { useRouter } from "next/navigation";
 
-export default function MindPage() {
-  const sourceKind = useMindStore((s) => s.sourceKind);
-  const latestSample = useMindStore((s) => s.latestSample);
-  const history = useMindStore((s) => s.history);
-  const pairingCode = useMindStore((s) => s.pairingCode);
-  const gammaBoost = useMindStore((s) => s.gammaBoost);
-  // Combined gamma + program pull toward the Zone (the displayed position).
-  const zoneBoost = useMindStore((s) => s.zoneBoost);
-  const isRecording = useMindStore((s) => s.isRecording);
-
-  // 脳波バランス always shows the instantaneous latest sample so the bars stay
-  // live and moving, during recording and idle alike. The 脳特性 import
-  // separately summarizes the whole session as a full average (computed at stop).
-  const bandPowers = latestSample ? rawBandPowers(latestSample) : EMPTY_BAND_POWERS;
-
-  // Create/destroy the active data source. getState() actions are stable
-  // references, so the handlers never go stale.
+/** Legacy URL — /mind moved to /session. Static export can't 301, so redirect client-side. */
+export default function LegacyMindPage() {
+  const router = useRouter();
   useEffect(() => {
-    const handlers: MindSourceHandlers = {
-      onSample: (s) => useMindStore.getState().pushSample(s),
-      onStatus: (status, detail) => useMindStore.getState().setStatus(status, detail),
-      onBridgeOnline: (online) => useMindStore.getState().setBridgeOnline(online),
-    };
-    let source: MindDataSource | null = null;
-    if (sourceKind === "demo") {
-      source = new DummySource(handlers);
-    } else if (pairingCode) {
-      source = new RealtimeSource(pairingCode, handlers);
-    } else {
-      handlers.onStatus("idle");
-    }
-    source?.start();
-    return () => {
-      source?.stop();
-      useMindStore.getState().setStatus("idle");
-      useMindStore.getState().setBridgeOnline(false);
-    };
-  }, [sourceKind, pairingCode]);
-
+    router.replace("/session");
+  }, [router]);
   return (
-    <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      {/* Who is being measured — chosen before recording, since the session is
-          stamped with it and the history is grouped by it. */}
-      <SubjectSelector />
-
-      {/* Top bar: 測定 + データソース side by side. */}
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <MindRecorder />
-        </div>
-        <div className="flex-1">
-          <SourceDialog />
-        </div>
-      </div>
-
-      {/* Mobile: single column. Desktop: map+meters (left) | art+history (right). */}
-      <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-        <div className="flex flex-col gap-6">
-          {/* マインドマップ（四象限マップ + 状態）— ブレインアートと左右対称 */}
-          <section className="flex flex-col gap-3">
-            <h1 className="text-lg font-bold text-text-primary">マインドマップ</h1>
-            <MindMapCanvas sample={latestSample} boost={zoneBoost} isRecording={isRecording} />
-            <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
-          </section>
-
-          <BandEqualizer powers={bandPowers} />
-
-          <MindTrendChart history={history} />
-        </div>
-
-        <div className="flex flex-col gap-6">
-          {/* リアルタイム脳波アート（ニューロフィードバック）— マインドマップと左右対称：
-              見出し → 正方形キャンバス → 下に説明文 */}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
-            <MindArtCanvas sample={latestSample} boost={zoneBoost} />
-            <p className="text-sm text-text-secondary text-center">
-              脳波がリアルタイムに幾何学模様として紡ぎ出されます
-            </p>
-          </section>
-
-          {/* 過去の測定（タップで脳特性チャートを表示） */}
-          <SessionList />
-        </div>
-      </div>
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <p className="text-sm text-text-muted">移動しています…</p>
     </div>
   );
 }

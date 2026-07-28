@@ -4,19 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-NeuroSync（ニューロシンク）— 基于个人脑波数据的移动端 Web 应用，通过 Web Audio API 实时生成个性化双耳节拍（Binaural Beats）及自定义合成器音频。产品副标题：〜 音で脳を整える、脳波コンディション分析 ＆ セルフケア 〜
+NeuroSync（ニューロシンク）— 基于个人脑波数据的移动端 Web 应用，通过 Web Audio API 实时生成个性化双耳节拍（Binaural Beats）及自定义合成器音频。产品副标题：〜 音波×光波×脳波シンクロ誘導 ＆ 脳コンディション管理 〜
 
 **功能需求和音频参数的完整设计请参考项目根目录下的 `脳波チューニンク__アフ_リ設計.docx`，该文档为本项目的唯一需求来源。** 包括三大程序的频率配置、时间轴、UI 规格、发注仕様等均以该文档为准。
 
 ## Tech Stack
 
-- Framework: Next.js 15 (App Router) + TypeScript (strict)
+- Framework: Next.js 16 (App Router, `output: "export"` 静态导出) + TypeScript (strict)
 - Styling: Tailwind CSS
 - Audio: Web Audio API（纯前端实时合成，不依赖后端）
 - State: Zustand (`useAppStore` without persist; `useSynthStore` with persist for presets)
 - Charts: Recharts
 - Package Manager: pnpm
-- PWA: next-pwa
 
 ## Development Commands
 
@@ -36,16 +35,24 @@ pnpm lint             # Lint
 ```
 brainwave-app/
 ├── app/
-│   ├── layout.tsx              # 全局布局 + 底部导航 + AudioContext 生命周期
-│   ├── page.tsx                # 首页（脑部天气 / 心情选择 / 快速启动 / 合成器预设）
-│   ├── player/page.tsx         # 播放页（可视化 / 混音 / 定时器）
-│   ├── synth/page.tsx          # 合成器编辑页（多层振荡器 / 颤音 / 颤振 / 预设保存）
-│   └── log/page.tsx            # 日志页（日历 / 脑龄图表 / 统计）
-├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth* 等）
+│   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
+│   ├── page.tsx                # Home 首页（脑部天气 / 心情选择 / Sync Sound 节目列表 / 右上角設定入口）
+│   ├── session/page.tsx        # Sync Session（脳波同期・測定：マインドマップ / 測定 / 過去の測定）
+│   ├── report/page.tsx         # Sync Report（脳特性チャート：6指標雷达 / 8バンド / 周波数スペクトル）
+│   ├── compare/page.tsx        # Sync Compare（測定の比較：2〜3件の6指標＆スペクトル比較）
+│   ├── history/page.tsx        # Sync History（日历 / セッション統計 / 脳波の記録）
+│   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
+│   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
+│   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
+│   ├── admin/page.tsx          # 管理面板（仅管理员）
+│   └── mind|profile|log/       # 旧路由跳转桩（客户端 redirect → session/report/history）
+├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
+│   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
 ├── lib/
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
 │   ├── synth-engine.ts         # SynthSession class（多层振荡器合成 + 颤音 / 颤振）
 │   ├── programs.ts             # 三大程序频率参数（从设计文档映射）
+│   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
 ├── store/
@@ -53,6 +60,13 @@ brainwave-app/
 │   └── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
 └── public/sounds/              # 自然音素材
 ```
+
+### 菜单与页面命名（Sync 体系）
+
+- 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Report `/report`、Sync Compare `/compare`、Sync History `/history`
+- Settings `/settings` 与播放页 `/player` 均不在导航中：設定从首页右上角齿轮进入，播放页从节目卡 / 心情选择进入
+- 节目卡入口带播放中保护：正在播放的节目再次点击只跳转、不重置 `selectedProgramId` / `timerDuration`
+- `脳特性チャート` 作为图表/功能术语继续使用（页面名已改为 Sync Report）
 
 ### 两个音频引擎
 
@@ -137,6 +151,3 @@ AudioContext（全局单例，getAudioContext() 管理）
 | リセット＆ディープ | reset-deep | 174Hz | 7.83Hz (Schumann) | 15min |
 | クラリティ・フォーカス | clarity-focus | 432Hz | 40Hz (Gamma) | 20min |
 | ナイトリカバリー | night-recovery | 136.1Hz | 1.5Hz (Delta) | 30min |
-
-### PWA
-- Service Worker 对 /sounds/ 大文件用 network-first 策略，不做预缓存

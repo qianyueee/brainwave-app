@@ -8,7 +8,7 @@ import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: "NeuroSync（ニューロシンク）",
-  description: "音で脳を整える、脳波コンディション分析 ＆ セルフケア",
+  description: "音波×光波×脳波シンクロ誘導 ＆ 脳コンディション管理",
 };
 
 export const viewport: Viewport = {

@@ -32,3 +32,18 @@ export function compositeScore(indicators: BrainIndicators): number {
   if (!vals.length) return 0;
   return Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
 }
+
+/** Traffic-light color for a composite score (shared by history rows and compare picks). */
+export function scoreColor(score: number): string {
+  return score >= 70 ? "#22c55e" : score >= 40 ? "#f97316" : "#ef4444";
+}
+
+/** Short date-time label for a measurement, e.g. "7月13日 17:50". */
+export function measurementLabel(m: BrainProfile): string {
+  return new Date(m.uploadedAt).toLocaleString("ja-JP", {
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
