@@ -15,6 +15,7 @@ NeuroSync（ニューロシンク）— 基于个人脑波数据的移动端 Web
 - Audio: Web Audio API（纯前端实时合成，不依赖后端）
 - State: Zustand (`useAppStore` without persist; `useSynthStore` with persist for presets)
 - Charts: Recharts
+- Astronomy: astronomy-engine（太陽/月星座计算；仅在 `lib/zodiac.ts` 的 `getTodaySky` 内动态 import → 独立懒加载 chunk，禁止顶层静态 import）
 - Package Manager: pnpm
 
 ## Development Commands
@@ -36,7 +37,7 @@ pnpm lint             # Lint
 brainwave-app/
 ├── app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
-│   ├── page.tsx                # Home 首页（脑部天气 / 心情选择 / Sync Sound 节目列表 / 右上角設定入口）
+│   ├── page.tsx                # Home 首页（Cosmic & Brain Sync 星座卡 / 心情选择 / Sync Sound 节目列表 / 右上角設定入口）
 │   ├── session/page.tsx        # Sync Session（脳波同期・測定：マインドマップ / 測定 / 過去の測定）
 │   ├── report/page.tsx         # Sync Report（脳特性チャート：6指標雷达 / 8バンド / 周波数スペクトル）
 │   ├── compare/page.tsx        # Sync Compare（測定の比較：2〜3件の6指標＆スペクトル比較）
@@ -51,13 +52,15 @@ brainwave-app/
 ├── lib/
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
 │   ├── synth-engine.ts         # SynthSession class（多层振荡器合成 + 颤音 / 颤振）
-│   ├── programs.ts             # 三大程序频率参数（从设计文档映射）
+│   ├── programs.ts             # 三大程序频率参数（从设计文档映射）+ ZODIAC_PROGRAMS（12星座节目，工厂生成，id 前缀 `zodiac-`，不并入 PROGRAMS）
+│   ├── zodiac.ts               # 12星座マスタ（キャリア×ビート周波数）+ 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
 ├── store/
 │   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志）
-│   └── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
+│   ├── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
+│   └── useZodiacStore.ts       # マイ星座偏好 + persist（普通 localStorage，未登录也生效）
 └── public/sounds/              # 自然音素材
 ```
 
@@ -151,3 +154,5 @@ AudioContext（全局单例，getAudioContext() 管理）
 | リセット＆ディープ | reset-deep | 174Hz | 7.83Hz (Schumann) | 15min |
 | クラリティ・フォーカス | clarity-focus | 432Hz | 40Hz (Gamma) | 20min |
 | ナイトリカバリー | night-recovery | 136.1Hz | 1.5Hz (Delta) | 30min |
+
+另有 12 个星座节目（`zodiac-<sign>`，载波×差频逐字取自产品规格书第 5 节，统一 15min / 導入→遷移→同調→収束 四相位），经 `getProgramById` 的 `ZODIAC_PROGRAMS` 兜底解析，全链路（播放/定时/导出/可视化）可用；首相位名必须保持 `導入`（Visualizer 特判）。

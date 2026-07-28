@@ -1,8 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useAdminStore } from "@/store/useAdminStore";
+import { useZodiacStore } from "@/store/useZodiacStore";
+import { getZodiacSign } from "@/lib/zodiac";
+import ZodiacSignPicker from "@/components/ZodiacSignPicker";
 import { User, LogOut, Settings, ChevronRight } from "lucide-react";
 
 /**
@@ -17,6 +21,15 @@ export default function SettingsPage() {
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
   const signOut = useAuthStore((s) => s.signOut);
   const isAdmin = useAdminStore((s) => s.isAdmin);
+  const selectedSign = useZodiacStore((s) => s.selectedSign);
+  const setSelectedSign = useZodiacStore((s) => s.setSelectedSign);
+  const mySign = selectedSign ? getZodiacSign(selectedSign) : undefined;
+
+  // Guard hydration mismatch from the persisted sign
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 pt-6 md:max-w-2xl" style={{ animation: "fade-in 0.3s ease-out" }}>
@@ -57,6 +70,19 @@ export default function SettingsPage() {
               </button>
             </>
           )}
+        </div>
+      </div>
+
+      {/* My zodiac sign — feeds the home Cosmic & Brain Sync card */}
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-text-secondary">マイ星座</p>
+        <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-3">
+          <p className="text-base text-text-primary">
+            {hydrated && mySign
+              ? `${mySign.glyph} ${mySign.nameJa}`
+              : "未設定（今日の太陽星座を表示します）"}
+          </p>
+          {hydrated && <ZodiacSignPicker value={selectedSign} onChange={setSelectedSign} />}
         </div>
       </div>
 

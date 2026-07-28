@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PROGRAMS } from "@/lib/programs";
-import BrainWeather from "@/components/BrainWeather";
+import ZodiacSyncCard from "@/components/ZodiacSyncCard";
 import MoodSelector from "@/components/MoodSelector";
 import ProgramCard from "@/components/ProgramCard";
 import SynthPresetCard from "@/components/SynthPresetCard";
@@ -121,7 +121,7 @@ export default function HomePage() {
       {/* Mobile: single column. Desktop: two columns (more visible at once). */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
       <div className="flex flex-col gap-6">
-      <BrainWeather />
+      <ZodiacSyncCard />
       <MoodSelector />
 
       {/* Brain Profile Card */}

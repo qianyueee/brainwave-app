@@ -165,8 +165,42 @@ const nightRecovery: ProgramConfig = {
 
 export const PROGRAMS: ProgramConfig[] = [resetAndDeep, clarityFocus, nightRecovery];
 
+// --- Zodiac Programs (Cosmic & Brain Sync) ---
+
+import { ZODIAC_SIGNS, zodiacProgramId, type ZodiacSign } from "./zodiac";
+
+/**
+ * One uniform timeline for all 12 signs: settle in at 10Hz alpha, glide to the
+ * sign's target beat, hold, then return toward baseline — the same
+ * end-on-a-wake-ramp shape as the built-ins, so a 2Hz delta program doesn't
+ * drop the listener cold. The first phase must be named 導入 (the Visualizer
+ * shows targetBeatFreq during it); the other names are free — zodiac ids never
+ * enter getAdjustedProgram's per-program switch.
+ */
+function createZodiacProgram(sign: ZodiacSign): ProgramConfig {
+  const t = sign.targetBeatFreq;
+  return {
+    id: zodiacProgramId(sign.key),
+    name: sign.programName,
+    description: sign.description,
+    icon: sign.glyph,
+    carrierFreq: sign.carrierFreq,
+    defaultDuration: 15 * 60,
+    targetBeatFreq: t,
+    phases: [
+      { name: "導入", startTime: 0, endTime: 2 * 60, startBeatFreq: 10, endBeatFreq: 10 },
+      { name: "遷移", startTime: 2 * 60, endTime: 6 * 60, startBeatFreq: 10, endBeatFreq: t },
+      { name: "同調", startTime: 6 * 60, endTime: 13 * 60, startBeatFreq: t, endBeatFreq: t },
+      { name: "収束", startTime: 13 * 60, endTime: 15 * 60, startBeatFreq: t, endBeatFreq: 10 },
+    ],
+  };
+}
+
+/** Kept out of PROGRAMS so the home Sync Sound list stays at the 3 built-ins. */
+export const ZODIAC_PROGRAMS: ProgramConfig[] = ZODIAC_SIGNS.map(createZodiacProgram);
+
 export function getProgramById(id: string): ProgramConfig | undefined {
-  return PROGRAMS.find((p) => p.id === id);
+  return PROGRAMS.find((p) => p.id === id) ?? ZODIAC_PROGRAMS.find((p) => p.id === id);
 }
 
 // --- Custom Programs (synth-based) ---
