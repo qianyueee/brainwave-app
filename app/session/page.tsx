@@ -1,110 +1,156 @@
 "use client";
 
-import { useEffect } from "react";
-import { useMindStore } from "@/store/useMindStore";
-import { DummySource } from "@/lib/mind/dummy-source";
-import { RealtimeSource } from "@/lib/mind/realtime-source";
-import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
-import { rawBandPowers, EMPTY_BAND_POWERS } from "@/lib/mind/types";
-import MindMapCanvas from "@/components/mind/MindMapCanvas";
-import MindArtCanvas from "@/components/mind/MindArtCanvas";
-import MindStatusText from "@/components/mind/MindStatusText";
-import BandEqualizer from "@/components/mind/BandEqualizer";
-import MindTrendChart from "@/components/mind/MindTrendChart";
-import MindRecorder from "@/components/mind/MindRecorder";
-import SourceDialog from "@/components/mind/SourceDialog";
-import SessionList from "@/components/mind/SessionList";
-import SubjectSelector from "@/components/mind/SubjectSelector";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { PROGRAMS } from "@/lib/programs";
+import ProgramCard from "@/components/ProgramCard";
+import SynthPresetCard from "@/components/SynthPresetCard";
+import CustomProgramCard from "@/components/CustomProgramCard";
+import PublishedProgramCard from "@/components/PublishedProgramCard";
+import { useSynthStore } from "@/store/useSynthStore";
+import { useAdminStore } from "@/store/useAdminStore";
+import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import { Plus } from "lucide-react";
 
+/**
+ * Sync Session — every program/audio entry point lives here (moved off the
+ * home page): the Sync Sound built-ins, group-published programs, and the
+ * admin-only custom program / synth tooling. Playback itself stays on /player,
+ * reached through the cards. The live EEG measurement moved to Sync Report.
+ */
 export default function SessionPage() {
-  const sourceKind = useMindStore((s) => s.sourceKind);
-  const latestSample = useMindStore((s) => s.latestSample);
-  const history = useMindStore((s) => s.history);
-  const pairingCode = useMindStore((s) => s.pairingCode);
-  const gammaBoost = useMindStore((s) => s.gammaBoost);
-  // Combined gamma + program pull toward the Zone (the displayed position).
-  const zoneBoost = useMindStore((s) => s.zoneBoost);
-  const isRecording = useMindStore((s) => s.isRecording);
+  const router = useRouter();
+  const savedPresets = useSynthStore((s) => s.savedPresets);
+  const savedPrograms = useSynthStore((s) => s.savedPrograms);
+  const resetEditor = useSynthStore((s) => s.resetEditor);
+  const setTimelineMode = useSynthStore((s) => s.setTimelineMode);
+  const isAdmin = useAdminStore((s) => s.isAdmin);
+  const userGroups = useAdminStore((s) => s.userGroups);
+  const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
+  const groupProgramIds = usePublishedProgramsStore((s) => s.groupProgramIds);
+  const fetchPrograms = usePublishedProgramsStore((s) => s.fetchPrograms);
+  const fetchGroupProgramIds = usePublishedProgramsStore((s) => s.fetchGroupProgramIds);
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.loading);
+  const openAuthModal = useAuthStore((s) => s.openAuthModal);
+  const isLoggedIn = !!user;
 
-  // 脳波バランス always shows the instantaneous latest sample so the bars stay
-  // live and moving, during recording and idle alike. The 脳特性 import
-  // separately summarizes the whole session as a full average (computed at stop).
-  const bandPowers = latestSample ? rawBandPowers(latestSample) : EMPTY_BAND_POWERS;
-
-  // Create/destroy the active data source. getState() actions are stable
-  // references, so the handlers never go stale.
+  // Guard against hydration mismatch from persist middleware
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    const handlers: MindSourceHandlers = {
-      onSample: (s) => useMindStore.getState().pushSample(s),
-      onStatus: (status, detail) => useMindStore.getState().setStatus(status, detail),
-      onBridgeOnline: (online) => useMindStore.getState().setBridgeOnline(online),
-    };
-    let source: MindDataSource | null = null;
-    if (sourceKind === "demo") {
-      source = new DummySource(handlers);
-    } else if (pairingCode) {
-      source = new RealtimeSource(pairingCode, handlers);
-    } else {
-      handlers.onStatus("idle");
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    fetchPrograms();
+  }, [fetchPrograms]);
+
+  // Fetch group→program assignments when user groups change
+  useEffect(() => {
+    if (userGroups.length > 0) {
+      fetchGroupProgramIds(userGroups.map((g) => g.id));
     }
-    source?.start();
-    return () => {
-      source?.stop();
-      useMindStore.getState().setStatus("idle");
-      useMindStore.getState().setBridgeOnline(false);
-    };
-  }, [sourceKind, pairingCode]);
+  }, [userGroups, fetchGroupProgramIds]);
+
+  // Filter published programs: admins see all, regular users see only programs assigned to their groups
+  const visiblePrograms = useMemo(() => {
+    if (isAdmin) return publishedPrograms;
+    if (!isLoggedIn || groupProgramIds.length === 0) return [];
+    return publishedPrograms.filter((p) => groupProgramIds.includes(p.id));
+  }, [isAdmin, isLoggedIn, publishedPrograms, groupProgramIds]);
+
+  const handleNewSynth = () => {
+    resetEditor();
+    router.push("/synth");
+  };
+
+  const handleNewTimeline = () => {
+    resetEditor();
+    setTimelineMode(true); // seeds segment 0 from the (reset) editor buffer
+    router.push("/synth");
+  };
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Sync Session</h1>
-        <p className="text-sm text-text-secondary mt-1">シンク・セッション｜脳波同期・測定</p>
+        <p className="text-sm text-text-secondary mt-1">シンク・セッション｜プログラム選択・再生</p>
       </div>
 
-      {/* Who is being measured — chosen before recording, since the session is
-          stamped with it and the history is grouped by it. */}
-      <SubjectSelector />
-
-      {/* Top bar: 測定 + データソース side by side. */}
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <MindRecorder />
-        </div>
-        <div className="flex-1">
-          <SourceDialog />
-        </div>
-      </div>
-
-      {/* Mobile: single column. Desktop: map+meters (left) | art+history (right). */}
+      {/* Mobile: single column. Desktop: built-ins | published + custom. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-        <div className="flex flex-col gap-6">
-          {/* マインドマップ（四象限マップ + 状態）— ブレインアートと左右対称 */}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-bold text-text-primary">マインドマップ</h2>
-            <MindMapCanvas sample={latestSample} boost={zoneBoost} isRecording={isRecording} />
-            <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
-          </section>
+      <div className="flex flex-col gap-6">
+      {/* Programs — the "Sync Sound" lineup */}
+      <div className="flex flex-col gap-3 breathe-stagger">
+        <p className="text-sm text-text-secondary">Sync Sound（シンク・サウンド / 脳波同期サウンド）</p>
+        {PROGRAMS.map((program) => (
+          <ProgramCard key={program.id} program={program} />
+        ))}
+      </div>
+      </div>
 
-          <BandEqualizer powers={bandPowers} />
-
-          <MindTrendChart history={history} />
+      <div className="flex flex-col gap-6">
+      {/* Published Programs (filtered by group) */}
+      {hydrated && visiblePrograms.length > 0 && (
+        <div className="flex flex-col gap-3 breathe-stagger">
+          <p className="text-sm text-text-secondary">配信プログラム</p>
+          {visiblePrograms.map((program) => (
+            <PublishedProgramCard key={program.id} program={program} />
+          ))}
         </div>
+      )}
 
-        <div className="flex flex-col gap-6">
-          {/* リアルタイム脳波アート（ニューロフィードバック）— マインドマップと左右対称：
-              見出し → 正方形キャンバス → 下に説明文 */}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
-            <MindArtCanvas sample={latestSample} boost={zoneBoost} />
-            <p className="text-sm text-text-secondary text-center">
-              脳波がリアルタイムに幾何学模様として紡ぎ出されます
-            </p>
-          </section>
-
-          {/* 過去の測定（タップで脳特性チャートを表示） */}
-          <SessionList />
+      {/* Custom Programs (admin only) */}
+      {isLoggedIn && isAdmin && hydrated && savedPrograms.length > 0 && (
+        <div className="flex flex-col gap-3 breathe-stagger">
+          <p className="text-sm text-text-secondary">カスタムプログラム</p>
+          {savedPrograms.map((program) => (
+            <CustomProgramCard key={program.id} program={program} />
+          ))}
         </div>
+      )}
+
+      {/* Custom Synth (admin only) */}
+      {isLoggedIn && isAdmin && (
+        <div className="flex flex-col gap-3 breathe-stagger">
+          <p className="text-sm text-text-secondary">カスタム</p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleNewSynth}
+              className="flex-1 py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
+            >
+              <Plus size={18} strokeWidth={2} />
+              新規作成
+            </button>
+            <button
+              onClick={handleNewTimeline}
+              className="flex-1 py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
+            >
+              <Plus size={18} strokeWidth={2} />
+              タイムライン
+            </button>
+          </div>
+          {hydrated &&
+            savedPresets.map((preset) => (
+              <SynthPresetCard key={preset.id} preset={preset} />
+            ))}
+        </div>
+      )}
+
+      {/* Login CTA for unauthenticated users */}
+      {!isLoggedIn && !authLoading && (
+        <button
+          onClick={() => openAuthModal("login")}
+          className="w-full py-4 rounded-3xl bg-surface border border-surface-border text-center neu-raised neu-press active:scale-[0.98] transition-transform"
+        >
+          <p className="text-base font-bold text-text-primary">ログインしてもっと体験</p>
+          <p className="text-sm text-text-secondary mt-1">
+            カスタム合成器・プログラムを利用できます
+          </p>
+        </button>
+      )}
+      </div>
       </div>
     </div>
   );

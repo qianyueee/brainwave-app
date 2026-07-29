@@ -1,36 +1,18 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PROGRAMS } from "@/lib/programs";
 import ZodiacSyncCard from "@/components/ZodiacSyncCard";
-import MoodSelector from "@/components/MoodSelector";
-import ProgramCard from "@/components/ProgramCard";
-import SynthPresetCard from "@/components/SynthPresetCard";
-import CustomProgramCard from "@/components/CustomProgramCard";
+import BrainConditionMetrics from "@/components/BrainConditionMetrics";
 import BrainRadarChart from "@/components/BrainRadarChart";
-import { useSynthStore } from "@/store/useSynthStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
-import { useAdminStore } from "@/store/useAdminStore";
-import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
-import PublishedProgramCard from "@/components/PublishedProgramCard";
-import { BrainCircuit, Plus, User, Settings } from "lucide-react";
+import { BrainCircuit, User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function HomePage() {
   const router = useRouter();
-  const savedPresets = useSynthStore((s) => s.savedPresets);
-  const savedPrograms = useSynthStore((s) => s.savedPrograms);
-  const resetEditor = useSynthStore((s) => s.resetEditor);
-  const setTimelineMode = useSynthStore((s) => s.setTimelineMode);
   const profile = useBrainProfileStore((s) => s.profile);
-  const isAdmin = useAdminStore((s) => s.isAdmin);
-  const userGroups = useAdminStore((s) => s.userGroups);
-  const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
-  const groupProgramIds = usePublishedProgramsStore((s) => s.groupProgramIds);
-  const fetchPrograms = usePublishedProgramsStore((s) => s.fetchPrograms);
-  const fetchGroupProgramIds = usePublishedProgramsStore((s) => s.fetchGroupProgramIds);
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
@@ -41,35 +23,6 @@ export default function HomePage() {
   useEffect(() => {
     setHydrated(true);
   }, []);
-
-  useEffect(() => {
-    fetchPrograms();
-  }, [fetchPrograms]);
-
-  // Fetch group→program assignments when user groups change
-  useEffect(() => {
-    if (userGroups.length > 0) {
-      fetchGroupProgramIds(userGroups.map((g) => g.id));
-    }
-  }, [userGroups, fetchGroupProgramIds]);
-
-  // Filter published programs: admins see all, regular users see only programs assigned to their groups
-  const visiblePrograms = useMemo(() => {
-    if (isAdmin) return publishedPrograms;
-    if (!isLoggedIn || groupProgramIds.length === 0) return [];
-    return publishedPrograms.filter((p) => groupProgramIds.includes(p.id));
-  }, [isAdmin, isLoggedIn, publishedPrograms, groupProgramIds]);
-
-  const handleNewSynth = () => {
-    resetEditor();
-    router.push("/synth");
-  };
-
-  const handleNewTimeline = () => {
-    resetEditor();
-    setTimelineMode(true); // seeds segment 0 from the (reset) editor buffer
-    router.push("/synth");
-  };
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
@@ -118,11 +71,12 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Mobile: single column. Desktop: two columns (more visible at once). */}
+      {/* Mobile: metrics → chart → zodiac. Desktop: condition (left) | zodiac (right).
+          All program/audio sections live on Sync Session now. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
       <div className="flex flex-col gap-6">
-      <ZodiacSyncCard />
-      <MoodSelector />
+      {/* Brain condition — the 3 self-care metrics (replaces the mood selector) */}
+      <BrainConditionMetrics />
 
       {/* Brain Profile Card */}
       {hydrated && (
@@ -155,72 +109,7 @@ export default function HomePage() {
       </div>
 
       <div className="flex flex-col gap-6">
-      {/* Programs — the "Sync Sound" lineup */}
-      <div className="flex flex-col gap-3 breathe-stagger">
-        <p className="text-sm text-text-secondary">Sync Sound（シンク・サウンド / 脳波同期サウンド）</p>
-        {PROGRAMS.map((program) => (
-          <ProgramCard key={program.id} program={program} />
-        ))}
-      </div>
-
-      {/* Published Programs (filtered by group) */}
-      {hydrated && visiblePrograms.length > 0 && (
-        <div className="flex flex-col gap-3 breathe-stagger">
-          {visiblePrograms.map((program) => (
-            <PublishedProgramCard key={program.id} program={program} />
-          ))}
-        </div>
-      )}
-
-      {/* Custom Programs (admin only) */}
-      {isLoggedIn && isAdmin && hydrated && savedPrograms.length > 0 && (
-        <div className="flex flex-col gap-3 breathe-stagger">
-          <p className="text-sm text-text-secondary">カスタムプログラム</p>
-          {savedPrograms.map((program) => (
-            <CustomProgramCard key={program.id} program={program} />
-          ))}
-        </div>
-      )}
-
-      {/* Custom Synth (admin only) */}
-      {isLoggedIn && isAdmin && (
-        <div className="flex flex-col gap-3 breathe-stagger">
-          <p className="text-sm text-text-secondary">カスタム</p>
-          <div className="flex gap-2">
-            <button
-              onClick={handleNewSynth}
-              className="flex-1 py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
-            >
-              <Plus size={18} strokeWidth={2} />
-              新規作成
-            </button>
-            <button
-              onClick={handleNewTimeline}
-              className="flex-1 py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
-            >
-              <Plus size={18} strokeWidth={2} />
-              タイムライン
-            </button>
-          </div>
-          {hydrated &&
-            savedPresets.map((preset) => (
-              <SynthPresetCard key={preset.id} preset={preset} />
-            ))}
-        </div>
-      )}
-
-      {/* Login CTA for unauthenticated users */}
-      {!isLoggedIn && !authLoading && (
-        <button
-          onClick={() => openAuthModal("login")}
-          className="w-full py-4 rounded-3xl bg-surface border border-surface-border text-center neu-raised neu-press active:scale-[0.98] transition-transform"
-        >
-          <p className="text-base font-bold text-text-primary">ログインしてもっと体験</p>
-          <p className="text-sm text-text-secondary mt-1">
-            カスタム合成器・プログラムを利用できます
-          </p>
-        </button>
-      )}
+      <ZodiacSyncCard />
       </div>
       </div>
     </div>

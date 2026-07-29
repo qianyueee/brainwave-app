@@ -1,6 +1,6 @@
 import {
   Home,
-  Activity,
+  Music2,
   BrainCircuit,
   GitCompareArrows,
   History,
@@ -15,7 +15,7 @@ import {
  */
 export const NAV_TABS = [
   { href: "/", icon: Home, short: "ホーム", en: "Home", kana: "ホーム" },
-  { href: "/session", icon: Activity, short: "セッション", en: "Sync Session", kana: "シンク・セッション" },
+  { href: "/session", icon: Music2, short: "セッション", en: "Sync Session", kana: "シンク・セッション" },
   { href: "/report", icon: BrainCircuit, short: "レポート", en: "Sync Report", kana: "シンク・レポート" },
   { href: "/compare", icon: GitCompareArrows, short: "コンペア", en: "Sync Compare", kana: "シンク・コンペア" },
   { href: "/history", icon: History, short: "ヒストリー", en: "Sync History", kana: "シンク・ヒストリー" },

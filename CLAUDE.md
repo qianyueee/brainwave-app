@@ -37,9 +37,9 @@ pnpm lint             # Lint
 brainwave-app/
 ├── app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
-│   ├── page.tsx                # Home 首页（Cosmic & Brain Sync 星座卡 / 心情选择 / Sync Sound 节目列表 / 右上角設定入口）
-│   ├── session/page.tsx        # Sync Session（脳波同期・測定：マインドマップ / 測定 / 過去の測定）
-│   ├── report/page.tsx         # Sync Report（脳特性チャート：6指標雷达 / 8バンド / 周波数スペクトル）
+│   ├── page.tsx                # Home 首页（脳コンディション3指標 / 脳特性チャート卡 / Cosmic & Brain Sync 星座卡 / 右上角設定入口）
+│   ├── session/page.tsx        # Sync Session（プログラム選択・再生：Sync Sound 3節目 / 配信 / カスタム・合成器入口）
+│   ├── report/page.tsx         # Sync Report（脳波同期・測定〔マインドマップ/測定/過去の測定〕+ 脳特性チャート分析の合并页）
 │   ├── compare/page.tsx        # Sync Compare（測定の比較：2〜3件の6指標＆スペクトル比較）
 │   ├── history/page.tsx        # Sync History（日历 / セッション統計 / 脳波の記録）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
@@ -56,6 +56,7 @@ brainwave-app/
 │   ├── zodiac.ts               # 12星座マスタ（キャリア×ビート周波数）+ 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
+│   ├── brain-metrics.ts        # 脳コンディション3指標（若々しさ/活性化度/リフレッシュ度，由最新測定计算，数据不足为 null）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
 ├── store/
