@@ -37,7 +37,7 @@ pnpm lint             # Lint
 brainwave-app/
 ├── app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
-│   ├── page.tsx                # Home 首页（脳コンディション3指標 / 脳特性チャート卡 / Cosmic & Brain Sync 星座卡 / 右上角設定入口）
+│   ├── page.tsx                # Home 首页（脳コンディション3指標 / 脳特性チャート卡 / Today's Cosmic Sync 星座卡〔星图+下拉选择+今日文案+推荐〕/ 右上角設定入口）
 │   ├── session/page.tsx        # Sync Session（プログラム選択・再生：Sync Sound 3節目 / 配信 / カスタム・合成器入口）
 │   ├── report/page.tsx         # Sync Report（脳波同期・測定〔マインドマップ/測定/過去の測定〕+ 脳特性チャート分析の合并页）
 │   ├── compare/page.tsx        # Sync Compare（測定の比較：2〜3件の6指標＆スペクトル比較）
