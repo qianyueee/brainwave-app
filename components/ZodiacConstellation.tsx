@@ -93,16 +93,15 @@ export default function ZodiacConstellation({
             <circle cx={x} cy={y} r={2.5 * b} fill="currentColor" opacity={0.95} />
           </g>
         ) : (
-          <g
-            key={`p${i}`}
-            className={animated ? "constellation-star" : undefined}
-            style={
-              animated
-                ? ({ "--twinkle-delay": `${((i * 0.83) % 3.7).toFixed(2)}s` } as React.CSSProperties)
-                : undefined
-            }
-          >
-            <circle cx={x} cy={y} r={3.6 * b} fill="currentColor" opacity={0.14} />
+          <g key={`p${i}`} className={animated ? "constellation-star" : undefined}>
+            <circle
+              cx={x}
+              cy={y}
+              r={3.6 * b}
+              fill="currentColor"
+              opacity={0.14}
+              className={animated ? "constellation-halo" : undefined}
+            />
             <circle cx={x} cy={y} r={1.9 * b} fill="currentColor" opacity={0.34} />
             <circle cx={x} cy={y} r={1.0 * b} fill="currentColor" opacity={0.95} />
           </g>
