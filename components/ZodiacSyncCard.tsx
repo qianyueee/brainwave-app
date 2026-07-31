@@ -83,7 +83,7 @@ export default function ZodiacSyncCard() {
   };
 
   return (
-    <div className="bg-surface border border-surface-border rounded-3xl p-5 neu-raised breathe flex flex-col gap-4">
+    <div className="bg-surface border border-surface-border rounded-3xl p-5 neu-raised breathe-soft flex flex-col gap-4">
       {/* Hero — today's big sign: sun sign by day, moon sign by night */}
       <div className="flex flex-col items-center text-center gap-3">
         <p className="text-sm text-text-secondary self-start">Cosmic & Brain Sync</p>
@@ -93,6 +93,14 @@ export default function ZodiacSyncCard() {
               className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden neu-inset"
               style={{ background: NIGHT_SKY }}
             >
+              {/* Breathing halo behind the figure — the luminous part of the motion */}
+              <div
+                className="sky-glow absolute inset-0"
+                style={{
+                  background:
+                    "radial-gradient(60% 55% at 50% 46%, rgba(165,190,255,0.30) 0%, rgba(165,190,255,0.10) 45%, transparent 72%)",
+                }}
+              />
               <ZodiacConstellation
                 sign={heroSign.key}
                 animated

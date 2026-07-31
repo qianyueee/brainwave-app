@@ -267,13 +267,33 @@ input[type="range"]:disabled::-moz-range-thumb {
   animation-delay: var(--twinkle-delay, 0s);
 }
 
+/* Kept deliberately faint — the luminous motion comes from sky-glow below,
+   the figure itself only drifts a hair. */
 @keyframes constellation-breathe {
-  0%, 100% { opacity: 0.85; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.03); }
+  0%, 100% { opacity: 0.92; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.012); }
 }
 .constellation-breathe {
-  animation: constellation-breathe 5.5s ease-in-out infinite;
+  animation: constellation-breathe 6s ease-in-out infinite;
   transform-origin: center;
+}
+
+/* Soft halo layer inside the night-sky panel — swells and dims like breath */
+@keyframes sky-glow {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+}
+.sky-glow {
+  animation: sky-glow 4.5s ease-in-out infinite;
+}
+
+/* Weak card breathe for the zodiac frame (the regular .breathe scales 1.045) */
+@keyframes gentle-breathe-soft {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.012); }
+}
+.breathe-soft {
+  animation: gentle-breathe-soft 5s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -291,5 +311,11 @@ input[type="range"]:disabled::-moz-range-thumb {
   }
   @keyframes constellation-breathe {
     0%, 50%, 100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes sky-glow {
+    0%, 50%, 100% { opacity: 0.55; }
+  }
+  @keyframes gentle-breathe-soft {
+    0%, 50%, 100% { transform: scale(1); }
   }
 }
