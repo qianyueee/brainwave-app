@@ -1,18 +1,16 @@
 import type { BrainProfile } from "./brain-profile";
 
 /**
- * セルフケア評価の3指標（プロダクト仕様 §3）。医療診断を避け、最新の測定
- * データからポジティブな3軸スコアを出す。すべて 0-100、計算に必要なデータが
- * 無いときは null（未測定表示）。
+ * セルフケア評価の3指標（プロダクト仕様 §3「セルフケア評価指標の算術
+ * アルゴリズム」）。医療診断を避け、最新の測定データからポジティブな3軸
+ * スコア（0-100pt）を出す。計算に必要なデータが無いときは null（未測定表示）。
  *
- * 1. 脳の若々しさ（NeuroSync レート / 切り替え力）
- *    入定速度（100pt）と 40Hz 共鳴率をベースに「音への脳の切り替え力・
- *    反応の素直さ」を評価。
- * 2. 脳の活性化度（Brain Clarity / ひらめき度）
- *    20Hz/40Hz（ガンマ・ベータ波）のピークをもとに「意識が冴え渡るフロー
- *    状態」を可視化。
- * 3. 脳のリフレッシュ度（Brain Reset / 休息度）
- *    δ波・θ波の占有率から「脳疲労のディープクレンジング率」を可視化。
+ * ① NeuroSync レート（切り替え力・若々しさ）
+ *      0.6 × (100 − T_enter/T_max × 100) + 0.4 × (P_40Hz / P_base × 50)
+ * ② Brain Clarity（脳の活性化度・ひらめき）
+ *      Clamp[ ((P_β + 1.5·P_γ)/P_total − R_min) / (R_max − R_min) × 100 ]
+ * ③ Brain Reset（脳のリフレッシュ度・休息率）
+ *      100 × (1 − e^(−k · (P_δ + P_θ)/P_β))
  */
 export interface BrainConditionMetric {
   key: "youth" | "clarity" | "reset";
@@ -28,24 +26,29 @@ export interface BrainConditionMetric {
 
 const clamp100 = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
+/** ② の正規化レンジ: R = (β + 1.5γ) / 全帯域。安静時 ≈ 0.1、高活性 ≈ 0.4。 */
+const CLARITY_R_MIN = 0.1;
+const CLARITY_R_MAX = 0.4;
+
+/** ③ の感度調整係数 k: (δ+θ)/β ≈ 2.5（標準的な安静）で約 63pt になる曲線。 */
+const RESET_K = 0.4;
+
 /**
- * 40Hz 共鳴率: per-Hz スペクトルの 40Hz ビンが近傍（35〜45Hz、40Hz 自身を
- * 除く）の平均からどれだけ突出しているかを 0-100 に写像する。生の FFT 振幅は
- * 1/f で減衰するので絶対値ではなく局所比を使う（比 1 = 平坦 ≒ 50 点弱、
- * 1.5 倍の明確なピークで 100 点、0.6 以下で 0 点）。
+ * ① の第2項 P_40Hz / P_base × 50 を 0-100 に丸める。生の FFT 振幅は 1/f で
+ * 減衰するため、P_base は 40Hz 近傍（35〜45Hz、40Hz 自身を除く）の平均を
+ * ベースラインとして使う。比 1（平坦）= 50pt、比 2 以上（明確な共鳴）= 100pt。
  */
 export function resonance40Score(spectrum: number[] | undefined): number | null {
   if (!spectrum || spectrum.length < 40) return null;
-  const bin40 = spectrum[39]; // index 39 = 40Hz
+  const p40 = spectrum[39]; // index 39 = 40Hz
   const neighbours: number[] = [];
   for (let i = 34; i <= Math.min(44, spectrum.length - 1); i++) {
     if (i !== 39) neighbours.push(spectrum[i]);
   }
   if (!neighbours.length) return null;
-  const mean = neighbours.reduce((s, v) => s + v, 0) / neighbours.length;
-  if (mean <= 0) return null;
-  const ratio = bin40 / mean;
-  return clamp100(((ratio - 0.6) / 0.9) * 100);
+  const pBase = neighbours.reduce((s, v) => s + v, 0) / neighbours.length;
+  if (pBase <= 0) return null;
+  return clamp100((p40 / pBase) * 50);
 }
 
 export function computeBrainConditionMetrics(
@@ -53,23 +56,34 @@ export function computeBrainConditionMetrics(
 ): BrainConditionMetric[] {
   const bands = profile?.bands;
 
-  // ① 若々しさ: 入定速度（0-100）を軸に、40Hz 共鳴率があれば 4 割ブレンド。
+  // ① NeuroSync レート: 第1項の (100 − T_enter/T_max×100) は既存の
+  //    入定スピード指標（calmnessSpeed, 0-100）そのもの。40Hz 共鳴の項が
+  //    計算できないとき（スペクトル無しのレガシー記録）は第1項のみで代用。
   let youth: number | null = null;
   if (profile) {
-    const calmness = profile.indicators.calmnessSpeed;
+    const enterScore = profile.indicators.calmnessSpeed;
     const r40 = resonance40Score(profile.spectrum);
-    youth = clamp100(r40 == null ? calmness : calmness * 0.6 + r40 * 0.4);
+    youth = clamp100(r40 == null ? enterScore : enterScore * 0.6 + r40 * 0.4);
   }
 
-  // ② 活性化度: 高β（18-30Hz、20Hz ピーク帯）+ γ（30-45Hz、40Hz 帯）の
-  //    占有率。覚醒的な帯域が合計 25% を占めれば満点となるスケール。
-  const clarity =
-    bands != null
-      ? clamp100((bands.highBeta + bands.lowGamma + bands.highGamma) * 4)
-      : null;
+  // ② Brain Clarity: bands は相対パワー（%・合計≈100）なので
+  //    (P_β + 1.5 P_γ)/P_total = (β% + 1.5·γ%) / 100。
+  let clarity: number | null = null;
+  if (bands != null) {
+    const beta = bands.lowBeta + bands.highBeta;
+    const gamma = bands.lowGamma + bands.highGamma;
+    const r = (beta + 1.5 * gamma) / 100;
+    clarity = clamp100(((r - CLARITY_R_MIN) / (CLARITY_R_MAX - CLARITY_R_MIN)) * 100);
+  }
 
-  // ③ リフレッシュ度: δ+θ の占有率（すでに % なのでそのままスコアになる）。
-  const reset = bands != null ? clamp100(bands.delta + bands.theta) : null;
+  // ③ Brain Reset: β が実質ゼロの標本は比が発散するので下限を敷く
+  //    （深い休息そのものなので飽和側 = 100pt 付近に落ちる）。
+  let reset: number | null = null;
+  if (bands != null) {
+    const beta = Math.max(bands.lowBeta + bands.highBeta, 0.5);
+    const ratio = (bands.delta + bands.theta) / beta;
+    reset = clamp100(100 * (1 - Math.exp(-RESET_K * ratio)));
+  }
 
   return [
     { key: "youth", title: "若々しさ", subtitle: "切り替え力", fullName: "脳の若々しさ（NeuroSync レート）", score: youth },
