@@ -11,7 +11,7 @@ import {
   isNightNow,
   zodiacProgramId,
   zodiacNameEn,
-  dailyAdvice,
+  dailyRecommendation,
   type TodaySky,
 } from "@/lib/zodiac";
 import { getProgramById } from "@/lib/programs";
@@ -73,7 +73,12 @@ export default function ZodiacSyncCard() {
   // a choice; only a tap persists.
   const effectiveKey = hydrated ? selectedSign ?? heroSign?.key ?? null : null;
   const sign = effectiveKey ? getZodiacSign(effectiveKey) : undefined;
-  const program = effectiveKey ? getProgramById(zodiacProgramId(effectiveKey)) : undefined;
+
+  // Daily tag logic: today's sun/moon elements × the user's sign decide which
+  // frequency pool (activation/flow/balance/healing) — and thus which of the
+  // 12 programs — is recommended today. Changes with the sky, not fixed.
+  const rec = sign ? dailyRecommendation(sky, sign) : null;
+  const program = rec ? getProgramById(zodiacProgramId(rec.programSignKey)) : undefined;
 
   const handleSelect = (key: (typeof ZODIAC_SIGNS)[number]["key"]) => {
     setSelectedSign(key);
@@ -176,24 +181,27 @@ export default function ZodiacSyncCard() {
             月：{moonSign ? moonSign.nameJa : "…"}
           </span>
         </div>
-        {sign && (
-          <p className="text-sm text-text-secondary leading-relaxed">
-            「{dailyAdvice(sky ? sky.sunIndex : null, sign)}」
-          </p>
+        {rec && (
+          <p className="text-sm text-text-secondary leading-relaxed">「{rec.advice}」</p>
         )}
       </div>
 
-      {/* Personalized recommendation */}
-      {sign && program ? (
+      {/* Personalized recommendation — the program follows today's tag, so it
+          changes with the sky rather than being fixed per sign. */}
+      {sign && rec && program ? (
         <>
           <p className="text-sm text-text-secondary flex items-center gap-1.5">
             <Sparkles size={15} strokeWidth={1.5} className="text-primary" />
             {sign.nameJa}のあなたへ 本日の星空おすすめ周波数
           </p>
           <div className="rounded-2xl bg-navy neu-inset p-4 flex flex-col gap-1">
-            <p className="text-sm font-bold text-primary">【{sign.category}】</p>
+            {rec.tagLabel && (
+              <p className="text-sm font-bold text-primary">【{rec.tagLabel}】</p>
+            )}
             <p className="text-base font-bold text-text-primary">{program.name}</p>
-            <p className="text-sm text-text-secondary">星のサイクルと脳波を共鳴</p>
+            <p className="text-sm text-text-secondary">
+              {rec.reason ? `${rec.reason}、この周波数をおすすめします` : "星のサイクルと脳波を共鳴"}
+            </p>
             <button
               onClick={handlePlay}
               className="mt-3 w-full h-12 rounded-2xl bg-primary text-white text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press active:scale-95 transition-all"

@@ -53,7 +53,7 @@ brainwave-app/
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
 │   ├── synth-engine.ts         # SynthSession class（多层振荡器合成 + 颤音 / 颤振）
 │   ├── programs.ts             # 三大程序频率参数（从设计文档映射）+ ZODIAC_PROGRAMS（12星座节目，工厂生成，id 前缀 `zodiac-`，不并入 PROGRAMS）
-│   ├── zodiac.ts               # 12星座マスタ（キャリア×ビート周波数）+ 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）
+│   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（元素关系→activation/flow/balance/healing 四标签，推荐节目随天象日替；优先级 healing→activation→flow→balance，火×地/風×水按异奇偶归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── brain-metrics.ts        # 脳コンディション3指標（若々しさ/活性化度/リフレッシュ度，由最新測定计算，数据不足为 null）
