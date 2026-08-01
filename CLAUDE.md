@@ -53,7 +53,7 @@ brainwave-app/
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
 │   ├── synth-engine.ts         # SynthSession class（多层振荡器合成 + 颤音 / 颤振）
 │   ├── programs.ts             # 三大程序频率参数（从设计文档映射）+ ZODIAC_PROGRAMS（12星座节目，工厂生成，id 前缀 `zodiac-`，不并入 PROGRAMS）
-│   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（元素关系→activation/flow/balance/healing 四标签，推荐节目随天象日替；优先级 healing→activation→flow→balance，火×地/風×水按异奇偶归紧张）
+│   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（モジュール合成：載波=自星座固定、差频按四标签×情境可变——活性=太阳40/月20Hz、フロー=太阳12/月10Hz、バランス=平日14/休日夜间7.83Hz、回復=傍晚6/深夜4/月在魚座2Hz；48条 §6 メッセージ模板；优先级 healing→activation→flow→balance，火×地/風×水归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── brain-metrics.ts        # 脳コンディション3指標（若々しさ/活性化度/リフレッシュ度，由最新測定计算，数据不足为 null）
@@ -157,4 +157,4 @@ AudioContext（全局单例，getAudioContext() 管理）
 | クラリティ・フォーカス | clarity-focus | 432Hz | 40Hz (Gamma) | 20min |
 | ナイトリカバリー | night-recovery | 136.1Hz | 1.5Hz (Delta) | 30min |
 
-另有 12 个星座节目（`zodiac-<sign>`，载波×差频逐字取自产品规格书第 5 节，统一 15min / 導入→遷移→同調→収束 四相位），经 `getProgramById` 的 `ZODIAC_PROGRAMS` 兜底解析，全链路（播放/定时/导出/可视化）可用；首相位名必须保持 `導入`（Visualizer 特判）。
+另有星座节目体系（`ZODIAC_PROGRAMS`，模块合成型）：12 个固有节目（`zodiac-<sign>`，自星座载波×自星座差频）+ 各星座×9 种矩阵差频的模块版（`zodiac-<sign>-b<beat>`，共 110 个，工厂生成，统一 15min / 導入→遷移→同調→収束 四相位），经 `getProgramById` 兜底解析，全链路（播放/定时/导出/可视化）可用；首相位名必须保持 `導入`（Visualizer 特判）。

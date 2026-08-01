@@ -9,7 +9,6 @@ import {
   getZodiacSign,
   getTodaySky,
   isNightNow,
-  zodiacProgramId,
   zodiacNameEn,
   dailyRecommendation,
   type TodaySky,
@@ -74,11 +73,11 @@ export default function ZodiacSyncCard() {
   const effectiveKey = hydrated ? selectedSign ?? heroSign?.key ?? null : null;
   const sign = effectiveKey ? getZodiacSign(effectiveKey) : undefined;
 
-  // Daily tag logic: today's sun/moon elements × the user's sign decide which
-  // frequency pool (activation/flow/balance/healing) — and thus which of the
-  // 12 programs — is recommended today. Changes with the sky, not fixed.
+  // Modular synthesis: the carrier stays the user's own sign (fixed 音色),
+  // while the guided beat varies daily with the sun/moon elements, weekday
+  // and time of day (§5 matrix) — so the recommendation changes with the sky.
   const rec = sign ? dailyRecommendation(sky, sign) : null;
-  const program = rec ? getProgramById(zodiacProgramId(rec.programSignKey)) : undefined;
+  const program = rec ? getProgramById(rec.programId) : undefined;
 
   const handleSelect = (key: (typeof ZODIAC_SIGNS)[number]["key"]) => {
     setSelectedSign(key);
