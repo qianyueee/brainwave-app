@@ -26,9 +26,20 @@ export interface BrainConditionMetric {
 
 const clamp100 = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
-/** ② の正規化レンジ: R = (β + 1.5γ) / 全帯域。安静時 ≈ 0.1、高活性 ≈ 0.4。 */
-const CLARITY_R_MIN = 0.1;
-const CLARITY_R_MAX = 0.4;
+/**
+ * 測定データがあるのに 0pt が並ぶと故障に見える（実際にそういう報告が
+ * あった）ので、算出できたスコアは 5pt を下限にする。0 相当の状態は
+ * 「未測定 = —」だけに限定する。
+ */
+const floor5 = (v: number) => Math.max(5, clamp100(v));
+
+/**
+ * ② の正規化レンジ: R = (β + 1.5γ) / 全帯域。旧値 0.10〜0.40 は下限が
+ * 高すぎて、深いリラックス時（β+1.5γ < 10%）が軒並み 0pt に張り付いた。
+ * 実測の分布に合わせて 0.05〜0.35 に再調整。
+ */
+const CLARITY_R_MIN = 0.05;
+const CLARITY_R_MAX = 0.35;
 
 /** ③ の感度調整係数 k: (δ+θ)/β ≈ 2.5（標準的な安静）で約 63pt になる曲線。 */
 const RESET_K = 0.4;
@@ -56,14 +67,21 @@ export function computeBrainConditionMetrics(
 ): BrainConditionMetric[] {
   const bands = profile?.bands;
 
-  // ① NeuroSync レート: 第1項の (100 − T_enter/T_max×100) は既存の
-  //    入定スピード指標（calmnessSpeed, 0-100）そのもの。40Hz 共鳴の項が
-  //    計算できないとき（スペクトル無しのレガシー記録）は第1項のみで代用。
+  // ① NeuroSync レート: 第1項の「切り替え力」は、リラックス方向（⑤入定
+  //    スピード）と集中方向（②集中スピード）の良い方を採る。入定点が検出
+  //    されなかった測定（短時間・緊張状態・アップロード由来で頻発）は
+  //    calmnessSpeed が 0 になるため、それ単独だと 0pt に張り付いていた —
+  //    どちらの方向でも切り替えの素早さは「音への反応の素直さ」の証拠。
+  //    40Hz 共鳴の項が計算できないとき（スペクトル無しのレガシー記録）は
+  //    切り替え項のみで代用。
   let youth: number | null = null;
   if (profile) {
-    const enterScore = profile.indicators.calmnessSpeed;
+    const switching = Math.max(
+      profile.indicators.calmnessSpeed,
+      profile.indicators.focusSpeed
+    );
     const r40 = resonance40Score(profile.spectrum);
-    youth = clamp100(r40 == null ? enterScore : enterScore * 0.6 + r40 * 0.4);
+    youth = floor5(r40 == null ? switching : switching * 0.6 + r40 * 0.4);
   }
 
   // ② Brain Clarity: bands は相対パワー（%・合計≈100）なので
@@ -73,7 +91,7 @@ export function computeBrainConditionMetrics(
     const beta = bands.lowBeta + bands.highBeta;
     const gamma = bands.lowGamma + bands.highGamma;
     const r = (beta + 1.5 * gamma) / 100;
-    clarity = clamp100(((r - CLARITY_R_MIN) / (CLARITY_R_MAX - CLARITY_R_MIN)) * 100);
+    clarity = floor5(((r - CLARITY_R_MIN) / (CLARITY_R_MAX - CLARITY_R_MIN)) * 100);
   }
 
   // ③ Brain Reset: β が実質ゼロの標本は比が発散するので下限を敷く
@@ -82,7 +100,7 @@ export function computeBrainConditionMetrics(
   if (bands != null) {
     const beta = Math.max(bands.lowBeta + bands.highBeta, 0.5);
     const ratio = (bands.delta + bands.theta) / beta;
-    reset = clamp100(100 * (1 - Math.exp(-RESET_K * ratio)));
+    reset = floor5(100 * (1 - Math.exp(-RESET_K * ratio)));
   }
 
   return [
