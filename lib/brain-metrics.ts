@@ -34,20 +34,31 @@ const clamp100 = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 const floor5 = (v: number) => Math.max(5, clamp100(v));
 
 /**
- * ② の正規化レンジ: R = (β + 1.5γ) / 全帯域。旧値 0.10〜0.40 は下限が
- * 高すぎて、深いリラックス時（β+1.5γ < 10%）が軒並み 0pt に張り付いた。
- * 実測の分布に合わせて 0.05〜0.35 に再調整。
+ * ② の正規化レンジ: R = (β + 1.5γ) / 全帯域。下限 0.05 は「深いリラックス
+ * でも 0pt に張り付かない」ため、上限 0.50 は「満点が滅多に出ない」ため
+ * （旧 0.35 では lowβ の多い日常データが軒並み 100pt に飽和した）。
+ * β+1.5γ が全帯域の半分を占める例外的な高活性だけが 100 に届く。
  */
 const CLARITY_R_MIN = 0.05;
-const CLARITY_R_MAX = 0.35;
-
-/** ③ の感度調整係数 k: (δ+θ)/β ≈ 2.5（標準的な安静）で約 63pt になる曲線。 */
-const RESET_K = 0.4;
+const CLARITY_R_MAX = 0.5;
 
 /**
- * ① の第2項 P_40Hz / P_base × 50 を 0-100 に丸める。生の FFT 振幅は 1/f で
- * 減衰するため、P_base は 40Hz 近傍（35〜45Hz、40Hz 自身を除く）の平均を
- * ベースラインとして使う。比 1（平坦）= 50pt、比 2 以上（明確な共鳴）= 100pt。
+ * ③ の感度調整係数 k: (δ+θ)/β ≈ 2.5（標準的な安静）で約 53pt、≈ 5 で 78pt。
+ * 100pt には比 ≈ 18（δ+θ が 7 割超かつ β が数 % という深睡眠級）が必要 —
+ * 旧 0.4 は深めのリラックスで簡単に 100 へ飽和していた。
+ */
+const RESET_K = 0.3;
+
+/**
+ * ① の 40Hz 共鳴スコア係数: 比 × 45（平坦 = 45pt、100pt には比 ≈ 2.2 の
+ * 明確なピークが必要）。旧 ×50 は比 2 で満点になり甘すぎた。
+ */
+const RESONANCE_SCALE = 45;
+
+/**
+ * ① の第2項 40Hz 共鳴率を 0-100 に写像する。生の FFT 振幅は 1/f で減衰する
+ * ため、P_base は 40Hz 近傍（35〜45Hz、40Hz 自身を除く）の平均をベースライン
+ * として使う。比 1（平坦）= 45pt、100pt には比 ≈ 2.2 の明確なピークが必要。
  */
 export function resonance40Score(spectrum: number[] | undefined): number | null {
   if (!spectrum || spectrum.length < 40) return null;
@@ -59,7 +70,7 @@ export function resonance40Score(spectrum: number[] | undefined): number | null 
   if (!neighbours.length) return null;
   const pBase = neighbours.reduce((s, v) => s + v, 0) / neighbours.length;
   if (pBase <= 0) return null;
-  return clamp100((p40 / pBase) * 50);
+  return clamp100((p40 / pBase) * RESONANCE_SCALE);
 }
 
 export function computeBrainConditionMetrics(
@@ -68,18 +79,19 @@ export function computeBrainConditionMetrics(
   const bands = profile?.bands;
 
   // ① NeuroSync レート: 第1項の「切り替え力」は、リラックス方向（⑤入定
-  //    スピード）と集中方向（②集中スピード）の良い方を採る。入定点が検出
-  //    されなかった測定（短時間・緊張状態・アップロード由来で頻発）は
-  //    calmnessSpeed が 0 になるため、それ単独だと 0pt に張り付いていた —
-  //    どちらの方向でも切り替えの素早さは「音への反応の素直さ」の証拠。
+  //    スピード）と集中方向（②集中スピード）を 7:3 で合成する（良い方が
+  //    主、弱い方が従）。入定点が検出されなかった測定（短時間・緊張状態・
+  //    アップロード由来で頻発）は calmnessSpeed が 0 になるため、それ単独
+  //    だと 0pt に張り付いていた — どちらの方向でも切り替えの素早さは
+  //    「音への反応の素直さ」の証拠。max ではなく加重にするのは、片方だけ
+  //    速くても満点にさせないため（100pt には両方向とも満点が必要）。
   //    40Hz 共鳴の項が計算できないとき（スペクトル無しのレガシー記録）は
   //    切り替え項のみで代用。
   let youth: number | null = null;
   if (profile) {
-    const switching = Math.max(
-      profile.indicators.calmnessSpeed,
-      profile.indicators.focusSpeed
-    );
+    const a = profile.indicators.calmnessSpeed;
+    const b = profile.indicators.focusSpeed;
+    const switching = Math.max(a, b) * 0.7 + Math.min(a, b) * 0.3;
     const r40 = resonance40Score(profile.spectrum);
     youth = floor5(r40 == null ? switching : switching * 0.6 + r40 * 0.4);
   }
