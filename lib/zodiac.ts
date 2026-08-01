@@ -127,8 +127,10 @@ export interface DailyRecommendation {
 
 /**
  * その日の天体配置 × ユーザーの星座 → 推奨タグとプログラム。プール内の
- * 選択は 自星座 → 今日の太陽星座 → 今日の月星座 → 日替わりローテーション
- * の順で決める（毎日決定的で、かつ天体に紐づく）。
+ * 選択は「自星座がプールにあればそれ、無ければユーザー星座ごとに位相を
+ * ずらした日替わりローテーション」。太陽・月の星座を優先する案は、月が
+ * 水にいる日に12星座中9星座が同じ音源に落ちて切替の変化が消えたため
+ * 廃止した — この方式なら同じ日でも隣の星座は別の音源に当たる。
  */
 export function dailyRecommendation(
   sky: TodaySky | null,
@@ -177,15 +179,9 @@ export function dailyRecommendation(
   }
 
   const pool = TAG_POOL[tag];
-  const sunKey = ZODIAC_KEYS[sky.sunIndex];
-  const moonKey = ZODIAC_KEYS[sky.moonIndex];
   const programSignKey = pool.includes(sign.key)
     ? sign.key
-    : pool.includes(sunKey)
-      ? sunKey
-      : pool.includes(moonKey)
-        ? moonKey
-        : pool[(sky.sunIndex + sky.moonIndex + userIndex) % pool.length];
+    : pool[(userIndex + sky.sunIndex + sky.moonIndex) % pool.length];
 
   const el = ELEMENT_JA[sunEl];
   const advice = `今日は${el.name}のエネルギーが${el.verb}日。${sign.nameJa}のあなたには${TAG_PHRASE[tag]}が適します。`;
