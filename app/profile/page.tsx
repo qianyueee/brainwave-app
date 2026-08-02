@@ -3,11 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-/** Legacy URL — /profile moved to /report. Static export can't 301, so redirect client-side. */
+/** Legacy URL — /profile moved to /brain. Static export can't 301, so redirect client-side. */
 export default function LegacyProfilePage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/report");
+    router.replace("/brain");
   }, [router]);
   return (
     <div className="flex items-center justify-center min-h-[60vh]">

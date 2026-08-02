@@ -179,7 +179,7 @@ export default function ComparePage() {
             比較できる測定がまだありません
           </p>
           <p className="text-sm text-text-secondary">
-            シンク・セッションで測定するか、レポートで脳波データをアップロードしてください。
+            シンク・ブレインで測定するか、脳波データをアップロードしてください。
           </p>
         </div>
       ) : (

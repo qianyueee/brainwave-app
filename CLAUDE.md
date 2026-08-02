@@ -39,14 +39,14 @@ brainwave-app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
 │   ├── page.tsx                # Home 首页（脳コンディション3指標 / 脳特性チャート卡 / Today's Cosmic Sync 星座卡〔星图+下拉选择+今日文案+推荐〕/ 右上角設定入口）
 │   ├── session/page.tsx        # Sync Session（プログラム選択・再生：Sync Sound 3節目 / 配信 / カスタム・合成器入口）
-│   ├── report/page.tsx         # Sync Report（脳波同期・測定〔マインドマップ/測定/過去の測定〕+ 脳特性チャート分析の合并页）
+│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定〔マインドマップ/測定/過去の測定〕+ 脳特性チャート分析＋3指標タイルの合并页）
 │   ├── compare/page.tsx        # Sync Compare（測定の比較：2〜3件の6指標＆スペクトル比較）
 │   ├── history/page.tsx        # Sync History（日历 / セッション統計 / 脳波の記録）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
 │   ├── admin/page.tsx          # 管理面板（仅管理员）
-│   └── mind|profile|log/       # 旧路由跳转桩（客户端 redirect → session/report/history）
+│   └── mind|profile|log|report/ # 旧路由跳转桩（客户端 redirect → session/brain/history）
 ├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
 │   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
 ├── lib/
@@ -68,10 +68,10 @@ brainwave-app/
 
 ### 菜单与页面命名（Sync 体系）
 
-- 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Report `/report`、Sync Compare `/compare`、Sync History `/history`
+- 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Brain `/brain`、Sync Compare `/compare`、Sync History `/history`
 - Settings `/settings` 与播放页 `/player` 均不在导航中：設定从首页右上角齿轮进入，播放页从节目卡 / 心情选择进入
 - 节目卡入口带播放中保护：正在播放的节目再次点击只跳转、不重置 `selectedProgramId` / `timerDuration`
-- `脳特性チャート` 作为图表/功能术语继续使用（页面名已改为 Sync Report）
+- `脳特性チャート` 作为图表/功能术语继续使用（页面名已改为 Sync Brain）；脳コンディション3指標在首页与 Sync Brain 双端显示，同一 store＋同一 `computeBrainConditionMetrics`，数值恒同步
 
 ### 两个音频引擎
 
