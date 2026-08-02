@@ -5,13 +5,13 @@ import type { BrainProfile } from "./brain-profile";
  * データからポジティブな3軸スコアを出す。すべて 0-100、計算に必要なデータが
  * 無いときは null（未測定表示）。
  *
- * 1. 脳の若々しさ（NeuroSync レート / 切り替え力）
+ * 1. NeuroSync レート（切り替え力・脳の適応同調度）
  *    入定速度（100pt）と 40Hz 共鳴率をベースに「音への脳の切り替え力・
  *    反応の素直さ」を評価。
- * 2. 脳の活性化度（Brain Clarity / ひらめき度）
+ * 2. Brain Clarity（脳の明晰度・ひらめき・集中度）
  *    20Hz/40Hz（ガンマ・ベータ波）のピークをもとに「意識が冴え渡るフロー
  *    状態」を可視化。
- * 3. 脳のリフレッシュ度（Brain Reset / 休息度）
+ * 3. Brain Reset（脳のリフレッシュ度・ディープ休息率）
  *    δ波・θ波の占有率から「脳疲労のディープクレンジング率」を可視化。
  *
  * 計算式は初期設計版。後から入れた再調整（切り替え力の 7:3 加重、正規化
@@ -21,11 +21,11 @@ import type { BrainProfile } from "./brain-profile";
  */
 export interface BrainConditionMetric {
   key: "youth" | "clarity" | "reset";
-  /** タイル見出し（「脳の〜」はセクション見出し側にあるので省く） */
+  /** タイル見出し（英語の正式名） */
   title: string;
-  /** 短い補足（切り替え力 など） */
+  /** カッコ内の日本語説明（切り替え力・脳の適応同調度 など） */
   subtitle: string;
-  /** 正式名称（仕様書の表記） */
+  /** 正式名称（見出し＋カッコ説明の全文） */
   fullName: string;
   /** 0-100。データ不足（未測定・レガシー記録）は null。 */
   score: number | null;
@@ -85,8 +85,8 @@ export function computeBrainConditionMetrics(
   const reset = bands != null ? floor5(bands.delta + bands.theta) : null;
 
   return [
-    { key: "youth", title: "若々しさ", subtitle: "切り替え力", fullName: "脳の若々しさ（NeuroSync レート）", score: youth },
-    { key: "clarity", title: "活性化度", subtitle: "ひらめき度", fullName: "脳の活性化度（Brain Clarity）", score: clarity },
-    { key: "reset", title: "リフレッシュ度", subtitle: "休息度", fullName: "脳のリフレッシュ度（Brain Reset）", score: reset },
+    { key: "youth", title: "NeuroSync レート", subtitle: "切り替え力・脳の適応同調度", fullName: "NeuroSync レート（切り替え力・脳の適応同調度）", score: youth },
+    { key: "clarity", title: "Brain Clarity", subtitle: "脳の明晰度・ひらめき・集中度", fullName: "Brain Clarity（脳の明晰度・ひらめき・集中度）", score: clarity },
+    { key: "reset", title: "Brain Reset", subtitle: "脳のリフレッシュ度・ディープ休息率", fullName: "Brain Reset（脳のリフレッシュ度・ディープ休息率）", score: reset },
   ];
 }
