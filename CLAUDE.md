@@ -38,15 +38,15 @@ brainwave-app/
 ├── app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
 │   ├── page.tsx                # Home 首页（脳コンディション3指標 / 脳特性チャート卡 / Today's Cosmic Sync 星座卡〔星图+下拉选择+今日文案+推荐〕/ 右上角設定入口）
-│   ├── session/page.tsx        # Sync Session（プログラム選択・再生：Sync Sound 3節目 / 配信 / カスタム・合成器入口）
-│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定〔マインドマップ/測定/過去の測定〕+ 脳特性チャート分析＋3指標タイルの合并页）
-│   ├── compare/page.tsx        # Sync Compare（測定の比較：2〜3件の6指標＆スペクトル比較）
-│   ├── history/page.tsx        # Sync History（日历 / セッション統計 / 脳波の記録）
+│   ├── session/page.tsx        # Sync Session（顶部 Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕+ プログラム選択・再生：Sync Sound 3節目 / 配信 / カスタム・合成器入口）
+│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：マインドマップ/測定/過去の測定；分析已移至 report）
+│   ├── report/page.tsx         # Sync Report（脳特性チャート分析＋3指標タイル＋測定の比較〔2〜3件の6指標＆スペクトル〕合并页）
+│   ├── history/page.tsx        # Sync History（日历 / セッション統計 / 脳波の記録；レポートで見る→/report）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
 │   ├── admin/page.tsx          # 管理面板（仅管理员）
-│   └── mind|profile|log|report/ # 旧路由跳转桩（客户端 redirect → session/brain/history）
+│   └── mind|profile|log|compare/ # 旧路由跳转桩（客户端 redirect → session/brain/history/report）
 ├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
 │   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
 ├── lib/
@@ -56,7 +56,7 @@ brainwave-app/
 │   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（モジュール合成：載波=自星座固定、差频按四标签×情境可变——活性=太阳40/月20Hz、フロー=太阳12/月10Hz、バランス=平日14/休日夜间7.83Hz、回復=傍晚6/深夜4/月在魚座2Hz；48条 §6 メッセージ模板；优先级 healing→activation→flow→balance，火×地/風×水归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
-│   ├── brain-metrics.ts        # 脳コンディション3指標（NeuroSync レート/Brain Clarity/Brain Reset，由最新測定计算，数据不足为 null）
+│   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，由最新測定计算，数据不足为 null）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
 ├── store/
@@ -68,10 +68,12 @@ brainwave-app/
 
 ### 菜单与页面命名（Sync 体系）
 
-- 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Brain `/brain`、Sync Compare `/compare`、Sync History `/history`
+- 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Brain `/brain`、Sync Report `/report`、Sync History `/history`
 - Settings `/settings` 与播放页 `/player` 均不在导航中：設定从首页右上角齿轮进入，播放页从节目卡 / 心情选择进入
 - 节目卡入口带播放中保护：正在播放的节目再次点击只跳转、不重置 `selectedProgramId` / `timerDuration`
-- `脳特性チャート` 作为图表/功能术语继续使用（页面名已改为 Sync Brain）；脳コンディション3指標在首页与 Sync Brain 双端显示，同一 store＋同一 `computeBrainConditionMetrics`，数值恒同步
+- 职责划分：Sync Brain 只管**測定**（マインドマップ等）；Sync Report 汇总**分析＋比較**（脳特性チャート＋測定の比較）。測定导入（useImportSession）与ヒストリー的「レポートで見る」都跳 `/report`；首页脳特性チャート卡也链到 `/report`，3指標タイル仍链到 `/brain`（測定入口）
+- 脳コンディション3指標（Rate/Clarity/Reset）在首页与 Sync Report 双端显示，同一 store＋同一 `computeBrainConditionMetrics`，数值恒同步
+- Sync Session 顶部为 Water Mandala 英雄卡（`components/WaterMandalaHero.tsx`＋`WaterMandala.tsx`）：SVG 水纹曼陀罗，几何由频率决定（载波→同心环数、差频→花瓣数〔log 映射，9 种差频各不相同〕、差频越快涟漪越快），默认显示与首页同源的当日星座推荐（自星座载波×当日差频），播放按钮同样带播放中保护
 
 ### 两个音频引擎
 

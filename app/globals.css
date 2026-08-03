@@ -307,6 +307,33 @@ input[type="range"]:disabled::-moz-range-thumb {
   animation: gentle-breathe-soft 5s ease-in-out infinite;
 }
 
+/* Water mandala (Sync Session hero): rings ripple outward like drops on a
+   still surface — a staggered wave train, unlike the stars' unison twinkle. */
+@keyframes ripple-expand {
+  0% { transform: scale(0.45); opacity: 0; }
+  12% { opacity: 0.55; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.mandala-ripple {
+  animation: ripple-expand var(--ripple-dur, 6s) linear infinite;
+  animation-delay: var(--ripple-delay, 0s);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Petal wreaths drift — outer clockwise, inner (reverse) counter-clockwise */
+@keyframes mandala-spin {
+  to { transform: rotate(360deg); }
+}
+.mandala-spin {
+  animation: mandala-spin var(--spin-dur, 80s) linear infinite;
+  transform-box: view-box;
+  transform-origin: center;
+}
+.mandala-spin-rev {
+  animation-direction: reverse;
+}
+
 @media (prefers-reduced-motion: reduce) {
   @keyframes pulse-ring {
     0%, 50%, 100% { transform: scale(1); opacity: 0.5; }
@@ -331,5 +358,11 @@ input[type="range"]:disabled::-moz-range-thumb {
   }
   @keyframes gentle-breathe-soft {
     0%, 50%, 100% { transform: scale(1); }
+  }
+  @keyframes ripple-expand {
+    0%, 50%, 100% { transform: scale(1); opacity: 0.18; }
+  }
+  @keyframes mandala-spin {
+    0%, 50%, 100% { transform: rotate(0deg); }
   }
 }

@@ -2,7 +2,7 @@ import {
   Home,
   Music2,
   BrainCircuit,
-  GitCompareArrows,
+  ChartColumn,
   History,
 } from "lucide-react";
 
@@ -17,7 +17,7 @@ export const NAV_TABS = [
   { href: "/", icon: Home, short: "ホーム", en: "Home", kana: "ホーム" },
   { href: "/session", icon: Music2, short: "セッション", en: "Sync Session", kana: "シンク・セッション" },
   { href: "/brain", icon: BrainCircuit, short: "ブレイン", en: "Sync Brain", kana: "シンク・ブレイン" },
-  { href: "/compare", icon: GitCompareArrows, short: "コンペア", en: "Sync Compare", kana: "シンク・コンペア" },
+  { href: "/report", icon: ChartColumn, short: "レポート", en: "Sync Report", kana: "シンク・レポート" },
   { href: "/history", icon: History, short: "ヒストリー", en: "Sync History", kana: "シンク・ヒストリー" },
 ] as const;
 

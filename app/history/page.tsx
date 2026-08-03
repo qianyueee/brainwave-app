@@ -26,7 +26,7 @@ function MeasurementItem({
 }: {
   m: BrainProfile;
   onDelete: (uploadedAt: string) => void;
-  /** Open this measurement on the Sync Brain page. */
+  /** Open this measurement on the Sync Report page (脳特性チャート). */
   onView: (uploadedAt: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -144,7 +144,7 @@ function MeasurementItem({
               onClick={() => onView(m.uploadedAt)}
               className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
             >
-              <BarChart3 size={16} /> ブレインで見る
+              <BarChart3 size={16} /> レポートで見る
             </button>
             <button
               onClick={() => {
@@ -171,9 +171,9 @@ export default function HistoryPage() {
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
 
-  const viewOnBrain = (uploadedAt: string) => {
+  const viewOnReport = (uploadedAt: string) => {
     setViewingMeasurement(uploadedAt);
-    router.push("/brain");
+    router.push("/report");
   };
 
   // Guard hydration mismatch from persisted measurements
@@ -260,7 +260,7 @@ export default function HistoryPage() {
                   onDelete={(t) => {
                     deleteMeasurement(t).catch((err) => console.error(err));
                   }}
-                  onView={viewOnBrain}
+                  onView={viewOnReport}
                 />
               ))}
             </div>

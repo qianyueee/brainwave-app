@@ -81,7 +81,7 @@ export default function HomePage() {
       {/* Brain Profile Card */}
       {hydrated && (
         profile ? (
-          <Link href="/brain" className="block bg-surface border border-surface-border rounded-3xl p-4 neu-raised neu-press transition-transform breathe">
+          <Link href="/report" className="block bg-surface border border-surface-border rounded-3xl p-4 neu-raised neu-press transition-transform breathe">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-text-secondary">脳特性チャート</p>
               <span className="text-xs text-primary font-medium">詳細 →</span>
@@ -93,7 +93,7 @@ export default function HomePage() {
           </Link>
         ) : (
           <Link
-            href="/brain"
+            href="/report"
             className="block w-full bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised neu-press transition-transform breathe"
           >
             <div className="flex justify-center mb-2">

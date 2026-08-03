@@ -22,7 +22,7 @@ export type ImportStatus = "idle" | "busy" | "waitingLogin" | "waitingCloud" | "
  * Shared 測定 → 脳特性 import flow, used by both the post-measurement prompt
  * (MindRecorder) and the 過去の測定 list (SessionList). It writes the session's
  * precomputed indicators + bands into the brain-profile store and navigates to
- * /brain. Login and cloud-hydrate gated: a pending import resumes once both
+ * /report (脳特性チャート). Login and cloud-hydrate gated: a pending import resumes once both
  * complete, and is deduped by the session's timestamp so re-importing refreshes
  * instead of duplicating. Failures clear the pending marker (no endless retry)
  * and are surfaced through `statusFor` for the caller's UI.
@@ -45,7 +45,7 @@ export function useImportSession() {
       setErrorId(null);
       // Legacy sessions (recorded before this feature) carry no analysis data.
       if (!s.indicators || !s.bands) {
-        router.push("/brain");
+        router.push("/report");
         return;
       }
       if (!user) {
@@ -81,7 +81,7 @@ export function useImportSession() {
           subject: s.subjectName,
         });
         setPendingId(null);
-        router.push("/brain");
+        router.push("/report");
       } catch (e) {
         console.error("[mind] failed to import measurement into 脳特性:", e);
         // Clear the pending marker so the resume effect can't retry forever.

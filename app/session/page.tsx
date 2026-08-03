@@ -11,13 +11,15 @@ import { useSynthStore } from "@/store/useSynthStore";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import WaterMandalaHero from "@/components/WaterMandalaHero";
 import { Plus } from "lucide-react";
 
 /**
  * Sync Session — every program/audio entry point lives here (moved off the
- * home page): the Sync Sound built-ins, group-published programs, and the
- * admin-only custom program / synth tooling. Playback itself stays on /player,
- * reached through the cards. The live EEG measurement moved to Sync Report.
+ * home page): the water-mandala hero for today's zodiac frequency, the
+ * Sync Sound built-ins, group-published programs, and the admin-only custom
+ * program / synth tooling. Playback itself stays on /player, reached through
+ * the cards. The live EEG measurement lives on Sync Brain.
  */
 export default function SessionPage() {
   const router = useRouter();
@@ -78,9 +80,12 @@ export default function SessionPage() {
         <p className="text-sm text-text-secondary mt-1">シンク・セッション｜プログラム選択・再生</p>
       </div>
 
-      {/* Mobile: single column. Desktop: built-ins | published + custom. */}
+      {/* Mobile: single column. Desktop: mandala + built-ins | published + custom. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
       <div className="flex flex-col gap-6">
+      {/* Today's frequency as a water mandala — the first thing on entry */}
+      <WaterMandalaHero />
+
       {/* Programs — the "Sync Sound" lineup */}
       <div className="flex flex-col gap-3 breathe-stagger">
         <p className="text-sm text-text-secondary">Sync Sound（シンク・サウンド / 脳波同期サウンド）</p>

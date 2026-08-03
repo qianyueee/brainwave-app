@@ -5,13 +5,13 @@ import type { BrainProfile } from "./brain-profile";
  * データからポジティブな3軸スコアを出す。すべて 0-100、計算に必要なデータが
  * 無いときは null（未測定表示）。
  *
- * 1. NeuroSync レート（切り替え力・脳の適応同調度）
+ * 1. Rate（切り替え力・脳の適応同調度）
  *    入定速度（100pt）と 40Hz 共鳴率をベースに「音への脳の切り替え力・
  *    反応の素直さ」を評価。
- * 2. Brain Clarity（脳の明晰度・ひらめき・集中度）
+ * 2. Clarity（脳の明晰度・ひらめき・集中度）
  *    20Hz/40Hz（ガンマ・ベータ波）のピークをもとに「意識が冴え渡るフロー
  *    状態」を可視化。
- * 3. Brain Reset（脳のリフレッシュ度・ディープ休息率）
+ * 3. Reset（脳のリフレッシュ度・ディープ休息率）
  *    δ波・θ波の占有率から「脳疲労のディープクレンジング率」を可視化。
  *
  * 計算式は初期設計版。後から入れた再調整（切り替え力の 7:3 加重、正規化
@@ -85,8 +85,8 @@ export function computeBrainConditionMetrics(
   const reset = bands != null ? floor5(bands.delta + bands.theta) : null;
 
   return [
-    { key: "youth", title: "NeuroSync レート", subtitle: "切り替え力・脳の適応同調度", fullName: "NeuroSync レート（切り替え力・脳の適応同調度）", score: youth },
-    { key: "clarity", title: "Brain Clarity", subtitle: "脳の明晰度・ひらめき・集中度", fullName: "Brain Clarity（脳の明晰度・ひらめき・集中度）", score: clarity },
-    { key: "reset", title: "Brain Reset", subtitle: "脳のリフレッシュ度・ディープ休息率", fullName: "Brain Reset（脳のリフレッシュ度・ディープ休息率）", score: reset },
+    { key: "youth", title: "Rate", subtitle: "切り替え力・脳の適応同調度", fullName: "Rate（切り替え力・脳の適応同調度）", score: youth },
+    { key: "clarity", title: "Clarity", subtitle: "脳の明晰度・ひらめき・集中度", fullName: "Clarity（脳の明晰度・ひらめき・集中度）", score: clarity },
+    { key: "reset", title: "Reset", subtitle: "脳のリフレッシュ度・ディープ休息率", fullName: "Reset（脳のリフレッシュ度・ディープ休息率）", score: reset },
   ];
 }

@@ -9,18 +9,18 @@ import type { BrainProfile } from "@/lib/brain-profile";
 
 interface BrainConditionMetricsProps {
   /**
-   * 指定時はこの測定から算出（Sync Brain で表示中の測定）。省略時はストアの
-   * 最新測定 — ホームと Sync Brain は同じストア・同じ計算式を通るので、
+   * 指定時はこの測定から算出（Sync Report で表示中の測定）。省略時はストアの
+   * 最新測定 — ホームと Sync Report は同じストア・同じ計算式を通るので、
    * 最新表示どうしの数値は常に一致する。
    */
   profile?: BrainProfile | null;
-  /** タイルを /brain へのリンクにする（ホーム用）。Brain ページ内では false。 */
+  /** タイルを /brain（測定）へのリンクにする（ホーム用）。Report ページ内では false。 */
   asLink?: boolean;
 }
 
 /**
- * 脳コンディション 3指標タイル。ホームでは最新測定＋タップで Sync Brain へ、
- * Sync Brain の脳特性エリアでは表示中の測定を静的タイルで示す。
+ * 脳コンディション 3指標タイル。ホームでは最新測定＋タップで Sync Brain（測定）へ、
+ * Sync Report の脳特性エリアでは表示中の測定を静的タイルで示す。
  */
 export default function BrainConditionMetrics({
   profile: profileProp,
