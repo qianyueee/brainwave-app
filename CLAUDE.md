@@ -63,7 +63,8 @@ brainwave-app/
 │   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志）
 │   ├── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
 │   └── useZodiacStore.ts       # マイ星座偏好 + persist（普通 localStorage，未登录也生效）
-└── public/sounds/              # 自然音素材
+├── public/sounds/              # 自然音素材
+└── zodiac-music/               # 星座音乐素材投放区（README 附命名规则；应用不加载，文件到位后接入 public/sounds/）
 ```
 
 ### 菜单与页面命名（Sync 体系）
