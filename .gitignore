@@ -48,3 +48,6 @@ bridge/bridge_config.json
 bridge/build/
 bridge/dist/
 *.pyc
+
+# Local staging for the zodiac music source files (never committed)
+.zodiac-src/

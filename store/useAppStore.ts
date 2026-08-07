@@ -25,6 +25,9 @@ interface AppState {
   setNatureVolume: (v: number) => void;
   natureSoundId: string; // "" = none
   setNatureSoundId: (id: string) => void;
+  /** 星座プログラムの音楽ベッド音量 0-1（誘導ビートの下に敷く伴奏） */
+  musicVolume: number;
+  setMusicVolume: (v: number) => void;
   elapsed: number;
   setElapsed: (e: number) => void;
 
@@ -51,6 +54,8 @@ export const useAppStore = create<AppState>((set) => ({
   setNatureVolume: (v) => set({ natureVolume: v }),
   natureSoundId: "",
   setNatureSoundId: (id) => set({ natureSoundId: id }),
+  musicVolume: 0.6,
+  setMusicVolume: (v) => set({ musicVolume: v }),
   elapsed: 0,
   setElapsed: (e) => set({ elapsed: e }),
 

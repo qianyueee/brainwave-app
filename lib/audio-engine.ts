@@ -37,6 +37,9 @@ export class BinauralSession {
   private merger: ChannelMergerNode | null = null;
   // Nature sound
   private naturePlayer: NaturePlayer | null = null;
+  // Zodiac music bed — a separate looped layer, independent of the nature sound
+  // so a user can run both (music under the beat, rain on top) at once.
+  private musicPlayer: NaturePlayer | null = null;
   private _isPlaying = false;
   private startTime = 0;
   private program: ProgramConfig;
@@ -187,9 +190,11 @@ export class BinauralSession {
       this.rightGain.gain.linearRampToValueAtTime(0, now + fadeOut);
     }
 
-    // Stop nature sound
+    // Stop nature sound + music bed
     this.naturePlayer?.stop();
     this.naturePlayer = null;
+    this.musicPlayer?.stop();
+    this.musicPlayer = null;
 
     // Stop and disconnect after fade-out
     setTimeout(() => {
@@ -247,6 +252,33 @@ export class BinauralSession {
   /** Adjust nature sound volume (0-1) */
   setNatureVolume(value: number): void {
     this.naturePlayer?.setVolume(value);
+  }
+
+  /**
+   * Load and loop the zodiac music bed under the beat. The delivered tracks
+   * run 1-8 minutes against a 15-minute session, so they loop; they carry no
+   * entrainment of their own, which is why the oscillators keep running.
+   */
+  async playMusicBed(url: string, volume: number): Promise<void> {
+    this.stopMusicBed();
+    if (!this._isPlaying) return;
+    const player = new NaturePlayer();
+    this.musicPlayer = player;
+    await player.playFromUrl(url, volume);
+    // A stop() during the fetch/decode above would have cleared the ref —
+    // don't leave an orphan looping after the session ended.
+    if (this.musicPlayer !== player || !this._isPlaying) player.stop();
+  }
+
+  /** Stop the music bed with fade-out */
+  stopMusicBed(): void {
+    this.musicPlayer?.stop();
+    this.musicPlayer = null;
+  }
+
+  /** Adjust music bed volume (0-1) */
+  setMusicVolume(value: number): void {
+    this.musicPlayer?.setVolume(value);
   }
 
   getState(): SessionState {

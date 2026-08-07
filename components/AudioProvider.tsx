@@ -14,6 +14,7 @@ import { ProgramConfig } from "@/lib/programs";
 import type { CustomProgram } from "@/lib/programs";
 import { isTimelineProgram } from "@/lib/programs";
 import { NaturePlayer } from "@/lib/nature-player";
+import { zodiacMusicUrl } from "@/lib/zodiac-audio";
 import { getAudioBlob } from "@/lib/custom-audio-db";
 import { ensureBlobCached } from "@/lib/sync/custom-audios";
 import { startKeepAlive, stopKeepAlive, setMediaSessionHandlers } from "@/lib/keep-alive";
@@ -40,6 +41,8 @@ interface AudioContextValue {
   playNatureSound: (soundId: string, volume: number) => void;
   stopNatureSound: () => void;
   setNatureVolume: (value: number) => void;
+  // Zodiac music bed volume (for Mixer)
+  setMusicVolume: (value: number) => void;
   // Synth volume control (for Mixer)
   setSynthVolume: (value: number) => void;
   // Solo monitor in stereo mode
@@ -214,13 +217,22 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         },
       );
 
-      const { natureSoundId, natureVolume } = useAppStore.getState();
+      const { natureSoundId, natureVolume, musicVolume } = useAppStore.getState();
       if (natureSoundId) {
         if (natureSoundId.startsWith("custom-")) {
           playCustomAudio(natureSoundId, natureVolume);
         } else {
           session.playNatureSound(natureSoundId, natureVolume);
         }
+      }
+
+      // Zodiac programs carry a music bed; the beat above it is still the
+      // synthesised one, since the tracks hold no entrainment themselves.
+      const musicUrl = zodiacMusicUrl(program.id);
+      if (musicUrl) {
+        session.playMusicBed(musicUrl, musicVolume).catch((err) => {
+          console.error("[audio-provider] zodiac music bed failed:", err);
+        });
       }
 
       pollRef.current = setInterval(() => {
@@ -486,6 +498,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setMusicVolume = useCallback((value: number) => {
+    sessionRef.current?.setMusicVolume(value);
+  }, []);
+
   const setSynthVolume = useCallback((value: number) => {
     if (timelineRef.current) {
       timelineRef.current.setMasterVolume(value);
@@ -560,6 +576,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         playNatureSound,
         stopNatureSound,
         setNatureVolume,
+        setMusicVolume,
         setSynthVolume,
         setMonitorChannel,
       }}

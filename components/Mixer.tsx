@@ -4,6 +4,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useAudio } from "@/components/AudioProvider";
 import { NATURE_SOUNDS } from "@/lib/audio-engine";
 import { isCustomProgramId } from "@/lib/programs";
+import { hasZodiacMusic } from "@/lib/zodiac-audio";
 import CustomAudioSection from "@/components/CustomAudioSection";
 import RangeSlider from "@/components/RangeSlider";
 
@@ -14,11 +15,15 @@ export default function Mixer() {
   const setNatureVolumeStore = useAppStore((s) => s.setNatureVolume);
   const natureSoundId = useAppStore((s) => s.natureSoundId);
   const setNatureSoundId = useAppStore((s) => s.setNatureSoundId);
+  const musicVolume = useAppStore((s) => s.musicVolume);
+  const setMusicVolumeStore = useAppStore((s) => s.setMusicVolume);
   const isPlaying = useAppStore((s) => s.isPlaying);
   const programId = useAppStore((s) => s.selectedProgramId);
-  const { getSession, playNatureSound, stopNatureSound, setNatureVolume, setSynthVolume } = useAudio();
+  const { getSession, playNatureSound, stopNatureSound, setNatureVolume, setMusicVolume, setSynthVolume } = useAudio();
 
   const isCustom = isCustomProgramId(programId);
+  // Only the zodiac programs ship a music bed; the built-ins stay pure tone.
+  const hasMusic = hasZodiacMusic(programId);
 
   const handleBeatVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
@@ -34,6 +39,12 @@ export default function Mixer() {
     const v = parseFloat(e.target.value);
     setNatureVolumeStore(v);
     setNatureVolume(v);
+  };
+
+  const handleMusicVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value);
+    setMusicVolumeStore(v);
+    setMusicVolume(v);
   };
 
   const handleNatureSelect = (id: string) => {
@@ -69,6 +80,26 @@ export default function Mixer() {
           className="w-full"
         />
       </div>
+
+      {/* Zodiac music bed — the accompaniment under the synthesised beat */}
+      {hasMusic && (
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-text-secondary">星座ミュージック</span>
+            <span className="text-sm text-text-muted tabular-nums">
+              {Math.round(musicVolume * 100)}%
+            </span>
+          </div>
+          <RangeSlider
+            min="0"
+            max="1"
+            step="0.01"
+            value={musicVolume}
+            onChange={handleMusicVolume}
+            className="w-full"
+          />
+        </div>
+      )}
 
       {/* Nature sound selector */}
       <div className="flex flex-col gap-2">
