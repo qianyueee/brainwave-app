@@ -5,42 +5,54 @@ import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
 import type { BrainProfile } from "@/lib/brain-profile";
 import { compositeScore, scoreColor, measurementLabel } from "@/lib/brain-measurements";
+import {
+  ALL_SUBJECTS,
+  matchesSubject,
+  resolveSubjectKey,
+  subjectGroups,
+} from "@/lib/subject-groups";
 import SimpleCalendar from "@/components/SimpleCalendar";
 import BrainTrendChart from "@/components/BrainTrendChart";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import Fullscreenable from "@/components/Fullscreenable";
 import EegUploader from "@/components/EegUploader";
 import SignalQualityBadge from "@/components/SignalQualityBadge";
+import SelectDropdown, { type SelectOption } from "@/components/SelectDropdown";
 import { syncNoteFromMeasurement } from "@/lib/mind/note-sync";
-import { ChevronDown, Trash2, BrainCircuit, Lock, BarChart3, Pencil, StickyNote } from "lucide-react";
+import { Trash2, BrainCircuit, Lock, BarChart3, Pencil, StickyNote, User, CalendarClock } from "lucide-react";
 
 /** Max length of a measurement memo (matches the mind-map list). */
 const NOTE_MAX = 200;
 
-function MeasurementItem({
+/**
+ * The measurement chosen in the 記録 dropdown, shown in full. Not collapsible —
+ * the dropdown above already answers "which one", so there is exactly one card
+ * and it is always open.
+ */
+function MeasurementDetail({
   m,
+  showSubject,
   onDelete,
   onView,
 }: {
   m: BrainProfile;
+  /** Whose record this is — worth showing once the history mixes people. */
+  showSubject: boolean;
   onDelete: (uploadedAt: string) => void;
   /** Open this measurement on the Sync Report page (脳特性チャート). */
   onView: (uploadedAt: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
   const [draft, setDraft] = useState("");
   const total = compositeScore(m.indicators);
   const date = new Date(m.uploadedAt);
 
   return (
-    <div className="bg-surface border border-surface-border rounded-3xl neu-raised overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 p-4 text-left"
-      >
+    <div className="bg-surface border border-surface-border rounded-3xl neu-raised p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-base font-bold text-text-primary">
             {date.toLocaleDateString("ja-JP", {
@@ -49,114 +61,104 @@ function MeasurementItem({
               day: "numeric",
             })}
           </p>
-          {m.subject && (
+          {showSubject && m.subject && (
             <p className="text-sm font-bold text-primary truncate">{m.subject}</p>
           )}
           <p className="text-sm text-text-secondary truncate">{m.sessionTag}</p>
           <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="text-right">
-            <p
-              className="text-xl font-mono font-bold tabular-nums"
-              style={{ color: scoreColor(total) }}
-            >
-              {total}
-            </p>
-            <p className="text-xs text-text-muted">総合</p>
-          </div>
-          <ChevronDown
-            size={20}
-            className={`text-text-muted transition-transform ${open ? "rotate-180" : ""}`}
+        <div className="text-right shrink-0">
+          <p
+            className="text-xl font-mono font-bold tabular-nums"
+            style={{ color: scoreColor(total) }}
+          >
+            {total}
+          </p>
+          <p className="text-xs text-text-muted">総合</p>
+        </div>
+      </div>
+
+      <Fullscreenable title={measurementLabel(m)}>
+        <BrainRadarChart indicators={m.indicators} size="small" showScores />
+      </Fullscreenable>
+
+      {/* Memo — kept in sync with the mind-map session's memo. */}
+      {editingNote ? (
+        <div className="flex flex-col gap-2">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={2}
+            maxLength={NOTE_MAX}
+            autoFocus
+            placeholder="メモを入力…（体調・気分・状況など）"
+            className="w-full rounded-xl bg-navy neu-inset p-3 text-sm text-text-primary placeholder:text-text-muted resize-none outline-none focus:ring-1 focus:ring-primary"
           />
-        </div>
-      </button>
-
-      {open && (
-        <div className="px-4 pb-4 flex flex-col gap-3 border-t border-surface-border pt-3">
-          <Fullscreenable title={measurementLabel(m)}>
-            <BrainRadarChart indicators={m.indicators} size="small" showScores />
-          </Fullscreenable>
-
-          {/* Memo — kept in sync with the mind-map session's memo. */}
-          {editingNote ? (
-            <div className="flex flex-col gap-2">
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                rows={2}
-                maxLength={NOTE_MAX}
-                autoFocus
-                placeholder="メモを入力…（体調・気分・状況など）"
-                className="w-full rounded-xl bg-navy neu-inset p-3 text-sm text-text-primary placeholder:text-text-muted resize-none outline-none focus:ring-1 focus:ring-primary"
-              />
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-muted tabular-nums">
-                  {draft.length}/{NOTE_MAX}
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditingNote(false)}
-                    className="px-4 py-2 rounded-xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform"
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    onClick={() => {
-                      syncNoteFromMeasurement(m.uploadedAt, draft);
-                      setEditingNote(false);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
-                  >
-                    保存
-                  </button>
-                </div>
-              </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-text-muted tabular-nums">
+              {draft.length}/{NOTE_MAX}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditingNote(false)}
+                className="px-4 py-2 rounded-xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => {
+                  syncNoteFromMeasurement(m.uploadedAt, draft);
+                  setEditingNote(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
+              >
+                保存
+              </button>
             </div>
-          ) : m.note ? (
-            <button
-              onClick={() => {
-                setDraft(m.note ?? "");
-                setEditingNote(true);
-              }}
-              className="w-full text-left flex items-start gap-2 rounded-xl bg-navy neu-inset p-3 active:opacity-70"
-            >
-              <StickyNote size={16} className="shrink-0 mt-0.5 text-text-muted" />
-              <span className="flex-1 text-sm text-text-secondary whitespace-pre-wrap break-words">
-                {m.note}
-              </span>
-              <Pencil size={14} className="shrink-0 mt-0.5 text-text-muted" />
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                setDraft("");
-                setEditingNote(true);
-              }}
-              className="self-start flex items-center gap-1.5 text-sm text-text-muted active:opacity-70"
-            >
-              <Pencil size={14} /> メモを追加
-            </button>
-          )}
-
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={() => onView(m.uploadedAt)}
-              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
-            >
-              <BarChart3 size={16} /> レポートで見る
-            </button>
-            <button
-              onClick={() => {
-                if (window.confirm("この記録を削除しますか？")) onDelete(m.uploadedAt);
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-navy text-red-400 text-sm font-medium neu-raised-sm neu-press transition-transform"
-            >
-              <Trash2 size={16} /> 削除
-            </button>
           </div>
         </div>
+      ) : m.note ? (
+        <button
+          onClick={() => {
+            setDraft(m.note ?? "");
+            setEditingNote(true);
+          }}
+          className="w-full text-left flex items-start gap-2 rounded-xl bg-navy neu-inset p-3 active:opacity-70"
+        >
+          <StickyNote size={16} className="shrink-0 mt-0.5 text-text-muted" />
+          <span className="flex-1 text-sm text-text-secondary whitespace-pre-wrap break-words">
+            {m.note}
+          </span>
+          <Pencil size={14} className="shrink-0 mt-0.5 text-text-muted" />
+        </button>
+      ) : (
+        <button
+          onClick={() => {
+            setDraft("");
+            setEditingNote(true);
+          }}
+          className="self-start flex items-center gap-1.5 text-sm text-text-muted active:opacity-70"
+        >
+          <Pencil size={14} /> メモを追加
+        </button>
       )}
+
+      <div className="flex items-center justify-between gap-2">
+        <button
+          onClick={() => onView(m.uploadedAt)}
+          className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
+        >
+          <BarChart3 size={16} /> レポートで見る
+        </button>
+        <button
+          onClick={() => {
+            if (window.confirm("この記録を削除しますか？")) onDelete(m.uploadedAt);
+          }}
+          className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-navy text-red-400 text-sm font-medium neu-raised-sm neu-press transition-transform"
+        >
+          <Trash2 size={16} /> 削除
+        </button>
+      </div>
     </div>
   );
 }
@@ -170,6 +172,7 @@ export default function HistoryPage() {
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
+  const subject = useSubjectStore(activeSubject);
 
   const viewOnReport = (uploadedAt: string) => {
     setViewingMeasurement(uploadedAt);
@@ -182,13 +185,56 @@ export default function HistoryPage() {
     setHydrated(true);
   }, []);
 
+  const [subjectKey, setSubjectKey] = useState<string | null>(null);
+  const [recordId, setRecordId] = useState<string | null>(null);
+
   const totalSessions = sessionLogs.length;
   const totalMinutes = Math.round(
     sessionLogs.reduce((sum, log) => sum + log.duration, 0) / 60
   );
 
-  // Newest first for the list
+  // Newest first for the pickers (`measurements` is oldest→newest).
   const ordered = [...measurements].reverse();
+
+  // ── 測定者 → 記録 の2段選択 ──
+  // Grouped by the name stored on each record (a measurement keeps the name, not
+  // an id, so it stays readable after a rename), most recently measured first.
+  const groups = hydrated
+    ? subjectGroups(ordered, (m) => ({ key: m.subject, name: m.subject }))
+    : [];
+  // Defaults to whoever is being measured on Sync Brain, else the latest record.
+  const activeKey = resolveSubjectKey(subjectKey, groups, subject?.name);
+  const showAll = activeKey === ALL_SUBJECTS;
+
+  // Oldest→newest for the trend chart, newest-first for the dropdown. Only one
+  // person's records feed the trend: a curve drawn through several people's
+  // measurements is not a trend.
+  const forSubject = activeKey
+    ? measurements.filter((m) => matchesSubject({ key: m.subject }, activeKey))
+    : [];
+  const orderedForSubject = [...forSubject].reverse();
+
+  // A stale pick (record deleted, subject switched) falls back to the newest.
+  const selected =
+    orderedForSubject.find((m) => m.uploadedAt === recordId) ?? orderedForSubject[0] ?? null;
+
+  const subjectOptions: SelectOption[] = [
+    ...groups.map((g) => ({ value: g.key, label: g.name, trailing: `${g.count}件` })),
+    ...(groups.length > 1
+      ? [{ value: ALL_SUBJECTS, label: "全員", trailing: `${measurements.length}件` }]
+      : []),
+  ];
+
+  const recordOptions: SelectOption[] = orderedForSubject.map((m) => {
+    const total = compositeScore(m.indicators);
+    return {
+      value: m.uploadedAt,
+      label: measurementLabel(m),
+      detail: showAll ? `${m.subject ?? "測定者未設定"}・${m.sessionTag}` : m.sessionTag,
+      trailing: String(total),
+      trailingColor: scoreColor(total),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
@@ -251,19 +297,45 @@ export default function HistoryPage() {
           </div>
         ) : (
           <>
-            <BrainTrendChart measurements={measurements} />
-            <div className="flex flex-col gap-3">
-              {ordered.map((m) => (
-                <MeasurementItem
-                  key={m.uploadedAt}
-                  m={m}
-                  onDelete={(t) => {
-                    deleteMeasurement(t).catch((err) => console.error(err));
-                  }}
-                  onView={viewOnReport}
-                />
-              ))}
-            </div>
+            {/* Step 1 — whose records. Hidden while every record belongs to the
+                same person: there is nothing to separate yet. */}
+            {groups.length > 1 && (
+              <SelectDropdown
+                caption="測定者を選択"
+                icon={<User size={18} strokeWidth={1.5} />}
+                value={activeKey}
+                options={subjectOptions}
+                onChange={(v) => {
+                  setSubjectKey(v);
+                  setRecordId(null);
+                }}
+              />
+            )}
+
+            {/* Step 2 — which of that person's measurements. */}
+            <SelectDropdown
+              caption="測定データを選択"
+              icon={<CalendarClock size={18} strokeWidth={1.5} />}
+              value={selected?.uploadedAt ?? null}
+              options={recordOptions}
+              onChange={setRecordId}
+              placeholder="測定記録がありません"
+            />
+
+            <BrainTrendChart measurements={forSubject} />
+
+            {selected && (
+              <MeasurementDetail
+                m={selected}
+                showSubject={groups.length > 1}
+                onDelete={(t) => {
+                  deleteMeasurement(t).catch((err) => console.error(err));
+                  // The picker falls back to the next newest on its own.
+                  setRecordId(null);
+                }}
+                onView={viewOnReport}
+              />
+            )}
 
             <EegUploader />
           </>

@@ -57,6 +57,7 @@ brainwave-app/
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，由最新測定计算，数据不足为 null）
+│   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
 ├── store/
@@ -74,6 +75,7 @@ brainwave-app/
 - 节目卡入口带播放中保护：正在播放的节目再次点击只跳转、不重置 `selectedProgramId` / `timerDuration`
 - 职责划分：Sync Brain 只管**測定**（マインドマップ等）；Sync Report 汇总**分析＋比較**（脳特性チャート＋測定の比較）。測定导入（useImportSession）与ヒストリー的「レポートで見る」都跳 `/report`；首页脳特性チャート卡也链到 `/report`，3指標タイル仍链到 `/brain`（測定入口）
 - 脳コンディション3指標（Rate/Clarity/Reset）在首页与 Sync Report 双端显示，同一 store＋同一 `computeBrainConditionMetrics`，数值恒同步
+- 過去の測定（Sync Brain）与脳波の記録（Sync History）统一为**測定者→測定データ 二段下拉**（`components/SelectDropdown.tsx`＋`lib/subject-groups.ts`）：先选人再选该人的某条记录，只展开选中的那一条（脳特性/推移/メモ/レポートで見る/削除）。分组来自记录自身（session 用 `subjectId`、measurement 用 `subject` 名），只有 1 人时隐藏測定者下拉；2 人以上追加「全員」；默认选中当前測定者（`useSubjectStore` 的 activeSubject），选择失效时自动回落到最新记录。Sync History 的推移グラフ只画所选測定者的记录（混人不成趋势）
 - Sync Session 顶部为 Water Mandala 英雄卡（`components/WaterMandalaHero.tsx`＋`WaterMandala.tsx`）：SVG 水纹曼陀罗，几何由频率决定（载波→同心环数、差频→花瓣数〔log 映射，9 种差频各不相同〕、差频越快涟漪越快），默认显示与首页同源的当日星座推荐（自星座载波×当日差频），播放按钮同样带播放中保护
 
 ### 两个音频引擎
