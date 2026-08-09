@@ -17,6 +17,8 @@ export default function PlayerPage() {
   const programId = useDisplayProgramId();
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
+  const fetchPrograms = usePublishedProgramsStore((s) => s.fetchPrograms);
+  const publishedLoading = usePublishedProgramsStore((s) => s.loading);
   const elapsed = useAppStore((s) => s.elapsed);
   const timerDuration = useAppStore((s) => s.timerDuration);
   const setTimerDuration = useAppStore((s) => s.setTimerDuration);
@@ -49,6 +51,16 @@ export default function PlayerPage() {
     }
   }, [isTimeline, isPlaying, timerDuration, timelineTotal, setTimerDuration]);
 
+  // The published list is fetched by /session on mount — but with the
+  // selection persisted, a refresh/direct entry can land here first and a
+  // custom id then resolves to nothing ("プログラムを選択" dead end). Fetch on
+  // demand; runs once per unresolved id (deps stay stable if it's truly gone).
+  useEffect(() => {
+    if (isCustom && !customProgram) {
+      fetchPrograms();
+    }
+  }, [isCustom, customProgram, fetchPrograms]);
+
   const displayName = isCustom ? customProgram?.name : program?.name;
   const displayDesc = isCustom ? customProgram?.description : program?.description;
 
@@ -73,7 +85,7 @@ export default function PlayerPage() {
       <div className="text-center">
         <p className="text-xs font-bold text-primary tracking-wider">Sync Sound</p>
         <h1 className="text-xl font-bold text-text-primary">
-          {displayName ?? "プログラムを選択"}
+          {displayName ?? (publishedLoading ? "読み込み中…" : "プログラムを選択")}
         </h1>
         <p className="text-sm text-text-secondary mt-1">
           {displayDesc}

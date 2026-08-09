@@ -21,6 +21,7 @@ export default function PlaybackControls() {
   const indicators = useBrainProfileStore((s) => s.profile?.indicators ?? null);
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
+  const publishedLoading = usePublishedProgramsStore((s) => s.loading);
 
   const isCustom = isCustomProgramId(programId);
   const program = isCustom ? undefined : getAdjustedProgram(programId, indicators);
@@ -68,13 +69,21 @@ export default function PlaybackControls() {
           </p>
           <p className="text-sm text-text-secondary mt-1">セッション時間</p>
         </div>
-        <Link
-          href="/session"
-          className="min-h-14 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press transition-transform active:scale-95"
-        >
-          <ListMusic size={22} />
-          プログラムを選択
-        </Link>
+        {isCustom && publishedLoading ? (
+          // The published list is being fetched (player page triggers it) —
+          // don't flash the dead-end link while the id may still resolve.
+          <div className="min-h-14 flex items-center justify-center text-base text-text-secondary">
+            読み込み中…
+          </div>
+        ) : (
+          <Link
+            href="/session"
+            className="min-h-14 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press transition-transform active:scale-95"
+          >
+            <ListMusic size={22} />
+            プログラムを選択
+          </Link>
+        )}
       </div>
     );
   }

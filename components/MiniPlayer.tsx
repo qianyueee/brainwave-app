@@ -3,21 +3,24 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
+import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useAudio } from "@/components/AudioProvider";
-import { getProgramById } from "@/lib/programs";
+import { getProgramById, isCustomProgramId } from "@/lib/programs";
 import { formatTime } from "@/lib/utils";
 import { Play, Pause } from "lucide-react";
 
 /**
- * バイノーラルセッションが生きている（再生中/一時停止中）かつプレーヤー画面に
- * いない間だけミニプレーヤーを出す。カスタム/シンセ再生は isSynthPlaying が
- * 立つので対象外（selectedProgramId が指す名前と鳴っている音がズレるため）。
+ * プログラム再生（バイノーラル/カスタム/タイムライン、再生中 or 一時停止中）が
+ * 生きていてプレーヤー画面にいない間だけミニプレーヤーを出す。
+ * playingProgramId が音声の真実なので、名前ズレの心配なくカスタムも表示できる。
+ * プログラム身元のないもの（純シンセ＝isPlaying が立たない、タイムライン
+ * プレビュー＝playingProgramId が null）は対象外。
  */
 export function useMiniPlayerVisible(): boolean {
   const isPlaying = useAppStore((s) => s.isPlaying);
-  const isSynthPlaying = useSynthStore((s) => s.isSynthPlaying);
+  const playingProgramId = useAppStore((s) => s.playingProgramId);
   const pathname = usePathname();
-  return isPlaying && !isSynthPlaying && pathname !== "/player";
+  return isPlaying && playingProgramId !== null && pathname !== "/player";
 }
 
 /**
@@ -36,10 +39,15 @@ export default function MiniPlayer() {
   // Bound to the audio truth, not the (persisted) selection — the bar must
   // always name exactly what is sounding.
   const playingProgramId = useAppStore((s) => s.playingProgramId);
+  const savedPrograms = useSynthStore((s) => s.savedPrograms);
+  const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
 
-  if (!visible) return null;
+  if (!visible || !playingProgramId) return null;
 
-  const program = playingProgramId ? getProgramById(playingProgramId) : undefined;
+  const program = isCustomProgramId(playingProgramId)
+    ? savedPrograms.find((p) => p.id === playingProgramId) ??
+      publishedPrograms.find((p) => p.id === playingProgramId)
+    : getProgramById(playingProgramId);
   const remaining = Math.max(0, timerDuration - elapsed);
   const openPlayer = () => router.push("/player");
 
