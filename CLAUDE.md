@@ -74,7 +74,7 @@ brainwave-app/
 
 - 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Brain `/brain`、Sync Report `/report`、Sync History `/history`
 - Settings `/settings` 与播放页 `/player` 均不在导航中：設定从首页右上角齿轮进入，播放页从节目卡 / 心情选择进入
-- 节目卡入口统一走 `usePlayProgram`：点击**即在手势内开始播放、原地不跳转**（MiniPlayer 随即出现）；正在播放（含一時停止）的节目再次点击才进 `/player`、不重置 `selectedProgramId` / `timerDuration`（播放中保护）。全局 MiniPlayer 播放条见「播放入口与全局播放条」
+- 节目卡入口统一走 `usePlayProgram`：点击＝**选择并进入 `/player`，不自动播放**（播放由用户在播放页按下再生钮；自动播放会在进入播放页前先冒出 MiniPlayer，属被否掉的方案）；正在播放（含一時停止）的节目再次点击只跳转、不重置 `selectedProgramId` / `timerDuration`（播放中保护）。全局 MiniPlayer 播放条见「播放入口与全局播放条」
 - 职责划分：Sync Brain 只管**測定**（マインドマップ等）；Sync Report 汇总**分析＋比較**（脳特性チャート＋測定の比較）。測定导入（useImportSession）与ヒストリー的「レポートで見る」都跳 `/report`；首页脳特性チャート卡也链到 `/report`，3指標タイル仍链到 `/brain`（測定入口）
 - 脳コンディション3指標（Rate/Clarity/Reset）在首页与 Sync Report 双端显示，同一 store＋同一 `computeBrainConditionMetrics`，数值恒同步
 - 過去の測定（Sync Brain）与脳波の記録（Sync History）统一为**測定者→測定データ 二段下拉**（`components/SelectDropdown.tsx`＋`lib/subject-groups.ts`）：先选人再选该人的某条记录，只展开选中的那一条（脳特性/推移/メモ/レポートで見る/削除）。分组来自记录自身（session 用 `subjectId`、measurement 用 `subject` 名），只有 1 人时隐藏測定者下拉；2 人以上追加「全員」；默认选中当前測定者（`useSubjectStore` 的 activeSubject），选择失效时自动回落到最新记录。Sync History 的推移グラフ只画所选測定者的记录（混人不成趋势）
@@ -133,7 +133,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 
 ### 播放入口与全局播放条
 
-- `components/usePlayProgram.ts`：所有节目卡/CTA 的统一入口——**点击即在手势内启动音频**（满足 iOS AudioContext 要求），**原地开播不跳转**（MiniPlayer 随即出现，详细操作从条上进 `/player`）；正在播放同一节目时再点击才打开 `/player`（播放中保护：不重置进度/定时，一時停止中同样生效）。5 个入口组件（ProgramCard/PublishedProgramCard/CustomProgramCard/ZodiacSyncCard/WaterMandalaHero）全部走这个 hook，不要再复制守卫逻辑。
+- `components/usePlayProgram.ts`：所有节目卡/CTA 的统一入口——**选择节目并跳转 `/player`，不启动音频**（再生由用户在播放页按钮触发，那里天然满足 iOS 手势要求）；正在播放同一节目时只跳转、不重置进度/定时（播放中保护，一時停止中同样生效）；别的节目在响时选新卡，声音不打断，`/player` 按 `playingProgramId` 真源显示在响的那个。5 个入口组件（ProgramCard/PublishedProgramCard/CustomProgramCard/ZodiacSyncCard/WaterMandalaHero）全部走这个 hook，不要再复制守卫逻辑。
 - `components/MiniPlayer.tsx`：全局迷你播放条（移动端 `fixed bottom-16` 浮于底部导航上；桌面端为内容区底部通栏 `md:bottom-0 md:left-60`，侧栏右侧起）。覆盖**一切在响的声音**：节目播放（binaural＋custom＋timeline，`playingProgramId != null`）点击回 `/player`、在 /player 隐藏；シンセ系（纯合成器＝isPlaying 不置位仅 isSynthPlaying、タイムラインプレビュー＝playingProgramId 为 null）点击回 `/synth`、在 /synth 隐藏。节目名走 `playingProgramId` 真源（custom id 经 savedPrograms/publishedPrograms 解析），シンセ系显示「カスタム合成/タイムライン プレビュー」；纯合成器暂停也走 `pauseSession`（suspend，无结束定时器需重排）。`components/AppMain.tsx` 在播放条可见时把内容底部 padding 提到 `pb-36`（桌面 `md:pb-32`）。
 - 配信プログラム列表是内存态：`/session` 挂载时拉取，`/player` 在「custom id 解析不到」时也会自取一次（选中节目已持久化，刷新/直进播放页不能依赖先经过 session 页），拉取中标题与死胡同兜底显示「読み込み中…」。
 - `/player` 无可解析节目时渲染「プログラムを選択」链接（去 `/session`），不再出现按了没反应的死播放键。
