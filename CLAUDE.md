@@ -134,7 +134,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 ### 播放入口与全局播放条
 
 - `components/usePlayProgram.ts`：所有节目卡/CTA 的统一入口——**点击即在手势内启动音频**（满足 iOS AudioContext 要求）再跳 `/player`；正在播放同一节目时只跳转不重置（播放中保护，一時停止中同样生效）。5 个入口组件（ProgramCard/PublishedProgramCard/CustomProgramCard/ZodiacSyncCard/WaterMandalaHero）全部走这个 hook，不要再复制守卫逻辑。
-- `components/MiniPlayer.tsx`：全局迷你播放条（移动端 `fixed bottom-16` 浮于底部导航上；桌面端为内容区底部通栏 `md:bottom-0 md:left-60`，侧栏右侧起）。覆盖**所有有节目身份的播放**（binaural＋custom＋timeline，可见条件 `isPlaying && playingProgramId != null`）；纯合成器（isPlaying 不置位）与タイムラインプレビュー（playingProgramId 为 null）除外。显示节目名（`playingProgramId` 真源，custom id 经 savedPrograms/publishedPrograms 解析）+残り時間+暂停/恢复钮，点击回 `/player`。`components/AppMain.tsx` 在播放条可见时把内容底部 padding 提到 `pb-36`（桌面 `md:pb-32`）。
+- `components/MiniPlayer.tsx`：全局迷你播放条（移动端 `fixed bottom-16` 浮于底部导航上；桌面端为内容区底部通栏 `md:bottom-0 md:left-60`，侧栏右侧起）。覆盖**一切在响的声音**：节目播放（binaural＋custom＋timeline，`playingProgramId != null`）点击回 `/player`、在 /player 隐藏；シンセ系（纯合成器＝isPlaying 不置位仅 isSynthPlaying、タイムラインプレビュー＝playingProgramId 为 null）点击回 `/synth`、在 /synth 隐藏。节目名走 `playingProgramId` 真源（custom id 经 savedPrograms/publishedPrograms 解析），シンセ系显示「カスタム合成/タイムライン プレビュー」；纯合成器暂停也走 `pauseSession`（suspend，无结束定时器需重排）。`components/AppMain.tsx` 在播放条可见时把内容底部 padding 提到 `pb-36`（桌面 `md:pb-32`）。
 - 配信プログラム列表是内存态：`/session` 挂载时拉取，`/player` 在「custom id 解析不到」时也会自取一次（选中节目已持久化，刷新/直进播放页不能依赖先经过 session 页），拉取中标题与死胡同兜底显示「読み込み中…」。
 - `/player` 无可解析节目时渲染「プログラムを選択」链接（去 `/session`），不再出现按了没反应的死播放键。
 

@@ -127,7 +127,11 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   }, [setIsPaused]);
 
   const stopSynth = useCallback(() => {
+    // Pure synth is pausable via the mini-player now — un-suspend first so
+    // the stop/fade below actually runs.
+    clearPauseIntent();
     if (synthRef.current?.isPlaying) {
+      getAudioContext();
       synthRef.current.stop();
     }
     synthRef.current = null;
@@ -135,7 +139,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     if (!sessionRef.current?.isPlaying && !customProgramRef.current) {
       scheduleStopKeepAlive();
     }
-  }, [scheduleStopKeepAlive]);
+  }, [scheduleStopKeepAlive, clearPauseIntent]);
 
   const stopCustomProgram = useCallback((opts?: { log?: boolean }) => {
     // Un-suspend first so scheduled fades/stops below actually run.
@@ -240,6 +244,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         customEndTimerRef.current = null;
       }
       ctx.suspend();
+    } else if (synthRef.current?.isPlaying) {
+      // Pure synth (editor playback): no end timer to manage — suspend suffices.
+      getAudioContext().suspend();
     } else {
       return;
     }
@@ -262,6 +269,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     } else if (customProgramRef.current && synthRef.current?.isPlaying) {
       getAudioContext();
       armCustomEndTimer(customRemainingRef.current);
+    } else if (synthRef.current?.isPlaying) {
+      getAudioContext();
     } else {
       setIsPaused(false);
       return;
@@ -389,17 +398,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       cancelStopKeepAlive();
       startKeepAlive("カスタム合成");
       setMediaSessionPlaybackState("playing");
-      setMediaSessionHandlers(
-        () => {
-          const ctx = getAudioContext();
-          if (ctx.state === "suspended") ctx.resume();
-        },
-        () => {
-          stopSynth();
-        },
-      );
+      setMediaSessionHandlers(resumeSession, pauseSession);
     },
-    [cancelStopKeepAlive, clearPauseIntent, stopSession, stopSynth, stopCustomProgram]
+    [cancelStopKeepAlive, clearPauseIntent, stopSession, stopCustomProgram, pauseSession, resumeSession]
   );
 
   // Shared timeline starter — used by both timeline custom-program playback and

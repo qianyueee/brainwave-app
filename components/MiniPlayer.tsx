@@ -10,17 +10,23 @@ import { formatTime } from "@/lib/utils";
 import { Play, Pause } from "lucide-react";
 
 /**
- * プログラム再生（バイノーラル/カスタム/タイムライン、再生中 or 一時停止中）が
- * 生きていてプレーヤー画面にいない間だけミニプレーヤーを出す。
- * playingProgramId が音声の真実なので、名前ズレの心配なくカスタムも表示できる。
- * プログラム身元のないもの（純シンセ＝isPlaying が立たない、タイムライン
- * プレビュー＝playingProgramId が null）は対象外。
+ * 何か鳴っている（or 一時停止中の）間、その「戻り先」画面以外で
+ * ミニプレーヤーを出す：
+ * - プログラム再生（バイノーラル/カスタム/タイムライン＝playingProgramId あり）
+ *   → 戻り先 /player
+ * - シンセ系（純シンセ・タイムラインプレビュー＝playingProgramId なしで
+ *   isSynthPlaying）→ 戻り先 /synth
  */
 export function useMiniPlayerVisible(): boolean {
   const isPlaying = useAppStore((s) => s.isPlaying);
   const playingProgramId = useAppStore((s) => s.playingProgramId);
+  const isSynthPlaying = useSynthStore((s) => s.isSynthPlaying);
   const pathname = usePathname();
-  return isPlaying && playingProgramId !== null && pathname !== "/player";
+  const programPlayback = isPlaying && playingProgramId !== null;
+  const synthPlayback = playingProgramId === null && isSynthPlaying;
+  if (programPlayback) return pathname !== "/player";
+  if (synthPlayback) return pathname !== "/synth";
+  return false;
 }
 
 /**
@@ -33,6 +39,7 @@ export default function MiniPlayer() {
   const visible = useMiniPlayerVisible();
   const router = useRouter();
   const { pauseSession, resumeSession } = useAudio();
+  const isPlaying = useAppStore((s) => s.isPlaying);
   const isPaused = useAppStore((s) => s.isPaused);
   const elapsed = useAppStore((s) => s.elapsed);
   const timerDuration = useAppStore((s) => s.timerDuration);
@@ -42,14 +49,31 @@ export default function MiniPlayer() {
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
 
-  if (!visible || !playingProgramId) return null;
+  if (!visible) return null;
 
-  const program = isCustomProgramId(playingProgramId)
-    ? savedPrograms.find((p) => p.id === playingProgramId) ??
-      publishedPrograms.find((p) => p.id === playingProgramId)
-    : getProgramById(playingProgramId);
-  const remaining = Math.max(0, timerDuration - elapsed);
-  const openPlayer = () => router.push("/player");
+  // Synth flows (editor playback / timeline preview) have no program id;
+  // their home screen is the synth editor, not the player page.
+  const synthOnly = playingProgramId === null;
+  const program = !synthOnly
+    ? isCustomProgramId(playingProgramId)
+      ? savedPrograms.find((p) => p.id === playingProgramId) ??
+        publishedPrograms.find((p) => p.id === playingProgramId)
+      : getProgramById(playingProgramId)
+    : undefined;
+  const name = synthOnly
+    ? isPlaying
+      ? "タイムライン プレビュー"
+      : "カスタム合成"
+    : program?.name ?? "再生中";
+  const status = isPaused
+    ? "一時停止中"
+    : synthOnly
+      ? isPlaying
+        ? `経過 ${formatTime(elapsed)}`
+        : "再生中"
+      : `残り ${formatTime(Math.max(0, timerDuration - elapsed))}`;
+  const openTarget = synthOnly ? "/synth" : "/player";
+  const openPlayer = () => router.push(openTarget);
 
   return (
     // Mobile: floats above the bottom nav. Desktop: full-width bar docked to
@@ -59,7 +83,7 @@ export default function MiniPlayer() {
         <div
           role="button"
           tabIndex={0}
-          aria-label="プレーヤーを開く"
+          aria-label={synthOnly ? "合成器を開く" : "プレーヤーを開く"}
           onClick={openPlayer}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") openPlayer();
@@ -68,12 +92,8 @@ export default function MiniPlayer() {
           style={{ animation: "slide-up 0.25s ease-out" }}
         >
           <div className="flex-1 min-w-0">
-            <p className="text-base font-bold text-text-primary truncate">
-              {program?.name ?? "再生中"}
-            </p>
-            <p className="text-sm text-text-secondary tabular-nums">
-              {isPaused ? "一時停止中" : `残り ${formatTime(remaining)}`}
-            </p>
+            <p className="text-base font-bold text-text-primary truncate">{name}</p>
+            <p className="text-sm text-text-secondary tabular-nums">{status}</p>
           </div>
           <button
             onClick={(e) => {
