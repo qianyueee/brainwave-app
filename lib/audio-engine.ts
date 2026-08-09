@@ -41,6 +41,7 @@ export class BinauralSession {
   // so a user can run both (music under the beat, rain on top) at once.
   private musicPlayer: NaturePlayer | null = null;
   private _isPlaying = false;
+  private _isPaused = false;
   private startTime = 0;
   private program: ProgramConfig;
   private duration: number;
@@ -57,6 +58,10 @@ export class BinauralSession {
 
   get isPlaying(): boolean {
     return this._isPlaying;
+  }
+
+  get isPaused(): boolean {
+    return this._isPaused;
   }
 
   get elapsed(): number {
@@ -167,12 +172,47 @@ export class BinauralSession {
     }, this.duration * 1000);
   }
 
+  /**
+   * Pause via ctx.suspend(): currentTime freezes, so elapsed, the scheduled
+   * frequency ramps, nature loop and music bed all freeze in place without
+   * touching the oscillators (they cannot restart once stopped). The wall-clock
+   * end timer does NOT freeze — clear it here, re-arm on resume.
+   */
+  pause(): void {
+    if (!this._isPlaying || this._isPaused) return;
+    if (this.endTimer) {
+      clearTimeout(this.endTimer);
+      this.endTimer = null;
+    }
+    this._isPaused = true;
+    this.ctx.suspend();
+  }
+
+  resume(): void {
+    if (!this._isPlaying || !this._isPaused) return;
+    this._isPaused = false;
+    this.ctx.resume();
+    const remaining = Math.max(0, this.duration - this.elapsed);
+    this.endTimer = setTimeout(() => {
+      this.stop();
+      this.onEndCallback?.();
+    }, remaining * 1000);
+  }
+
   stop(): void {
     if (!this._isPlaying) return;
 
     if (this.endTimer) {
       clearTimeout(this.endTimer);
       this.endTimer = null;
+    }
+
+    // A suspended context would freeze the fade-out below — un-suspend first.
+    // Raw resume (not getAudioContext) on purpose; the caller resets the
+    // user-pause intent, and a new start clears it anyway.
+    if (this._isPaused) {
+      this._isPaused = false;
+      this.ctx.resume();
     }
 
     const now = this.ctx.currentTime;

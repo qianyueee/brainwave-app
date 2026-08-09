@@ -175,10 +175,10 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
         {/* Export / status area */}
         {progress.status === "error" ? (
           <div className="flex flex-col gap-2">
-            <p className="text-sm text-red-400 text-center">{progress.error}</p>
+            <p className="text-sm text-danger text-center">{progress.error}</p>
             <button
               onClick={handleRetry}
-              className="w-full py-3 rounded-2xl bg-accent text-white text-base font-bold active:scale-95 neu-raised-sm"
+              className="w-full py-3 rounded-2xl bg-accent text-on-accent text-base font-bold active:scale-95 neu-raised-sm"
             >
               リトライ
             </button>
@@ -195,7 +195,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
         ) : (
           <button
             onClick={handleExport}
-            className="w-full py-3 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-opacity neu-raised neu-press"
+            className="w-full py-3 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-opacity neu-raised neu-press"
           >
             エクスポート開始
           </button>

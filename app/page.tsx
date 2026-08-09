@@ -48,7 +48,7 @@ export default function HomePage() {
             ) : (
               <button
                 onClick={() => openAuthModal("login")}
-                className="flex items-center gap-2 h-10 px-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium whitespace-nowrap neu-raised-sm neu-press active:scale-95"
+                className="flex items-center gap-2 h-12 px-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium whitespace-nowrap neu-raised-sm neu-press active:scale-95"
               >
                 <User size={18} strokeWidth={1.5} />
                 ログイン
@@ -59,7 +59,7 @@ export default function HomePage() {
               here moved into the Settings page). */}
           <button
             onClick={() => router.push("/settings")}
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-text-muted active:scale-95"
+            className="w-12 h-12 flex items-center justify-center rounded-xl text-text-muted active:scale-95"
             title="設定"
           >
             <Settings size={20} strokeWidth={1.5} />
@@ -71,10 +71,15 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Mobile: metrics → chart → zodiac. Desktop: condition (left) | zodiac (right).
-          All program/audio sections live on Sync Session now. */}
+      {/* Mobile: zodiac (today's CTA) first, then metrics → chart, so starting
+          a session sits in the first viewport. Desktop columns keep condition
+          (left) | zodiac (right) via order utilities. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 md:order-2">
+      <ZodiacSyncCard />
+      </div>
+
+      <div className="flex flex-col gap-6 md:order-1">
       {/* Brain condition — the 3 self-care metrics (replaces the mood selector) */}
       <BrainConditionMetrics />
 
@@ -106,10 +111,6 @@ export default function HomePage() {
           </Link>
         )
       )}
-      </div>
-
-      <div className="flex flex-col gap-6">
-      <ZodiacSyncCard />
       </div>
       </div>
     </div>

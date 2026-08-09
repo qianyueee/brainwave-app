@@ -37,7 +37,7 @@ pnpm lint             # Lint
 brainwave-app/
 ├── app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
-│   ├── page.tsx                # Home 首页（脳コンディション3指標 / 脳特性チャート卡 / Today's Cosmic Sync 星座卡〔星图+下拉选择+今日文案+推荐〕/ 右上角設定入口）
+│   ├── page.tsx                # Home 首页（Today's Cosmic Sync 星座卡〔推荐+CTA 前置进首屏、星图压缩条带、星座选择/今日文案收入折叠区〕→ 脳コンディション3指標 → 脳特性チャート卡；右上角設定入口。桌面端星座卡在右列）
 │   ├── session/page.tsx        # Sync Session（顶部 Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕+ プログラム選択・再生：Sync Sound 3節目 / 配信 / カスタム・合成器入口）
 │   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：マインドマップ/測定/過去の測定；分析已移至 report）
 │   ├── report/page.tsx         # Sync Report（脳特性チャート分析＋3指標タイル＋測定の比較〔2〜3件の6指標＆スペクトル〕合并页）
@@ -74,7 +74,7 @@ brainwave-app/
 
 - 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Brain `/brain`、Sync Report `/report`、Sync History `/history`
 - Settings `/settings` 与播放页 `/player` 均不在导航中：設定从首页右上角齿轮进入，播放页从节目卡 / 心情选择进入
-- 节目卡入口带播放中保护：正在播放的节目再次点击只跳转、不重置 `selectedProgramId` / `timerDuration`
+- 节目卡入口统一走 `usePlayProgram`：点击**即在手势内开始播放**再跳 `/player`；正在播放（含一時停止）的节目再次点击只跳转、不重置 `selectedProgramId` / `timerDuration`（播放中保护）。全局 MiniPlayer 播放条见「播放入口与全局播放条」
 - 职责划分：Sync Brain 只管**測定**（マインドマップ等）；Sync Report 汇总**分析＋比較**（脳特性チャート＋測定の比較）。測定导入（useImportSession）与ヒストリー的「レポートで見る」都跳 `/report`；首页脳特性チャート卡也链到 `/report`，3指標タイル仍链到 `/brain`（測定入口）
 - 脳コンディション3指標（Rate/Clarity/Reset）在首页与 Sync Report 双端显示，同一 store＋同一 `computeBrainConditionMetrics`，数值恒同步
 - 過去の測定（Sync Brain）与脳波の記録（Sync History）统一为**測定者→測定データ 二段下拉**（`components/SelectDropdown.tsx`＋`lib/subject-groups.ts`）：先选人再选该人的某条记录，只展开选中的那一条（脳特性/推移/メモ/レポートで見る/削除）。分组来自记录自身（session 用 `subjectId`、measurement 用 `subject` 名），只有 1 人时隐藏測定者下拉；2 人以上追加「全員」；默认选中当前測定者（`useSubjectStore` 的 activeSubject），选择失效时自动回落到最新记录。Sync History 的推移グラフ只画所选測定者的记录（混人不成趋势）
@@ -115,12 +115,27 @@ AudioContext（全局单例，getAudioContext() 管理）
 ### React ↔ Audio 桥接
 
 `components/AudioProvider.tsx` 通过 React Context 提供：
-- 脑波：`startSession` / `stopSession` / `getSession`
+- 脑波：`startSession` / `stopSession({log?})` / `pauseSession` / `resumeSession` / `getSession`
 - 合成器：`startSynth` / `stopSynth` / `getSynthSession` / `updateSynthLayers`
 - 互斥播放逻辑也在此处理
 
 内部持有 `BinauralSession` 和 `SynthSession` ref，每秒轮询 elapsed 更新 Zustand store。
 使用 `useAudio()` hook 在任意子组件中访问。
+
+### 暂停/恢复（真・一時停止）
+
+- 暂停 = `ctx.suspend()`：音频时钟冻结 → elapsed、频率 ramp、自然音、音乐床垫全部原地冻结；**绝不触碰振荡器**（OscillatorNode 停了不能重启）。恢复 = `ctx.resume()`。
+- 会话结束是**墙钟 setTimeout**（不随 suspend 冻结）：暂停时必须 clear（`BinauralSession.pause()` / AudioProvider 的 `customEndTimerRef`），恢复时按 `duration - elapsed` 重排。
+- "用户主动暂停"标志 `isUserPaused` 放在 `lib/audio-context.ts`——因为 `getAudioContext()` 每次调用都会自动 resume 挂起的 context，keep-alive 的 `visibilitychange` 也会。两处都要过这道闸，否则任何音频调用/回前台都会破坏暂停。所有 start 路径先清标志。
+- 暂停期间静音 keep-alive `<audio>` 流**保持播放**（后台/锁屏存活），锁屏状态由 `setMediaSessionPlaybackState("playing"|"paused"|"none")` 同步；MediaSession 的 play/pause handler 接 `resumeSession`/`pauseSession`（纯合成器仍是停止语义）。
+- store 语义：`isPlaying` = 会话活跃（**含暂停**，既有消费者如 Timer 禁用/播放中保护依赖此义），`isPaused` 是其内訳。
+- 日志：手动停止也记录（部分时长），自然结束记满时长；切换节目**不**记录被打断的会话（start 路径直接调 engine stop，不走 stopSession）。
+
+### 播放入口与全局播放条
+
+- `components/usePlayProgram.ts`：所有节目卡/CTA 的统一入口——**点击即在手势内启动音频**（满足 iOS AudioContext 要求）再跳 `/player`；正在播放同一节目时只跳转不重置（播放中保护，一時停止中同样生效）。5 个入口组件（ProgramCard/PublishedProgramCard/CustomProgramCard/ZodiacSyncCard/WaterMandalaHero）全部走这个 hook，不要再复制守卫逻辑。
+- `components/MiniPlayer.tsx`：全局迷你播放条（`fixed bottom-16`，binaural 专属；custom/synth 因 `isSynthPlaying` 排除），显示节目名+残り時間+暂停/恢复钮，点击回 `/player`。`components/AppMain.tsx` 在播放条可见时把内容底部 padding 从 `pb-20` 提到 `pb-36`。
+- `/player` 无可解析节目时渲染「プログラムを選択」链接（去 `/session`），不再出现按了没反应的死播放键。
 
 ### 数据流
 
@@ -161,7 +176,13 @@ AudioContext（全局单例，getAudioContext() 管理）
 
 ### UI 约束
 - 目标用户 50-60 岁：最小字号 16px、正文 18px、触控区域 ≥ 48×48px
-- 背景色 #0a1628、最大内容宽度 480px 居中
+- **字号体系已在 `globals.css` @theme 整体重映射**：`text-xs`=14px / `text-sm`=16px / `text-base`=18px / `text-lg`=20px / `text-xl`=22px（2xl+ 不变）。写代码时按语义选类即可，不要用 `text-[10px]` 之类的任意值；Recharts 刻度是硬编码数字，保持 ≥12
+- 缩放**不可禁用**（viewport 不设 maximumScale/userScalable）；`user-select:none` 只作用于控件，正文可选择复制
+- 字体：`next/font/google` 的 Noto Sans JP（构建期自托管，兼容静态导出），栈内排在系统日文字体之前
+- **主题不是固定深色**：`lib/theme.ts` 按时段切 4 套调色板（00-06 midnight 深靛 / 06-12 day 奶油 / 12-18 afternoon 薄荷 / 18-24 evening 淡紫，边界 60s 渐变），经 `--dyn-*` CSS 变量 + `applyPalette` 应用，图表监听 `THEME_CHANGE_EVENT` 重读。`#0a1628` 只存在于 MindArtCanvas 的画布底色
+- 颜色必须走 token：文字/背景用 `text-on-primary`/`text-on-accent`（CTA 上禁用 text-white）、状态色用 `text-success`/`text-warning`/`text-danger`（禁用 red/green/amber-400 原生类）——这 5 个键在每套调色板里按 ≥4.5:1 对比度调过（`ThemePalette` 的 onPrimary/onAccent/success/warning/danger）。SVG 属性吃不了 var()：图表用 `useDocumentScheme()`（light/dark，来自 `data-color-scheme`）选 `getBandColors(scheme)` / `compareSeriesColors(n, scheme)` 的实色组，或走 getComputedStyle（BrainRadarChart 模式）
+- 星空卡（NIGHT_SKY）/ 水曼陀罗卡（DEEP_WATER）/ 全屏可视化是**刻意的固定深色艺术面**，其上的 text-white 保留
+- 最大内容宽度 480px 居中
 - 播放页动画用 CSS animation 或 requestAnimationFrame，避免 React 重渲染
 - 载波频率 ≤ 1000Hz（适配中老年听觉）
 

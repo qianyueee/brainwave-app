@@ -172,7 +172,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
         <button
           onClick={handleRemove}
           disabled={!canDelete}
-          className="w-8 h-8 rounded-full bg-navy neu-raised-sm flex items-center justify-center text-text-muted disabled:opacity-30 transition-opacity active:scale-95"
+          className="w-12 h-12 rounded-full bg-navy neu-raised-sm flex items-center justify-center text-text-muted disabled:opacity-30 transition-opacity active:scale-95"
           aria-label="削除"
         >
           <X size={16} strokeWidth={2} />

@@ -28,7 +28,7 @@ export default function BottomNav() {
               ) : (
                 <Icon size={22} strokeWidth={1.5} />
               )}
-              <span className="text-xs whitespace-nowrap">{tab.short}</span>
+              <span className="text-xs leading-tight whitespace-nowrap">{tab.short}</span>
             </Link>
           );
         })}

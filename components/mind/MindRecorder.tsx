@@ -81,7 +81,7 @@ export default function MindRecorder() {
           isRecording
             ? "bg-red-500/85 text-white neu-press"
             : canReceive
-              ? "bg-primary text-white neu-raised-sm"
+              ? "bg-primary text-on-primary neu-raised-sm"
               : "bg-navy text-text-muted neu-raised-sm opacity-60"
         }`}
       >
@@ -117,7 +117,7 @@ export default function MindRecorder() {
               <button
                 onClick={() => setFinished(null)}
                 aria-label="閉じる"
-                className="w-10 h-10 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
+                className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
                 <X size={20} />
               </button>
@@ -149,7 +149,7 @@ export default function MindRecorder() {
                 </p>
 
                 {patchy && (
-                  <p className="text-sm text-amber-400">
+                  <p className="text-sm text-warning">
                     有効なデータは {formatTime(usableSec)}（{qualityPct}%）でした。
                     装着が不安定だったため、スコアは目安としてご覧ください
                   </p>
@@ -168,7 +168,7 @@ export default function MindRecorder() {
               <p className="text-sm text-text-muted">データの同期を待っています…</p>
             )}
             {!unusable && importStatus === "error" && (
-              <p className="text-sm text-red-400">
+              <p className="text-sm text-danger">
                 取り込みに失敗しました。通信環境をご確認のうえ、もう一度お試しください
               </p>
             )}
@@ -176,7 +176,7 @@ export default function MindRecorder() {
             {unusable ? (
               <button
                 onClick={() => setFinished(null)}
-                className="min-h-[52px] rounded-2xl bg-primary text-white text-base font-bold neu-raised-sm neu-press transition-transform"
+                className="min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
               >
                 閉じる
               </button>
@@ -191,7 +191,7 @@ export default function MindRecorder() {
                 <button
                   onClick={() => importSession(finished)}
                   disabled={importStatus === "busy" || importStatus === "waitingCloud"}
-                  className="flex-1 min-h-[52px] rounded-2xl bg-primary text-white text-base font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"
+                  className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"
                 >
                   {importStatus === "busy" ? "取り込み中…" : "取り込む"}
                 </button>

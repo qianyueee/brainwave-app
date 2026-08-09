@@ -14,7 +14,7 @@
  * - visibilitychange listener resumes AudioContext when returning to foreground.
  */
 
-import { getAudioContext } from "./audio-context";
+import { getAudioContext, isUserPaused } from "./audio-context";
 
 let audioEl: HTMLAudioElement | null = null;
 let streamDest: MediaStreamAudioDestinationNode | null = null;
@@ -88,6 +88,7 @@ export function stopKeepAlive(): void {
 
   if ("mediaSession" in navigator) {
     navigator.mediaSession.metadata = null;
+    navigator.mediaSession.playbackState = "none";
     navigator.mediaSession.setActionHandler("play", null);
     navigator.mediaSession.setActionHandler("pause", null);
   }
@@ -110,19 +111,30 @@ export function setMediaSessionHandlers(
   navigator.mediaSession.setActionHandler("pause", onPause);
 }
 
+/** Reflect play/pause state on the lock screen while the silent keep-alive stream runs. */
+export function setMediaSessionPlaybackState(
+  state: "playing" | "paused" | "none",
+): void {
+  if (!("mediaSession" in navigator)) return;
+  navigator.mediaSession.playbackState = state;
+}
+
 // ---- internal ----
 
 function onVisibilityChange(): void {
   if (document.visibilityState === "visible") {
     try {
+      // getAudioContext itself respects the pause intent; the explicit
+      // resume below must too, or returning to the tab would un-pause.
       const ctx = getAudioContext();
-      if (ctx.state === "suspended") {
+      if (ctx.state === "suspended" && !isUserPaused()) {
         ctx.resume();
       }
     } catch {
       // getAudioContext may throw if never initialised; ignore
     }
-    // Ensure <audio> is still playing
+    // Keep the silent <audio> stream alive even while user-paused so the
+    // tab and the lock-screen media session survive backgrounding.
     if (audioEl && audioEl.paused) {
       audioEl.play().catch(() => {});
     }

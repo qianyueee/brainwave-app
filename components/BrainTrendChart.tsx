@@ -84,9 +84,9 @@ export default function BrainTrendChart({ measurements }: { measurements: BrainP
             <button
               key={o.key}
               onClick={() => setMetric(o.key)}
-              className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+              className={`min-h-12 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
                 active
-                  ? "bg-primary text-white neu-press"
+                  ? "bg-primary text-on-primary neu-press"
                   : "bg-navy text-text-secondary neu-raised-sm"
               }`}
             >
@@ -102,12 +102,12 @@ export default function BrainTrendChart({ measurements }: { measurements: BrainP
             <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
             <XAxis
               dataKey="date"
-              tick={{ fill: colors.text, fontSize: 12 }}
+              tick={{ fill: colors.text, fontSize: 13 }}
               axisLine={{ stroke: colors.grid }}
             />
             <YAxis
               domain={[0, 100]}
-              tick={{ fill: colors.text, fontSize: 12 }}
+              tick={{ fill: colors.text, fontSize: 13 }}
               axisLine={{ stroke: colors.grid }}
             />
             <Tooltip
@@ -116,7 +116,7 @@ export default function BrainTrendChart({ measurements }: { measurements: BrainP
                 border: `1px solid ${colors.grid}`,
                 borderRadius: "12px",
                 color: colors.textPrimary,
-                fontSize: "14px",
+                fontSize: "16px",
                 boxShadow: "4px 4px 10px rgba(0,0,0,0.4), -2px -2px 6px rgba(255,255,255,0.04)",
               }}
               formatter={(value: number | undefined) => [`${value ?? 0}`, activeLabel]}

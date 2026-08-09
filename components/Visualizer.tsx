@@ -64,6 +64,7 @@ function hashSeed(id: string): number {
 
 export default function Visualizer() {
   const isPlaying = useAppStore((s) => s.isPlaying);
+  const isPaused = useAppStore((s) => s.isPaused);
   const elapsed = useAppStore((s) => s.elapsed);
   const programId = useAppStore((s) => s.selectedProgramId);
   const timerDuration = useAppStore((s) => s.timerDuration);
@@ -109,7 +110,8 @@ export default function Visualizer() {
     label = info.phase ? info.phase.name : "待機中";
   }
 
-  const params = { isPlaying, sym: targetSym, ring: targetRing, spin: targetSpin, seed };
+  // While paused the mandala settles to its idle state, matching the frozen audio.
+  const params = { isPlaying: isPlaying && !isPaused, sym: targetSym, ring: targetRing, spin: targetSpin, seed };
 
   // Fullscreen: lock body scroll + Escape to close.
   useEffect(() => {

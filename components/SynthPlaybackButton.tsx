@@ -22,8 +22,8 @@ export default function SynthPlaybackButton() {
       onClick={handleToggle}
       className={`w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-95 neu-raised-lg ${
         isSynthPlaying
-          ? "bg-accent text-white"
-          : "bg-primary text-white"
+          ? "bg-accent text-on-accent"
+          : "bg-primary text-on-primary"
       }`}
       aria-label={isSynthPlaying ? "停止" : "再生"}
     >

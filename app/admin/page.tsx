@@ -50,7 +50,7 @@ export default function AdminPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.push("/")}
-          className="w-10 h-10 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95"
+          className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95"
         >
           <ArrowLeft size={20} />
         </button>
@@ -71,7 +71,7 @@ export default function AdminPage() {
               onClick={() => setTab(t.key)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-primary text-white"
+                  ? "bg-primary text-on-primary"
                   : "bg-navy text-text-secondary neu-raised-sm"
               }`}
             >

@@ -133,7 +133,8 @@ export const BAND_META: { key: BandKey; en: string; ja: string; isGamma?: boolea
 ];
 
 /** Single source of truth for band colors — shared by the 8-band pie and the
- *  frequency-spectrum shading so the two always correspond. */
+ *  frequency-spectrum shading so the two always correspond. This is the set
+ *  tuned for the dark (midnight) palette. */
 export const BAND_COLORS: Record<BandKey, string> = {
   delta: "#94a3b8",
   theta: "#fcd34d",
@@ -144,6 +145,23 @@ export const BAND_COLORS: Record<BandKey, string> = {
   lowGamma: "#d946ef",
   highGamma: "#a855f7",
 };
+
+/** Deepened variants for the light day/afternoon/evening palettes — the dark
+ *  set was picked against navy and washes out on cream/mint/violet. */
+export const BAND_COLORS_LIGHT: Record<BandKey, string> = {
+  delta: "#475569",
+  theta: "#a16207",
+  lowAlpha: "#0369a1",
+  highAlpha: "#1d4ed8",
+  lowBeta: "#c2410c",
+  highBeta: "#9a3412",
+  lowGamma: "#a21caf",
+  highGamma: "#7e22ce",
+};
+
+export function getBandColors(scheme: "light" | "dark"): Record<BandKey, string> {
+  return scheme === "light" ? BAND_COLORS_LIGHT : BAND_COLORS;
+}
 
 /** Approximate contiguous frequency range (Hz) of each band, for shading the
  *  per-Hz spectrum. Based on the ThinkGear band definitions, made contiguous. */

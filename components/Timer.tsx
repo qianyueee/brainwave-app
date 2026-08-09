@@ -31,7 +31,7 @@ export default function Timer() {
             key={p.value}
             onClick={() => setTimerDuration(p.value)}
             disabled={isPlaying}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            className={`flex-1 min-h-12 py-2.5 rounded-xl text-sm font-medium transition-all ${
               timerDuration === p.value
                 ? "bg-navy-light text-primary font-bold neu-inset"
                 : "bg-navy text-text-secondary neu-raised-sm neu-press"

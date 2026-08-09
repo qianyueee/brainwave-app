@@ -11,6 +11,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { SPECTRUM_BANDS } from "./BrainSpectrumChart";
+import { getBandColors } from "@/lib/mind/types";
+import { useDocumentScheme } from "@/components/useDocumentScheme";
 import { compareSeriesColors } from "@/lib/compare-colors";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
@@ -56,8 +58,10 @@ export default function BrainSpectrumCompare({ series }: { series: SpectrumSerie
 
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
   const [primary, grid, axis] = colorStr.split("|");
+  const scheme = useDocumentScheme();
+  const bandColors = getBandColors(scheme);
   // Oldest → newest, shared with the 6-indicator radar so colors correspond.
-  const lineColors = compareSeriesColors(series.length);
+  const lineColors = compareSeriesColors(series.length, scheme);
 
   return (
     <div>
@@ -70,7 +74,7 @@ export default function BrainSpectrumCompare({ series }: { series: SpectrumSerie
               key={b.key}
               x1={b.from}
               x2={Math.min(b.to, len)}
-              fill={b.color}
+              fill={bandColors[b.key]}
               fillOpacity={0.16}
               stroke={grid}
               strokeOpacity={0.35}
@@ -82,13 +86,13 @@ export default function BrainSpectrumCompare({ series }: { series: SpectrumSerie
             type="number"
             domain={[1, len]}
             ticks={[1, 5, 10, 15, 20, 25, 30, 35, 40, 45]}
-            tick={{ fill: axis, fontSize: 10 }}
+            tick={{ fill: axis, fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: grid }}
-            label={{ value: "Hz", position: "insideBottomRight", offset: -2, fill: axis, fontSize: 11 }}
+            label={{ value: "Hz", position: "insideBottomRight", offset: -2, fill: axis, fontSize: 12 }}
           />
           <YAxis
-            tick={{ fill: axis, fontSize: 10 }}
+            tick={{ fill: axis, fontSize: 12 }}
             width={40}
             tickLine={false}
             axisLine={{ stroke: grid }}
@@ -128,7 +132,7 @@ export default function BrainSpectrumCompare({ series }: { series: SpectrumSerie
           <span key={b.key} className="flex items-center gap-1">
             <span
               className="inline-block w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: b.color }}
+              style={{ backgroundColor: bandColors[b.key] }}
             />
             {b.label}
           </span>

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAppStore } from "@/store/useAppStore";
 import { useZodiacStore } from "@/store/useZodiacStore";
 import {
   ZODIAC_SIGNS,
@@ -14,6 +12,7 @@ import {
 } from "@/lib/zodiac";
 import { getProgramById } from "@/lib/programs";
 import WaterMandala from "@/components/WaterMandala";
+import { usePlayProgram } from "@/components/usePlayProgram";
 import { Play } from "lucide-react";
 
 /** Fixed deep-water gradient — the mandala floats on dark water in every theme. */
@@ -27,10 +26,8 @@ const DEEP_WATER =
  * so the figure people see on entry is the sound they are invited to start.
  */
 export default function WaterMandalaHero() {
-  const router = useRouter();
+  const playProgram = usePlayProgram();
   const selectedSign = useZodiacStore((s) => s.selectedSign);
-  const setSelectedProgramId = useAppStore((s) => s.setSelectedProgramId);
-  const setTimerDuration = useAppStore((s) => s.setTimerDuration);
 
   // Guard hydration mismatch from the persisted sign
   const [hydrated, setHydrated] = useState(false);
@@ -66,14 +63,7 @@ export default function WaterMandalaHero() {
 
   const handlePlay = () => {
     if (!program) return;
-    // Re-tapping the program that is already sounding must not reset the
-    // running countdown/selection — just return to the player.
-    const { isPlaying, selectedProgramId } = useAppStore.getState();
-    if (!(isPlaying && selectedProgramId === program.id)) {
-      setSelectedProgramId(program.id);
-      setTimerDuration(program.defaultDuration);
-    }
-    router.push("/player");
+    playProgram(program);
   };
 
   return (
@@ -118,7 +108,7 @@ export default function WaterMandalaHero() {
           </p>
           <button
             onClick={handlePlay}
-            className="mt-2 w-full h-12 rounded-2xl bg-primary text-white text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press active:scale-95 transition-all"
+            className="mt-2 w-full h-12 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press active:scale-95 transition-all"
           >
             <Play size={18} strokeWidth={2} />
             この音でセッションを開始する

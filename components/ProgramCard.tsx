@@ -1,10 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { ProgramConfig } from "@/lib/programs";
 import { getAdjustedProgram } from "@/lib/brain-profile";
-import { useAppStore } from "@/store/useAppStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
+import { usePlayProgram } from "@/components/usePlayProgram";
 import { Waves, Zap, Moon, ChevronRight } from "lucide-react";
 
 const PROGRAM_ICONS: Record<string, typeof Waves> = {
@@ -18,24 +17,13 @@ interface ProgramCardProps {
 }
 
 export default function ProgramCard({ program }: ProgramCardProps) {
-  const router = useRouter();
-  const setSelectedProgramId = useAppStore((s) => s.setSelectedProgramId);
-  const setTimerDuration = useAppStore((s) => s.setTimerDuration);
+  const playProgram = usePlayProgram();
   const profile = useBrainProfileStore((s) => s.profile);
 
   const adjusted = getAdjustedProgram(program.id, profile?.indicators ?? null);
   const isPersonalized = adjusted && adjusted.defaultDuration !== program.defaultDuration;
 
-  const handleClick = () => {
-    // Re-tapping the program that is already sounding must not reset the
-    // running countdown/selection — just return to the player.
-    const { isPlaying, selectedProgramId } = useAppStore.getState();
-    if (!(isPlaying && selectedProgramId === program.id)) {
-      setSelectedProgramId(program.id);
-      setTimerDuration(adjusted?.defaultDuration ?? program.defaultDuration);
-    }
-    router.push("/player");
-  };
+  const handleClick = () => playProgram(program);
 
   const displayMinutes = Math.round((adjusted?.defaultDuration ?? program.defaultDuration) / 60);
   const Icon = PROGRAM_ICONS[program.id] ?? Waves;
@@ -50,9 +38,9 @@ export default function ProgramCard({ program }: ProgramCardProps) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-base font-bold text-text-primary">{program.name}</p>
+          <p className="text-base font-bold text-text-primary truncate min-w-0">{program.name}</p>
           {isPersonalized && (
-            <span className="text-[10px] font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+            <span className="text-xs font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
               パーソナライズ済み
             </span>
           )}

@@ -109,7 +109,7 @@ export default function Mixer() {
             <button
               key={sound.id}
               onClick={() => handleNatureSelect(sound.id)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              className={`flex-1 min-h-12 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 natureSoundId === sound.id
                   ? "bg-navy-light text-accent font-bold neu-inset"
                   : "bg-navy text-text-secondary neu-raised-sm neu-press"

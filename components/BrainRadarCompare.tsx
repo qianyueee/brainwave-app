@@ -11,6 +11,7 @@ import {
 import type { BrainIndicators } from "@/lib/brain-profile";
 import { INDICATOR_META } from "@/lib/brain-profile";
 import { compareSeriesColors } from "@/lib/compare-colors";
+import { useDocumentScheme } from "@/components/useDocumentScheme";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 
 export interface RadarSeries {
@@ -47,7 +48,7 @@ export default function BrainRadarCompare({ series }: { series: RadarSeries[] })
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
   const [grid, text, , primary] = colorStr.split("|");
 
-  const lineColors = compareSeriesColors(series.length);
+  const lineColors = compareSeriesColors(series.length, useDocumentScheme());
 
   const data = INDICATOR_META.map((meta) => {
     const row: Record<string, string | number> = { label: meta.shortLabel };
@@ -62,7 +63,7 @@ export default function BrainRadarCompare({ series }: { series: RadarSeries[] })
       <ResponsiveContainer width="100%" height={280}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="66%">
           <PolarGrid stroke={grid} />
-          <PolarAngleAxis dataKey="label" tick={{ fill: text, fontSize: 11 }} />
+          <PolarAngleAxis dataKey="label" tick={{ fill: text, fontSize: 12 }} />
           {series.map((s, i) => (
             <Radar
               key={i}

@@ -32,7 +32,7 @@ export default function IndicatorHelp() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="指標の説明を表示"
-        className="w-8 h-8 rounded-full bg-navy neu-raised-sm flex items-center justify-center text-text-muted"
+        className="w-12 h-12 rounded-full bg-navy neu-raised-sm flex items-center justify-center text-text-muted"
       >
         <HelpCircle size={18} />
       </button>
@@ -53,7 +53,7 @@ export default function IndicatorHelp() {
               <button
                 onClick={() => setOpen(false)}
                 aria-label="閉じる"
-                className="w-10 h-10 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
+                className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
                 <X size={20} />
               </button>

@@ -15,8 +15,13 @@ interface AppState {
   setSelectedProgramId: (id: string) => void;
 
   // Playback
+  // isPlaying = セッションが生きている（再生中 or 一時停止中）。
+  // isPaused はその内訳 — 既存の消費者（Timer 無効化・再生中保護・Mixer）は
+  // 「アクティブかどうか」を見たいので isPlaying のままで正しい。
   isPlaying: boolean;
   setIsPlaying: (v: boolean) => void;
+  isPaused: boolean;
+  setIsPaused: (v: boolean) => void;
   timerDuration: number; // seconds
   setTimerDuration: (d: number) => void;
   beatVolume: number; // 0-1
@@ -46,6 +51,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   isPlaying: false,
   setIsPlaying: (v) => set({ isPlaying: v }),
+  isPaused: false,
+  setIsPaused: (v) => set({ isPaused: v }),
   timerDuration: 15 * 60,
   setTimerDuration: (d) => set({ timerDuration: d }),
   beatVolume: 0.7,

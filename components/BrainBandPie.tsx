@@ -2,7 +2,8 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import type { BandKey, BandPowers } from "@/lib/mind/types";
-import { BAND_META, BAND_COLORS } from "@/lib/mind/types";
+import { BAND_META, getBandColors } from "@/lib/mind/types";
+import { useDocumentScheme } from "@/components/useDocumentScheme";
 
 /**
  * 8-band brainwave balance: a colored pie (Delta at 12 o'clock, clockwise) with
@@ -31,6 +32,7 @@ export default function BrainBandPie({
   /** Omit to render a plain, non-interactive legend. */
   onChangeHidden?: (next: BandKey[]) => void;
 }) {
+  const bandColors = getBandColors(useDocumentScheme());
   const data = BAND_META.map((b) => ({ key: b.key, name: b.ja, value: powers[b.key] }));
   const shown = data.filter((d) => !hiddenKeys.includes(d.key));
   // Share of the shown bands, so every printed number matches its slice. With
@@ -55,7 +57,7 @@ export default function BrainBandPie({
               isAnimationActive={false}
             >
               {shown.map((d) => (
-                <Cell key={d.key} fill={BAND_COLORS[d.key]} />
+                <Cell key={d.key} fill={bandColors[d.key]} />
               ))}
             </Pie>
           </PieChart>
@@ -90,7 +92,7 @@ export default function BrainBandPie({
             <>
               <span
                 className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
-                style={{ backgroundColor: BAND_COLORS[d.key] }}
+                style={{ backgroundColor: bandColors[d.key] }}
               />
               <span className="flex-1 min-w-0 truncate text-text-secondary">{d.name}</span>
               <span className="font-mono tabular-nums font-bold text-text-primary">

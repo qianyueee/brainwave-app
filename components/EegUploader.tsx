@@ -50,7 +50,7 @@ export default function EegUploader() {
       <button
         onClick={() => inputRef.current?.click()}
         disabled={isProcessing}
-        className="w-full py-3 rounded-2xl bg-primary text-white text-base font-bold transition-colors active:scale-[0.98] disabled:opacity-50 neu-raised neu-press flex items-center justify-center gap-2"
+        className="w-full py-3 rounded-2xl bg-primary text-on-primary text-base font-bold transition-colors active:scale-[0.98] disabled:opacity-50 neu-raised neu-press flex items-center justify-center gap-2"
       >
         <Upload size={20} strokeWidth={2} />
         {isProcessing ? "解析中..." : "脳波データをアップロード"}
@@ -59,7 +59,7 @@ export default function EegUploader() {
         Excel (.xlsx) または CSV ファイルに対応
       </p>
       {error && (
-        <p className="text-sm text-red-400 text-center">{error}</p>
+        <p className="text-sm text-danger text-center">{error}</p>
       )}
     </div>
   );

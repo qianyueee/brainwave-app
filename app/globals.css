@@ -14,7 +14,16 @@
   --dyn-surface-border: #383468;
   --dyn-text-primary: #e8e4f8;
   --dyn-text-secondary: #a8a0d0;
-  --dyn-text-muted: #7870a8;
+  --dyn-text-muted: #938ac2;
+  /* Readable text on primary/accent fills — light lavender & mint need DARK
+     text at midnight (white on them is 2.7:1 / 1.5:1); light palettes flip
+     these to white in lib/theme.ts. */
+  --dyn-on-primary: #1E1B4B;
+  --dyn-on-accent: #1E1B4B;
+  /* Status colors, retuned per palette in lib/theme.ts (≥4.5:1 on surface) */
+  --dyn-success: #22c55e;
+  --dyn-warning: #f97316;
+  --dyn-danger: #f87171;
   --shadow-neu-dark: rgba(0, 0, 0, 0.45);
   --shadow-neu-light: rgba(255, 255, 255, 0.05);
 }
@@ -33,13 +42,33 @@
   --color-text-primary: var(--dyn-text-primary);
   --color-text-secondary: var(--dyn-text-secondary);
   --color-text-muted: var(--dyn-text-muted);
+  --color-on-primary: var(--dyn-on-primary);
+  --color-on-accent: var(--dyn-on-accent);
+  --color-success: var(--dyn-success);
+  --color-warning: var(--dyn-warning);
+  --color-danger: var(--dyn-danger);
+
+  /* Readability remap for the 50-60 audience: every text-* class one step up
+     (12→14, 14→16, 16→18, 18→20, 20→22; 2xl+ unchanged). Call sites keep
+     their classes — the scale itself moves, so nothing informational renders
+     below 14px and body copy lands on the documented 18px. */
+  --text-xs: 0.875rem;
+  --text-xs--line-height: calc(1.25 / 0.875);
+  --text-sm: 1rem;
+  --text-sm--line-height: calc(1.5 / 1);
+  --text-base: 1.125rem;
+  --text-base--line-height: calc(1.75 / 1.125);
+  --text-lg: 1.25rem;
+  --text-lg--line-height: calc(1.75 / 1.25);
+  --text-xl: 1.375rem;
+  --text-xl--line-height: calc(1.875 / 1.375);
 }
 
 body {
   background: var(--dyn-navy);
   color: var(--dyn-text-primary);
   transition: background-color 1s ease-out, color 1s ease-out;
-  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  font-family: var(--font-noto-sans-jp), -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
   font-size: 18px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -47,7 +76,10 @@ body {
   overscroll-behavior: none;
 }
 
-* {
+/* Selection stays blocked on controls (avoids accidental long-press selection
+   mid-tap) but body text is selectable/copyable again — a blanket * rule
+   locked older users out of enlarging or copying anything. */
+button, a, [role="button"], summary, nav, input[type="range"], label {
   -webkit-user-select: none;
   user-select: none;
 }
@@ -112,12 +144,13 @@ input, textarea {
 
 /* ===== Range Input Styling ===== */
 
+/* 48px hit box (touch-target floor) around a slim visual track */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   cursor: pointer;
-  height: 28px;
+  height: 48px;
 }
 
 input[type="range"]::-webkit-slider-track {
@@ -139,11 +172,14 @@ input[type="range"]::-moz-range-track {
   border: none;
 }
 
-/* Filled track — element background shows through transparent track */
+/* Filled track — element background shows through transparent track.
+   The painted fill stays a 6px strip (content box) while the input itself
+   keeps the 48px hit area via vertical padding. */
 input[type="range"].range-fill {
-  height: 6px;
+  height: 48px;
+  padding: 21px 0;
   border-radius: 3px;
-  padding: 0;
+  background-clip: content-box;
 }
 
 input[type="range"].range-fill::-webkit-slider-track {
@@ -156,28 +192,32 @@ input[type="range"].range-fill::-moz-range-track {
   box-shadow: none;
 }
 
+input[type="range"].range-fill::-webkit-slider-track {
+  height: 6px;
+}
+
 input[type="range"].range-fill::-webkit-slider-thumb {
-  margin-top: 0;
+  margin-top: -11px;
   transform: translateY(0);
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: var(--dyn-navy-light);
   border: 2px solid var(--dyn-primary);
   box-shadow:
     3px 3px 8px var(--shadow-neu-dark),
     -2px -2px 6px var(--shadow-neu-light);
-  margin-top: -8px;
+  margin-top: -11px;
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: var(--dyn-navy-light);
   border: 2px solid var(--dyn-primary);

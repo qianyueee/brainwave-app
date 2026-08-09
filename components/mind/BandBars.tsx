@@ -24,10 +24,10 @@ export default function BandBars({ powers }: { powers: BandPowers }) {
                 }}
               />
             </div>
-            <span className="text-[11px] font-bold text-text-primary whitespace-nowrap">
+            <span className="text-xs font-bold text-text-primary whitespace-nowrap">
               {b.ja}
             </span>
-            <span className="text-[11px] font-mono tabular-nums text-text-secondary">
+            <span className="text-xs font-mono tabular-nums text-text-secondary">
               {pct}%
             </span>
           </div>

@@ -81,7 +81,7 @@ export default function ProgramAssigner() {
           <div key={program.id} className="bg-surface border border-surface-border rounded-2xl p-4 neu-raised">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-navy neu-inset flex items-center justify-center shrink-0">
-                <Waves size={20} className="text-green-400" />
+                <Waves size={20} className="text-success" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-text-primary truncate">{program.name}</p>

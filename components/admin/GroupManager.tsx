@@ -80,7 +80,7 @@ export default function GroupManager() {
         <button
           onClick={handleCreate}
           disabled={!newName.trim()}
-          className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-bold neu-raised-sm disabled:opacity-40 flex items-center justify-center gap-2"
+          className="w-full py-2.5 rounded-xl bg-primary text-on-primary text-sm font-bold neu-raised-sm disabled:opacity-40 flex items-center justify-center gap-2"
         >
           <Plus size={16} />
           作成
@@ -114,13 +114,13 @@ export default function GroupManager() {
                   <div className="flex gap-2 justify-end">
                     <button
                       onClick={() => setEditingId(null)}
-                      className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-muted"
+                      className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-muted"
                     >
                       <X size={16} />
                     </button>
                     <button
                       onClick={() => handleUpdate(g.id)}
-                      className="w-9 h-9 rounded-xl bg-primary neu-raised-sm flex items-center justify-center text-white"
+                      className="w-12 h-12 rounded-xl bg-primary neu-raised-sm flex items-center justify-center text-on-primary"
                     >
                       <Check size={16} />
                     </button>
@@ -136,13 +136,13 @@ export default function GroupManager() {
                   </div>
                   <button
                     onClick={() => startEdit(g)}
-                    className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95"
+                    className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => handleDelete(g.id)}
-                    className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-red-400 active:scale-95"
+                    className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-danger active:scale-95"
                   >
                     <Trash2 size={14} />
                   </button>

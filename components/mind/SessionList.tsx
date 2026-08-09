@@ -190,13 +190,13 @@ export default function SessionList() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setEditing(false)}
-                        className="px-4 py-2 rounded-xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform"
+                        className="min-h-12 px-4 py-2 rounded-xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform"
                       >
                         キャンセル
                       </button>
                       <button
                         onClick={saveEdit}
-                        className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
+                        className="min-h-12 px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-bold neu-raised-sm neu-press transition-transform"
                       >
                         保存
                       </button>
@@ -227,7 +227,7 @@ export default function SessionList() {
                 <p
                   className={`text-xs ${
                     status === "error"
-                      ? "text-red-400"
+                      ? "text-danger"
                       : status === "busy"
                         ? "text-primary"
                         : "text-text-muted"
@@ -241,7 +241,7 @@ export default function SessionList() {
                 <button
                   onClick={() => importSession(selected)}
                   disabled={status === "busy"}
-                  className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"
+                  className="flex items-center gap-2 min-h-12 px-4 py-2 rounded-2xl bg-primary text-on-primary text-sm font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"
                 >
                   <BarChart3 size={16} /> レポートで見る
                 </button>
@@ -254,7 +254,7 @@ export default function SessionList() {
                       setEditing(false);
                     }
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-navy text-red-400 text-sm font-medium neu-raised-sm neu-press transition-transform"
+                  className="flex items-center gap-2 min-h-12 px-4 py-2 rounded-2xl bg-navy text-danger text-sm font-medium neu-raised-sm neu-press transition-transform"
                 >
                   <Trash2 size={16} /> 削除
                 </button>

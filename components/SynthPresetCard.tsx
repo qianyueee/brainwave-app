@@ -42,7 +42,7 @@ export default function SynthPresetCard({ preset }: SynthPresetCardProps) {
         onClick={handleDelete}
         role="button"
         tabIndex={0}
-        className="w-10 h-10 rounded-full bg-navy neu-raised-sm flex items-center justify-center text-text-muted shrink-0 active:scale-95 hover:text-red-400 transition-colors"
+        className="w-12 h-12 rounded-full bg-navy neu-raised-sm flex items-center justify-center text-text-muted shrink-0 active:scale-95 hover:text-danger transition-colors"
         aria-label="削除"
       >
         <X size={18} strokeWidth={2} />

@@ -136,7 +136,7 @@ export default function ReportPage() {
             <button
               onClick={() => setSelectedIds([])}
               aria-label="選択を解除"
-              className="w-8 h-8 rounded-lg bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
+              className="w-12 h-12 rounded-lg bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
             >
               <X size={18} />
             </button>
@@ -194,7 +194,7 @@ export default function ReportPage() {
           </p>
           <button
             onClick={() => openAuthModal("login")}
-            className="h-12 px-8 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-all neu-raised neu-press"
+            className="h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
           >
             ログイン
           </button>
@@ -226,7 +226,7 @@ export default function ReportPage() {
                   </p>
                   <button
                     onClick={() => setViewingMeasurement(null)}
-                    className="shrink-0 px-3 py-1.5 rounded-xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
+                    className="shrink-0 min-h-12 px-4 rounded-xl bg-primary text-on-primary text-sm font-bold neu-raised-sm neu-press transition-transform"
                   >
                     最新に戻る
                   </button>
@@ -263,7 +263,7 @@ export default function ReportPage() {
                   <div className="flex flex-col items-center gap-1 mt-2">
                     <SignalQualityBadge qualityPct={displayed.qualityPct} />
                     {isLowQuality(displayed.qualityPct) && (
-                      <p className="text-xs text-amber-400 text-center">
+                      <p className="text-xs text-warning text-center">
                         装着が不安定だったため、スコアは目安としてご覧ください
                       </p>
                     )}

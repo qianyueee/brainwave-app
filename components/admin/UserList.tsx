@@ -58,7 +58,7 @@ export default function UserList() {
   const roleIcon = (role: UserRole) => {
     switch (role) {
       case "super_admin":
-        return <ShieldCheck size={16} className="text-amber-400" />;
+        return <ShieldCheck size={16} className="text-warning" />;
       case "admin":
         return <Shield size={16} className="text-blue-400" />;
       default:
@@ -123,7 +123,7 @@ export default function UserList() {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {user.groups.map((g) => (
-                      <span key={g.id} className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full">
+                      <span key={g.id} className="text-xs bg-primary/15 text-primary px-2 py-0.5 rounded-full">
                         {g.name}
                       </span>
                     ))}
@@ -144,7 +144,7 @@ export default function UserList() {
                               onClick={() => handleRoleChange(user.id, r)}
                               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
                                 user.role === r
-                                  ? "bg-primary text-white"
+                                  ? "bg-primary text-on-primary"
                                   : "bg-navy text-text-secondary neu-raised-sm"
                               }`}
                             >
