@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { getProgramById, isCustomProgramId, isTimelineProgram, timelineTotalDuration } from "@/lib/programs";
@@ -14,7 +14,7 @@ import ExportDialog from "@/components/ExportDialog";
 import { Download } from "lucide-react";
 
 export default function PlayerPage() {
-  const programId = useAppStore((s) => s.selectedProgramId);
+  const programId = useDisplayProgramId();
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
   const elapsed = useAppStore((s) => s.elapsed);
@@ -22,6 +22,14 @@ export default function PlayerPage() {
   const setTimerDuration = useAppStore((s) => s.setTimerDuration);
   const isPlaying = useAppStore((s) => s.isPlaying);
   const [exportOpen, setExportOpen] = useState(false);
+
+  // Guard hydration mismatch: selectedProgramId/timerDuration are persisted
+  // (and savedPrograms already was) — the prerendered HTML carries the
+  // defaults, so gate the content until the client store is authoritative.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const isCustom = isCustomProgramId(programId);
   const program = isCustom ? undefined : getProgramById(programId);
@@ -47,6 +55,17 @@ export default function PlayerPage() {
   // Timeline export is not supported yet (single-config export only).
   const canExport = isTimeline ? false : isCustom ? !!customProgram : !!program;
   const exportMode = isCustom ? "synth" : "binaural";
+
+  // Skeleton before hydration: keep the page frame, hide store-derived content.
+  if (!hydrated) {
+    return (
+      <div className="flex flex-col gap-6 pt-6">
+        <div className="text-center">
+          <p className="text-xs font-bold text-primary tracking-wider">Sync Sound</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>

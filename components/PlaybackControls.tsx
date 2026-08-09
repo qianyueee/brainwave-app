@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useAudio } from "@/components/AudioProvider";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { getAdjustedProgram } from "@/lib/brain-profile";
@@ -16,7 +16,7 @@ export default function PlaybackControls() {
   const isPlaying = useAppStore((s) => s.isPlaying);
   const isPaused = useAppStore((s) => s.isPaused);
   const elapsed = useAppStore((s) => s.elapsed);
-  const programId = useAppStore((s) => s.selectedProgramId);
+  const programId = useDisplayProgramId();
   const timerDuration = useAppStore((s) => s.timerDuration);
   const indicators = useBrainProfileStore((s) => s.profile?.indicators ?? null);
   const savedPrograms = useSynthStore((s) => s.savedPrograms);

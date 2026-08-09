@@ -21,8 +21,9 @@ export function useMiniPlayerVisible(): boolean {
 }
 
 /**
- * Global now-playing bar above the bottom nav: program name + remaining time,
- * a pause/resume button, and tap-anywhere-else to return to /player — so
+ * Global now-playing bar (above the bottom nav on mobile, docked to the
+ * bottom of the content area on desktop): program name + remaining time, a
+ * pause/resume button, and tap-anywhere-else to return to /player — so
  * leaving the player page no longer makes the session invisible.
  */
 export default function MiniPlayer() {
@@ -32,17 +33,21 @@ export default function MiniPlayer() {
   const isPaused = useAppStore((s) => s.isPaused);
   const elapsed = useAppStore((s) => s.elapsed);
   const timerDuration = useAppStore((s) => s.timerDuration);
-  const selectedProgramId = useAppStore((s) => s.selectedProgramId);
+  // Bound to the audio truth, not the (persisted) selection — the bar must
+  // always name exactly what is sounding.
+  const playingProgramId = useAppStore((s) => s.playingProgramId);
 
   if (!visible) return null;
 
-  const program = getProgramById(selectedProgramId);
+  const program = playingProgramId ? getProgramById(playingProgramId) : undefined;
   const remaining = Math.max(0, timerDuration - elapsed);
   const openPlayer = () => router.push("/player");
 
   return (
-    <div className="md:hidden fixed bottom-16 inset-x-0 z-40">
-      <div className="mx-auto w-full max-w-[480px] px-3 pb-2">
+    // Mobile: floats above the bottom nav. Desktop: full-width bar docked to
+    // the bottom of the content area, starting right of the 240px side rail.
+    <div className="fixed bottom-16 inset-x-0 z-40 md:bottom-0 md:left-60 md:right-0">
+      <div className="mx-auto w-full max-w-[480px] px-3 pb-2 md:max-w-none md:px-8 md:pb-4">
         <div
           role="button"
           tabIndex={0}

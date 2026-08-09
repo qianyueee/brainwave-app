@@ -1,6 +1,6 @@
 "use client";
 
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useAudio } from "@/components/AudioProvider";
 import { NATURE_SOUNDS } from "@/lib/audio-engine";
 import { isCustomProgramId } from "@/lib/programs";
@@ -18,7 +18,7 @@ export default function Mixer() {
   const musicVolume = useAppStore((s) => s.musicVolume);
   const setMusicVolumeStore = useAppStore((s) => s.setMusicVolume);
   const isPlaying = useAppStore((s) => s.isPlaying);
-  const programId = useAppStore((s) => s.selectedProgramId);
+  const programId = useDisplayProgramId();
   const { getSession, playNatureSound, stopNatureSound, setNatureVolume, setMusicVolume, setSynthVolume } = useAudio();
 
   const isCustom = isCustomProgramId(programId);

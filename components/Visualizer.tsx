@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Maximize2 } from "lucide-react";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { getProgramById, isCustomProgramId, type CustomProgram } from "@/lib/programs";
@@ -66,7 +66,7 @@ export default function Visualizer() {
   const isPlaying = useAppStore((s) => s.isPlaying);
   const isPaused = useAppStore((s) => s.isPaused);
   const elapsed = useAppStore((s) => s.elapsed);
-  const programId = useAppStore((s) => s.selectedProgramId);
+  const programId = useDisplayProgramId();
   const timerDuration = useAppStore((s) => s.timerDuration);
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);

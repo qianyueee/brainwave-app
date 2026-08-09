@@ -72,6 +72,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   const setIsPlaying = useAppStore((s) => s.setIsPlaying);
   const setIsPaused = useAppStore((s) => s.setIsPaused);
+  const setPlayingProgramId = useAppStore((s) => s.setPlayingProgramId);
   const setElapsed = useAppStore((s) => s.setElapsed);
   const addSessionLog = useAppStore((s) => s.addSessionLog);
 
@@ -177,12 +178,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     customRemainingRef.current = 0;
     timelineLogInfoRef.current = null;
     setIsPlaying(false);
+    setPlayingProgramId(null);
     setElapsed(0);
     useSynthStore.getState().setIsSynthPlaying(false);
     if (!sessionRef.current?.isPlaying) {
       scheduleStopKeepAlive();
     }
-  }, [stopPolling, stopStandaloneNature, setIsPlaying, setElapsed, scheduleStopKeepAlive, clearPauseIntent, logPlayed]);
+  }, [stopPolling, stopStandaloneNature, setIsPlaying, setPlayingProgramId, setElapsed, scheduleStopKeepAlive, clearPauseIntent, logPlayed]);
 
   const stopSession = useCallback((opts?: { log?: boolean }) => {
     const session = sessionRef.current;
@@ -197,11 +199,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     sessionRef.current = null;
     stopPolling();
     setIsPlaying(false);
+    setPlayingProgramId(null);
     setElapsed(0);
     if (!synthRef.current?.isPlaying && !customProgramRef.current) {
       scheduleStopKeepAlive();
     }
-  }, [stopPolling, setIsPlaying, setElapsed, scheduleStopKeepAlive, clearPauseIntent, logPlayed]);
+  }, [stopPolling, setIsPlaying, setPlayingProgramId, setElapsed, scheduleStopKeepAlive, clearPauseIntent, logPlayed]);
 
   // Arm/re-arm the custom-program auto-stop timer (initial start and resume).
   const armCustomEndTimer = useCallback(
@@ -325,6 +328,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       session.start(beatVolume);
       sessionRef.current = session;
       setIsPlaying(true);
+      setPlayingProgramId(program.id);
       setElapsed(0);
 
       cancelStopKeepAlive();
@@ -356,7 +360,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }
       }, 1000);
     },
-    [cancelStopKeepAlive, clearPauseIntent, stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, logPlayed, playCustomAudio, pauseSession, resumeSession]
+    [cancelStopKeepAlive, clearPauseIntent, stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setPlayingProgramId, setElapsed, logPlayed, playCustomAudio, pauseSession, resumeSession]
   );
 
   const startSynth = useCallback(
@@ -423,6 +427,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       timelineLogInfoRef.current = logInfo;
       useSynthStore.getState().setIsSynthPlaying(true);
       setIsPlaying(true);
+      setPlayingProgramId(logInfo?.programId ?? null);
       setElapsed(0);
 
       // Nature sound (same routing as a single custom program)
@@ -455,7 +460,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         stopCustomProgram();
       });
     },
-    [cancelStopKeepAlive, clearPauseIntent, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, logPlayed, playCustomAudio, pauseSession, resumeSession]
+    [cancelStopKeepAlive, clearPauseIntent, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setPlayingProgramId, setElapsed, logPlayed, playCustomAudio, pauseSession, resumeSession]
   );
 
   const startTimelinePreview = useCallback(
@@ -498,6 +503,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       customProgramRef.current = program;
       useSynthStore.getState().setIsSynthPlaying(true);
       setIsPlaying(true);
+      setPlayingProgramId(program.id);
       setElapsed(0);
 
       // Apply initial volume from store
@@ -537,7 +543,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       // Auto-stop timer
       armCustomEndTimer(duration);
     },
-    [cancelStopKeepAlive, clearPauseIntent, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setElapsed, playCustomAudio, runTimeline, armCustomEndTimer, pauseSession, resumeSession]
+    [cancelStopKeepAlive, clearPauseIntent, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setPlayingProgramId, setElapsed, playCustomAudio, runTimeline, armCustomEndTimer, pauseSession, resumeSession]
   );
 
   const getSynth = useCallback(() => synthRef.current, []);

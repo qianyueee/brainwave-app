@@ -134,7 +134,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 ### 播放入口与全局播放条
 
 - `components/usePlayProgram.ts`：所有节目卡/CTA 的统一入口——**点击即在手势内启动音频**（满足 iOS AudioContext 要求）再跳 `/player`；正在播放同一节目时只跳转不重置（播放中保护，一時停止中同样生效）。5 个入口组件（ProgramCard/PublishedProgramCard/CustomProgramCard/ZodiacSyncCard/WaterMandalaHero）全部走这个 hook，不要再复制守卫逻辑。
-- `components/MiniPlayer.tsx`：全局迷你播放条（`fixed bottom-16`，binaural 专属；custom/synth 因 `isSynthPlaying` 排除），显示节目名+残り時間+暂停/恢复钮，点击回 `/player`。`components/AppMain.tsx` 在播放条可见时把内容底部 padding 从 `pb-20` 提到 `pb-36`。
+- `components/MiniPlayer.tsx`：全局迷你播放条（移动端 `fixed bottom-16` 浮于底部导航上；桌面端为内容区底部通栏 `md:bottom-0 md:left-60`，侧栏右侧起；binaural 专属，custom/synth 因 `isSynthPlaying` 排除），显示节目名（取 `playingProgramId` 真源）+残り時間+暂停/恢复钮，点击回 `/player`。`components/AppMain.tsx` 在播放条可见时把内容底部 padding 提到 `pb-36`（桌面 `md:pb-32`）。
 - `/player` 无可解析节目时渲染「プログラムを選択」链接（去 `/session`），不再出现按了没反应的死播放键。
 
 ### 数据流
@@ -160,7 +160,8 @@ AudioContext（全局单例，getAudioContext() 管理）
 - OscillatorNode 不可重用（stop 后必须重建），两个引擎都需处理节点生命周期
 - programs.ts 中的所有参数（载波频率、差频、时间轴）严格对照设计文档
 - timeScale = userDuration / defaultDuration，用于缩放所有 phase 时间点
-- `useAppStore` 未启用 persist，sessionLogs 仅存于内存
+- `useAppStore` 启用 persist（普通 localStorage，key `app-playback`，未登录也生效）+ partialize：仅持久化 `selectedProgramId / timerDuration / beatVolume / musicVolume / natureVolume / natureSoundId`（默认音量：ビート 0.2・星座音乐 0.6）；sessionLogs 与运行态（isPlaying/elapsed/playingProgramId）仍只存内存。播放页整页挂 hydrated 守卫防 hydration mismatch
+- `playingProgramId` = 实际在响的节目 id（音频真源），仅由 AudioProvider 的 start/stop 写入；显示端（/player 及其子组件、ExportDialog）一律用 `useDisplayProgramId()`（在响→真源，否则→选择），MiniPlayer 直接用真源——保证"听到的"和"看到的"永远一致
 - `useSynthStore` 启用 persist + partialize，仅持久化 `savedPresets`
 - `crypto.randomUUID` 在 HTTP 环境下不可用，需降级为 `Date.now().toString(36) + Math.random()`
 

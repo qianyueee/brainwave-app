@@ -1,6 +1,6 @@
 "use client";
 
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { getProgramById } from "@/lib/programs";
 
 const PRESETS = [
@@ -15,7 +15,7 @@ export default function Timer() {
   const timerDuration = useAppStore((s) => s.timerDuration);
   const setTimerDuration = useAppStore((s) => s.setTimerDuration);
   const isPlaying = useAppStore((s) => s.isPlaying);
-  const programId = useAppStore((s) => s.selectedProgramId);
+  const programId = useDisplayProgramId();
 
   const program = getProgramById(programId);
   const defaultMin = program ? program.defaultDuration / 60 : 15;

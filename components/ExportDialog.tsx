@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { getProgramById } from "@/lib/programs";
 import type { SynthPreset } from "@/lib/synth-engine";
@@ -33,7 +33,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
   const [progress, setProgress] = useState<ExportProgress>({ status: "idle" });
 
   // Binaural data
-  const selectedProgramId = useAppStore((s) => s.selectedProgramId);
+  const selectedProgramId = useDisplayProgramId();
   const beatVolume = useAppStore((s) => s.beatVolume);
   const natureSoundId = useAppStore((s) => s.natureSoundId);
   const natureVolume = useAppStore((s) => s.natureVolume);
