@@ -26,7 +26,7 @@ export default function SignalQualityBadge({
           : "測定時間のうち脳波を読み取れた割合です"
       }
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${
-        low ? "bg-amber-400/15 text-amber-400" : "bg-navy text-text-muted font-normal"
+        low ? "bg-warning/15 text-warning" : "bg-navy text-text-muted font-normal"
       } ${className}`}
     >
       有効データ {qualityPct}%

@@ -54,7 +54,7 @@ export default function Fullscreenable({
           setOpen(true);
         }}
         aria-label="全画面表示"
-        className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-navy/70 backdrop-blur-sm flex items-center justify-center text-text-secondary neu-raised-sm active:opacity-70"
+        className="absolute top-2 right-2 z-10 w-12 h-12 rounded-lg bg-navy/70 backdrop-blur-sm flex items-center justify-center text-text-secondary neu-raised-sm active:opacity-70"
       >
         <Maximize2 size={16} />
       </button>
@@ -71,7 +71,7 @@ export default function Fullscreenable({
             <button
               onClick={() => setOpen(false)}
               aria-label="閉じる"
-              className="shrink-0 w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white"
+              className="shrink-0 w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-white"
             >
               <X size={20} />
             </button>

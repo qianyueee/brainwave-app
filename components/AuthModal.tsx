@@ -147,7 +147,7 @@ export default function AuthModal() {
           <button
             onClick={closeModal}
             aria-label="閉じる"
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-text-muted active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+            className="w-12 h-12 flex items-center justify-center rounded-xl text-text-muted active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           >
             <X size={22} />
           </button>
@@ -155,7 +155,7 @@ export default function AuthModal() {
 
         {/* Error / Message */}
         {error && (
-          <p role="alert" className="text-sm text-red-400 bg-red-400/10 rounded-2xl px-4 py-3">
+          <p role="alert" className="text-sm text-danger bg-danger/10 rounded-2xl px-4 py-3">
             {error}
           </p>
         )}
@@ -205,7 +205,7 @@ export default function AuthModal() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-text-muted active:opacity-70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded-lg"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-text-muted active:opacity-70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded-lg"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -234,7 +234,7 @@ export default function AuthModal() {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className="w-full h-12 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-all neu-raised neu-press disabled:opacity-50"
+              className="w-full h-12 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press disabled:opacity-50"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

@@ -33,9 +33,18 @@ export function compositeScore(indicators: BrainIndicators): number {
   return Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
 }
 
-/** Traffic-light color for a composite score (shared by history rows and compare picks). */
+/**
+ * Traffic-light color for a composite score (shared by history rows and
+ * compare picks). Returns a CSS var() so the hue follows the time-of-day
+ * palette — valid anywhere CSS color is accepted (inline style, CSS `fill`);
+ * NOT valid as a raw SVG presentation attribute, use style={{fill}} there.
+ */
 export function scoreColor(score: number): string {
-  return score >= 70 ? "#22c55e" : score >= 40 ? "#f97316" : "#ef4444";
+  return score >= 70
+    ? "var(--dyn-success)"
+    : score >= 40
+      ? "var(--dyn-warning)"
+      : "var(--dyn-danger)";
 }
 
 /** Short date-time label for a measurement, e.g. "7月13日 17:50". */

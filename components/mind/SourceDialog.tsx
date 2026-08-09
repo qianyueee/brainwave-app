@@ -70,7 +70,7 @@ export default function SourceDialog() {
         {sourceKind === "realtime" && (
           <span
             className={`ml-1 inline-block w-2.5 h-2.5 rounded-full ${
-              bridgeOnline ? "bg-green-400" : "bg-text-muted"
+              bridgeOnline ? "bg-success" : "bg-text-muted"
             }`}
           />
         )}
@@ -92,7 +92,7 @@ export default function SourceDialog() {
               <button
                 onClick={() => setOpen(false)}
                 aria-label="閉じる"
-                className="w-10 h-10 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
+                className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
                 <X size={20} />
               </button>
@@ -114,7 +114,7 @@ export default function SourceDialog() {
                     disabled={isRecording}
                     className={`flex-1 min-h-[48px] rounded-xl text-base font-medium transition-colors disabled:opacity-50 ${
                       active
-                        ? "bg-primary text-white neu-press"
+                        ? "bg-primary text-on-primary neu-press"
                         : "bg-navy text-text-secondary neu-raised-sm"
                     }`}
                   >
@@ -150,7 +150,7 @@ export default function SourceDialog() {
                       aria-label="コードをコピー"
                       className="shrink-0 w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
                     >
-                      {copied ? <Check size={20} className="text-green-400" /> : <Copy size={20} />}
+                      {copied ? <Check size={20} className="text-success" /> : <Copy size={20} />}
                     </button>
                   </div>
                   <p className="text-sm text-text-secondary">
@@ -162,7 +162,7 @@ export default function SourceDialog() {
                 <div className="flex items-center gap-2">
                   <span
                     className={`inline-block w-3 h-3 rounded-full ${
-                      bridgeOnline ? "bg-green-400" : "bg-text-muted"
+                      bridgeOnline ? "bg-success" : "bg-text-muted"
                     }`}
                   />
                   <p className="text-base text-text-primary">

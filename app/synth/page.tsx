@@ -385,7 +385,7 @@ export default function SynthPage() {
         </div>
         <button
           onClick={() => openAuthModal("login")}
-          className="h-12 px-8 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-all neu-raised neu-press"
+          className="h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
         >
           ログイン
         </button>
@@ -413,7 +413,7 @@ export default function SynthPage() {
         </div>
         <button
           onClick={() => router.replace("/")}
-          className="h-12 px-8 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-all neu-raised neu-press"
+          className="h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
         >
           ホームへ
         </button>
@@ -505,7 +505,7 @@ export default function SynthPage() {
                 <span className="text-sm text-text-muted">Hz</span>
                 <button
                   onClick={() => handleBaseFreqApply("left")}
-                  className="px-4 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 neu-raised-sm"
+                  className="px-4 py-3 rounded-xl bg-primary text-on-primary text-sm font-bold active:scale-95 neu-raised-sm"
                 >
                   生成
                 </button>
@@ -525,7 +525,7 @@ export default function SynthPage() {
                 <span className="text-sm text-text-muted">Hz</span>
                 <button
                   onClick={() => handleBaseFreqApply("right")}
-                  className="px-4 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 neu-raised-sm"
+                  className="px-4 py-3 rounded-xl bg-primary text-on-primary text-sm font-bold active:scale-95 neu-raised-sm"
                 >
                   生成
                 </button>
@@ -551,7 +551,7 @@ export default function SynthPage() {
                 <span className="text-sm text-text-muted">Hz</span>
                 <button
                   onClick={() => handleBaseFreqApply()}
-                  className="px-4 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 neu-raised-sm"
+                  className="px-4 py-3 rounded-xl bg-primary text-on-primary text-sm font-bold active:scale-95 neu-raised-sm"
                 >
                   生成
                 </button>
@@ -570,7 +570,7 @@ export default function SynthPage() {
           <button
             onClick={handleSegmentPreview}
             className={`flex-1 min-h-[56px] rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all neu-raised-sm ${
-              segmentPreviewPlaying ? "bg-accent text-white" : "bg-navy text-text-primary"
+              segmentPreviewPlaying ? "bg-accent text-on-accent" : "bg-navy text-text-primary"
             }`}
           >
             {segmentPreviewPlaying ? <Square size={18} fill="white" strokeWidth={0} /> : <Play size={18} fill="currentColor" strokeWidth={0} />}
@@ -579,7 +579,7 @@ export default function SynthPage() {
           <button
             onClick={handleWholeTimeline}
             className={`flex-1 min-h-[56px] rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all neu-raised-sm ${
-              wholeTimelinePlaying ? "bg-accent text-white" : "bg-primary text-white"
+              wholeTimelinePlaying ? "bg-accent text-on-accent" : "bg-primary text-on-primary"
             }`}
           >
             {wholeTimelinePlaying ? <Square size={18} fill="white" strokeWidth={0} /> : <Play size={18} fill="white" strokeWidth={0} />}
@@ -610,7 +610,7 @@ export default function SynthPage() {
                 aria-pressed={monitorChannel === c}
                 className={`flex-1 min-h-[48px] rounded-xl text-sm font-bold transition-all active:scale-95 ${
                   monitorChannel === c
-                    ? "bg-primary text-white neu-inset"
+                    ? "bg-primary text-on-primary neu-inset"
                     : "bg-navy text-text-secondary neu-raised-sm"
                 }`}
               >
@@ -704,7 +704,7 @@ export default function SynthPage() {
         {editingPresetName && (
           <button
             onClick={requestOverwritePreset}
-            className="w-full py-3 rounded-xl bg-primary text-white text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
+            className="w-full py-3 rounded-xl bg-primary text-on-primary text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
           >
             「{editingPresetName}」を上書き保存
           </button>
@@ -726,7 +726,7 @@ export default function SynthPage() {
             className={`px-5 py-3 rounded-xl text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm ${
               editingPresetName
                 ? "bg-navy-light text-primary"
-                : "bg-primary text-white"
+                : "bg-primary text-on-primary"
             }`}
           >
             {editingPresetName ? "別名保存" : "保存"}
@@ -786,7 +786,7 @@ export default function SynthPage() {
             {/* Overwrite the program that is open */}
             <button
               onClick={requestUpdateProgram}
-              className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
+              className="w-full py-3 rounded-xl bg-accent text-on-accent text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
             >
               <span className="block truncate px-2">
                 {editingProgramName ? `「${editingProgramName}」を更新` : "プログラムを更新"}
@@ -831,7 +831,7 @@ export default function SynthPage() {
               <button
                 onClick={requestSaveAsNewProgram}
                 disabled={!programName.trim()}
-                className="px-5 py-3 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
+                className="px-5 py-3 rounded-xl bg-accent text-on-accent text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
               >
                 保存
               </button>

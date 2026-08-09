@@ -53,7 +53,7 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={signOut}
-                className="w-full h-12 rounded-2xl bg-navy text-red-400 text-base font-medium flex items-center justify-center gap-2 neu-raised-sm neu-press transition-transform"
+                className="w-full h-12 rounded-2xl bg-navy text-danger text-base font-medium flex items-center justify-center gap-2 neu-raised-sm neu-press transition-transform"
               >
                 <LogOut size={18} strokeWidth={1.5} />
                 ログアウト
@@ -64,7 +64,7 @@ export default function SettingsPage() {
               <p className="text-base text-text-secondary">ログインしていません</p>
               <button
                 onClick={() => openAuthModal("login")}
-                className="w-full h-12 rounded-2xl bg-primary text-white text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press active:scale-95 transition-all"
+                className="w-full h-12 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press active:scale-95 transition-all"
               >
                 <User size={18} strokeWidth={1.5} />
                 ログイン
@@ -104,7 +104,7 @@ export default function SettingsPage() {
             onClick={() => router.push("/admin")}
             className="w-full bg-surface border border-surface-border rounded-3xl p-4 min-h-[48px] flex items-center gap-3 text-left neu-raised neu-press transition-transform"
           >
-            <Settings size={20} strokeWidth={1.5} className="text-amber-400 shrink-0" />
+            <Settings size={20} strokeWidth={1.5} className="text-warning shrink-0" />
             <span className="flex-1 text-base font-bold text-text-primary">管理パネル</span>
             <ChevronRight size={20} className="text-text-muted shrink-0" />
           </button>

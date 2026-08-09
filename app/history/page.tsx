@@ -101,7 +101,7 @@ function MeasurementDetail({
             <div className="flex gap-2">
               <button
                 onClick={() => setEditingNote(false)}
-                className="px-4 py-2 rounded-xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform"
+                className="min-h-12 px-4 py-2 rounded-xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform"
               >
                 キャンセル
               </button>
@@ -110,7 +110,7 @@ function MeasurementDetail({
                   syncNoteFromMeasurement(m.uploadedAt, draft);
                   setEditingNote(false);
                 }}
-                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
+                className="min-h-12 px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-bold neu-raised-sm neu-press transition-transform"
               >
                 保存
               </button>
@@ -146,7 +146,7 @@ function MeasurementDetail({
       <div className="flex items-center justify-between gap-2">
         <button
           onClick={() => onView(m.uploadedAt)}
-          className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-primary text-white text-sm font-bold neu-raised-sm neu-press transition-transform"
+          className="flex items-center gap-2 min-h-12 px-4 py-2 rounded-2xl bg-primary text-on-primary text-sm font-bold neu-raised-sm neu-press transition-transform"
         >
           <BarChart3 size={16} /> レポートで見る
         </button>
@@ -154,7 +154,7 @@ function MeasurementDetail({
           onClick={() => {
             if (window.confirm("この記録を削除しますか？")) onDelete(m.uploadedAt);
           }}
-          className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-navy text-red-400 text-sm font-medium neu-raised-sm neu-press transition-transform"
+          className="flex items-center gap-2 min-h-12 px-4 py-2 rounded-2xl bg-navy text-danger text-sm font-medium neu-raised-sm neu-press transition-transform"
         >
           <Trash2 size={16} /> 削除
         </button>
@@ -279,7 +279,7 @@ export default function HistoryPage() {
             </p>
             <button
               onClick={() => openAuthModal("login")}
-              className="h-12 px-8 rounded-2xl bg-primary text-white text-base font-bold active:scale-95 transition-all neu-raised neu-press"
+              className="h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
             >
               ログイン
             </button>

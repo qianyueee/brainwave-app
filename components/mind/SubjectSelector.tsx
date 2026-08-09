@@ -103,7 +103,7 @@ export default function SubjectSelector() {
               <button
                 onClick={() => setOpen(false)}
                 aria-label="閉じる"
-                className="w-10 h-10 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
+                className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
                 <X size={20} />
               </button>
@@ -133,7 +133,7 @@ export default function SubjectSelector() {
                       <button
                         onClick={() => deleteSubject(s.id)}
                         aria-label={`${s.name}を削除`}
-                        className="shrink-0 w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-muted active:text-red-400"
+                        className="shrink-0 w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-muted active:text-danger"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -160,7 +160,7 @@ export default function SubjectSelector() {
                 <button
                   onClick={handleAdd}
                   disabled={!draft.trim()}
-                  className="shrink-0 flex items-center gap-1 px-4 min-h-[52px] rounded-2xl bg-primary text-white text-base font-bold disabled:opacity-40 active:scale-95 neu-raised-sm"
+                  className="shrink-0 flex items-center gap-1 px-4 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold disabled:opacity-40 active:scale-95 neu-raised-sm"
                 >
                   <Plus size={18} strokeWidth={2.5} />
                   追加

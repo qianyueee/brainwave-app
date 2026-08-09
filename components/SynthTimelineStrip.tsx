@@ -115,7 +115,7 @@ export default function SynthTimelineStrip() {
               >
                 <span
                   className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-bold tabular-nums ${
-                    isActive ? "bg-primary text-white" : "bg-navy-lighter text-text-secondary"
+                    isActive ? "bg-primary text-on-primary" : "bg-navy-lighter text-text-secondary"
                   }`}
                 >
                   {i + 1}
@@ -187,7 +187,7 @@ export default function SynthTimelineStrip() {
                         removeSegment(i);
                       }}
                       disabled={segments.length <= 1}
-                      className="flex-1 min-h-[48px] rounded-xl bg-navy text-red-400 disabled:opacity-30 active:scale-95 neu-raised-sm flex items-center justify-center"
+                      className="flex-1 min-h-[48px] rounded-xl bg-navy text-danger disabled:opacity-30 active:scale-95 neu-raised-sm flex items-center justify-center"
                       aria-label="削除"
                     >
                       <Trash2 size={20} />

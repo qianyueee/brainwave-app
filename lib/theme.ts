@@ -15,6 +15,14 @@ export interface ThemePalette {
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
+  /** Text on a primary-filled control (CTA). Contrast ≥4.5:1 vs primary. */
+  onPrimary: string;
+  /** Text on an accent-filled control (play state). Contrast ≥4.5:1 vs accent. */
+  onAccent: string;
+  /** Status colors, ≥4.5:1 vs surface in this palette. */
+  success: string;
+  warning: string;
+  danger: string;
 }
 
 export interface TimePeriod {
@@ -44,7 +52,13 @@ export const TIME_PERIODS: TimePeriod[] = [
       surfaceBorder: "#383468",
       textPrimary: "#e8e4f8",
       textSecondary: "#a8a0d0",
-      textMuted: "#7870a8",
+      textMuted: "#938ac2",
+      // Lavender/mint fills are LIGHT — dark text (white was 2.7:1 / 1.5:1)
+      onPrimary: "#1E1B4B",
+      onAccent: "#1E1B4B",
+      success: "#22c55e",
+      warning: "#f97316",
+      danger: "#f87171",
     },
   },
   {
@@ -65,7 +79,14 @@ export const TIME_PERIODS: TimePeriod[] = [
       surfaceBorder: "#d8c890",
       textPrimary: "#1a1408",
       textSecondary: "#5c4e20",
-      textMuted: "#807040",
+      textMuted: "#6b5c28",
+      onPrimary: "#ffffff",
+      onAccent: "#ffffff",
+      // Deepened status hues — the defaults were picked against dark navy
+      // and washed out on this cream background
+      success: "#166534",
+      warning: "#9a3412",
+      danger: "#991b1b",
     },
   },
   {
@@ -86,7 +107,12 @@ export const TIME_PERIODS: TimePeriod[] = [
       surfaceBorder: "#90c8a8",
       textPrimary: "#082018",
       textSecondary: "#1e5840",
-      textMuted: "#488068",
+      textMuted: "#2f6a50",
+      onPrimary: "#ffffff",
+      onAccent: "#ffffff",
+      success: "#166534",
+      warning: "#9a3412",
+      danger: "#991b1b",
     },
   },
   {
@@ -107,7 +133,12 @@ export const TIME_PERIODS: TimePeriod[] = [
       surfaceBorder: "#c4b0e0",
       textPrimary: "#1c1040",
       textSecondary: "#4a3080",
-      textMuted: "#7860a8",
+      textMuted: "#5a4390",
+      onPrimary: "#ffffff",
+      onAccent: "#ffffff",
+      success: "#166534",
+      warning: "#9a3412",
+      danger: "#991b1b",
     },
   },
 ];
@@ -217,6 +248,11 @@ const CSS_VAR_MAP: Record<keyof ThemePalette, string> = {
   textPrimary: "--dyn-text-primary",
   textSecondary: "--dyn-text-secondary",
   textMuted: "--dyn-text-muted",
+  onPrimary: "--dyn-on-primary",
+  onAccent: "--dyn-on-accent",
+  success: "--dyn-success",
+  warning: "--dyn-warning",
+  danger: "--dyn-danger",
 };
 
 // Compute relative luminance (0 = black, 1 = white)
@@ -231,12 +267,24 @@ function luminance(hex: string): number {
 
 export const THEME_CHANGE_EVENT = "theme-palette-change";
 
+/**
+ * Light/dark flag for the currently applied palette. Chart components use it
+ * to pick color sets that SVG attributes can hold (fills can't read var()).
+ */
+export function getDocumentScheme(): "light" | "dark" {
+  if (typeof document === "undefined") return "dark";
+  return document.documentElement.dataset.colorScheme === "light" ? "light" : "dark";
+}
+
 export function applyPalette(palette: ThemePalette): void {
   const style = document.documentElement.style;
   const keys = Object.keys(CSS_VAR_MAP) as (keyof ThemePalette)[];
   for (const key of keys) {
     style.setProperty(CSS_VAR_MAP[key], palette[key]);
   }
+
+  document.documentElement.dataset.colorScheme =
+    luminance(palette.navy) > 0.3 ? "light" : "dark";
 
   // Adapt neumorphism shadows based on background luminance
   const lum = luminance(palette.navy);

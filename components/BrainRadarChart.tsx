@@ -27,10 +27,6 @@ function getThemeColor(varName: string, fallback: string): string {
   return val || fallback;
 }
 
-function scoreColor(score: number): string {
-  return score >= 70 ? "#22c55e" : score >= 40 ? "#f97316" : "#ef4444";
-}
-
 export default function BrainRadarChart({
   indicators,
   size = "large",
@@ -52,17 +48,28 @@ export default function BrainRadarChart({
     text: "#8890a8",
     strong: "#d0d8e8",
     muted: "#5c6478",
+    success: "#22c55e",
+    warning: "#f97316",
+    danger: "#f87171",
   });
 
   const readColors = useCallback(() => {
+    // Resolved hex (not var()) — tick colors land in SVG fill attributes,
+    // which cannot evaluate CSS variables.
     setColors({
       primary: getThemeColor("--color-primary", "#4a7fd4"),
       grid: getThemeColor("--color-navy-lighter", "#1e3a5f"),
       text: getThemeColor("--color-text-secondary", "#8890a8"),
       strong: getThemeColor("--color-text-primary", "#d0d8e8"),
       muted: getThemeColor("--color-text-muted", "#5c6478"),
+      success: getThemeColor("--dyn-success", "#22c55e"),
+      warning: getThemeColor("--dyn-warning", "#f97316"),
+      danger: getThemeColor("--dyn-danger", "#f87171"),
     });
   }, []);
+
+  const scoreColor = (score: number): string =>
+    score >= 70 ? colors.success : score >= 40 ? colors.warning : colors.danger;
 
   useEffect(() => {
     readColors();
@@ -89,13 +96,13 @@ export default function BrainRadarChart({
     const ly = y + (dy / dist) * push;
     return (
       <text x={lx} y={ly} textAnchor={p.textAnchor} fill={colors.text}>
-        <tspan x={lx} dy={isSmall ? -2 : -3} fontSize={isSmall ? 10 : 12}>
+        <tspan x={lx} dy={isSmall ? -2 : -3} fontSize={isSmall ? 12 : 13}>
           {label}
         </tspan>
         <tspan
           x={lx}
-          dy={isSmall ? 14 : 17}
-          fontSize={isSmall ? 13 : 15}
+          dy={isSmall ? 15 : 18}
+          fontSize={isSmall ? 14 : 16}
           fontWeight={700}
           fill={scoreColor(score)}
         >
@@ -119,14 +126,14 @@ export default function BrainRadarChart({
           tick={
             showScores
               ? renderTick
-              : { fill: colors.text, fontSize: isSmall ? 10 : 12 }
+              : { fill: colors.text, fontSize: isSmall ? 12 : 13 }
           }
         />
         {!isSmall && !showScores && (
           <PolarRadiusAxis
             angle={90}
             domain={[0, 100]}
-            tick={{ fill: colors.muted, fontSize: 10 }}
+            tick={{ fill: colors.muted, fontSize: 12 }}
             tickCount={5}
           />
         )}

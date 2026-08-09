@@ -102,7 +102,7 @@ export default function CustomAudioSection() {
         {audios.length < MAX_COUNT && (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-navy text-text-secondary neu-raised-sm neu-press"
+            className="w-12 h-12 flex items-center justify-center rounded-lg bg-navy text-text-secondary neu-raised-sm neu-press"
             aria-label="音声ファイルを追加"
           >
             <Plus size={16} />
@@ -118,7 +118,7 @@ export default function CustomAudioSection() {
       </div>
 
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p className="text-xs text-danger">{error}</p>
       )}
 
       {audios.length > 0 && (
@@ -142,7 +142,7 @@ export default function CustomAudioSection() {
                 </button>
                 <button
                   onClick={() => handleDelete(audio.id)}
-                  className="ml-2 w-7 h-7 flex items-center justify-center rounded-lg text-text-muted hover:text-red-400 transition-colors flex-shrink-0"
+                  className="ml-1 min-w-12 min-h-12 flex items-center justify-center rounded-lg text-text-muted hover:text-danger transition-colors flex-shrink-0"
                   aria-label={`${audio.name}を削除`}
                 >
                   <X size={14} />

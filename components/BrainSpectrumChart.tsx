@@ -10,16 +10,17 @@ import {
   ReferenceArea,
   ResponsiveContainer,
 } from "recharts";
-import { BAND_META, BAND_COLORS, BAND_HZ_RANGE } from "@/lib/mind/types";
+import { BAND_META, BAND_HZ_RANGE, getBandColors } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
+import { useDocumentScheme } from "@/components/useDocumentScheme";
 
-/** The 8 spectrum bands — same colors and names as the 8-band pie, positioned
- *  on the Hz axis by their frequency range. Single source keeps the spectrum
- *  shading and the pie in correspondence. Shared with the compare chart. */
+/** The 8 spectrum bands, positioned on the Hz axis by their frequency range.
+ *  Colors come from getBandColors(scheme) at render time (light/dark sets),
+ *  keeping the spectrum shading and the pie in correspondence. Shared with
+ *  the compare chart. */
 export const SPECTRUM_BANDS = BAND_META.map((b) => ({
   key: b.key,
   label: b.ja,
-  color: BAND_COLORS[b.key],
   from: BAND_HZ_RANGE[b.key][0],
   to: BAND_HZ_RANGE[b.key][1],
 }));
@@ -52,6 +53,7 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
 
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
   const [line, grid, axis] = colorStr.split("|");
+  const bandColors = getBandColors(useDocumentScheme());
   const maxHz = data.length;
 
   return (
@@ -72,7 +74,7 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
               key={b.key}
               x1={b.from}
               x2={Math.min(b.to, maxHz)}
-              fill={b.color}
+              fill={bandColors[b.key]}
               fillOpacity={0.16}
               stroke={grid}
               strokeOpacity={0.35}
@@ -84,13 +86,13 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
             type="number"
             domain={[1, maxHz]}
             ticks={[1, 5, 10, 15, 20, 25, 30, 35, 40, 45]}
-            tick={{ fill: axis, fontSize: 10 }}
+            tick={{ fill: axis, fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: grid }}
-            label={{ value: "Hz", position: "insideBottomRight", offset: -2, fill: axis, fontSize: 11 }}
+            label={{ value: "Hz", position: "insideBottomRight", offset: -2, fill: axis, fontSize: 12 }}
           />
           <YAxis
-            tick={{ fill: axis, fontSize: 10 }}
+            tick={{ fill: axis, fontSize: 12 }}
             width={40}
             tickLine={false}
             axisLine={{ stroke: grid }}
@@ -113,7 +115,7 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
           <span key={b.key} className="flex items-center gap-1">
             <span
               className="inline-block w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: b.color }}
+              style={{ backgroundColor: bandColors[b.key] }}
             />
             {b.label}
           </span>

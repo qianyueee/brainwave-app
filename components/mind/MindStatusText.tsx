@@ -26,7 +26,7 @@ export default function MindStatusText({
 
   if (sample.signal !== undefined && sample.signal > POOR_SIGNAL_LIMIT) {
     return (
-      <div className="flex items-center justify-center gap-2 py-2 text-amber-400">
+      <div className="flex items-center justify-center gap-2 py-2 text-warning">
         <AlertTriangle size={22} />
         <p className="text-lg font-bold">ヘッドセットの装着を確認してください</p>
       </div>

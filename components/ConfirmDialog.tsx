@@ -67,12 +67,12 @@ export default function ConfirmDialog({
         <button
           onClick={onConfirm}
           disabled={busy}
-          className={`w-full min-h-[56px] rounded-2xl text-base font-bold text-white flex items-center justify-center gap-2 disabled:opacity-60 active:scale-95 transition-all neu-raised neu-press ${
-            tone === "accent" ? "bg-accent" : "bg-primary"
+          className={`w-full min-h-[56px] rounded-2xl text-base font-bold flex items-center justify-center gap-2 disabled:opacity-60 active:scale-95 transition-all neu-raised neu-press ${
+            tone === "accent" ? "bg-accent text-on-accent" : "bg-primary text-on-primary"
           }`}
         >
           {busy && (
-            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
           )}
           {busy ? "保存中..." : confirmLabel}
         </button>
