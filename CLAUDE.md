@@ -127,7 +127,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 - 暂停 = `ctx.suspend()`：音频时钟冻结 → elapsed、频率 ramp、自然音、音乐床垫全部原地冻结；**绝不触碰振荡器**（OscillatorNode 停了不能重启）。恢复 = `ctx.resume()`。
 - 会话结束是**墙钟 setTimeout**（不随 suspend 冻结）：暂停时必须 clear（`BinauralSession.pause()` / AudioProvider 的 `customEndTimerRef`），恢复时按 `duration - elapsed` 重排。
 - "用户主动暂停"标志 `isUserPaused` 放在 `lib/audio-context.ts`——因为 `getAudioContext()` 每次调用都会自动 resume 挂起的 context，keep-alive 的 `visibilitychange` 也会。两处都要过这道闸，否则任何音频调用/回前台都会破坏暂停。所有 start 路径先清标志。
-- 暂停期间静音 keep-alive `<audio>` 流**保持播放**（后台/锁屏存活），锁屏状态由 `setMediaSessionPlaybackState("playing"|"paused"|"none")` 同步；MediaSession 的 play/pause handler 接 `resumeSession`/`pauseSession`（纯合成器仍是停止语义）。
+- 暂停时 keep-alive `<audio>` 流**必须一起暂停**（`setKeepAliveOutputPaused`）：suspend 后 MediaStream 不再产出采样，仍在播放的 `<audio>` 在部分移动端浏览器会循环残留缓冲发出"嘟嘟"杂音。MediaSession 元数据/handler 保持注册（锁屏控件仍在），锁屏状态由 `setMediaSessionPlaybackState("playing"|"paused"|"none")` 同步；play/pause handler 接 `resumeSession`/`pauseSession`（恢复在手势上下文内，`play()` 合法；纯合成器仍是停止语义）。`visibilitychange` 的 `<audio>` 重启同样要过 `isUserPaused` 闸。
 - store 语义：`isPlaying` = 会话活跃（**含暂停**，既有消费者如 Timer 禁用/播放中保护依赖此义），`isPaused` 是其内訳。
 - 日志：手动停止也记录（部分时长），自然结束记满时长；切换节目**不**记录被打断的会话（start 路径直接调 engine stop，不走 stopSession）。
 

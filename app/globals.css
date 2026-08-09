@@ -172,14 +172,13 @@ input[type="range"]::-moz-range-track {
   border: none;
 }
 
-/* Filled track — element background shows through transparent track.
-   The painted fill stays a 6px strip (content box) while the input itself
-   keeps the 48px hit area via vertical padding. */
+/* RangeSlider's input: fully transparent 48px hit box laid over the separate
+   rounded track element (see components/RangeSlider.tsx). Never paint the
+   input itself — inline `background:` shorthands reset background-clip and
+   flood the whole box. */
 input[type="range"].range-fill {
   height: 48px;
-  padding: 21px 0;
-  border-radius: 3px;
-  background-clip: content-box;
+  background: transparent;
 }
 
 input[type="range"].range-fill::-webkit-slider-track {

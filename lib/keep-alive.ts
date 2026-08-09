@@ -41,6 +41,11 @@ export function getAudioDestination(): AudioNode {
     audioEl.srcObject = streamDest.stream;
     // Must not be muted — browsers won't keep a muted <audio> alive
     audioEl.volume = 1.0;
+    // Keep it attached (hidden): detached media elements can be reclaimed
+    // or paused more aggressively on mobile browsers.
+    audioEl.style.display = "none";
+    audioEl.setAttribute("aria-hidden", "true");
+    document.body.appendChild(audioEl);
   }
 
   return streamDest;
@@ -119,6 +124,24 @@ export function setMediaSessionPlaybackState(
   navigator.mediaSession.playbackState = state;
 }
 
+/**
+ * Pause/resume the keep-alive <audio> output alongside the session.
+ * While the AudioContext is user-suspended the MediaStream stops producing
+ * samples, and some mobile browsers loop the last buffer chunk as an audible
+ * stutter ("嘟嘟嘟") — so the element must pause with the session. Media
+ * Session metadata and handlers stay registered, keeping lock-screen controls
+ * alive; resume always runs inside a user gesture (button tap or MediaSession
+ * play action), where play() is permitted.
+ */
+export function setKeepAliveOutputPaused(paused: boolean): void {
+  if (!audioEl) return;
+  if (paused) {
+    audioEl.pause();
+  } else {
+    audioEl.play().catch(() => {});
+  }
+}
+
 // ---- internal ----
 
 function onVisibilityChange(): void {
@@ -133,9 +156,10 @@ function onVisibilityChange(): void {
     } catch {
       // getAudioContext may throw if never initialised; ignore
     }
-    // Keep the silent <audio> stream alive even while user-paused so the
-    // tab and the lock-screen media session survive backgrounding.
-    if (audioEl && audioEl.paused) {
+    // Re-kick the silent <audio> stream — but not while user-paused: the
+    // suspended context produces no samples and a playing element then
+    // stutters on some mobile browsers (see setKeepAliveOutputPaused).
+    if (audioEl && audioEl.paused && !isUserPaused()) {
       audioEl.play().catch(() => {});
     }
   }

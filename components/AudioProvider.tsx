@@ -17,7 +17,7 @@ import { NaturePlayer } from "@/lib/nature-player";
 import { zodiacMusicUrl } from "@/lib/zodiac-audio";
 import { getAudioBlob } from "@/lib/custom-audio-db";
 import { ensureBlobCached } from "@/lib/sync/custom-audios";
-import { startKeepAlive, stopKeepAlive, setMediaSessionHandlers, setMediaSessionPlaybackState } from "@/lib/keep-alive";
+import { startKeepAlive, stopKeepAlive, setMediaSessionHandlers, setMediaSessionPlaybackState, setKeepAliveOutputPaused } from "@/lib/keep-alive";
 import { setUserPaused } from "@/lib/audio-context";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
@@ -241,6 +241,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       return;
     }
     setUserPaused(true);
+    // The suspended context stops feeding the keep-alive MediaStream; a
+    // still-playing <audio> then stutters on some mobile browsers — pause it.
+    setKeepAliveOutputPaused(true);
     setIsPaused(true);
     setMediaSessionPlaybackState("paused");
   }, [setIsPaused]);
@@ -260,6 +263,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setIsPaused(false);
       return;
     }
+    setKeepAliveOutputPaused(false);
     setIsPaused(false);
     setMediaSessionPlaybackState("playing");
   }, [setIsPaused, armCustomEndTimer]);
