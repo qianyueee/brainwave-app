@@ -16,11 +16,11 @@ import {
 /**
  * 再生入口の共通ロジック（全プログラムカード/CTAが使う）。
  *
+ * - タップ → その場で即座に再生を開始（画面遷移なし——ミニプレーヤーが
+ *   出るので、詳細操作はそこから /player へ）。AudioContext はユーザー
+ *   操作内で作成/再開する必要があるため、ハンドラー内で同期的に start する。
  * - 鳴っている最中のプログラムを再タップ → 進行・タイマーを守ったまま
- *   プレーヤーへ戻るだけ（一時停止中も isPlaying は true なので同じ保護が効く）
- * - それ以外 → タップのジェスチャー内で即座に再生を開始してからプレーヤーへ。
- *   AudioContext はユーザー操作内で作成/再開する必要があるため、
- *   ナビゲーション後ではなくハンドラー内で同期的に start する。
+ *   プレーヤーを開くだけ（一時停止中も isPlaying は true なので同じ保護が効く）
  */
 export function usePlayProgram(): (target: ProgramConfig | CustomProgram) => void {
   const router = useRouter();
@@ -51,7 +51,6 @@ export function usePlayProgram(): (target: ProgramConfig | CustomProgram) => voi
         setTimerDuration(duration);
         startSession(adjusted, duration);
       }
-      router.push("/player");
     },
     [router, startSession, startCustomProgram, setSelectedProgramId, setTimerDuration, indicators]
   );
