@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CustomProgram } from "@/lib/programs";
-import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
+import { usePlayProgram } from "@/components/usePlayProgram";
 import { Waves, Pencil, Trash2, Upload } from "lucide-react";
 
 interface CustomProgramCardProps {
@@ -15,8 +15,7 @@ interface CustomProgramCardProps {
 
 export default function CustomProgramCard({ program }: CustomProgramCardProps) {
   const router = useRouter();
-  const setSelectedProgramId = useAppStore((s) => s.setSelectedProgramId);
-  const setTimerDuration = useAppStore((s) => s.setTimerDuration);
+  const playProgram = usePlayProgram();
   const loadProgramForEdit = useSynthStore((s) => s.loadProgramForEdit);
   const deleteProgram = useSynthStore((s) => s.deleteProgram);
   const isAdmin = useAdminStore((s) => s.isAdmin);
@@ -24,16 +23,7 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
   const publishLoading = usePublishedProgramsStore((s) => s.loading);
   const [publishing, setPublishing] = useState(false);
 
-  const handleClick = () => {
-    // Re-tapping the program that is already sounding must not reset the
-    // running countdown/selection — just return to the player.
-    const { isPlaying, selectedProgramId } = useAppStore.getState();
-    if (!(isPlaying && selectedProgramId === program.id)) {
-      setSelectedProgramId(program.id);
-      setTimerDuration(program.defaultDuration);
-    }
-    router.push("/player");
-  };
+  const handleClick = () => playProgram(program);
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -70,7 +60,7 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-base font-bold text-text-primary truncate">{program.name}</p>
-          <span className="text-[10px] font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
+          <span className="text-xs font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
             カスタム
           </span>
         </div>
@@ -84,22 +74,22 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
           <button
             onClick={handlePublish}
             disabled={publishing || publishLoading}
-            className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-green-400 active:scale-95 disabled:opacity-50"
-            aria-label="加入主界面"
+            className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-success active:scale-95 disabled:opacity-50"
+            aria-label="公開する"
           >
             <Upload size={16} strokeWidth={1.5} />
           </button>
         )}
         <button
           onClick={handleEdit}
-          className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95"
+          className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95"
           aria-label="編集"
         >
           <Pencil size={16} strokeWidth={1.5} />
         </button>
         <button
           onClick={handleDelete}
-          className="w-9 h-9 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-red-400 active:scale-95"
+          className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-danger active:scale-95"
           aria-label="削除"
         >
           <Trash2 size={16} strokeWidth={1.5} />
