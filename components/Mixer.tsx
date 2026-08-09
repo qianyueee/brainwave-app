@@ -4,7 +4,7 @@ import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useAudio } from "@/components/AudioProvider";
 import { NATURE_SOUNDS } from "@/lib/audio-engine";
 import { isCustomProgramId } from "@/lib/programs";
-import { hasZodiacMusic } from "@/lib/zodiac-audio";
+import { hasMusicBed } from "@/lib/zodiac-audio";
 import CustomAudioSection from "@/components/CustomAudioSection";
 import RangeSlider from "@/components/RangeSlider";
 
@@ -23,7 +23,7 @@ export default function Mixer() {
 
   const isCustom = isCustomProgramId(programId);
   // Only the zodiac programs ship a music bed; the built-ins stay pure tone.
-  const hasMusic = hasZodiacMusic(programId);
+  const hasMusic = hasMusicBed(programId);
 
   const handleBeatVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
@@ -85,7 +85,9 @@ export default function Mixer() {
       {hasMusic && (
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center">
-            <span className="text-sm text-text-secondary">星座ミュージック</span>
+            <span className="text-sm text-text-secondary">
+              {programId.startsWith("zodiac-") ? "星座ミュージック" : "ミュージック"}
+            </span>
             <span className="text-sm text-text-muted tabular-nums">
               {Math.round(musicVolume * 100)}%
             </span>

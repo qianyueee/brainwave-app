@@ -14,7 +14,7 @@ import { ProgramConfig } from "@/lib/programs";
 import type { CustomProgram } from "@/lib/programs";
 import { isTimelineProgram } from "@/lib/programs";
 import { NaturePlayer } from "@/lib/nature-player";
-import { zodiacMusicUrl } from "@/lib/zodiac-audio";
+import { musicBedUrl } from "@/lib/zodiac-audio";
 import { getAudioBlob } from "@/lib/custom-audio-db";
 import { ensureBlobCached } from "@/lib/sync/custom-audios";
 import { startKeepAlive, stopKeepAlive, setMediaSessionHandlers, setMediaSessionPlaybackState, setKeepAliveOutputPaused } from "@/lib/keep-alive";
@@ -354,9 +354,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Zodiac programs carry a music bed; the beat above it is still the
-      // synthesised one, since the tracks hold no entrainment themselves.
-      const musicUrl = zodiacMusicUrl(program.id);
+      // Zodiac and the three built-in programs carry a music bed; the beat
+      // above it is still the synthesised one, since the tracks hold no
+      // entrainment themselves.
+      const musicUrl = musicBedUrl(program.id);
       if (musicUrl) {
         session.playMusicBed(musicUrl, musicVolume).catch((err) => {
           console.error("[audio-provider] zodiac music bed failed:", err);
