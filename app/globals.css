@@ -363,6 +363,17 @@ input[type="range"]:disabled::-moz-range-thumb {
   background: radial-gradient(60% 55% at 50% 46%, var(--sky-glow) 0%, transparent 72%);
 }
 
+/* Backdrop for the sign picker, which opens as an overlay on top of the card
+   (see ZodiacSyncCard: expanding in the flow would grow the card and drag the
+   h-full star figure with it). It has to hide the CTA underneath, so the fill
+   is near-opaque — but taken from --sky-b, so the panel keeps following the
+   time-of-day sky instead of freezing to one theme's colour. */
+.sky-panel {
+  background: color-mix(in srgb, var(--sky-b) 92%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.22);
+}
+
 /* Soft halo layer inside the night-sky panel — swells and dims like breath */
 @keyframes sky-glow {
   0%, 100% { opacity: 0.35; }

@@ -162,7 +162,7 @@ export default function ZodiacSyncCard() {
 
         {/* Sun/moon of the day + the 12-sign picker, folded away */}
         {hydrated && (
-          <div className="flex items-center justify-between gap-2 border-t border-sky-line pt-2.5">
+          <div className="relative flex items-center justify-between gap-2 border-t border-sky-line pt-2.5">
             <span className="flex items-center gap-2.5 text-xs text-sky-text">
               <span className="flex items-center gap-1">
                 <Sun size={14} strokeWidth={1.5} />
@@ -185,11 +185,30 @@ export default function ZodiacSyncCard() {
                 className={`shrink-0 transition-transform ${pickerOpen ? "rotate-180" : ""}`}
               />
             </button>
-          </div>
-        )}
 
-        {pickerOpen && (
-          <ZodiacSignPicker value={effectiveKey} onChange={handleSelect} onSky />
+            {/* 星座ピッカーはフローに挿さずカード内に重ねる。挿すとカードが伸び、
+                h-full の星座図も一緒に伸びて位置が動くうえ、flex-1 のおすすめ本文
+                が中央寄せし直されて既存の要素まで動いてしまう。重ねれば高さは
+                一定のまま——開いても1pxも動かない。
+                下は余白が足りず overflow-hidden で切れるので、ボタンの上
+                （bottom-full）へ向かって開く。開閉は grid-rows 0fr→1fr の
+                200ms。scaleY と違い文字が潰れず、素の高さを持つので値の決め打ち
+                も要らない。閉じている間は inert でフォーカスも入らない。 */}
+            <div
+              inert={!pickerOpen}
+              className={`sky-panel absolute bottom-full left-0 right-0 mb-2.5 grid rounded-2xl transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${
+                pickerOpen
+                  ? "grid-rows-[1fr] opacity-100"
+                  : "grid-rows-[0fr] opacity-0 pointer-events-none"
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="p-2.5">
+                  <ZodiacSignPicker value={effectiveKey} onChange={handleSelect} onSky />
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Today's message — the closing line of the card */}
