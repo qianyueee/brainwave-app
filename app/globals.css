@@ -26,6 +26,18 @@
   --dyn-danger: #f87171;
   --shadow-neu-dark: rgba(0, 0, 0, 0.45);
   --shadow-neu-light: rgba(255, 255, 255, 0.05);
+
+  /* Constellation art surface — follows the time of day like --dyn-* above.
+     Defaults mirror the midnight sky (TIME_PERIODS[0].sky in lib/theme.ts). */
+  --sky-a: #2a3670;
+  --sky-b: #19224f;
+  --sky-c: #0a102e;
+  --sky-ink: #dfe9ff;
+  --sky-strong: #f2f0ff;
+  --sky-text: #a8b4dd;
+  --sky-chip: rgba(255, 255, 255, 0.08);
+  --sky-glow: rgba(165, 190, 255, 0.30);
+  --sky-line: rgba(255, 255, 255, 0.12);
 }
 
 /* Tailwind theme references dynamic vars — keeps var() in utilities */
@@ -47,6 +59,15 @@
   --color-success: var(--dyn-success);
   --color-warning: var(--dyn-warning);
   --color-danger: var(--dyn-danger);
+
+  /* Text/ink tokens for content sitting ON the sky surface. Contrast is
+     against the sky gradient, not the page — so these are separate from
+     text-primary/secondary and must not be swapped for them. */
+  --color-sky-ink: var(--sky-ink);
+  --color-sky-strong: var(--sky-strong);
+  --color-sky-text: var(--sky-text);
+  --color-sky-line: var(--sky-line);
+  --color-sky-chip: var(--sky-chip);
 
   /* Readability remap for the 50-60 audience: every text-* class one step up
      (12→14, 14→16, 16→18, 18→20, 20→22; 2xl+ unchanged). Call sites keep
@@ -320,6 +341,26 @@ input[type="range"]:disabled::-moz-range-thumb {
 .constellation-breathe {
   animation: constellation-breathe 6s ease-in-out infinite;
   transform-origin: center;
+}
+
+/* ===== Sky art surface ===== */
+
+/* The constellation ground. Was a hardcoded night gradient on every theme;
+   now the stops come from --sky-* so it reads as morning/afternoon/dusk/night.
+   Transition matches body so a boundary crossfade moves together. */
+.sky-surface {
+  background: radial-gradient(
+    130% 130% at 30% 15%,
+    var(--sky-a) 0%,
+    var(--sky-b) 45%,
+    var(--sky-c) 100%
+  );
+  transition: background-color 1s ease-out;
+}
+
+/* Halo behind the star figure — warm sun by day, cool moon at night */
+.sky-halo {
+  background: radial-gradient(60% 55% at 50% 46%, var(--sky-glow) 0%, transparent 72%);
 }
 
 /* Soft halo layer inside the night-sky panel — swells and dims like breath */

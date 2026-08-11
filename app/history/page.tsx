@@ -22,7 +22,8 @@ import EegUploader from "@/components/EegUploader";
 import SignalQualityBadge from "@/components/SignalQualityBadge";
 import SelectDropdown, { type SelectOption } from "@/components/SelectDropdown";
 import { syncNoteFromMeasurement } from "@/lib/mind/note-sync";
-import { Trash2, BrainCircuit, Lock, BarChart3, Pencil, StickyNote, User, CalendarClock } from "lucide-react";
+import { PLACEHOLDER_TREE, formatTreeDate } from "@/lib/sync-tree";
+import { Trash2, BrainCircuit, Lock, BarChart3, Pencil, StickyNote, User, CalendarClock, TreeDeciduous } from "lucide-react";
 
 /** Max length of a measurement memo (matches the mind-map list). */
 const NOTE_MAX = 200;
@@ -193,6 +194,11 @@ export default function HistoryPage() {
     sessionLogs.reduce((sum, log) => sum + log.duration, 0) / 60
   );
 
+  // Sync Tree はまだプレースホルダ（成長ロジック未実装）。統計タイルと記録
+  // カードは同じ固定値を読むので、ホームのバーとも数字が食い違わない。
+  const completedTrees = PLACEHOLDER_TREE.completed;
+  const grownTrees = completedTrees.length;
+
   // Newest first for the pickers (`measurements` is oldest→newest).
   const ordered = [...measurements].reverse();
 
@@ -256,9 +262,33 @@ export default function HistoryPage() {
           <p className="text-2xl font-bold text-accent">{totalMinutes}</p>
           <p className="text-xs text-text-muted mt-1">合計（分）</p>
         </div>
+        {/* 育てた木 — ホームの Sync Tree バーと同じ値を読む（数字は同源） */}
+        <div className="flex-1 bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised">
+          <p className="text-2xl font-bold text-accent">{grownTrees}</p>
+          <p className="text-xs text-text-muted mt-1">育てた木</p>
+        </div>
       </div>
 
       <SimpleCalendar />
+
+      {/* Sync Tree の記録（置き場）— 完成した木と完成日がここに溜まっていく。
+          成長ロジックが入るまでは lib/sync-tree.ts の固定値を表示する。 */}
+      <div className="bg-surface border-[1.5px] border-dashed border-surface-border rounded-3xl p-5 flex flex-col gap-2 neu-raised">
+        <div className="flex items-center gap-2">
+          <TreeDeciduous size={20} strokeWidth={1.5} className="text-accent" />
+          <h2 className="text-base font-bold text-text-primary">Sync Tree の記録</h2>
+          <span className="text-xs text-text-muted border border-surface-border rounded-full px-2 py-0.5">
+            準備中
+          </span>
+        </div>
+        <p className="text-xs text-text-muted">
+          {completedTrees.length > 0
+            ? completedTrees
+                .map((t) => `${t.index}号木 ${formatTreeDate(t.completedAt)}`)
+                .join("　・　")
+            : "木が1本育つと、ここに完成日が記録されます"}
+        </p>
+      </div>
       </div>
 
       <div className="flex flex-col gap-6">

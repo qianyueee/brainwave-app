@@ -7,7 +7,6 @@ import {
   getZodiacSign,
   getTodaySky,
   isNightNow,
-  zodiacNameEn,
   dailyRecommendation,
   type TodaySky,
 } from "@/lib/zodiac";
@@ -15,19 +14,20 @@ import { getProgramById } from "@/lib/programs";
 import ZodiacSignPicker from "@/components/ZodiacSignPicker";
 import ZodiacConstellation from "@/components/ZodiacConstellation";
 import { usePlayProgram } from "@/components/usePlayProgram";
-import { Sun, Moon, ChevronDown, Sparkles, Play } from "lucide-react";
-
-/** Fixed deep-night gradient — the star map stays on a dark sky in every theme. */
-const NIGHT_SKY =
-  "radial-gradient(130% 130% at 30% 15%, #2a3670 0%, #19224f 45%, #0a102e 100%)";
+import { Sun, Moon, ChevronDown, Play } from "lucide-react";
 
 /**
- * Today's Cosmic Sync — compact daily-recommendation entry for Home.
- * Order is CTA-first so starting a session fits in the first viewport:
- * header line → today's recommendation + start button → a slim star-map
- * strip → a disclosure holding the my-sign selector and sun/moon message.
- * (Session's WaterMandalaHero stays the full-size figure — Home is the
- * quick entry, Session the full selection.)
+ * Today's Cosmic Sync — ホームの星空ヒーローカード。
+ *
+ * カードそのものが星空面（.sky-surface）で、星座図はその上に敷いた背景画。
+ * 以前は「白カード＋中に夜空の帯」だったが、帯を消してヒーロー1枚に統合した
+ * ぶん、面が固定の夜空のままだと昼のクリーム系テーマの上で冷たい板に見える。
+ * そこで空の色は --sky-* 経由で時間帯テーマに追従する：朝は淡い空に墨色の
+ * 星座線（昼間の星図の描き方）、夕は紫、夜だけが従来の紺。星座の図形自体は
+ * 変えず、地色と墨色だけが動く。
+ *
+ * 並びは CTA 優先：おすすめ＋開始ボタンが最初の画面に収まり、12星座の選択は
+ * 「星座の変更」の中に畳んである。
  */
 export default function ZodiacSyncCard() {
   const playProgram = usePlayProgram();
@@ -40,7 +40,6 @@ export default function ZodiacSyncCard() {
     setHydrated(true);
   }, []);
 
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const [sky, setSky] = useState<TodaySky | null>(null);
@@ -91,145 +90,105 @@ export default function ZodiacSyncCard() {
   };
 
   return (
-    <div className="bg-surface border border-surface-border rounded-3xl p-5 neu-raised breathe-soft flex flex-col gap-4">
-      {/* Header line: label + today's hero sign in one row */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-sm text-text-secondary">Today&apos;s Cosmic Sync</p>
-        {heroSign && (
-          <p className="text-sm text-text-secondary flex items-center gap-1.5">
-            {night ? <Moon size={15} strokeWidth={1.5} /> : <Sun size={15} strokeWidth={1.5} />}
-            {night ? "今夜の月星座" : "今日の太陽星座"}
-            <span className="font-bold text-text-primary">{heroSign.nameJa}</span>
-          </p>
-        )}
-      </div>
+    <div className="sky-surface relative rounded-3xl overflow-hidden border border-surface-border neu-raised breathe-soft">
+      {/* Breathing halo — the luminous part of the motion, warm by day */}
+      <div className="sky-halo sky-glow absolute inset-0" />
 
-      {/* Today's recommendation + start button — the card's reason to exist,
-          so it comes first and stays inside the first viewport. */}
-      {sign && rec && program ? (
-        <div className="rounded-2xl bg-navy neu-inset p-4 flex flex-col gap-1">
-          <p className="text-sm text-text-secondary flex items-center gap-1.5">
-            <Sparkles size={15} strokeWidth={1.5} className="text-primary" />
-            {sign.nameJa}のあなたへ 本日の星空おすすめ周波数
-          </p>
-          {rec.tagLabel && (
-            <p className="text-sm font-bold text-primary mt-1">【{rec.tagLabel}】</p>
-          )}
-          <p className="text-base font-bold text-text-primary">{program.name}</p>
-          <p className="text-sm text-text-secondary">
-            {rec.reason ? `${rec.reason}、この周波数をおすすめします` : "星のサイクルと脳波を共鳴"}
-          </p>
-          <button
-            onClick={handlePlay}
-            className="mt-3 w-full h-12 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press active:scale-95 transition-all"
-          >
-            <Play size={18} strokeWidth={2} />
-            この音でセッションを開始する
-          </button>
-        </div>
-      ) : (
-        <p className="text-sm text-text-secondary">
-          {!hydrated || (!sky && !skyFailed)
-            ? "今日の空を計算中…"
-            : skyFailed && !sign
-              ? "今日の星空は取得できませんでした。星座を選ぶとおすすめが表示されます"
-              : "星座を選ぶとおすすめプログラムが表示されます"}
-        </p>
+      {/* Star figure sits off to the right so the copy below keeps a clear
+          column; it is decoration, hence aria-hidden inside the component. */}
+      {heroSign && (
+        <ZodiacConstellation
+          sign={heroSign.key}
+          animated
+          className="constellation-breathe absolute top-0 -right-2.5 h-full aspect-square text-sky-ink opacity-90"
+        />
       )}
 
-      {/* Star map — reduced to a slim strip; the full figure lives on Session */}
-      <div
-        className="relative w-full h-28 rounded-2xl overflow-hidden neu-inset"
-        style={{ background: NIGHT_SKY }}
-      >
-        {heroSign ? (
+      <div className="relative p-5 flex flex-col gap-2.5">
+        {/* Header line: label + today's hero sign as a chip */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className="text-sm text-sky-text">Today&apos;s Cosmic Sync</p>
+          {heroSign && (
+            <p className="flex items-center gap-1.5 rounded-full bg-sky-chip px-3 py-1 text-xs text-sky-strong">
+              {night ? <Moon size={14} strokeWidth={1.5} /> : <Sun size={14} strokeWidth={1.5} />}
+              {night ? "今夜の月星座" : "今日の太陽星座"}　{heroSign.nameJa}
+            </p>
+          )}
+        </div>
+
+        {/* Today's recommendation — the card's reason to exist */}
+        {sign && rec && program ? (
           <>
-            {/* Breathing halo behind the figure — the luminous part of the motion */}
-            <div
-              className="sky-glow absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(60% 55% at 50% 46%, rgba(165,190,255,0.30) 0%, rgba(165,190,255,0.10) 45%, transparent 72%)",
-              }}
-            />
-            <ZodiacConstellation
-              sign={heroSign.key}
-              animated
-              className="constellation-breathe absolute inset-0 w-full h-full text-[#dfe9ff]"
-            />
+            <div>
+              {rec.tagLabel && (
+                <p className="text-sm font-bold text-sky-strong mb-0.5">
+                  【{rec.tagLabel}】
+                </p>
+              )}
+              <p className="text-lg font-bold text-sky-strong">{program.name}</p>
+              {/* Held short of the star figure so the two never overlap */}
+              <p className="text-sm text-sky-text leading-relaxed mt-1 max-w-[290px]">
+                {rec.reason
+                  ? `${rec.reason}、この周波数をおすすめします`
+                  : "星のサイクルと脳波を共鳴"}
+              </p>
+            </div>
+
+            <button
+              onClick={handlePlay}
+              className="w-full h-12 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-press active:scale-95 transition-transform"
+            >
+              <Play size={18} strokeWidth={2} />
+              この音でセッションを開始する
+            </button>
           </>
         ) : (
-          <span className="absolute inset-0 flex items-center justify-center text-sm text-[#8f9cc9]">
-            {skyFailed ? "今日の空は取得できませんでした" : "今日の空を計算中…"}
-          </span>
+          <p className="text-sm text-sky-text">
+            {!hydrated || (!sky && !skyFailed)
+              ? "今日の空を計算中…"
+              : skyFailed && !sign
+                ? "今日の星空は取得できませんでした。星座を選ぶとおすすめが表示されます"
+                : "星座を選ぶとおすすめプログラムが表示されます"}
+          </p>
+        )}
+
+        {/* Sun/moon of the day + the 12-sign picker, folded away */}
+        {hydrated && (
+          <div className="flex items-center justify-between gap-2 border-t border-sky-line pt-2.5">
+            <span className="flex items-center gap-2.5 text-xs text-sky-text">
+              <span className="flex items-center gap-1">
+                <Sun size={14} strokeWidth={1.5} />
+                {sunSign ? sunSign.nameJa : "…"}
+              </span>
+              <span className="flex items-center gap-1">
+                <Moon size={14} strokeWidth={1.5} />
+                {moonSign ? moonSign.nameJa : "…"}
+              </span>
+            </span>
+            <button
+              onClick={() => setPickerOpen((v) => !v)}
+              aria-expanded={pickerOpen}
+              className="flex items-center gap-1 min-h-12 px-1 text-xs font-medium text-sky-strong"
+            >
+              星座の変更
+              <ChevronDown
+                size={14}
+                strokeWidth={2}
+                className={`shrink-0 transition-transform ${pickerOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+          </div>
+        )}
+
+        {pickerOpen && (
+          <ZodiacSignPicker value={effectiveKey} onChange={handleSelect} onSky />
+        )}
+
+        {/* Today's message — the closing line of the card */}
+        {rec && (
+          <p className="text-xs text-sky-text leading-relaxed">「{rec.advice}」</p>
         )}
       </div>
-
-      {/* Details disclosure: my-sign selector + today's sun/moon message */}
-      {hydrated && (
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={() => setDetailsOpen((v) => !v)}
-            aria-expanded={detailsOpen}
-            className="w-full min-h-12 px-4 rounded-2xl bg-navy neu-raised-sm neu-press transition-transform flex items-center justify-between text-base text-text-secondary"
-          >
-            <span>星座の変更・今日の星空</span>
-            <ChevronDown
-              size={20}
-              className={`shrink-0 text-text-muted transition-transform ${detailsOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {detailsOpen && (
-            <>
-              {/* My-sign dropdown selector */}
-              <div className="flex flex-col gap-2">
-                <p className="text-sm text-text-secondary">あなたの星座を選択</p>
-                <button
-                  onClick={() => setPickerOpen((v) => !v)}
-                  aria-expanded={pickerOpen}
-                  className="w-full min-h-12 px-4 py-2 rounded-2xl bg-navy neu-raised-sm neu-press transition-transform flex items-center gap-3 text-left"
-                >
-                  {sign ? (
-                    <>
-                      <ZodiacConstellation sign={sign.key} variant="icon" className="w-8 h-8 shrink-0 text-primary" />
-                      <span className="flex-1 text-base font-bold text-text-primary">
-                        {sign.nameJa}
-                        <span className="font-medium text-text-secondary">（{zodiacNameEn(sign.key)}）</span>
-                      </span>
-                    </>
-                  ) : (
-                    <span className="flex-1 text-base text-text-secondary">星座を選択</span>
-                  )}
-                  <ChevronDown
-                    size={20}
-                    className={`shrink-0 text-text-muted transition-transform ${pickerOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
-                {pickerOpen && <ZodiacSignPicker value={effectiveKey} onChange={handleSelect} />}
-              </div>
-
-              {/* Today's sky + daily message */}
-              <div className="rounded-2xl bg-navy neu-inset p-4 flex flex-col gap-2">
-                <div className="flex items-center justify-center gap-2 text-base text-text-primary">
-                  <span className="flex items-center gap-1.5">
-                    <Sun size={16} strokeWidth={1.5} className="text-accent" />
-                    太陽：{sunSign ? sunSign.nameJa : "…"}
-                  </span>
-                  <span className="text-text-muted">｜</span>
-                  <span className="flex items-center gap-1.5">
-                    <Moon size={16} strokeWidth={1.5} className="text-primary" />
-                    月：{moonSign ? moonSign.nameJa : "…"}
-                  </span>
-                </div>
-                {rec && (
-                  <p className="text-sm text-text-secondary leading-relaxed">「{rec.advice}」</p>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -15,15 +15,16 @@ import WaterMandala from "@/components/WaterMandala";
 import { usePlayProgram } from "@/components/usePlayProgram";
 import { Play } from "lucide-react";
 
-/** Fixed deep-water gradient — the mandala floats on dark water in every theme. */
-const DEEP_WATER =
-  "radial-gradient(120% 120% at 50% 30%, #16456b 0%, #0e2b4e 52%, #0a1830 100%)";
-
 /**
  * Sync Session hero — the water mandala for today's frequency. Defaults to
  * the same daily zodiac recommendation as the home card (own-sign carrier ×
  * today's guided beat, my-sign preference respected, hero sign as fallback),
  * so the figure people see on entry is the sound they are invited to start.
+ *
+ * Built on the same sky surface as Home's Cosmic Sync card — one art ground
+ * shared by the two heroes, following the time of day rather than sitting on
+ * fixed dark water. (The fullscreen visualizer on /player keeps its own fixed
+ * dark canvas: that one is a viewing surface, not a card in the page.)
  */
 export default function WaterMandalaHero() {
   const playProgram = usePlayProgram();
@@ -67,61 +68,64 @@ export default function WaterMandalaHero() {
   };
 
   return (
-    <div className="bg-surface border border-surface-border rounded-3xl p-5 neu-raised breathe-soft flex flex-col gap-4">
-      <p className="text-sm text-text-secondary">Water Mandala｜本日のシンクロ周波数</p>
-
+    <div className="sky-surface relative rounded-3xl overflow-hidden border border-surface-border neu-raised breathe-soft">
+      {/* Breathing halo behind the figure, centred high like the drop point */}
       <div
-        className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden neu-inset"
-        style={{ background: DEEP_WATER }}
-      >
-        {/* Breathing halo behind the figure — same luminous layer as the star map */}
-        <div
-          className="sky-glow absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(60% 55% at 50% 50%, rgba(140,205,255,0.28) 0%, rgba(140,205,255,0.09) 45%, transparent 72%)",
-          }}
-        />
-        <WaterMandala
-          carrier={sign?.carrierFreq ?? 432}
-          beat={rec?.beatFreq ?? 7.83}
-          animated
-          className="absolute inset-0 w-full h-full text-[#cfe9ff]"
-        />
-        {!sign && (
-          <span className="absolute inset-x-0 bottom-3 text-center text-sm text-[#8fb3d9]">
-            {skyFailed ? "今日の星空は取得できませんでした" : "今日の周波数を計算中…"}
-          </span>
+        className="sky-glow absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(60% 55% at 50% 30%, var(--sky-glow) 0%, transparent 72%)",
+        }}
+      />
+
+      {/* Stacked on mobile; on desktop the hero runs full width, so the figure
+          moves beside the copy rather than growing to a half-page circle. */}
+      <div className="relative p-5 flex flex-col gap-3 md:flex-row md:items-center md:gap-7">
+        <div className="relative w-full aspect-[16/10] md:w-[220px] md:h-[132px] md:aspect-auto md:shrink-0">
+          <WaterMandala
+            carrier={sign?.carrierFreq ?? 432}
+            beat={rec?.beatFreq ?? 7.83}
+            animated
+            className="absolute inset-0 w-full h-full text-sky-ink"
+          />
+          {!sign && (
+            <span className="absolute inset-x-0 bottom-3 text-center text-sm text-sky-text">
+              {skyFailed ? "今日の星空は取得できませんでした" : "今日の周波数を計算中…"}
+            </span>
+          )}
+        </div>
+
+        {sign && rec && program ? (
+          <div className="flex flex-col gap-3 md:flex-1 md:min-w-0">
+            <div className="text-center md:text-left">
+              <p className="text-sm text-sky-text">
+                本日の星空おすすめ
+                {rec.tagLabel && (
+                  <span className="font-bold text-sky-strong">　【{rec.tagLabel}】</span>
+                )}
+              </p>
+              <p className="text-lg font-bold text-sky-strong mt-0.5">{program.name}</p>
+              <p className="text-xs text-sky-text mt-1">
+                {sign.nameJa}のあなたへ、本日の星空が描く水の紋様
+              </p>
+            </div>
+            <button
+              onClick={handlePlay}
+              className="w-full h-12 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-press active:scale-95 transition-transform md:w-auto md:self-start md:px-8"
+            >
+              <Play size={18} strokeWidth={2} />
+              この音でセッションを開始する
+            </button>
+          </div>
+        ) : (
+          hydrated &&
+          skyFailed && (
+            <p className="text-sm text-sky-text text-center md:flex-1 md:text-left">
+              ホームで星座を選ぶと、本日のおすすめ周波数が表示されます
+            </p>
+          )
         )}
       </div>
-
-      {sign && rec && program ? (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-baseline justify-center gap-2 flex-wrap">
-            {rec.tagLabel && (
-              <span className="text-sm font-bold text-primary">【{rec.tagLabel}】</span>
-            )}
-            <span className="text-base font-bold text-text-primary">{program.name}</span>
-          </div>
-          <p className="text-sm text-text-secondary text-center">
-            {sign.nameJa}のあなたへ、本日の星空が描く水の紋様
-          </p>
-          <button
-            onClick={handlePlay}
-            className="mt-2 w-full h-12 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press active:scale-95 transition-all"
-          >
-            <Play size={18} strokeWidth={2} />
-            この音でセッションを開始する
-          </button>
-        </div>
-      ) : (
-        hydrated &&
-        skyFailed && (
-          <p className="text-sm text-text-secondary text-center">
-            ホームで星座を選ぶと、本日のおすすめ周波数が表示されます
-          </p>
-        )
-      )}
     </div>
   );
 }

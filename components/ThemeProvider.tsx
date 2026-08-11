@@ -5,6 +5,7 @@ import {
   TIME_PERIODS,
   applyPalette,
   getEffectivePalette,
+  getEffectiveSky,
   getCurrentPeriodIndex,
 } from "@/lib/theme";
 
@@ -23,17 +24,19 @@ export default function ThemeProvider({
 
   const applyTheme = useCallback(() => {
     if (overrideRef.current !== null) {
-      applyPalette(TIME_PERIODS[overrideRef.current].palette);
+      const period = TIME_PERIODS[overrideRef.current];
+      applyPalette(period.palette, period.sky);
       return;
     }
     const prefersReduced = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
     if (prefersReduced) {
-      const idx = getCurrentPeriodIndex(new Date());
-      applyPalette(TIME_PERIODS[idx].palette);
+      const period = TIME_PERIODS[getCurrentPeriodIndex(new Date())];
+      applyPalette(period.palette, period.sky);
     } else {
-      applyPalette(getEffectivePalette(new Date()));
+      const now = new Date();
+      applyPalette(getEffectivePalette(now), getEffectiveSky(now));
     }
   }, []);
 

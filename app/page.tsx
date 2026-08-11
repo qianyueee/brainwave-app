@@ -1,28 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import ZodiacSyncCard from "@/components/ZodiacSyncCard";
-import BrainConditionMetrics from "@/components/BrainConditionMetrics";
-import BrainRadarChart from "@/components/BrainRadarChart";
-import { useBrainProfileStore } from "@/store/useBrainProfileStore";
-import { BrainCircuit, User, Settings } from "lucide-react";
+import BrainConditionCard from "@/components/BrainConditionCard";
+import SyncTreeCard from "@/components/SyncTreeCard";
+import { User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 
+/**
+ * ホーム。上から 脳コンディション（測定3値＋毎日の自己評価）→ 星空カード
+ * （今日のおすすめ＋開始）→ Sync Tree の3ブロック。
+ *
+ * 脳特性チャート（レーダー）はここから外して Sync Report に一本化した——
+ * 測定値・自己評価・星座・育樹と、ホームが受け持つものが増えたぶん、詳細な
+ * 分析figureはレポート側でまとめて見る役割分担にしている。
+ */
 export default function HomePage() {
   const router = useRouter();
-  const profile = useBrainProfileStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
   const isLoggedIn = !!user;
-
-  // Guard against hydration mismatch from persist middleware
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
@@ -71,47 +69,24 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Mobile: zodiac (today's CTA) first, then metrics → chart, so starting
-          a session sits in the first viewport. Desktop columns keep condition
-          (left) | zodiac (right) via order utilities. */}
+      {/* モバイルは1カラムで 脳コンディション → 星空 → Sync Tree。デスクトップ
+          は 左（コンディション＋Tree）｜右（星空）の2カラム。
+          DOM 順はモバイルの並びのままにして、デスクトップ側だけ行列を明示指定
+          している（order だけではグリッドが行方向に流れてしまい、Tree が右上に
+          回り込む）。 */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-      <div className="flex flex-col gap-6 md:order-2">
-      <ZodiacSyncCard />
-      </div>
+        {/* 測定3値（自動算出）＋ 毎日の自己評価スライダー */}
+        <div className="md:col-start-1 md:row-start-1">
+          <BrainConditionCard />
+        </div>
 
-      <div className="flex flex-col gap-6 md:order-1">
-      {/* Brain condition — the 3 self-care metrics (replaces the mood selector) */}
-      <BrainConditionMetrics />
+        <div className="md:col-start-2 md:row-start-1">
+          <ZodiacSyncCard />
+        </div>
 
-      {/* Brain Profile Card */}
-      {hydrated && (
-        profile ? (
-          <Link href="/report" className="block bg-surface border border-surface-border rounded-3xl p-4 neu-raised neu-press transition-transform breathe">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-text-secondary">脳特性チャート</p>
-              <span className="text-xs text-primary font-medium">詳細 →</span>
-            </div>
-            <BrainRadarChart indicators={profile.indicators} size="small" showScores />
-            <p className="text-xs text-text-muted text-center">
-              最終更新: {new Date(profile.uploadedAt).toLocaleDateString("ja-JP")}
-            </p>
-          </Link>
-        ) : (
-          <Link
-            href="/report"
-            className="block w-full bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised neu-press transition-transform breathe"
-          >
-            <div className="flex justify-center mb-2">
-              <BrainCircuit size={36} className="text-primary" strokeWidth={1.5} />
-            </div>
-            <p className="text-base font-bold text-text-primary">脳波データをアップロード</p>
-            <p className="text-sm text-text-secondary mt-1">
-              パーソナライズされたプログラムを体験
-            </p>
-          </Link>
-        )
-      )}
-      </div>
+        <div className="md:col-start-1 md:row-start-2">
+          <SyncTreeCard />
+        </div>
       </div>
     </div>
   );
