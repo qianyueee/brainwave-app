@@ -25,12 +25,43 @@ export interface ThemePalette {
   danger: string;
 }
 
+/**
+ * Sky palette for the constellation art surfaces (Home's Cosmic Sync hero,
+ * Session's Water Mandala hero). These used to be a fixed deep-night gradient
+ * in every theme; a full-height night hero on the cream day palette read as a
+ * cold slab dropped into a warm page. The sky now follows the time of day —
+ * morning sky with ink-dark constellation lines, then afternoon, dusk violet,
+ * and only at night the original deep blue. The star figures themselves are
+ * unchanged; only the ground and the ink move.
+ *
+ * `chip`/`glow`/`line` carry alpha, so values here may be hex OR rgba().
+ */
+export interface SkyPalette {
+  /** Radial gradient stops, inner → outer. */
+  a: string;
+  b: string;
+  c: string;
+  /** Constellation line/star ink. */
+  ink: string;
+  /** Highest-contrast text on the sky (headings, program name). */
+  strong: string;
+  /** Secondary text on the sky. */
+  text: string;
+  /** Pill/chip background on the sky. */
+  chip: string;
+  /** Breathing halo behind the figure — sun-warm by day, moon-cool at night. */
+  glow: string;
+  /** Hairline divider on the sky. */
+  line: string;
+}
+
 export interface TimePeriod {
   id: string;
   name: string;
   startHour: number;
   endHour: number;
   palette: ThemePalette;
+  sky: SkyPalette;
 }
 
 export const TIME_PERIODS: TimePeriod[] = [
@@ -60,6 +91,18 @@ export const TIME_PERIODS: TimePeriod[] = [
       warning: "#f97316",
       danger: "#f87171",
     },
+    // Deep night — the original fixed sky, now just one of four
+    sky: {
+      a: "#2a3670",
+      b: "#19224f",
+      c: "#0a102e",
+      ink: "#dfe9ff",
+      strong: "#f2f0ff",
+      text: "#a8b4dd",
+      chip: "rgba(255,255,255,0.08)",
+      glow: "rgba(165,190,255,0.30)",
+      line: "rgba(255,255,255,0.12)",
+    },
   },
   {
     // 06-12: Day 純 — サンイエロー (sun yellow) → warm cream
@@ -88,6 +131,19 @@ export const TIME_PERIODS: TimePeriod[] = [
       warning: "#9a3412",
       danger: "#991b1b",
     },
+    // Morning sky — pale blue ground, ink-dark constellation lines (the
+    // daylight star-map convention), sun-warm halo
+    sky: {
+      a: "#f4f8ff",
+      b: "#dce9fa",
+      c: "#b8cfee",
+      ink: "#3d4a80",
+      strong: "#1f2547",
+      text: "#4a5580",
+      chip: "rgba(42,48,85,0.08)",
+      glow: "rgba(255,214,130,0.50)",
+      line: "rgba(42,48,85,0.15)",
+    },
   },
   {
     // 12-18: Afternoon 定 — エメラルド (emerald) → mint green
@@ -114,6 +170,19 @@ export const TIME_PERIODS: TimePeriod[] = [
       warning: "#9a3412",
       danger: "#991b1b",
     },
+    // Clear afternoon — mint-tinted sky so the hero sits in the same family
+    // as the surrounding palette
+    sky: {
+      a: "#eef9f4",
+      b: "#cdeade",
+      c: "#9fd2bd",
+      ink: "#1e5748",
+      strong: "#0c2e24",
+      text: "#2f6a55",
+      chip: "rgba(12,46,36,0.08)",
+      glow: "rgba(255,240,180,0.45)",
+      line: "rgba(12,46,36,0.15)",
+    },
   },
   {
     // 18-00: Evening 放 — バイオレット (violet) → pastel violet
@@ -139,6 +208,18 @@ export const TIME_PERIODS: TimePeriod[] = [
       success: "#166534",
       warning: "#9a3412",
       danger: "#991b1b",
+    },
+    // Dusk — violet sky handing over to the night, warm low-sun halo
+    sky: {
+      a: "#efe3fb",
+      b: "#d7c3f0",
+      c: "#9d82c8",
+      ink: "#2c1b58",
+      strong: "#1c1040",
+      text: "#43307a",
+      chip: "rgba(28,16,64,0.08)",
+      glow: "rgba(255,200,150,0.40)",
+      line: "rgba(28,16,64,0.15)",
     },
   },
 ];
@@ -182,6 +263,43 @@ export function interpolatePalettes(
   return result;
 }
 
+// Sky tokens mix hex with rgba() (the halo and hairlines carry alpha), so they
+// need a parser the palette lerp above doesn't — that one is hex-only.
+
+function parseColor(color: string): [number, number, number, number] {
+  if (color.startsWith("#")) {
+    const [r, g, b] = hexToRgb(color);
+    return [r, g, b, 1];
+  }
+  const parts = color
+    .slice(color.indexOf("(") + 1, color.lastIndexOf(")"))
+    .split(",")
+    .map((p) => parseFloat(p));
+  return [parts[0], parts[1], parts[2], parts[3] ?? 1];
+}
+
+function lerpSkyColor(a: string, b: string, t: number): string {
+  const [ar, ag, ab, aa] = parseColor(a);
+  const [br, bg, bb, ba] = parseColor(b);
+  const r = ar + (br - ar) * t;
+  const g = ag + (bg - ag) * t;
+  const bl = ab + (bb - ab) * t;
+  const alpha = aa + (ba - aa) * t;
+  // Stay opaque-as-hex when both ends are opaque — the gradient stops and ink
+  // are consumed as plain colors elsewhere.
+  if (aa === 1 && ba === 1) return rgbToHex(r, g, bl);
+  return `rgba(${Math.round(r)},${Math.round(g)},${Math.round(bl)},${alpha.toFixed(3)})`;
+}
+
+export function interpolateSky(a: SkyPalette, b: SkyPalette, t: number): SkyPalette {
+  const keys = Object.keys(a) as (keyof SkyPalette)[];
+  const result = {} as SkyPalette;
+  for (const key of keys) {
+    result[key] = lerpSkyColor(a[key], b[key], t);
+  }
+  return result;
+}
+
 // --- Time mapping ---
 
 const TRANSITION_DURATION = 60; // seconds
@@ -196,7 +314,16 @@ export function getCurrentPeriodIndex(date: Date): number {
   return 0;
 }
 
-export function getEffectivePalette(date: Date): ThemePalette {
+/**
+ * Shared boundary crossfade. `pick` selects which token set to read off a
+ * period and `mix` blends two of them; palette and sky both go through here so
+ * they can never drift out of step at a boundary.
+ */
+function blendAtTime<T>(
+  date: Date,
+  pick: (period: TimePeriod) => T,
+  mix: (a: T, b: T, t: number) => T
+): T {
   const totalSeconds =
     date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
   const idx = getCurrentPeriodIndex(date);
@@ -210,11 +337,7 @@ export function getEffectivePalette(date: Date): ThemePalette {
     // In the second half of transition (just entered new period)
     const prevIdx = (idx - 1 + TIME_PERIODS.length) % TIME_PERIODS.length;
     const t = 0.5 + distFromBoundary / TRANSITION_DURATION;
-    return interpolatePalettes(
-      TIME_PERIODS[prevIdx].palette,
-      period.palette,
-      t
-    );
+    return mix(pick(TIME_PERIODS[prevIdx]), pick(period), t);
   }
 
   // Check if we're near the end boundary of the current period
@@ -227,10 +350,18 @@ export function getEffectivePalette(date: Date): ThemePalette {
     // 0.5 on the same pair of palettes and the fade stays continuous.
     const nextIdx = (idx + 1) % TIME_PERIODS.length;
     const t = 0.5 - distToEnd / TRANSITION_DURATION;
-    return interpolatePalettes(period.palette, TIME_PERIODS[nextIdx].palette, t);
+    return mix(pick(period), pick(TIME_PERIODS[nextIdx]), t);
   }
 
-  return period.palette;
+  return pick(period);
+}
+
+export function getEffectivePalette(date: Date): ThemePalette {
+  return blendAtTime(date, (p) => p.palette, interpolatePalettes);
+}
+
+export function getEffectiveSky(date: Date): SkyPalette {
+  return blendAtTime(date, (p) => p.sky, interpolateSky);
 }
 
 // --- CSS var application ---
@@ -255,6 +386,18 @@ const CSS_VAR_MAP: Record<keyof ThemePalette, string> = {
   danger: "--dyn-danger",
 };
 
+const SKY_VAR_MAP: Record<keyof SkyPalette, string> = {
+  a: "--sky-a",
+  b: "--sky-b",
+  c: "--sky-c",
+  ink: "--sky-ink",
+  strong: "--sky-strong",
+  text: "--sky-text",
+  chip: "--sky-chip",
+  glow: "--sky-glow",
+  line: "--sky-line",
+};
+
 // Compute relative luminance (0 = black, 1 = white)
 function luminance(hex: string): number {
   const [r, g, b] = hexToRgb(hex);
@@ -276,11 +419,23 @@ export function getDocumentScheme(): "light" | "dark" {
   return document.documentElement.dataset.colorScheme === "light" ? "light" : "dark";
 }
 
-export function applyPalette(palette: ThemePalette): void {
+export function applyPalette(palette: ThemePalette, sky?: SkyPalette): void {
   const style = document.documentElement.style;
   const keys = Object.keys(CSS_VAR_MAP) as (keyof ThemePalette)[];
   for (const key of keys) {
     style.setProperty(CSS_VAR_MAP[key], palette[key]);
+  }
+
+  if (sky) {
+    const skyKeys = Object.keys(SKY_VAR_MAP) as (keyof SkyPalette)[];
+    for (const key of skyKeys) {
+      style.setProperty(SKY_VAR_MAP[key], sky[key]);
+    }
+    // The sky is its own surface with its own contrast direction — a cream
+    // page can carry a pale sky (light ink) while the night sky stays dark.
+    // Charts/art drawn onto the sky read this instead of --color-scheme.
+    document.documentElement.dataset.skyScheme =
+      luminance(sky.b) > 0.3 ? "light" : "dark";
   }
 
   document.documentElement.dataset.colorScheme =
