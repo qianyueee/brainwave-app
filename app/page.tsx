@@ -80,7 +80,11 @@ export default function HomePage() {
           <BrainConditionCard />
         </div>
 
-        <div className="md:col-start-2 md:row-start-1">
+        {/* デスクトップは2行ぶち抜き＋ self-stretch。星空カードを縦に伸ばすと
+            行1が高くなり、左列の コンディション と Tree の間に穴が空くため——
+            ぶち抜きにすると左列は自然な間隔のまま、右は 350＋gap24＋117＝491 に
+            ぴったり収まる（高さを決め打ちしなくて済む）。 */}
+        <div className="md:col-start-2 md:row-start-1 md:row-span-2 md:self-stretch">
           <ZodiacSyncCard />
         </div>
 

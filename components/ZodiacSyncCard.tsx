@@ -89,22 +89,28 @@ export default function ZodiacSyncCard() {
     playProgram(program);
   };
 
+  // 縦の下限。モバイルは中身なり（約480px）だと詰まって見えるので少し高くする。
+  // デスクトップは page.tsx 側で2行ぶち抜きにしてあるので h-full で左列の高さを
+  // そのまま受け、min-h は左列が短いときの床としてだけ効かせる。
   return (
-    <div className="sky-surface relative rounded-3xl overflow-hidden border border-surface-border neu-raised breathe-soft">
+    <div className="sky-surface relative flex flex-col min-h-[560px] md:min-h-[440px] md:h-full rounded-3xl overflow-hidden border border-surface-border neu-raised breathe-soft">
       {/* Breathing halo — the luminous part of the motion, warm by day */}
       <div className="sky-halo sky-glow absolute inset-0" />
 
       {/* Star figure sits off to the right so the copy below keeps a clear
-          column; it is decoration, hence aria-hidden inside the component. */}
+          column; it is decoration, hence aria-hidden inside the component.
+          高さ基準（h-full aspect-square）なので、カードを縦に伸ばすと図が横にも
+          広がって左端が切れる。max-w-full で幅はカード幅どまりにし、はみ出す分は
+          SVG 側の preserveAspectRatio に縦センタリングさせている。 */}
       {heroSign && (
         <ZodiacConstellation
           sign={heroSign.key}
           animated
-          className="constellation-breathe absolute top-0 -right-2.5 h-full aspect-square text-sky-ink opacity-90"
+          className="constellation-breathe absolute top-0 -right-2.5 h-full aspect-square max-w-full text-sky-ink opacity-90"
         />
       )}
 
-      <div className="relative p-5 flex flex-col gap-2.5">
+      <div className="relative flex-1 p-5 flex flex-col gap-2.5">
         {/* Header line: label + today's hero sign as a chip */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <p className="text-sm text-sky-text">Today&apos;s Cosmic Sync</p>
@@ -119,7 +125,9 @@ export default function ZodiacSyncCard() {
         {/* Today's recommendation — the card's reason to exist */}
         {sign && rec && program ? (
           <>
-            <div>
+            {/* 伸ばしたぶんの余白はここが吸う——見出しは上、CTA と足元の行は下に
+                残したまま、おすすめ本文が中央に据わる。下端に空きが溜まらない。 */}
+            <div className="flex-1 flex flex-col justify-center">
               {rec.tagLabel && (
                 <p className="text-sm font-bold text-sky-strong mb-0.5">
                   【{rec.tagLabel}】
@@ -143,7 +151,7 @@ export default function ZodiacSyncCard() {
             </button>
           </>
         ) : (
-          <p className="text-sm text-sky-text">
+          <p className="flex-1 flex items-center text-sm text-sky-text">
             {!hydrated || (!sky && !skyFailed)
               ? "今日の空を計算中…"
               : skyFailed && !sign
