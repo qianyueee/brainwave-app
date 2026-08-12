@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
+import { useSidebarStore } from "@/store/useSidebarStore";
 import { useAudio } from "@/components/AudioProvider";
 import { getProgramById, isCustomProgramId } from "@/lib/programs";
 import { formatTime } from "@/lib/utils";
@@ -48,6 +49,8 @@ export default function MiniPlayer() {
   const playingProgramId = useAppStore((s) => s.playingProgramId);
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
+  // デスクトップの左端はレールの開閉に追従する（収納中は画面端から）
+  const sidebarOpen = useSidebarStore((s) => s.open);
 
   if (!visible) return null;
 
@@ -77,8 +80,13 @@ export default function MiniPlayer() {
 
   return (
     // Mobile: floats above the bottom nav. Desktop: full-width bar docked to
-    // the bottom of the content area, starting right of the 240px side rail.
-    <div className="fixed bottom-16 inset-x-0 z-40 md:bottom-0 md:left-60 md:right-0">
+    // the bottom of the content area, starting right of the 240px side rail —
+    // or from the window edge while the rail is collapsed.
+    <div
+      className={`fixed bottom-16 inset-x-0 z-40 md:bottom-0 md:right-0 md:transition-[left] md:duration-300 md:ease-out motion-reduce:transition-none ${
+        sidebarOpen ? "md:left-60" : "md:left-0"
+      }`}
+    >
       <div className="mx-auto w-full max-w-[480px] px-3 pb-2 md:max-w-none md:px-8 md:pb-4">
         <div
           role="button"

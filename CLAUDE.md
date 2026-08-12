@@ -64,6 +64,7 @@ brainwave-app/
 ├── store/
 │   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志）
 │   ├── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
+│   ├── useSidebarStore.ts      # 桌面左栏开合（不 persist：每次加载都从收起开始）
 │   └── useZodiacStore.ts       # マイ星座偏好 + persist（普通 localStorage，未登录也生效）
 ├── public/sounds/              # 自然音素材
 │   └── zodiac/                 # 96 首星座音乐（12星座×8差频，128kbps 立体声，已去封面图，共 284MB）
@@ -74,6 +75,7 @@ brainwave-app/
 
 - 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Brain `/brain`、Sync Report `/report`、Sync History `/history`
 - Settings `/settings` 与播放页 `/player` 均不在导航中：設定从首页右上角齿轮进入，播放页从节目卡 / 心情选择进入
+- 桌面左栏（SideNav）可收起，**默认收起**（`useSidebarStore`，故意不 persist——每次加载都从收起开始，SSR/首屏一致无 hydration mismatch，客户端路由期间保持）。收起时只留左上角 `fixed` 的悬浮圆角按钮（56px，`aria-label="メニューを開く"`），点击后外框宽度 0→15rem 动画展开把内容推向右侧（不是浮层覆盖）；内侧面板是 `absolute right-0 w-60` 固定宽度，所以看起来是从左边滑入。关闭走面板头部右侧的按钮或 Esc。收起期间面板挂 `inert`，不进 Tab 序与读屏。**240px / 15rem 这个数值在 SideNav（`md:w-60`）与 MiniPlayer（`md:left-60`）两处要一致**；AppMain 在收起时改用 `md:pl-20` 给悬浮按钮让出左侧沟槽，避免压住页面标题
 - 节目卡入口统一走 `usePlayProgram`：点击＝**选择并进入 `/player`，不自动播放**（播放由用户在播放页按下再生钮；自动播放会在进入播放页前先冒出 MiniPlayer，属被否掉的方案）；正在播放（含一時停止）的节目再次点击只跳转、不重置（播放中保护，按 `playingProgramId` 真源判断）；**别的节目在响时点新卡＝停掉在响的（不记日志）再选中新节目**——播放页永远显示"刚点的那个"。全局 MiniPlayer 播放条见「播放入口与全局播放条」
 - 职责划分：Sync Brain 只管**測定**（マインドマップ等）；Sync Report 汇总**分析＋比較**（脳特性チャート＋測定の比較）。測定导入（useImportSession）与ヒストリー的「レポートで見る」都跳 `/report`；首页脳特性チャート卡也链到 `/report`，3指標タイル仍链到 `/brain`（測定入口）
 - 脳コンディション3指標（Rate/Clarity/Reset）在首页与 Sync Report 双端显示，同一 store＋同一 `computeBrainConditionMetrics`，数值恒同步
@@ -134,7 +136,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 ### 播放入口与全局播放条
 
 - `components/usePlayProgram.ts`：所有节目卡/CTA 的统一入口——**选择节目并跳转 `/player`，不启动音频**（再生由用户在播放页按钮触发，那里天然满足 iOS 手势要求）；正在播放同一节目（按 `playingProgramId` 真源判断）再点击只跳转、不重置进度/定时（播放中保护，一時停止中同样生效）；**别的节目在响时点新卡＝先停掉在响的**（不记日志，沿用切换语义，暂停态同样处理），播放页显示新选节目（空闲待播放）。5 个入口组件（ProgramCard/PublishedProgramCard/CustomProgramCard/ZodiacSyncCard/WaterMandalaHero）全部走这个 hook，不要再复制守卫逻辑。
-- `components/MiniPlayer.tsx`：全局迷你播放条（移动端 `fixed bottom-16` 浮于底部导航上；桌面端为内容区底部通栏 `md:bottom-0 md:left-60`，侧栏右侧起）。覆盖**一切在响的声音**：节目播放（binaural＋custom＋timeline，`playingProgramId != null`）点击回 `/player`、在 /player 隐藏；シンセ系（纯合成器＝isPlaying 不置位仅 isSynthPlaying、タイムラインプレビュー＝playingProgramId 为 null）点击回 `/synth`、在 /synth 隐藏。节目名走 `playingProgramId` 真源（custom id 经 savedPrograms/publishedPrograms 解析），シンセ系显示「カスタム合成/タイムライン プレビュー」；纯合成器暂停也走 `pauseSession`（suspend，无结束定时器需重排）。`components/AppMain.tsx` 在播放条可见时把内容底部 padding 提到 `pb-36`（桌面 `md:pb-32`）。
+- `components/MiniPlayer.tsx`：全局迷你播放条（移动端 `fixed bottom-16` 浮于底部导航上；桌面端为内容区底部通栏 `md:bottom-0`，左端跟随侧栏开合：展开时 `md:left-60`、收起时 `md:left-0`）。覆盖**一切在响的声音**：节目播放（binaural＋custom＋timeline，`playingProgramId != null`）点击回 `/player`、在 /player 隐藏；シンセ系（纯合成器＝isPlaying 不置位仅 isSynthPlaying、タイムラインプレビュー＝playingProgramId 为 null）点击回 `/synth`、在 /synth 隐藏。节目名走 `playingProgramId` 真源（custom id 经 savedPrograms/publishedPrograms 解析），シンセ系显示「カスタム合成/タイムライン プレビュー」；纯合成器暂停也走 `pauseSession`（suspend，无结束定时器需重排）。`components/AppMain.tsx` 在播放条可见时把内容底部 padding 提到 `pb-36`（桌面 `md:pb-32`）。
 - 配信プログラム列表是内存态：`/session` 挂载时拉取，`/player` 在「custom id 解析不到」时也会自取一次（选中节目已持久化，刷新/直进播放页不能依赖先经过 session 页），拉取中标题与死胡同兜底显示「読み込み中…」。
 - `/player` 无可解析节目时渲染「プログラムを選択」链接（去 `/session`），不再出现按了没反应的死播放键。
 
