@@ -17,7 +17,7 @@ import { usePlayProgram } from "@/components/usePlayProgram";
 import { Sun, Moon, ChevronDown, Play } from "lucide-react";
 
 /**
- * Today's Cosmic Sync — ホームの星空ヒーローカード。
+ * Today's Astro Sync — ホームの星空ヒーローカード。
  *
  * カードそのものが星空面（.sky-surface）で、星座図はその上に敷いた背景画。
  * 以前は「白カード＋中に夜空の帯」だったが、帯を消してヒーロー1枚に統合した
@@ -93,7 +93,7 @@ export default function ZodiacSyncCard() {
   // デスクトップは page.tsx 側で2行ぶち抜きにしてあるので h-full で左列の高さを
   // そのまま受け、min-h は左列が短いときの床としてだけ効かせる。
   return (
-    <div className="sky-surface relative flex flex-col min-h-[560px] md:min-h-[440px] md:h-full rounded-3xl overflow-hidden border border-surface-border neu-raised breathe-soft">
+    <div className="sky-surface relative flex flex-col min-h-[600px] md:min-h-[480px] md:h-full rounded-3xl overflow-hidden border border-surface-border neu-raised breathe-soft">
       {/* Breathing halo — the luminous part of the motion, warm by day */}
       <div className="sky-halo sky-glow absolute inset-0" />
 
@@ -113,7 +113,7 @@ export default function ZodiacSyncCard() {
       <div className="relative flex-1 p-5 flex flex-col gap-2.5">
         {/* Header line: label + today's hero sign as a chip */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <p className="text-sm text-sky-text">Today&apos;s Cosmic Sync</p>
+          <p className="text-sm text-sky-text">Today&apos;s Astro Sync</p>
           {heroSign && (
             <p className="flex items-center gap-1.5 rounded-full bg-sky-chip px-3 py-1 text-xs text-sky-strong">
               {night ? <Moon size={14} strokeWidth={1.5} /> : <Sun size={14} strokeWidth={1.5} />}

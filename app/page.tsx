@@ -69,6 +69,16 @@ export default function HomePage() {
         </p>
       </div>
 
+      {/* ページ見出し。他のページ（Sync History / Sync Report …）と同じ
+          「英名＋日本語リード」ブロックを Home にも置いて、ブランド名の行と
+          「今どの画面にいるか」を分ける。ブランドが h1 なのでこちらは h2。 */}
+      <div>
+        <h2 className="text-2xl font-bold text-text-primary">Home</h2>
+        <p className="text-sm text-text-secondary mt-1">
+          ホーム｜今日の星空・宇宙周波数で即座に調律
+        </p>
+      </div>
+
       {/* モバイルは1カラムで 脳コンディション → 星空 → Sync Tree。デスクトップ
           は 左（コンディション＋Tree）｜右（星空）の2カラム。
           DOM 順はモバイルの並びのままにして、デスクトップ側だけ行列を明示指定
@@ -82,8 +92,9 @@ export default function HomePage() {
 
         {/* デスクトップは2行ぶち抜き＋ self-stretch。星空カードを縦に伸ばすと
             行1が高くなり、左列の コンディション と Tree の間に穴が空くため——
-            ぶち抜きにすると左列は自然な間隔のまま、右は 350＋gap24＋117＝491 に
-            ぴったり収まる（高さを決め打ちしなくて済む）。 */}
+            ぶち抜きにすると左列は自然な間隔のまま、右は「コンディション＋gap＋
+            Tree」の高さをそのまま受け取って伸びる（決め打ちの高さを持たずに
+            両列の下端が揃う）。 */}
         <div className="md:col-start-2 md:row-start-1 md:row-span-2 md:self-stretch">
           <ZodiacSyncCard />
         </div>

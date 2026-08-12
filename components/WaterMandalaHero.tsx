@@ -21,7 +21,7 @@ import { Play } from "lucide-react";
  * today's guided beat, my-sign preference respected, hero sign as fallback),
  * so the figure people see on entry is the sound they are invited to start.
  *
- * Built on the same sky surface as Home's Cosmic Sync card — one art ground
+ * Built on the same sky surface as Home's Astro Sync card — one art ground
  * shared by the two heroes, following the time of day rather than sitting on
  * fixed dark water. (The fullscreen visualizer on /player keeps its own fixed
  * dark canvas: that one is a viewing surface, not a card in the page.)

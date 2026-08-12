@@ -26,7 +26,7 @@ export interface ThemePalette {
 }
 
 /**
- * Sky palette for the constellation art surfaces (Home's Cosmic Sync hero,
+ * Sky palette for the constellation art surfaces (Home's Astro Sync hero,
  * Session's Water Mandala hero). These used to be a fixed deep-night gradient
  * in every theme; a full-height night hero on the cream day palette read as a
  * cold slab dropped into a warm page. The sky now follows the time of day —
