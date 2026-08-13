@@ -80,14 +80,12 @@ export default function SessionPage() {
         <p className="text-sm text-text-secondary mt-1">シンク・セッション｜プログラム選択・再生</p>
       </div>
 
-      {/* Today's frequency as a water mandala — the first thing on entry.
-          Sits outside the grid so it spans the full content width on desktop
-          (there the figure moves beside the copy instead of growing). */}
-      <WaterMandalaHero />
-
-      {/* Mobile: single column. Desktop: built-ins | published + custom. */}
+      {/* Mobile: single column. Desktop: mandala + built-ins | published + custom. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
       <div className="flex flex-col gap-6">
+      {/* Today's frequency as a water mandala — the first thing on entry */}
+      <WaterMandalaHero />
+
       {/* Programs — the "Sync Sound" lineup */}
       <div className="flex flex-col gap-3 breathe-stagger">
         <p className="text-sm text-text-secondary">Sync Sound（シンク・サウンド / 脳波同期サウンド）</p>
