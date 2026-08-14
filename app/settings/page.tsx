@@ -115,7 +115,11 @@ export default function SettingsPage() {
       <div className="flex flex-col gap-3">
         <p className="text-sm text-text-secondary">アプリ情報</p>
         <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-          <p className="text-base font-bold text-text-primary">NeuroSync（ニューロシンク）</p>
+          <p className="text-base font-bold text-text-primary">
+            NeuroSync
+            <sup className="font-normal">™</sup>
+            （ニューロシンク）
+          </p>
           <p className="text-sm text-text-secondary mt-1">
             〜 音波×光波×脳波シンクロ誘導 ＆ 脳コンディション管理 〜
           </p>

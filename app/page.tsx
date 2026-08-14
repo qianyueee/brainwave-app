@@ -36,6 +36,10 @@ export default function HomePage() {
               at full width. Everything goes full size once there is room. */}
           <h1 className="min-w-0 text-base md:text-2xl font-bold text-text-primary">
             NeuroSync
+            {/* 商標表示。未登録前提の ™（登録済みなら ® に差し替え）。
+                sup は preflight 既定で 75%＋上付き、太字だけ解除する。
+                本文16px下限の対象外——情報を担わない組版記号なので。 */}
+            <sup className="font-normal">™</sup>
             <span className="text-xs md:text-2xl whitespace-nowrap">（ニューロシンク）</span>
           </h1>
           <div className="flex items-center gap-2 shrink-0">
