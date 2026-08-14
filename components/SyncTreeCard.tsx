@@ -22,18 +22,20 @@ import { SyncTreeFigure, TREE_SPARKLE_PATH } from "@/components/SyncTreeArt";
  * day・afternoon は白日の空、midnight・evening は星空。樹のアート自体は
  * テーマで変わらない。
  *
- * シーンの構成要素（オーラ・地面の線・盛り土・きらめき3つ）は、ハンドオフの
- * モバイル値（340×170、樹 transform translate(85.5,-13.6) scale(1.42)）を
- * その transform の逆写像で樹空間（120×140）に戻した定数で持ち、全体を
- * ブレークポイントごとの transform で包む。カードの縦寸と樹スケールは
- * ハンドオフ原案（170/150・1.42/1.26）からフィードバックを受けて縦に
- * 伸ばした値——構図（接地位置・きらめき配置の相対関係）はそのまま。
+ * 樹の足もと（オーラ・地面の線・盛り土）は、ハンドオフのモバイル値
+ * （340×170、樹 transform translate(85.5,-13.6) scale(1.42)）をその
+ * transform の逆写像で樹空間（120×140）に戻した定数で持ち、まとめて
+ * ブレークポイントごとの transform で包む。きらめき3つはハンドオフ同様
+ * シーン座標（カードの空）に置く。カード縦寸と樹スケールはハンドオフ原案
+ * （170/150・1.42/1.26）からフィードバックで調整済み（SCENE 参照）。
  */
 
-/** variant ごとのシーン寸法。transform は「幹の接地が高さの95%」から算出。 */
+/** variant ごとのシーン寸法。transform は「幹の接地が高さの95%」から算出。
+    h はカードのページ内占有を決め、scale は樹のカード内占有を決める——
+    「カードはより大きく、樹の見た目はハンドオフ準拠のまま」の分担。 */
 const SCENE = {
-  mobile: { h: 204, scale: 1.68 },
-  desktop: { h: 184, scale: 1.52 },
+  mobile: { h: 232, scale: 1.5 },
+  desktop: { h: 212, scale: 1.35 },
 } as const;
 
 const SCENE_W = 340;
@@ -98,26 +100,28 @@ function TreeScene({
           opacity={0.08}
         />
         <SyncTreeFigure stage={stage} />
-        {/* 手描きのきらめき3つ */}
-        <path
-          d={TREE_SPARKLE_PATH}
-          transform="translate(131.3,37.7) scale(0.563)"
-          fill="var(--tree-ink)"
-          opacity={0.7}
-        />
-        <path
-          d={TREE_SPARKLE_PATH}
-          transform="translate(-16.5,32.1) scale(0.458)"
-          fill="var(--tree-ink)"
-          opacity={0.5}
-        />
-        <path
-          d={TREE_SPARKLE_PATH}
-          transform="translate(148.2,87) scale(0.387)"
-          fill="var(--tree-ink)"
-          opacity={0.45}
-        />
       </g>
+      {/* 手描きのきらめき3つ — ハンドオフ同様シーン側の空に散らす（樹では
+          なくカードに属する）。位置は幅は絶対値・高さは h 比で、カードを
+          縦に伸ばしても空の上のほうに残る */}
+      <path
+        d={TREE_SPARKLE_PATH}
+        transform={`translate(272,${(0.235 * SCENE[variant].h).toFixed(1)}) scale(0.85)`}
+        fill="var(--tree-ink)"
+        opacity={0.7}
+      />
+      <path
+        d={TREE_SPARKLE_PATH}
+        transform={`translate(62,${(0.19 * SCENE[variant].h).toFixed(1)}) scale(0.69)`}
+        fill="var(--tree-ink)"
+        opacity={0.5}
+      />
+      <path
+        d={TREE_SPARKLE_PATH}
+        transform={`translate(296,${(0.63 * SCENE[variant].h).toFixed(1)}) scale(0.58)`}
+        fill="var(--tree-ink)"
+        opacity={0.45}
+      />
     </svg>
   );
 }
