@@ -6,7 +6,9 @@ import {
   applyPalette,
   getEffectivePalette,
   getEffectiveSky,
+  getEffectiveTreeSky,
   getCurrentPeriodIndex,
+  treeSkyForPeriod,
 } from "@/lib/theme";
 
 const POLL_INTERVAL = 10_000; // 10 seconds
@@ -25,7 +27,7 @@ export default function ThemeProvider({
   const applyTheme = useCallback(() => {
     if (overrideRef.current !== null) {
       const period = TIME_PERIODS[overrideRef.current];
-      applyPalette(period.palette, period.sky);
+      applyPalette(period.palette, period.sky, treeSkyForPeriod(period));
       return;
     }
     const prefersReduced = window.matchMedia(
@@ -33,10 +35,14 @@ export default function ThemeProvider({
     ).matches;
     if (prefersReduced) {
       const period = TIME_PERIODS[getCurrentPeriodIndex(new Date())];
-      applyPalette(period.palette, period.sky);
+      applyPalette(period.palette, period.sky, treeSkyForPeriod(period));
     } else {
       const now = new Date();
-      applyPalette(getEffectivePalette(now), getEffectiveSky(now));
+      applyPalette(
+        getEffectivePalette(now),
+        getEffectiveSky(now),
+        getEffectiveTreeSky(now)
+      );
     }
   }, []);
 

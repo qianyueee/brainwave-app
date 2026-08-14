@@ -300,6 +300,65 @@ export function interpolateSky(a: SkyPalette, b: SkyPalette, t: number): SkyPale
   return result;
 }
 
+/**
+ * Backdrop for the Sync Tree scene card (Home). Unlike the 4-way `sky`, the
+ * tree design collapses the day parts to two states only: the two day themes
+ * (day, afternoon) show a daylight sky, the two night themes (midnight,
+ * evening) a starry night — values fixed by the Sync Tree handoff. The tree
+ * art itself (foliage/trunk palette) never theme-shifts; only this backdrop,
+ * its ink (ground line + sparkles) and the card chrome (border/shadow) do.
+ */
+export interface TreeSky {
+  /** Radial gradient stops, inner → outer. */
+  a: string;
+  b: string;
+  c: string;
+  /** Ground line + hand-drawn sparkles. */
+  ink: string;
+  /** Soft aura behind the tree. */
+  glow: string;
+  /** Card border. */
+  border: string;
+  /** Card drop-shadow color. */
+  shadow: string;
+}
+
+export const TREE_SKY_NIGHT: TreeSky = {
+  a: "#2a3670",
+  b: "#19224f",
+  c: "#0a102e",
+  ink: "#dfe9ff",
+  glow: "rgba(165,190,255,0.30)",
+  border: "#383468",
+  shadow: "rgba(20,16,60,0.25)",
+};
+
+export const TREE_SKY_DAY: TreeSky = {
+  a: "#f4f8ff",
+  b: "#dce9fa",
+  c: "#b8cfee",
+  ink: "#3d4a80",
+  glow: "rgba(255,214,130,0.50)",
+  border: "#cbd6e8",
+  shadow: "rgba(60,70,120,0.18)",
+};
+
+export function treeSkyForPeriod(period: TimePeriod): TreeSky {
+  return period.id === "day" || period.id === "afternoon"
+    ? TREE_SKY_DAY
+    : TREE_SKY_NIGHT;
+}
+
+function interpolateTreeSky(a: TreeSky, b: TreeSky, t: number): TreeSky {
+  if (a === b) return a;
+  const keys = Object.keys(a) as (keyof TreeSky)[];
+  const result = {} as TreeSky;
+  for (const key of keys) {
+    result[key] = lerpSkyColor(a[key], b[key], t);
+  }
+  return result;
+}
+
 // --- Time mapping ---
 
 const TRANSITION_DURATION = 60; // seconds
@@ -364,6 +423,14 @@ export function getEffectiveSky(date: Date): SkyPalette {
   return blendAtTime(date, (p) => p.sky, interpolateSky);
 }
 
+/**
+ * Day/night crossfades only at the 06:00 and 18:00 boundaries (both sides of
+ * the 12:00 / 00:00 boundaries pick the same set, so the mix is a no-op).
+ */
+export function getEffectiveTreeSky(date: Date): TreeSky {
+  return blendAtTime(date, treeSkyForPeriod, interpolateTreeSky);
+}
+
 // --- CSS var application ---
 
 const CSS_VAR_MAP: Record<keyof ThemePalette, string> = {
@@ -398,6 +465,16 @@ const SKY_VAR_MAP: Record<keyof SkyPalette, string> = {
   line: "--sky-line",
 };
 
+const TREE_VAR_MAP: Record<keyof TreeSky, string> = {
+  a: "--tree-a",
+  b: "--tree-b",
+  c: "--tree-c",
+  ink: "--tree-ink",
+  glow: "--tree-glow",
+  border: "--tree-border",
+  shadow: "--tree-shadow",
+};
+
 // Compute relative luminance (0 = black, 1 = white)
 function luminance(hex: string): number {
   const [r, g, b] = hexToRgb(hex);
@@ -419,11 +496,22 @@ export function getDocumentScheme(): "light" | "dark" {
   return document.documentElement.dataset.colorScheme === "light" ? "light" : "dark";
 }
 
-export function applyPalette(palette: ThemePalette, sky?: SkyPalette): void {
+export function applyPalette(
+  palette: ThemePalette,
+  sky?: SkyPalette,
+  treeSky?: TreeSky
+): void {
   const style = document.documentElement.style;
   const keys = Object.keys(CSS_VAR_MAP) as (keyof ThemePalette)[];
   for (const key of keys) {
     style.setProperty(CSS_VAR_MAP[key], palette[key]);
+  }
+
+  if (treeSky) {
+    const treeKeys = Object.keys(TREE_VAR_MAP) as (keyof TreeSky)[];
+    for (const key of treeKeys) {
+      style.setProperty(TREE_VAR_MAP[key], treeSky[key]);
+    }
   }
 
   if (sky) {

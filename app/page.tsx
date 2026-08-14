@@ -8,8 +8,9 @@ import { User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 
 /**
- * ホーム。上から 脳コンディション（測定3値＋毎日の自己評価）→ 星空カード
- * （今日のおすすめ＋開始）→ Sync Tree の3ブロック。
+ * ホーム。上から 脳コンディション（測定3値＋毎日の自己評価）→ Sync Tree の
+ * シーンカード → 星空カード（今日のおすすめ＋開始）の3ブロック。Sync Tree の
+ * 位置は設計ハンドオフどおり「脳コンディションと星空カードの間」。
  *
  * 脳特性チャート（レーダー）はここから外して Sync Report に一本化した——
  * 測定値・自己評価・星座・育樹と、ホームが受け持つものが増えたぶん、詳細な
@@ -79,15 +80,20 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* モバイルは1カラムで 脳コンディション → 星空 → Sync Tree。デスクトップ
-          は 左（コンディション＋Tree）｜右（星空）の2カラム。
-          DOM 順はモバイルの並びのままにして、デスクトップ側だけ行列を明示指定
-          している（order だけではグリッドが行方向に流れてしまい、Tree が右上に
-          回り込む）。 */}
+      {/* モバイルは1カラムで 脳コンディション → Sync Tree → 星空（ハンドオフ
+          指定：Tree はコンディションと星空カードの間）。デスクトップは
+          左（コンディション＋Tree）｜右（星空）の2カラムで、DOM 順のまま
+          行列を明示指定している（order だけではグリッドが行方向に流れて
+          しまい、意図しない位置に回り込む）。 */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
         {/* 測定3値（自動算出）＋ 毎日の自己評価スライダー */}
         <div className="md:col-start-1 md:row-start-1">
           <BrainConditionCard />
+        </div>
+
+        {/* 樹だけの風景カード（タップで /tree の16段階ギャラリーへ） */}
+        <div className="md:col-start-1 md:row-start-2">
+          <SyncTreeCard />
         </div>
 
         {/* デスクトップは2行ぶち抜き＋ self-stretch。星空カードを縦に伸ばすと
@@ -97,10 +103,6 @@ export default function HomePage() {
             両列の下端が揃う）。 */}
         <div className="md:col-start-2 md:row-start-1 md:row-span-2 md:self-stretch">
           <ZodiacSyncCard />
-        </div>
-
-        <div className="md:col-start-1 md:row-start-2">
-          <SyncTreeCard />
         </div>
       </div>
     </div>

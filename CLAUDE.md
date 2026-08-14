@@ -37,12 +37,13 @@ pnpm lint             # Lint
 brainwave-app/
 ├── app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
-│   ├── page.tsx                # Home 首页（品牌行 → 「Home / ホーム｜今日の星空・宇宙周波数で即座に調律」页面见出し → Today's Astro Sync 星座卡〔推荐+CTA 前置进首屏、星图压缩条带、星座选择/今日文案收入折叠区〕→ 脳コンディション3指標 → 脳特性チャート卡；右上角設定入口。桌面端星座卡在右列）
+│   ├── page.tsx                # Home 首页（品牌行 → 「Home / ホーム｜今日の星空・宇宙周波数で即座に調律」页面见出し → 脳コンディションカード → Sync Tree 风景卡〔无文字，整卡点击进 /tree〕→ Today's Astro Sync 星座卡；右上角設定入口。桌面端左列＝コンディション＋Tree、右列＝星座卡）
 │   ├── session/page.tsx        # Sync Session（顶部 Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕+ プログラム選択・再生：Sync Sound 3節目 / 配信 / カスタム・合成器入口）
 │   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：マインドマップ/測定/過去の測定；分析已移至 report）
 │   ├── report/page.tsx         # Sync Report（脳特性チャート分析＋3指標タイル＋測定の比較〔2〜3件の6指標＆スペクトル〕合并页）
 │   ├── history/page.tsx        # Sync History（日历 / セッション統計 / 脳波の記録；レポートで見る→/report）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
+│   ├── tree/page.tsx           # Sync Tree 16段階ギャラリー／詳細（段階名・進捗%・育てた木数はここだけ；菜单外，从首页树卡进入）
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
 │   ├── admin/page.tsx          # 管理面板（仅管理员）
@@ -56,6 +57,7 @@ brainwave-app/
 │   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（モジュール合成：載波=自星座固定、差频按四标签×情境可变——活性=太阳40/月20Hz、フロー=太阳12/月10Hz、バランス=平日14/休日夜间7.83Hz、回復=傍晚6/深夜4/月在魚座2Hz；48条 §6 メッセージ模板；优先级 healing→activation→flow→balance，火×地/風×水归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
 │   ├── zodiac-audio.ts         # 星座节目的音乐床垫映射（program id → public/sounds/zodiac/<key>-b<beat>.mp3；缺失差频就近取用）
+│   ├── sync-tree.ts            # Sync Tree 16段階成長モデル（6.25%刻み、treeStageIndex / TREE_STAGES；成長ロジック未実装期は PLACEHOLDER_TREE 固定値）。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure / SyncTreeStageTile，手描きの光の樹）；ホーム树卡背景为昼/夜二态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_DAY/NIGHT：day+afternoon=白日、midnight+evening=星空，树本体配色不随主题变）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，由最新測定计算，数据不足为 null）
 │   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）

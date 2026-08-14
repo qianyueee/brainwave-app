@@ -1,30 +1,58 @@
-// Sync Tree — 育樹プレースホルダ。
+// Sync Tree — 育樹の成長モデル（16段階）。
 //
 // 企画: ログイン・脳波測定・セッション再生でそれぞれ成長度が加算され、100%
-// で1本完成、完成した木は累計本数として積み上がる。苗木から成木までの育ちが
-// ひと目で分かること自体が目的の機能。
+// で1本完成、完成した木は累計本数として積み上がる。1本＝100% を 6.25% 刻みの
+// 16段階に分け、段階が上がるごとに「手描きの光の樹」（components/SyncTreeArt）
+// の絵柄が育つ。段階名・しきい値はデザインハンドオフ（16 Growth Stages）準拠。
 //
-// 現段階では **見た目の置き場のみ**（インタラクションは後決め）。加算ルール・
-// 永続化・完成日の記録はまだ実装していないので、値はここに置いた固定の
-// プレースホルダを読む。実装時はこのファイルの PLACEHOLDER_TREE を差し替え、
-// 表示側（SyncTreeCard / Sync History）はそのまま使えるようにしてある。
+// 加算ルール（ログイン+2%/測定+3%/セッション+5% 案）はプロダクト側で未確定の
+// ため、永続化・完成日の記録ともに未実装。値はここに置いた固定のプレース
+// ホルダを読む。実装時は PLACEHOLDER_TREE を差し替えれば、表示側（ホームの
+// シーンカード / /tree ギャラリー / Sync History）はそのまま使える。
 
-export type TreeStageKey = "sprout" | "sapling" | "young" | "mature";
+/** 1本の木を構成する段階数。進捗はこの数で等分される（各6.25%）。 */
+export const TREE_STAGE_COUNT = 16;
+
+/** 1段階ぶんの進捗幅（%）。 */
+export const TREE_STAGE_STEP = 100 / TREE_STAGE_COUNT;
 
 export interface TreeStage {
-  key: TreeStageKey;
-  /** カード見出しに出る和名 */
-  label: string;
-  /** この段階に入る進捗の下限（%） */
-  minProgress: number;
+  /** 段階番号（1始まり、01〜16） */
+  num: number;
+  /** 段階名（星の種 → 大樹） */
+  name: string;
+  /** 属する成長期（ギャラリーのチップ表示に使う） */
+  phase: string;
 }
 
-/** 苗木 → 中苗 → 若木 → 成木。しきい値は 25 / 50 / 75%。 */
+/** 6つの成長期 × 16段階。並びはデザインハンドオフの表のまま。 */
 export const TREE_STAGES: TreeStage[] = [
-  { key: "sprout", label: "苗木", minProgress: 0 },
-  { key: "sapling", label: "中苗", minProgress: 25 },
-  { key: "young", label: "若木", minProgress: 50 },
-  { key: "mature", label: "成木", minProgress: 75 },
+  { num: 1, name: "星の種", phase: "種期" },
+  { num: 2, name: "発芽", phase: "種期" },
+  { num: 3, name: "双葉", phase: "種期" },
+  { num: 4, name: "本葉", phase: "苗期" },
+  { num: 5, name: "苗立ち", phase: "苗期" },
+  { num: 6, name: "若苗", phase: "苗期" },
+  { num: 7, name: "幼木", phase: "幼木期" },
+  { num: 8, name: "枝分かれ", phase: "幼木期" },
+  { num: 9, name: "葉茂り", phase: "幼木期" },
+  { num: 10, name: "若木", phase: "若木期" },
+  { num: 11, name: "枝張り", phase: "若木期" },
+  { num: 12, name: "樹冠形成", phase: "若木期" },
+  { num: 13, name: "成木", phase: "成木期" },
+  { num: 14, name: "開花", phase: "成木期" },
+  { num: 15, name: "結実", phase: "成木期" },
+  { num: 16, name: "大樹", phase: "大樹" },
+];
+
+/** ギャラリー見出しのチップ。最後の「大樹」だけアクセント色で描く。 */
+export const TREE_PHASES: { name: string; stages: string }[] = [
+  { name: "種期", stages: "1–3" },
+  { name: "苗期", stages: "4–6" },
+  { name: "幼木期", stages: "7–9" },
+  { name: "若木期", stages: "10–12" },
+  { name: "成木期", stages: "13–15" },
+  { name: "大樹", stages: "16" },
 ];
 
 export function clampProgress(progress: number): number {
@@ -32,14 +60,27 @@ export function clampProgress(progress: number): number {
   return Math.max(0, Math.min(100, progress));
 }
 
+/** 進捗（%）→ 0始まりの段階インデックス。100% は最終段階（15）に丸める。 */
+export function treeStageIndex(progress: number): number {
+  return Math.min(
+    TREE_STAGE_COUNT - 1,
+    Math.floor(clampProgress(progress) / TREE_STAGE_STEP)
+  );
+}
+
 /** 進捗（%）から現在の成長段階を引く。 */
 export function treeStage(progress: number): TreeStage {
-  const p = clampProgress(progress);
-  // しきい値の降順に見て、最初に届いたものが現在の段階
-  for (let i = TREE_STAGES.length - 1; i >= 0; i--) {
-    if (p >= TREE_STAGES[i].minProgress) return TREE_STAGES[i];
-  }
-  return TREE_STAGES[0];
+  return TREE_STAGES[treeStageIndex(progress)];
+}
+
+/**
+ * 段階の受け持ち範囲「56〜63%」表示。6.25 刻みの端数はハンドオフの表記に
+ * 合わせて四捨五入する（0〜6 / 6〜13 / … / 94〜100）。
+ */
+export function treeStageRangeLabel(index: number): string {
+  const from = Math.round(index * TREE_STAGE_STEP);
+  const to = Math.round((index + 1) * TREE_STAGE_STEP);
+  return `${from}〜${to}%`;
 }
 
 export interface TreeRecord {
@@ -58,7 +99,8 @@ export interface SyncTreeState {
 
 /**
  * 表示確認用の固定値。成長ロジックが入るまでは全画面がこれを読む
- * （ホームのバー・Sync History の統計タイルと記録カードで数字が一致する）。
+ * （ホームのシーンカード・/tree・Sync History で数字が一致する）。
+ * 62% はハンドオフのホーム例と同じ「10 若木」。
  */
 export const PLACEHOLDER_TREE: SyncTreeState = {
   progress: 62,

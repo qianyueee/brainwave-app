@@ -38,6 +38,17 @@
   --sky-chip: rgba(255, 255, 255, 0.08);
   --sky-glow: rgba(165, 190, 255, 0.30);
   --sky-line: rgba(255, 255, 255, 0.12);
+
+  /* Sync Tree scene backdrop — day/night only (day+afternoon → day sky,
+     midnight+evening → night sky; TREE_SKY_* in lib/theme.ts). Defaults
+     mirror the night set, consistent with the midnight defaults above. */
+  --tree-a: #2a3670;
+  --tree-b: #19224f;
+  --tree-c: #0a102e;
+  --tree-ink: #dfe9ff;
+  --tree-glow: rgba(165, 190, 255, 0.30);
+  --tree-border: #383468;
+  --tree-shadow: rgba(20, 16, 60, 0.25);
 }
 
 /* Tailwind theme references dynamic vars — keeps var() in utilities */

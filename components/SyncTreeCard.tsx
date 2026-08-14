@@ -1,72 +1,125 @@
 "use client";
 
-import { Sprout } from "lucide-react";
+import Link from "next/link";
 import {
   PLACEHOLDER_TREE,
   clampProgress,
   treeStage,
+  treeStageIndex,
 } from "@/lib/sync-tree";
+import { SyncTreeFigure, TREE_SPARKLE_PATH } from "@/components/SyncTreeArt";
 
 /**
- * Sync Tree — ホーム最下段の育樹バー（プレースホルダ）。
+ * Sync Tree — ホームのシーンカード（ハンドオフ 9c「pure scene」確定版）。
  *
- * 破線ボーダーは「まだ中身が決まっていない置き場」であることの合図で、
- * 実装が入ったら実線に変える。値は lib/sync-tree.ts の固定値。
+ * 文字・％・プログレスバーは置かない：昼夜の空に現在段階の樹が立つだけの
+ * 静かな風景で、成長は絵柄が段階替わりすることでのみ伝える。カード全体が
+ * タップ領域で、段階名・進捗・育てた木数は遷移先の /tree（16段階ギャラリー）
+ * が受け持つ。
+ *
+ * 背景はアプリの4テーマを昼／夜の2状態に畳んだ --tree-* 変数（lib/theme.ts）：
+ * day・afternoon は白日の空、midnight・evening は星空。樹のアート自体は
+ * テーマで変わらない。
+ *
+ * シーンの構成要素（オーラ・地面の線・盛り土・きらめき3つ）は、ハンドオフの
+ * モバイル値（340×170、樹 transform translate(85.5,-13.6) scale(1.42)）を
+ * その transform の逆写像で樹空間（120×140）に戻した定数で持ち、全体を
+ * ブレークポイントごとの transform で包む——モバイルはハンドオフの座標を
+ * ぴったり再現し、デスクトップには指定の 340×150／scale(1.26) が同じシーンに
+ * かかる。
  */
+
+/** シーン1枚。variant でハンドオフ指定の viewBox／樹 transform を切り替える。 */
+function TreeScene({
+  variant,
+  stage,
+  className,
+}: {
+  variant: "mobile" | "desktop";
+  stage: number;
+  className?: string;
+}) {
+  const mobile = variant === "mobile";
+  return (
+    <svg
+      viewBox={mobile ? "0 0 340 170" : "0 0 340 150"}
+      className={className}
+      aria-hidden="true"
+    >
+      <g
+        transform={
+          mobile
+            ? "translate(85.5,-13.6) scale(1.42)"
+            : "translate(94.4,-16.8) scale(1.26)"
+        }
+      >
+        {/* 樹のうしろのやわらかな光 */}
+        <ellipse
+          cx={59.5}
+          cy={77.2}
+          rx={54.9}
+          ry={40.8}
+          fill="var(--tree-glow)"
+          opacity={0.55}
+        />
+        {/* うねる地面のひと筆と盛り土 */}
+        <path
+          d="M-1.1,119.4 Q28.5,113.8 59.5,115.9 Q93.3,119.4 120.1,114.5"
+          fill="none"
+          stroke="var(--tree-ink)"
+          opacity={0.35}
+          strokeWidth={1.06}
+          strokeLinecap="round"
+        />
+        <path
+          d="M18.7,119.4 Q59.5,109.6 100.4,119.4 Z"
+          fill="var(--tree-ink)"
+          opacity={0.08}
+        />
+        <SyncTreeFigure stage={stage} />
+        {/* 手描きのきらめき3つ */}
+        <path
+          d={TREE_SPARKLE_PATH}
+          transform="translate(131.3,37.7) scale(0.563)"
+          fill="var(--tree-ink)"
+          opacity={0.7}
+        />
+        <path
+          d={TREE_SPARKLE_PATH}
+          transform="translate(-16.5,32.1) scale(0.458)"
+          fill="var(--tree-ink)"
+          opacity={0.5}
+        />
+        <path
+          d={TREE_SPARKLE_PATH}
+          transform="translate(148.2,87) scale(0.387)"
+          fill="var(--tree-ink)"
+          opacity={0.45}
+        />
+      </g>
+    </svg>
+  );
+}
+
 export default function SyncTreeCard() {
   const progress = clampProgress(PLACEHOLDER_TREE.progress);
-  const stage = treeStage(progress);
-  const grown = PLACEHOLDER_TREE.completed.length;
+  const stage = treeStageIndex(progress);
+  const stageName = treeStage(progress).name;
 
   return (
-    <div className="bg-surface border-[1.5px] border-dashed border-surface-border rounded-3xl px-5 py-4 flex items-center gap-4 neu-raised">
-      {/* 成長ビジュアルの枠 — 段階に応じた図はインタラクション確定後に差し替え */}
-      <div className="w-14 h-14 shrink-0 rounded-full bg-navy neu-inset flex items-center justify-center">
-        <Sprout size={28} strokeWidth={1.5} className="text-accent" />
-      </div>
-
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-sm font-bold text-text-primary">
-            Sync Tree：{stage.label}
-          </span>
-          <span className="text-xs font-mono font-bold tabular-nums text-accent">
-            {progress}%
-          </span>
-        </div>
-
-        <div
-          className="h-1.5 rounded-full bg-navy-lighter overflow-hidden"
-          style={{
-            boxShadow: "inset 2px 2px 4px var(--shadow-neu-dark)",
-          }}
-          role="progressbar"
-          aria-valuenow={progress}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`Sync Tree の成長 ${stage.label}`}
-        >
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${progress}%`,
-              background:
-                "linear-gradient(to right, var(--dyn-accent-dark), var(--dyn-accent))",
-            }}
-          />
-        </div>
-
-        <span className="text-xs text-text-muted">
-          ログイン・測定・セッションで育つ（準備中）
-        </span>
-      </div>
-
-      <div className="shrink-0 text-center">
-        <div className="text-xl font-mono font-bold tabular-nums text-text-primary leading-none">
-          {grown}
-        </div>
-        <div className="text-xs text-text-muted mt-0.5">育てた木</div>
-      </div>
-    </div>
+    <Link
+      href="/tree"
+      aria-label={`Sync Tree：いまは「${stageName}」。16段階の成長と進捗を見る`}
+      className="block rounded-3xl overflow-hidden border active:scale-[0.99] transition-transform"
+      style={{
+        background:
+          "radial-gradient(130% 130% at 30% 15%, var(--tree-a) 0%, var(--tree-b) 45%, var(--tree-c) 100%)",
+        borderColor: "var(--tree-border)",
+        boxShadow: "0 10px 30px var(--tree-shadow)",
+      }}
+    >
+      <TreeScene variant="mobile" stage={stage} className="block w-full md:hidden" />
+      <TreeScene variant="desktop" stage={stage} className="hidden w-full md:block" />
+    </Link>
   );
 }
