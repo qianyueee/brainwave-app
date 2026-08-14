@@ -32,8 +32,8 @@ import { SyncTreeFigure, TREE_SPARKLE_PATH } from "@/components/SyncTreeArt";
 
 /** variant ごとのシーン寸法。transform は「幹の接地が高さの95%」から算出。 */
 const SCENE = {
-  mobile: { h: 204, scale: 1.5 },
-  desktop: { h: 184, scale: 1.35 },
+  mobile: { h: 204, scale: 1.68 },
+  desktop: { h: 184, scale: 1.52 },
 } as const;
 
 const SCENE_W = 340;
