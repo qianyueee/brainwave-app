@@ -7,14 +7,21 @@ import { useAuthStore } from "@/store/useAuthStore";
 import UserList from "@/components/admin/UserList";
 import GroupManager from "@/components/admin/GroupManager";
 import ProgramAssigner from "@/components/admin/ProgramAssigner";
-import { ArrowLeft, Users, FolderTree, Music2 } from "lucide-react";
+import AudioStudio from "@/components/admin/AudioStudio";
+import { ArrowLeft, Users, FolderTree, Music2, Waves } from "lucide-react";
 
-type AdminTab = "users" | "groups" | "programs";
+type AdminTab = "users" | "groups" | "audio" | "programs";
 
+/**
+ * 「音源」＝つくる・公開する（旧 Sync Session の管理者ブロック）、
+ * 「配信」＝公開済みをグループへ割り当てる。もとの「プログラム」という名前は
+ * 音源タブができると指す先が曖昧なので、役割どおり配信に改めた。
+ */
 const TABS: { key: AdminTab; label: string; icon: typeof Users }[] = [
   { key: "users", label: "ユーザー", icon: Users },
   { key: "groups", label: "グループ", icon: FolderTree },
-  { key: "programs", label: "プログラム", icon: Music2 },
+  { key: "audio", label: "音源", icon: Waves },
+  { key: "programs", label: "配信", icon: Music2 },
 ];
 
 export default function AdminPage() {
@@ -60,8 +67,8 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Tab navigation */}
-      <div className="flex gap-2">
+      {/* Tab navigation — 4枚は横1列だと狭い端末で潰れるので、モバイルは2×2 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {TABS.map((t) => {
           const Icon = t.icon;
           const isActive = tab === t.key;
@@ -69,13 +76,13 @@ export default function AdminPage() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              className={`min-h-12 flex items-center justify-center gap-1.5 px-2 rounded-xl text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-primary text-on-primary"
                   : "bg-navy text-text-secondary neu-raised-sm"
               }`}
             >
-              <Icon size={16} />
+              <Icon size={16} className="shrink-0" />
               {t.label}
             </button>
           );
@@ -85,6 +92,7 @@ export default function AdminPage() {
       {/* Tab content */}
       {tab === "users" && <UserList />}
       {tab === "groups" && <GroupManager />}
+      {tab === "audio" && <AudioStudio />}
       {tab === "programs" && <ProgramAssigner />}
     </div>
   );

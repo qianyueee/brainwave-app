@@ -8,9 +8,17 @@ import { Waves, X } from "lucide-react";
 
 interface PublishedProgramCardProps {
   program: CustomProgram;
+  /**
+   * 取り下げボタンを出すか。管理パネルの「音源」タブだけ true——Sync Session
+   * は管理者にとっても再生面なので、配信の操作はここには出さない。
+   */
+  manage?: boolean;
 }
 
-export default function PublishedProgramCard({ program }: PublishedProgramCardProps) {
+export default function PublishedProgramCard({
+  program,
+  manage = false,
+}: PublishedProgramCardProps) {
   const playProgram = usePlayProgram();
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const unpublishProgram = usePublishedProgramsStore((s) => s.unpublishProgram);
@@ -48,7 +56,7 @@ export default function PublishedProgramCard({ program }: PublishedProgramCardPr
         </p>
         <p className="text-xs text-text-muted mt-1">{displayMinutes}分</p>
       </div>
-      {isAdmin && (
+      {manage && isAdmin && (
         <button
           onClick={handleUnpublish}
           disabled={loading}

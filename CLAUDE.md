@@ -38,7 +38,7 @@ brainwave-app/
 ├── app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
 │   ├── page.tsx                # Home 首页（品牌行 → 「Home / ホーム｜今日の星空・宇宙周波数で即座に調律」页面见出し → 脳コンディションカード → Sync Tree 风景卡〔无文字，整卡点击进 /tree〕→ Today's Astro Sync 星座卡；右上角設定入口。桌面端左列＝コンディション＋Tree、右列＝星座卡）
-│   ├── session/page.tsx        # Sync Session（顶部 Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕+ プログラム選択・再生：Sync Sound 3節目 / 配信 / カスタム・合成器入口）
+│   ├── session/page.tsx        # Sync Session（顶部 Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕+ プログラム選択・再生：Sync Sound 3節目 / 所属グループへの配信プログラム。※音源制作・公開などの管理操作は置かない——管理面板「音源」タブへ移設済み）
 │   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：マインドマップ/測定/過去の測定；分析已移至 report）
 │   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝2〜3件の6指標＆スペクトル。既定は脳特性チャート）
 │   ├── history/page.tsx        # Sync History（日历 / セッション統計 / 脳波の記録；レポートで見る→/report）
@@ -46,7 +46,7 @@ brainwave-app/
 │   ├── tree/page.tsx           # Sync Tree 16段階ギャラリー／詳細（段階名・進捗%・育てた木数はここだけ；菜单外，从首页树卡进入）
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
-│   ├── admin/page.tsx          # 管理面板（仅管理员）
+│   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
 │   └── mind|profile|log|compare/ # 旧路由跳转桩（客户端 redirect → session/brain/history/report）
 ├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
 │   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）

@@ -66,7 +66,7 @@ export default function ProgramAssigner() {
     return (
       <p className="text-sm text-text-muted text-center py-8">
         公開済みプログラムがありません。<br />
-        ホーム画面でプログラムを公開してください。
+        「音源」タブでカスタムプログラムを公開してください。
       </p>
     );
   }

@@ -1,32 +1,23 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { PROGRAMS } from "@/lib/programs";
 import ProgramCard from "@/components/ProgramCard";
-import SynthPresetCard from "@/components/SynthPresetCard";
-import CustomProgramCard from "@/components/CustomProgramCard";
 import PublishedProgramCard from "@/components/PublishedProgramCard";
-import { useSynthStore } from "@/store/useSynthStore";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import WaterMandalaHero from "@/components/WaterMandalaHero";
-import { Plus } from "lucide-react";
 
 /**
- * Sync Session — every program/audio entry point lives here (moved off the
- * home page): the water-mandala hero for today's zodiac frequency, the
- * Sync Sound built-ins, group-published programs, and the admin-only custom
- * program / synth tooling. Playback itself stays on /player, reached through
- * the cards. The live EEG measurement lives on Sync Brain.
+ * Sync Session — 聴くための画面。今日の星座周波数の水マンダラ、Sync Sound の
+ * 3節目、グループに配信されたプログラムが並ぶ。
+ *
+ * 音源をつくる・公開する管理者向けの操作（カスタムプログラム、合成器の新規
+ * 作成、公開／取り下げ）はここには置かない——管理パネルの「音源」タブに集約
+ * した。再生自体は /player、脳波測定は Sync Brain。
  */
 export default function SessionPage() {
-  const router = useRouter();
-  const savedPresets = useSynthStore((s) => s.savedPresets);
-  const savedPrograms = useSynthStore((s) => s.savedPrograms);
-  const resetEditor = useSynthStore((s) => s.resetEditor);
-  const setTimelineMode = useSynthStore((s) => s.setTimelineMode);
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const userGroups = useAdminStore((s) => s.userGroups);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
@@ -62,17 +53,6 @@ export default function SessionPage() {
     return publishedPrograms.filter((p) => groupProgramIds.includes(p.id));
   }, [isAdmin, isLoggedIn, publishedPrograms, groupProgramIds]);
 
-  const handleNewSynth = () => {
-    resetEditor();
-    router.push("/synth");
-  };
-
-  const handleNewTimeline = () => {
-    resetEditor();
-    setTimelineMode(true); // seeds segment 0 from the (reset) editor buffer
-    router.push("/synth");
-  };
-
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       <div>
@@ -106,43 +86,6 @@ export default function SessionPage() {
         </div>
       )}
 
-      {/* Custom Programs (admin only) */}
-      {isLoggedIn && isAdmin && hydrated && savedPrograms.length > 0 && (
-        <div className="flex flex-col gap-3 breathe-stagger">
-          <p className="text-sm text-text-secondary">カスタムプログラム</p>
-          {savedPrograms.map((program) => (
-            <CustomProgramCard key={program.id} program={program} />
-          ))}
-        </div>
-      )}
-
-      {/* Custom Synth (admin only) */}
-      {isLoggedIn && isAdmin && (
-        <div className="flex flex-col gap-3 breathe-stagger">
-          <p className="text-sm text-text-secondary">カスタム</p>
-          <div className="flex gap-2">
-            <button
-              onClick={handleNewSynth}
-              className="flex-1 py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
-            >
-              <Plus size={18} strokeWidth={2} />
-              新規作成
-            </button>
-            <button
-              onClick={handleNewTimeline}
-              className="flex-1 py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
-            >
-              <Plus size={18} strokeWidth={2} />
-              タイムライン
-            </button>
-          </div>
-          {hydrated &&
-            savedPresets.map((preset) => (
-              <SynthPresetCard key={preset.id} preset={preset} />
-            ))}
-        </div>
-      )}
-
       {/* Login CTA for unauthenticated users */}
       {!isLoggedIn && !authLoading && (
         <button
@@ -150,8 +93,10 @@ export default function SessionPage() {
           className="w-full py-4 rounded-3xl bg-surface border border-surface-border text-center neu-raised neu-press active:scale-[0.98] transition-transform"
         >
           <p className="text-base font-bold text-text-primary">ログインしてもっと体験</p>
+          {/* 合成器づくりは管理者の作業になったので、一般利用者に約束するのは
+              「所属グループに配信されたプログラムが聴ける」こと */}
           <p className="text-sm text-text-secondary mt-1">
-            カスタム合成器・プログラムを利用できます
+            グループに配信されたプログラムを再生できます
           </p>
         </button>
       )}
