@@ -117,7 +117,7 @@ export default function SettingsPage() {
         <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
           <p className="text-base font-bold text-text-primary">
             NeuroSync
-            <sup className="font-normal">™</sup>
+            <sup className="font-normal">®</sup>
             （ニューロシンク）
           </p>
           <p className="text-sm text-text-secondary mt-1">

@@ -67,7 +67,7 @@ export default function SideNav() {
             <div className="min-w-0">
               <p className="text-lg font-bold text-text-primary leading-tight">
                 NeuroSync
-                <sup className="font-normal">™</sup>
+                <sup className="font-normal">®</sup>
               </p>
               <p className="text-xs text-text-secondary mt-0.5">ニューロシンク</p>
             </div>
