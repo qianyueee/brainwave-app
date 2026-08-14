@@ -112,7 +112,7 @@ function TreeScene({
       />
       <path
         d={TREE_SPARKLE_PATH}
-        transform={`translate(62,${(0.19 * SCENE[variant].h).toFixed(1)}) scale(0.69)`}
+        transform={`translate(62,${(0.32 * SCENE[variant].h).toFixed(1)}) scale(0.69)`}
         fill="var(--tree-ink)"
         opacity={0.5}
       />
@@ -135,7 +135,7 @@ export default function SyncTreeCard() {
     <Link
       href="/tree"
       aria-label={`Sync Tree：いまは「${stageName}」。16段階の成長と進捗を見る`}
-      className="block rounded-3xl overflow-hidden border active:scale-[0.99] transition-transform"
+      className="relative block rounded-3xl overflow-hidden border active:scale-[0.99] transition-transform"
       style={{
         background:
           "radial-gradient(130% 130% at 30% 15%, var(--tree-a) 0%, var(--tree-b) 45%, var(--tree-c) 100%)",
@@ -145,6 +145,17 @@ export default function SyncTreeCard() {
     >
       <TreeScene variant="mobile" stage={stage} className="block w-full md:hidden" />
       <TreeScene variant="desktop" stage={stage} className="hidden w-full md:block" />
+
+      {/* 見出しは空の上に重ねる（樹の位置とカード高さを動かさないため）。
+          色は地面線・きらめきと同じ --tree-ink で、昼夜どちらの空でも
+          コントラストが確保される。段階名や％はここには出さない——
+          それらは遷移先の /tree の役割。 */}
+      <span
+        className="absolute top-0 left-0 p-5 text-sm font-medium"
+        style={{ color: "var(--tree-ink)" }}
+      >
+        Sync Tree
+      </span>
     </Link>
   );
 }
