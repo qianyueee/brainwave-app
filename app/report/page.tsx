@@ -17,8 +17,32 @@ import IndicatorHelp from "@/components/IndicatorHelp";
 import EegUploader from "@/components/EegUploader";
 import SignalQualityBadge from "@/components/SignalQualityBadge";
 import { isLowQuality } from "@/lib/brain-profile";
-import { BrainCircuit, Lock, CheckSquare, Square, X } from "lucide-react";
+import { BrainCircuit, Lock, CheckSquare, Square, X, GitCompare } from "lucide-react";
 import Link from "next/link";
+
+/** 大見出しの直下で切り替える2ページ。 */
+type ReportTab = "profile" | "compare";
+
+const REPORT_TABS: {
+  key: ReportTab;
+  label: string;
+  icon: typeof BrainCircuit;
+  /** タブ直下に出す説明（旧 h2 のリード文をそのまま使う） */
+  lead: string;
+}[] = [
+  {
+    key: "profile",
+    label: "脳特性チャート",
+    icon: BrainCircuit,
+    lead: "脳波データから6つの指標を分析",
+  },
+  {
+    key: "compare",
+    label: "測定の比較",
+    icon: GitCompare,
+    lead: "周波数スペクトルのある測定を2〜3件選ぶと、6指標とスペクトルを比較できます",
+  },
+];
 
 function CompareCandidateRow({
   m,
@@ -72,11 +96,13 @@ function CompareCandidateRow({
 }
 
 /**
- * Sync Report — the 脳特性チャート analysis (formerly on Sync Brain) merged
- * with the measurement comparison (formerly Sync Compare): read this
- * measurement at the top, compare measurements below. The 3 condition tiles
- * share data and computation with the home tiles (same store, same
- * computeBrainConditionMetrics), so the numbers always agree.
+ * Sync Report — the 脳特性チャート analysis (formerly on Sync Brain) and the
+ * measurement comparison (formerly Sync Compare). The two used to stack on one
+ * long scroll; they are now two pages switched by tabs under the page title —
+ * reading one measurement and comparing several are separate errands, and the
+ * comparison list sat far below the fold. The 3 condition tiles share data and
+ * computation with the home tiles (same store, same computeBrainConditionMetrics),
+ * so the numbers always agree.
  */
 export default function ReportPage() {
   const profile = useBrainProfileStore((s) => s.profile);
@@ -93,6 +119,10 @@ export default function ReportPage() {
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  // 既定は脳特性チャート — ヒストリーの「レポートで見る」やホームの
+  // 「詳細へ」はこの1件を読みに来る導線なので、そちらを先に見せる。
+  const [tab, setTab] = useState<ReportTab>("profile");
 
   // Bands hidden from the balance pie (δ usually dwarfs the rest). Held here,
   // not in the chart, so the inline and fullscreen copies stay in sync.
@@ -201,13 +231,64 @@ export default function ReportPage() {
         </div>
       ) : (
         <>
-          {/* ══ 脳特性チャート — the current measurement ══ */}
-
-          <div>
-            <h2 className="text-xl font-bold text-text-primary">脳特性チャート</h2>
-            <p className="text-sm text-text-secondary mt-1">脳波データから6つの指標を分析</p>
+          {/* 大見出し直下の2ページ切り替え。矢印キーでも移動できるよう
+              tablist の作法どおりに組む（ボタン自体は48px確保）。 */}
+          <div
+            role="tablist"
+            aria-label="レポートの表示切り替え"
+            className="flex gap-2"
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+              e.preventDefault();
+              const i = REPORT_TABS.findIndex((t) => t.key === tab);
+              const next =
+                REPORT_TABS[
+                  (i + (e.key === "ArrowRight" ? 1 : REPORT_TABS.length - 1)) %
+                    REPORT_TABS.length
+                ];
+              setTab(next.key);
+              document.getElementById(`report-tab-${next.key}`)?.focus();
+            }}
+          >
+            {REPORT_TABS.map((t) => {
+              const Icon = t.icon;
+              const isActive = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  id={`report-tab-${t.key}`}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`report-panel-${t.key}`}
+                  tabIndex={isActive ? 0 : -1}
+                  onClick={() => setTab(t.key)}
+                  className={`flex-1 min-h-12 flex items-center justify-center gap-2 px-3 rounded-2xl text-sm font-bold transition-colors ${
+                    isActive
+                      ? "bg-primary text-on-primary"
+                      : "bg-navy text-text-secondary neu-raised-sm neu-press"
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={1.5} className="shrink-0" />
+                  {t.label}
+                </button>
+              );
+            })}
           </div>
 
+          <p className="text-sm text-text-secondary -mt-2">
+            {REPORT_TABS.find((t) => t.key === tab)!.lead}
+          </p>
+        </>
+      )}
+
+      {/* ══ 脳特性チャート — the current measurement ══ */}
+      {hydrated && (authLoading || user) && tab === "profile" && (
+        <div
+          id="report-panel-profile"
+          role="tabpanel"
+          aria-labelledby="report-tab-profile"
+          className="flex flex-col gap-6"
+        >
           {displayed ? (
             <>
               {/* Viewing a past measurement (opened from the history) — offer a way back. */}
@@ -352,36 +433,54 @@ export default function ReportPage() {
               <EegUploader />
             </div>
           )}
+        </div>
+      )}
 
-          {/* ══ 測定の比較 — the former Sync Compare ══ */}
-
-          {measurements.length > 0 && (
-            <>
-              <div className="border-t border-surface-border pt-6">
-                <h2 className="text-xl font-bold text-text-primary">測定の比較</h2>
-                <p className="text-sm text-text-secondary mt-1">
-                  周波数スペクトルのある測定を2〜3件選ぶと、6指標とスペクトルを比較できます
-                </p>
+      {/* ══ 測定の比較 — the former Sync Compare ══ */}
+      {hydrated && (authLoading || user) && tab === "compare" && (
+        <div
+          id="report-panel-compare"
+          role="tabpanel"
+          aria-labelledby="report-tab-compare"
+          className="flex flex-col gap-6"
+        >
+          {measurements.length > 0 ? (
+            /* Mobile: list then comparison below. Desktop: candidates | comparison. */
+            <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
+              <div className="flex flex-col gap-3">
+                {ordered.map((m) => (
+                  <CompareCandidateRow
+                    key={m.uploadedAt}
+                    m={m}
+                    selected={selectedIds.includes(m.uploadedAt)}
+                    onToggle={toggleSelect}
+                  />
+                ))}
               </div>
 
-              {/* Mobile: list then comparison below. Desktop: candidates | comparison. */}
-              <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-                <div className="flex flex-col gap-3">
-                  {ordered.map((m) => (
-                    <CompareCandidateRow
-                      key={m.uploadedAt}
-                      m={m}
-                      selected={selectedIds.includes(m.uploadedAt)}
-                      onToggle={toggleSelect}
-                    />
-                  ))}
-                </div>
-
-                <div className="flex flex-col gap-6">{compareSection}</div>
+              <div className="flex flex-col gap-6">{compareSection}</div>
+            </div>
+          ) : (
+            /* Empty state — 比較は測定が2件ないと始まらないので測定へ送る */
+            <div className="bg-surface border border-surface-border rounded-3xl p-8 text-center neu-raised md:max-w-2xl md:mx-auto md:w-full">
+              <div className="flex justify-center mb-4">
+                <GitCompare size={48} className="text-primary" strokeWidth={1.5} />
               </div>
-            </>
+              <p className="text-lg font-bold text-text-primary mb-2">
+                比較できる測定がまだありません
+              </p>
+              <p className="text-sm text-text-secondary mb-6">
+                測定を2件以上ためると、6指標と周波数スペクトルを重ねて見比べられます。
+              </p>
+              <Link
+                href="/brain"
+                className="inline-flex items-center justify-center min-h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
+              >
+                測定へ
+              </Link>
+            </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
