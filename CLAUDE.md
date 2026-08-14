@@ -40,7 +40,7 @@ brainwave-app/
 │   ├── page.tsx                # Home 首页（品牌行 → 「Home / ホーム｜今日の星空・宇宙周波数で即座に調律」页面见出し → 脳コンディションカード → Sync Tree 风景卡〔无文字，整卡点击进 /tree〕→ Today's Astro Sync 星座卡；右上角設定入口。桌面端左列＝コンディション＋Tree、右列＝星座卡）
 │   ├── session/page.tsx        # Sync Session（顶部 Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕+ プログラム選択・再生：Sync Sound 3節目 / 配信 / カスタム・合成器入口）
 │   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：マインドマップ/測定/過去の測定；分析已移至 report）
-│   ├── report/page.tsx         # Sync Report（脳特性チャート分析＋3指標タイル＋測定の比較〔2〜3件の6指標＆スペクトル〕合并页）
+│   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝2〜3件の6指標＆スペクトル。既定は脳特性チャート）
 │   ├── history/page.tsx        # Sync History（日历 / セッション統計 / 脳波の記録；レポートで見る→/report）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
 │   ├── tree/page.tsx           # Sync Tree 16段階ギャラリー／詳細（段階名・進捗%・育てた木数はここだけ；菜单外，从首页树卡进入）
