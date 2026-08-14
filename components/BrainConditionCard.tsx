@@ -67,9 +67,9 @@ export default function BrainConditionCard() {
   ] as const;
 
   return (
-    <div className="bg-surface border border-surface-border rounded-3xl p-5 flex flex-col gap-5 neu-raised">
+    <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-4 neu-raised">
       {/* 測定由来のブロック — 見出し／3値／出どころと測定導線 */}
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-sm text-text-secondary">
             <BrainCircuit size={18} strokeWidth={1.5} className="shrink-0 text-primary" />
@@ -86,7 +86,7 @@ export default function BrainConditionCard() {
         </div>
 
         {/* 測定値 — 溝に沈めた 3 値。区切り線は最後の1つを除いて引く */}
-        <div className="rounded-2xl bg-navy neu-inset grid grid-cols-3 py-4">
+        <div className="rounded-2xl bg-navy neu-inset grid grid-cols-3 py-3">
           {metrics.map((m, i) => (
             <div
               key={m.key}
@@ -122,7 +122,7 @@ export default function BrainConditionCard() {
       </div>
 
       {/* 自己評価 — 測定とは独立した毎日の主観入力 */}
-      <div className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-3">
         <p className="flex items-center gap-2 text-sm text-text-secondary">
           <HeartPulse size={18} strokeWidth={1.5} className="shrink-0 text-accent" />
           感コンディション
