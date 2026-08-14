@@ -338,7 +338,10 @@ export const TREE_SKY_DAY: TreeSky = {
   b: "#dce9fa",
   c: "#b8cfee",
   ink: "#3d4a80",
-  glow: "rgba(255,214,130,0.50)",
+  // ハンドオフ原案の rgba(255,214,130,.50) は平塗りだと空に対して唐突
+  // だったので、淡く・薄く（シーン側の feGaussianBlur とセットで陽だまり
+  // に読める強さへ）
+  glow: "rgba(255,228,175,0.38)",
   border: "#cbd6e8",
   shadow: "rgba(60,70,120,0.18)",
 };

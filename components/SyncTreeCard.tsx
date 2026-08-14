@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import Link from "next/link";
 import {
   PLACEHOLDER_TREE,
@@ -24,12 +25,29 @@ import { SyncTreeFigure, TREE_SPARKLE_PATH } from "@/components/SyncTreeArt";
  * シーンの構成要素（オーラ・地面の線・盛り土・きらめき3つ）は、ハンドオフの
  * モバイル値（340×170、樹 transform translate(85.5,-13.6) scale(1.42)）を
  * その transform の逆写像で樹空間（120×140）に戻した定数で持ち、全体を
- * ブレークポイントごとの transform で包む——モバイルはハンドオフの座標を
- * ぴったり再現し、デスクトップには指定の 340×150／scale(1.26) が同じシーンに
- * かかる。
+ * ブレークポイントごとの transform で包む。カードの縦寸と樹スケールは
+ * ハンドオフ原案（170/150・1.42/1.26）からフィードバックを受けて縦に
+ * 伸ばした値——構図（接地位置・きらめき配置の相対関係）はそのまま。
  */
 
-/** シーン1枚。variant でハンドオフ指定の viewBox／樹 transform を切り替える。 */
+/** variant ごとのシーン寸法。transform は「幹の接地が高さの95%」から算出。 */
+const SCENE = {
+  mobile: { h: 204, scale: 1.5 },
+  desktop: { h: 184, scale: 1.35 },
+} as const;
+
+const SCENE_W = 340;
+/** 樹空間（120×140）での接地線の y。 */
+const GROUND_Y = 124;
+
+function sceneTransform(variant: "mobile" | "desktop"): string {
+  const { h, scale } = SCENE[variant];
+  const tx = (SCENE_W - 120 * scale) / 2;
+  const ty = h * 0.95 - GROUND_Y * scale;
+  return `translate(${tx.toFixed(1)},${ty.toFixed(1)}) scale(${scale})`;
+}
+
+/** シーン1枚。viewBox と樹 transform だけが variant で変わる。 */
 function TreeScene({
   variant,
   stage,
@@ -39,20 +57,22 @@ function TreeScene({
   stage: number;
   className?: string;
 }) {
-  const mobile = variant === "mobile";
+  // オーラのぼかしフィルタ id はインスタンスごとに一意に
+  const glowId = `tree-glow-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
     <svg
-      viewBox={mobile ? "0 0 340 170" : "0 0 340 150"}
+      viewBox={`0 0 ${SCENE_W} ${SCENE[variant].h}`}
       className={className}
       aria-hidden="true"
     >
-      <g
-        transform={
-          mobile
-            ? "translate(85.5,-13.6) scale(1.42)"
-            : "translate(94.4,-16.8) scale(1.26)"
-        }
-      >
+      <defs>
+        {/* 平塗り楕円のフチが（特に昼の空で）唐突だったので輪郭を羽化させる。
+            ぼかしがフィルタ領域で切れないよう余白を広めに取る */}
+        <filter id={glowId} x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation={7} />
+        </filter>
+      </defs>
+      <g transform={sceneTransform(variant)}>
         {/* 樹のうしろのやわらかな光 */}
         <ellipse
           cx={59.5}
@@ -61,6 +81,7 @@ function TreeScene({
           ry={40.8}
           fill="var(--tree-glow)"
           opacity={0.55}
+          filter={`url(#${glowId})`}
         />
         {/* うねる地面のひと筆と盛り土 */}
         <path
