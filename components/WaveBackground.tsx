@@ -12,7 +12,7 @@
  *
  * ■ 動き
  * 上・中・下の3層に分けて、それぞれ別の速さ・向きにごくゆっくり漂わせる
- * （40〜70秒で1往復）。層ごとに速度が違うので視差が出て、板が1枚動くのでは
+ * （20〜34秒で1往復）。層ごとに速度が違うので視差が出て、板が1枚動くのでは
  * なく水面が流れているように見える。
  *
  * 動かすのは **SVG の中身ではなく HTML の層** ：SVG 内の <g> に transform を
@@ -59,7 +59,7 @@ export default function WaveBackground() {
       {/* 上の帯 — いちばん遅く、右へ */}
       <Layer
         className="wave-drift"
-        style={{ "--wave-dur": "70s", "--wave-x": "7%", "--wave-y": "-2.5%" } as React.CSSProperties}
+        style={{ "--wave-dur": "34s", "--wave-x": "7%", "--wave-y": "-2.5%" } as React.CSSProperties}
       >
         <defs>
           <linearGradient id="wave-a1" x1="0" y1="0" x2="1" y2="1">
@@ -83,10 +83,10 @@ export default function WaveBackground() {
         </g>
       </Layer>
 
-      {/* 中央の一本 — 逆向きに、いちばん速く（といっても40秒） */}
+      {/* 中央の一本 — 逆向きに、いちばん速く（20秒で1往復） */}
       <Layer
         className="wave-drift"
-        style={{ "--wave-dur": "40s", "--wave-x": "-9%", "--wave-y": "3%" } as React.CSSProperties}
+        style={{ "--wave-dur": "20s", "--wave-x": "-9%", "--wave-y": "3%" } as React.CSSProperties}
       >
         <defs>
           <linearGradient id="wave-e2" x1="0.2" y1="0" x2="1" y2="1">
@@ -105,7 +105,7 @@ export default function WaveBackground() {
       {/* 下の帯 — 中くらいの速さで右へ */}
       <Layer
         className="wave-drift"
-        style={{ "--wave-dur": "55s", "--wave-x": "6%", "--wave-y": "2%" } as React.CSSProperties}
+        style={{ "--wave-dur": "26s", "--wave-x": "6%", "--wave-y": "2%" } as React.CSSProperties}
       >
         <defs>
           <linearGradient id="wave-b3" x1="0" y1="1" x2="1" y2="0">

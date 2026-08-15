@@ -430,14 +430,14 @@ input[type="range"]:disabled::-moz-range-thumb {
   animation-direction: reverse;
 }
 
-/* 背景の波の漂い — 層ごとに向きと速さを変えて視差を出す（40〜70秒で1往復）。
+/* 背景の波の漂い — 層ごとに向きと速さを変えて視差を出す（20〜34秒で1往復）。
    translate3d は合成だけで済むので、全画面でも実時間の音声合成を邪魔しない */
 @keyframes wave-drift {
   0%, 100% { transform: translate3d(0, 0, 0); }
   50% { transform: translate3d(var(--wave-x, 3%), var(--wave-y, 1%), 0); }
 }
 .wave-drift {
-  animation: wave-drift var(--wave-dur, 55s) ease-in-out infinite;
+  animation: wave-drift var(--wave-dur, 26s) ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
