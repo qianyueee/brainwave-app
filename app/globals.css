@@ -430,19 +430,24 @@ input[type="range"]:disabled::-moz-range-thumb {
   animation-direction: reverse;
 }
 
-/* 背景の波の漂い — 層ごとに向きと速さを変えて視差を出す（20〜34秒で1往復）。
-   translate3d は合成だけで済むので、全画面でも実時間の音声合成を邪魔しない */
-@keyframes wave-drift {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(var(--wave-x, 3%), var(--wave-y, 1%), 0); }
+/* 背景の波の流れ — タイル2枚を等速で半分ぶん送る一方向ループ。1周で図柄が
+   一致するので継ぎ目も折り返しもなく、水が流れ続けて見える。linear なのは
+   端で減速させないため（ease だと呼吸に見える）。translate3d は合成だけで
+   済むので、全画面でも実時間の音声合成を邪魔しない */
+@keyframes wave-flow {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
 }
-.wave-drift {
-  animation: wave-drift var(--wave-dur, 26s) ease-in-out infinite;
+.wave-flow {
+  animation: wave-flow var(--wave-dur, 20s) linear infinite;
+}
+.wave-flow-rev {
+  animation-direction: reverse;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  @keyframes wave-drift {
-    0%, 50%, 100% { transform: translate3d(0, 0, 0); }
+  @keyframes wave-flow {
+    from, to { transform: translate3d(0, 0, 0); }
   }
   @keyframes pulse-ring {
     0%, 50%, 100% { transform: scale(1); opacity: 0.5; }
