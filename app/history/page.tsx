@@ -246,7 +246,7 @@ export default function HistoryPage() {
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Sync History</h1>
-        <p className="text-sm text-text-secondary mt-1">シンク・ヒストリー｜あなたのチューニング記録</p>
+        <p className="text-sm text-text-secondary mt-1">あなたのチューニング記録</p>
       </div>
 
       {/* Mobile: single column. Desktop: stats+calendar | history side by side. */}

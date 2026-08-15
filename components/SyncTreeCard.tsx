@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import {
   PLACEHOLDER_TREE,
   clampProgress,
@@ -11,12 +12,14 @@ import {
 import { SyncTreeFigure, TREE_SPARKLE_PATH } from "@/components/SyncTreeArt";
 
 /**
- * Sync Tree — ホームのシーンカード（ハンドオフ 9c「pure scene」確定版）。
+ * Sync Tree — ホームのシーンカード。
  *
- * 文字・％・プログレスバーは置かない：昼夜の空に現在段階の樹が立つだけの
- * 静かな風景で、成長は絵柄が段階替わりすることでのみ伝える。カード全体が
- * タップ領域で、段階名・進捗・育てた木数は遷移先の /tree（16段階ギャラリー）
- * が受け持つ。
+ * 昼夜の空に現在段階の樹が立つ静かな風景で、成長は絵柄が段階替わりすることで
+ * 伝える。文字は四隅の3点だけ——左上のラベル、右上の進捗％、右下の矢印。
+ * 段階名・育てた木数・16段階の一覧といった読みものは遷移先の /tree が受け
+ * 持つので、ここには持ち込まない（％だけは、樹の絵の差が微妙な隣接段階でも
+ * 「昨日から進んだ」ことが分かる唯一の手がかりなので残している）。
+ * カード全体がタップ領域。
  *
  * 背景はアプリの4テーマを昼／夜の2状態に畳んだ --tree-* 変数（lib/theme.ts）：
  * day・afternoon は白日の空、midnight・evening は星空。樹のアート自体は
@@ -134,7 +137,7 @@ export default function SyncTreeCard() {
   return (
     <Link
       href="/tree"
-      aria-label={`Sync Tree：いまは「${stageName}」。16段階の成長と進捗を見る`}
+      aria-label={`Sync Tree：いまは「${stageName}」${Math.round(progress)}%。16段階の成長と進捗を見る`}
       className="relative block rounded-3xl overflow-hidden border active:scale-[0.99] transition-transform"
       style={{
         background:
@@ -146,16 +149,25 @@ export default function SyncTreeCard() {
       <TreeScene variant="mobile" stage={stage} className="block w-full md:hidden" />
       <TreeScene variant="desktop" stage={stage} className="hidden w-full md:block" />
 
-      {/* 見出しは空の上に重ねる（樹の位置とカード高さを動かさないため）。
-          色は地面線・きらめきと同じ --tree-ink で、昼夜どちらの空でも
-          コントラストが確保される。段階名や％はここには出さない——
-          それらは遷移先の /tree の役割。 */}
+      {/* 文字は空の上に重ねる（樹の位置とカード高さを動かさないため）。色は
+          地面線・きらめきと同じ --tree-ink で、昼夜どちらの空でもコントラスト
+          が確保される。段階名は出さない——それは遷移先の /tree の役割。 */}
       <span
-        className="absolute top-0 left-0 p-5 text-sm font-medium"
+        className="absolute top-0 left-0 right-0 p-5 flex items-baseline justify-between gap-2 text-sm font-medium"
         style={{ color: "var(--tree-ink)" }}
       >
         Sync Tree
+        <span className="text-lg font-bold tabular-nums">{Math.round(progress)}%</span>
       </span>
+
+      {/* 押せることの合図。カード内に文字を増やさずに済む向き記号ひとつ。 */}
+      <ArrowRight
+        size={20}
+        strokeWidth={2}
+        aria-hidden="true"
+        className="absolute bottom-4 right-4 opacity-70"
+        style={{ color: "var(--tree-ink)" }}
+      />
     </Link>
   );
 }

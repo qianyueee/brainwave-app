@@ -8,6 +8,7 @@ import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import WaterMandalaHero from "@/components/WaterMandalaHero";
+import { ArrowRight, User } from "lucide-react";
 
 /**
  * Sync Session — 聴くための画面。今日の星座周波数の水マンダラ、Sync Sound の
@@ -57,7 +58,7 @@ export default function SessionPage() {
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Sync Session</h1>
-        <p className="text-sm text-text-secondary mt-1">シンク・セッション｜プログラム選択・再生</p>
+        <p className="text-sm text-text-secondary mt-1">プログラム選択・再生</p>
       </div>
 
       {/* Mobile: single column. Desktop: mandala + built-ins | published + custom. */}
@@ -68,7 +69,7 @@ export default function SessionPage() {
 
       {/* Programs — the "Sync Sound" lineup */}
       <div className="flex flex-col gap-3 breathe-stagger">
-        <p className="text-sm text-text-secondary">Sync Sound（シンク・サウンド / 脳波同期サウンド）</p>
+        <p className="text-sm text-text-secondary">Sync Sound｜脳波同期サウンド</p>
         {PROGRAMS.map((program) => (
           <ProgramCard key={program.id} program={program} />
         ))}
@@ -86,19 +87,29 @@ export default function SessionPage() {
         </div>
       )}
 
-      {/* Login CTA for unauthenticated users */}
+      {/* Login CTA for unauthenticated users.
+          未ログインのこの枠は、ログインすると「配信プログラム」の一覧に
+          置き換わる場所。だから誘い文句ではなく、そこに何が入るのかを
+          先に書いておく（合成器づくりは管理者の作業なので、一般利用者に
+          約束するのは「所属グループに配信されたプログラムが聴ける」こと）。 */}
       {!isLoggedIn && !authLoading && (
-        <button
-          onClick={() => openAuthModal("login")}
-          className="w-full py-4 rounded-3xl bg-surface border border-surface-border text-center neu-raised neu-press active:scale-[0.98] transition-transform"
-        >
-          <p className="text-base font-bold text-text-primary">ログインしてもっと体験</p>
-          {/* 合成器づくりは管理者の作業になったので、一般利用者に約束するのは
-              「所属グループに配信されたプログラムが聴ける」こと */}
-          <p className="text-sm text-text-secondary mt-1">
-            グループに配信されたプログラムを再生できます
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-text-secondary">
+            ログインして配信されたプログラムを再生
           </p>
-        </button>
+          <button
+            onClick={() => openAuthModal("login")}
+            className="w-full min-h-14 px-5 rounded-3xl bg-navy flex items-center justify-center gap-3 neu-raised neu-press active:scale-[0.98] transition-transform"
+          >
+            <span className="flex-1 flex items-center justify-center gap-2 text-base font-bold text-primary">
+              <User size={20} strokeWidth={1.5} />
+              ログイン
+            </span>
+            <span className="shrink-0 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center">
+              <ArrowRight size={20} strokeWidth={2} />
+            </span>
+          </button>
+        </div>
       )}
       </div>
       </div>

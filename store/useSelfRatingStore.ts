@@ -50,11 +50,17 @@ export function isSameDay(iso: string, now: Date): boolean {
   );
 }
 
-/** 「昨日21:40」「今日 08:05」「8/9 21:40」。 */
+/**
+ * 「21:43」「昨日21:40」「8/9 21:40」。
+ *
+ * 同じ日なら時刻だけ返す——呼び出し側（ホームの「前回：」）は「今日のコンディ
+ * ションを更新する」ボタンの真下にあり、日付は文脈で決まっているので、そこに
+ * 「今日」と書くと同じことを二度言うことになる。
+ */
 export function formatRecordedAt(iso: string, now: Date): string {
   const d = new Date(iso);
   const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
-  if (isSameDay(iso, now)) return `今日${time}`;
+  if (isSameDay(iso, now)) return time;
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);

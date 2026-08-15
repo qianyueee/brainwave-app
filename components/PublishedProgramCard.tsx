@@ -44,17 +44,20 @@ export default function PublishedProgramCard({
       <div className="w-14 h-14 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
         <Waves size={26} className="text-success" strokeWidth={1.5} />
       </div>
+      {/* 配信ぶんは名前が「Subliminal-41.7…」のように機械的なことが多いので、
+          説明文は残す（3節目と違い、名前だけでは中身が読めない）。「公開済み」
+          は名前の隣から足元の行へ——長い名前を badge が押し潰さなくなる。 */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-base font-bold text-text-primary truncate">{program.name}</p>
-          <span className="text-xs font-bold text-success bg-success/15 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
-            公開済み
-          </span>
-        </div>
+        <p className="text-base font-bold text-text-primary truncate">{program.name}</p>
         <p className="text-sm text-text-secondary mt-0.5">
           {program.description}
         </p>
-        <p className="text-xs text-text-muted mt-1">{displayMinutes}分</p>
+        <div className="mt-1 flex items-center gap-2 flex-wrap">
+          <p className="text-xs text-text-muted">{displayMinutes}分</p>
+          <span className="text-xs font-bold text-success bg-success/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+            公開済み
+          </span>
+        </div>
       </div>
       {manage && isAdmin && (
         <button

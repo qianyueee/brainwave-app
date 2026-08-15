@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Check, Plus, Trash2, User, X } from "lucide-react";
+import { ArrowLeftRight, Check, Plus, Trash2, X } from "lucide-react";
 import {
   useSubjectStore,
   activeSubject,
@@ -67,24 +67,23 @@ export default function SubjectSelector() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        disabled={isRecording}
-        className="w-full flex items-center gap-3 min-h-[56px] px-4 rounded-2xl bg-surface border border-surface-border neu-raised neu-press transition-transform text-left disabled:opacity-60 disabled:active:scale-100"
-      >
-        <span className="w-9 h-9 shrink-0 rounded-xl bg-navy neu-inset flex items-center justify-center text-primary">
-          <User size={18} strokeWidth={1.5} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-xs text-text-muted">測定者</span>
-          <span className="block text-base font-bold text-text-primary truncate">
+      {/* 測定者は「接続する」と同じ行に収まるチップ。1行ぶんの縦を返した
+          ぶん、マインドマップが最初の画面に入る。ラベルは外に出し、押せる
+          のは名前のチップだけ——タップ範囲と表示が一致する。 */}
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="shrink-0 text-sm text-text-secondary">測定者：</span>
+        <button
+          onClick={() => setOpen(true)}
+          disabled={isRecording}
+          aria-label={`測定者：${hydrated ? (current?.name ?? "未選択") : ""}／変更する`}
+          className="min-w-0 flex items-center gap-2 min-h-12 px-4 rounded-2xl bg-surface border border-surface-border neu-raised-sm neu-press transition-transform disabled:opacity-60 disabled:active:scale-100"
+        >
+          <span className="min-w-0 truncate text-base font-bold text-text-primary">
             {hydrated ? (current?.name ?? "未選択") : "…"}
           </span>
-        </span>
-        <span className="shrink-0 text-sm text-primary font-bold">
-          {isRecording ? "測定中" : "変更"}
-        </span>
-      </button>
+          <ArrowLeftRight size={16} strokeWidth={2} className="shrink-0 text-primary" />
+        </button>
+      </div>
 
       {open && (
         <div

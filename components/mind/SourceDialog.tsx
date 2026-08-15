@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Check, Settings2, X } from "lucide-react";
+import { Copy, Check, Link2, Settings2, X } from "lucide-react";
 import { useMindStore } from "@/store/useMindStore";
 import { supabase } from "@/lib/supabase";
 
 /**
- * Data-source / connection settings, tucked into a dialog so the mind-map page
- * opens straight onto the quadrant chart instead of a big setup panel. The
- * trigger button sits at the bottom of the page and reflects the current
- * source at a glance.
+ * 接続設定（PCブリッジとのペアリング）。マインドマップの画面が設定パネルでは
+ * なく四象限マップから始まるよう、中身はダイアログに畳んである。
+ *
+ * デモ／リアルタイムの二択トグルは置かない——ふだんはデモが流れていて、
+ * 「接続する」を押した時にだけリアルタイムへ切り替わる。押す行為そのものが
+ * 選択なので、同じ選択肢をボタンとして二重に並べる必要がない。いま何が
+ * 流れているかはボタンではなく <SourceStatusLine /> の一行が受け持つ。
  */
 export default function SourceDialog() {
   const sourceKind = useMindStore((s) => s.sourceKind);
@@ -55,24 +58,40 @@ export default function SourceDialog() {
   };
 
   const cloudConfigured = supabase !== null;
-  const sourceLabel = sourceKind === "demo" ? "デモ" : "リアルタイム";
+  const realtime = sourceKind === "realtime";
+
+  // 「接続する」＝接続の意思表示なので、押した時点でリアルタイムに切り替えて
+  // ダイアログ（コードとブリッジ状態）を開く。クラウド未設定のときだけは
+  // 切り替えても受け口が無いので、ダイアログでその旨だけ伝える。
+  const handleTrigger = () => {
+    if (!realtime && cloudConfigured) setSourceKind("realtime");
+    setOpen(true);
+  };
 
   return (
     <>
-      {/* Trigger (bottom of the page) */}
+      {/* Trigger — 測定ボタンの上、測定者チップの左に並ぶ */}
       <button
-        onClick={() => setOpen(true)}
-        className="w-full min-h-[52px] rounded-2xl bg-surface border border-surface-border neu-raised neu-press transition-transform flex items-center justify-center gap-2 text-base font-medium text-text-secondary"
+        onClick={handleTrigger}
+        disabled={isRecording}
+        className={`shrink-0 min-h-12 px-5 rounded-2xl flex items-center justify-center gap-2 text-base font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60 disabled:active:scale-100 ${
+          realtime ? "bg-navy text-text-secondary" : "bg-primary text-on-primary"
+        }`}
       >
-        <Settings2 size={20} />
-        データソース：
-        <span className="font-bold text-text-primary">{sourceLabel}</span>
-        {sourceKind === "realtime" && (
-          <span
-            className={`ml-1 inline-block w-2.5 h-2.5 rounded-full ${
-              bridgeOnline ? "bg-success" : "bg-text-muted"
-            }`}
-          />
+        {realtime ? (
+          <>
+            接続中
+            <span
+              className={`inline-block w-2.5 h-2.5 rounded-full ${
+                bridgeOnline ? "bg-success" : "bg-text-muted"
+              }`}
+            />
+          </>
+        ) : (
+          <>
+            接続する
+            <Link2 size={18} strokeWidth={2} />
+          </>
         )}
       </button>
 
@@ -88,7 +107,7 @@ export default function SourceDialog() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-text-primary">データソース設定</h2>
+              <h2 className="text-lg font-bold text-text-primary">接続設定</h2>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="閉じる"
@@ -98,43 +117,7 @@ export default function SourceDialog() {
               </button>
             </div>
 
-            {/* Source toggle */}
-            <div className="flex gap-2">
-              {(
-                [
-                  { kind: "demo", label: "デモ" },
-                  { kind: "realtime", label: "リアルタイム" },
-                ] as const
-              ).map((opt) => {
-                const active = sourceKind === opt.kind;
-                return (
-                  <button
-                    key={opt.kind}
-                    onClick={() => setSourceKind(opt.kind)}
-                    disabled={isRecording}
-                    className={`flex-1 min-h-[48px] rounded-xl text-base font-medium transition-colors disabled:opacity-50 ${
-                      active
-                        ? "bg-primary text-on-primary neu-press"
-                        : "bg-navy text-text-secondary neu-raised-sm"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-            {isRecording && (
-              <p className="text-sm text-text-muted">測定中はデータソースを変更できません</p>
-            )}
-
-            {/* Connection state */}
-            {sourceKind === "demo" ? (
-              <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-navy neu-inset text-text-secondary text-sm font-bold">
-                  デモデータ表示中
-                </span>
-              </div>
-            ) : !cloudConfigured ? (
+            {!cloudConfigured ? (
               <p className="text-base text-text-secondary">クラウド接続が未設定です</p>
             ) : (
               <div className="flex flex-col gap-3">
@@ -172,9 +155,46 @@ export default function SourceDialog() {
                 {statusDetail && <p className="text-sm text-text-secondary">{statusDetail}</p>}
               </div>
             )}
+
+            {/* 二択トグルを畳んだぶん、デモへ戻る道だけは残す（接続をやめたら
+                画面が空になる袋小路を作らないため）。測定中に出どころが
+                変わらないことはトリガー側の disabled が担保しているので、
+                ここは realtime かどうかだけを見る。 */}
+            {realtime && !isRecording && (
+              <button
+                onClick={() => setSourceKind("demo")}
+                className="min-h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
+              >
+                デモデータに戻す
+              </button>
+            )}
           </div>
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * いま画面に出ている数字の出どころを言い切る一行。測定ボタンの真下に置く。
+ *
+ * 以前はデータソースがボタンのラベル（「データソース：デモ」）を兼ねていたが、
+ * ボタンは「これから何をするか」、この行は「いま何が起きているか」——役割が
+ * 違うので分けた。デモは控えめな灰、リアルタイムは主色で、脳波が本物かどうかが
+ * 色でも分かるようにしている。
+ */
+export function SourceStatusLine() {
+  const sourceKind = useMindStore((s) => s.sourceKind);
+  const realtime = sourceKind === "realtime";
+
+  return (
+    <p
+      className={`flex items-center gap-1.5 text-xs ${
+        realtime ? "text-primary font-medium" : "text-text-muted"
+      }`}
+    >
+      <Settings2 size={16} strokeWidth={1.5} className="shrink-0" />
+      {realtime ? "リアルタイムデータを表示しています" : "デモデータを表示しています"}
+    </p>
   );
 }

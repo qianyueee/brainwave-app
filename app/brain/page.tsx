@@ -12,7 +12,7 @@ import MindStatusText from "@/components/mind/MindStatusText";
 import BandEqualizer from "@/components/mind/BandEqualizer";
 import MindTrendChart from "@/components/mind/MindTrendChart";
 import MindRecorder from "@/components/mind/MindRecorder";
-import SourceDialog from "@/components/mind/SourceDialog";
+import SourceDialog, { SourceStatusLine } from "@/components/mind/SourceDialog";
 import SessionList from "@/components/mind/SessionList";
 import SubjectSelector from "@/components/mind/SubjectSelector";
 
@@ -65,21 +65,22 @@ export default function BrainPage() {
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Sync Brain</h1>
-        <p className="text-sm text-text-secondary mt-1">シンク・ブレイン｜脳波同期・測定</p>
+        <p className="text-sm text-text-secondary mt-1">脳波同期・測定</p>
       </div>
 
-      {/* Who is being measured — chosen before recording, since the session is
-          stamped with it and the history is grouped by it. */}
-      <SubjectSelector />
-
-      {/* Top bar: 測定 + データソース side by side. */}
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <MindRecorder />
-        </div>
-        <div className="flex-1">
+      {/* 測定の前にやることを、やる順に3段で置く：
+          1) 接続する（＋誰を測るか）2) 測定を開始 3) いま何が流れているか。
+          測定者は録音開始時にセッションへ焼き込まれ、履歴もそれで束ねるので、
+          必ず「測定を開始」より前に見える位置に置く。 */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
           <SourceDialog />
+          <div className="min-w-0 ml-auto">
+            <SubjectSelector />
+          </div>
         </div>
+        <MindRecorder />
+        <SourceStatusLine />
       </div>
 
       {/* Mobile: single column. Desktop: map+meters (left) | art+history (right). */}

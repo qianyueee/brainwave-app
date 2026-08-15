@@ -152,18 +152,22 @@ export default function BrainConditionCard() {
         ))}
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* 記録ボタンは横いっぱい。「毎日1回」の但し書きは外し、代わりに何を
+          するボタンかを label に書き切った（"記録する" だけだと、すぐ上の
+          スライダーではなく脳波測定を保存するように読めてしまう）。前回時刻は
+          ボタンの下に小さく——押す前に読む情報ではないので、行を分けて弱める。 */}
+      <div className="flex flex-col gap-1.5">
         <button
           onClick={() => record(values)}
-          className="flex-1 h-12 rounded-2xl bg-navy text-primary text-sm font-bold neu-raised-sm neu-press active:scale-95 transition-transform"
+          className="w-full h-12 rounded-2xl bg-navy text-primary text-base font-bold neu-raised-sm neu-press active:scale-95 transition-transform"
         >
-          {recordedToday ? "記録を更新する" : "記録する"}
+          今日のコンディションを{recordedToday ? "更新する" : "記録する"}
         </button>
-        <span className="text-xs text-text-muted">
-          {hydrated && latest
-            ? `毎日1回・前回 ${formatRecordedAt(latest.recordedAt, now)}`
-            : "毎日1回"}
-        </span>
+        {hydrated && latest && (
+          <span className="text-xs text-text-muted text-center">
+            前回：{formatRecordedAt(latest.recordedAt, now)}
+          </span>
+        )}
       </div>
     </div>
   );

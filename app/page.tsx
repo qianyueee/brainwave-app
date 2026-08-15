@@ -8,9 +8,13 @@ import { User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 
 /**
- * ホーム。上から 脳コンディション（測定3値＋毎日の自己評価）→ Sync Tree の
- * シーンカード → 星空カード（今日のおすすめ＋開始）の3ブロック。Sync Tree の
- * 位置は設計ハンドオフどおり「脳コンディションと星空カードの間」。
+ * ホーム。上から Sync Tree のシーンカード → 脳コンディション（測定3値＋毎日の
+ * 自己評価）→ 星空カード（今日のおすすめ＋開始）の3ブロック。
+ *
+ * Tree を先頭に置くのは、開いた瞬間に目に入るものを「数字」ではなく「風景」に
+ * するため——毎日つづけた結果が育った樹として先に迎え、細かい数値はその下で
+ * 読む。数字の詰まったカードが最初だと、まだ測定していない日に開いたとき
+ * 空欄の「—」から始まってしまう。
  *
  * 脳特性チャート（レーダー）はここから外して Sync Report に一本化した——
  * 測定値・自己評価・星座・育樹と、ホームが受け持つものが増えたぶん、詳細な
@@ -27,19 +31,15 @@ export default function HomePage() {
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Header */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-start justify-between gap-3">
-          {/* Beside the header buttons a phone leaves limited width for the title.
-              At a uniform 24px the name needs 289px, so it wrapped on every phone.
-              The katakana is a reading gloss and takes the deeper cut, keeping the
-              brand itself at the 16px floor; nowrap makes it break as a unit when
-              the login button squeezes the line. The subtitle sits below the row
-              at full width. Everything goes full size once there is room. */}
-          <h1 className="min-w-0 text-base md:text-2xl font-bold text-text-primary">
+        <div className="flex items-center justify-between gap-3">
+          {/* 読み仮名（ニューロシンク）は外した——ロゴの行はブランド名だけに
+              して、次に来る「Home」の見出しと役割をはっきり分ける。名前が
+              短くなったぶん、ログインボタンと並べても折り返さない。 */}
+          <h1 className="min-w-0 text-xl md:text-2xl font-bold text-text-primary">
             NeuroSync
             {/* 登録商標表示 ®。sup は preflight 既定で 75%＋上付き、太字だけ
                 解除する。本文16px下限の対象外——情報を担わない組版記号。 */}
             <sup className="font-normal">®</sup>
-            <span className="text-xs md:text-2xl whitespace-nowrap">（ニューロシンク）</span>
           </h1>
           <div className="flex items-center gap-2 shrink-0">
           {!authLoading && (
@@ -68,9 +68,6 @@ export default function HomePage() {
           </button>
           </div>
         </div>
-        <p className="text-xs md:text-sm text-text-secondary">
-          〜 音波×光波×脳波シンクロ誘導 ＆ 脳コンディション管理 〜
-        </p>
       </div>
 
       {/* ページ見出し。他のページ（Sync History / Sync Report …）と同じ
@@ -79,31 +76,30 @@ export default function HomePage() {
       <div>
         <h2 className="text-2xl font-bold text-text-primary">Home</h2>
         <p className="text-sm text-text-secondary mt-1">
-          ホーム｜今日の星空・宇宙周波数で即座に調律
+          今日の星空・宇宙周波数で即座に調律
         </p>
       </div>
 
-      {/* モバイルは1カラムで 脳コンディション → Sync Tree → 星空（ハンドオフ
-          指定：Tree はコンディションと星空カードの間）。デスクトップは
-          左（コンディション＋Tree）｜右（星空）の2カラムで、DOM 順のまま
-          行列を明示指定している（order だけではグリッドが行方向に流れて
-          しまい、意図しない位置に回り込む）。 */}
+      {/* モバイルは1カラムで Sync Tree → 脳コンディション → 星空。
+          デスクトップは 左（Tree＋コンディション）｜右（星空）の2カラムで、
+          DOM 順のまま行列を明示指定している（order だけではグリッドが行方向に
+          流れてしまい、意図しない位置に回り込む）。 */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-        {/* 測定3値（自動算出）＋ 毎日の自己評価スライダー */}
-        <div className="md:col-start-1 md:row-start-1">
-          <BrainConditionCard />
-        </div>
-
         {/* 樹だけの風景カード（タップで /tree の16段階ギャラリーへ） */}
-        <div className="md:col-start-1 md:row-start-2">
+        <div className="md:col-start-1 md:row-start-1">
           <SyncTreeCard />
         </div>
 
+        {/* 測定3値（自動算出）＋ 毎日の自己評価スライダー */}
+        <div className="md:col-start-1 md:row-start-2">
+          <BrainConditionCard />
+        </div>
+
         {/* デスクトップは2行ぶち抜き＋ self-stretch。星空カードを縦に伸ばすと
-            行1が高くなり、左列の コンディション と Tree の間に穴が空くため——
-            ぶち抜きにすると左列は自然な間隔のまま、右は「コンディション＋gap＋
-            Tree」の高さをそのまま受け取って伸びる（決め打ちの高さを持たずに
-            両列の下端が揃う）。 */}
+            行1が高くなり、左列の Tree と コンディション の間に穴が空くため——
+            ぶち抜きにすると左列は自然な間隔のまま、右は「Tree＋gap＋
+            コンディション」の高さをそのまま受け取って伸びる（決め打ちの高さを
+            持たずに両列の下端が揃う）。 */}
         <div className="md:col-start-2 md:row-start-1 md:row-span-2 md:self-stretch">
           <ZodiacSyncCard />
         </div>

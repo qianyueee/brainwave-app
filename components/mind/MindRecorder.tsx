@@ -74,15 +74,19 @@ export default function MindRecorder() {
 
   return (
     <>
+      {/* 主色のベタ塗りは「接続する」に譲り、こちらは輪郭ボタン。同じ画面に
+          塗りボタンが2つ並ぶと、先に押すべきものが読めなくなる——接続が先、
+          測定が次、という順番をボタンの重さで示している。測定中だけは
+          ベタ塗りの赤で、いま録れていることを最優先で見せる。 */}
       <button
         onClick={handleToggle}
         disabled={!isRecording && !canReceive}
-        className={`w-full flex items-center justify-center gap-2 min-h-[52px] rounded-2xl text-lg font-bold transition-colors ${
+        className={`w-full flex items-center justify-center gap-2 min-h-[52px] rounded-2xl text-lg font-bold border transition-colors ${
           isRecording
-            ? "bg-red-500/85 text-white neu-press"
+            ? "bg-red-500/85 text-white border-transparent neu-press"
             : canReceive
-              ? "bg-primary text-on-primary neu-raised-sm"
-              : "bg-navy text-text-muted neu-raised-sm opacity-60"
+              ? "bg-surface text-primary border-primary neu-raised-sm neu-press"
+              : "bg-surface text-text-muted border-surface-border neu-raised-sm opacity-60"
         }`}
       >
         {isRecording ? (
@@ -92,7 +96,7 @@ export default function MindRecorder() {
           </>
         ) : (
           <>
-            <Play size={20} fill="currentColor" />
+            <Play size={20} strokeWidth={2} />
             測定を開始
           </>
         )}
