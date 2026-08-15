@@ -8,6 +8,7 @@ import MiniPlayer from "@/components/MiniPlayer";
 import SideNav from "@/components/SideNav";
 import ThemeProvider from "@/components/ThemeProvider";
 import AuthProvider from "@/components/AuthProvider";
+import WaveBackground from "@/components/WaveBackground";
 
 // Self-hosted at build time (works with output:"export"); gives Android a
 // proper Japanese face — the system stack only covers iOS (Hiragino) and
@@ -41,6 +42,8 @@ export default function RootLayout({
     <html lang="ja" className={notoSansJP.variable}>
       <body>
         <ThemeProvider>
+          {/* 波の背景。body の直下に置いて全ページ共通の地にする */}
+          <WaveBackground />
           <AuthProvider>
             <AudioProvider>
               {/* Desktop: side rail + wide content area. Mobile: single column. */}
