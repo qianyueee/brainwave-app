@@ -29,10 +29,18 @@ export interface ThemePalette {
  * Sky palette for the constellation art surfaces (Home's Astro Sync hero,
  * Session's Water Mandala hero). These used to be a fixed deep-night gradient
  * in every theme; a full-height night hero on the cream day palette read as a
- * cold slab dropped into a warm page. The sky now follows the time of day —
- * morning sky with ink-dark constellation lines, then afternoon, dusk violet,
- * and only at night the original deep blue. The star figures themselves are
- * unchanged; only the ground and the ink move.
+ * cold slab dropped into a warm page. The sky now follows the time of day, and
+ * it flips convention at the same 6/18 boundary the app uses for day vs night
+ * (`isNightNow`): by day a pale ground with ink-dark constellation lines (how a
+ * printed star chart reads), by night a deep ground with the figure glowing
+ * light. The star figures themselves are unchanged; only the ground and the ink
+ * move.
+ *
+ * The two night periods (evening, midnight) therefore both get a dark sky —
+ * matching TREE_SKY below, which already splits day/night the same way. Keeping
+ * dusk on the daytime convention left the Home hero drawing near-black lines on
+ * pale violet while the Sync Tree card right above it showed a starry night, and
+ * while the card's own header said 今夜の月星座.
  *
  * `chip`/`glow`/`line` carry alpha, so values here may be hex OR rgba().
  */
@@ -209,17 +217,22 @@ export const TIME_PERIODS: TimePeriod[] = [
       warning: "#9a3412",
       danger: "#991b1b",
     },
-    // Dusk — violet sky handing over to the night, warm low-sun halo
+    // Dusk — deep violet night sky, the figure glowing light. Keeps the warm
+    // low-sun halo, which is what separates it from midnight's cool moonlight:
+    // same darkness, last light of the day still in the air. The page palette
+    // above stays pastel violet, so this card reads as an inset window onto the
+    // evening sky (exactly how the Sync Tree scene sits on the same page).
+    // 対比: text 5.1:1 / strong 9.1:1（グラデーション最明部 a に対して）
     sky: {
-      a: "#efe3fb",
-      b: "#d7c3f0",
-      c: "#9d82c8",
-      ink: "#2c1b58",
-      strong: "#1c1040",
-      text: "#43307a",
-      chip: "rgba(28,16,64,0.08)",
+      a: "#4a3480",
+      b: "#33215e",
+      c: "#1c1040",
+      ink: "#e9dfff",
+      strong: "#f6f2ff",
+      text: "#c3b0e8",
+      chip: "rgba(255,255,255,0.10)",
       glow: "rgba(255,200,150,0.40)",
-      line: "rgba(28,16,64,0.15)",
+      line: "rgba(255,255,255,0.16)",
     },
   },
 ];
