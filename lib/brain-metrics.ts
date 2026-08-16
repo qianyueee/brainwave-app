@@ -1,9 +1,16 @@
 import type { BrainProfile } from "./brain-profile";
+import type { BaselineCheck } from "@/store/useBaselineStore";
 
 /**
  * セルフケア評価の3指標（プロダクト仕様 §3）。医療診断を避け、最新の測定
  * データからポジティブな3軸スコアを出す。すべて 0-100、計算に必要なデータが
  * 無いときは null（未測定表示）。
+ *
+ * ここに居るのは**セッション由来**の算出。ターゲット周波数があるからこそ
+ * 「入定速度」と「40Hz 共鳴率」が意味を持つ。音を聴いていない平常時は
+ * 引き込む先が無くこの式が成立しないので、非セッション時は lib/mind/baseline.ts
+ * の10秒プロトコル（Berger 応答 / 静止時可塑性）へ振る。切り替えの入口は
+ * この下の computeBaselineConditionMetrics と、それを選ぶ UI 側。
  *
  * 1. Rate（切り替え力・脳の適応同調度）
  *    入定速度（100pt）と 40Hz 共鳴率をベースに「音への脳の切り替え力・
@@ -84,6 +91,29 @@ export function computeBrainConditionMetrics(
   // ③ リフレッシュ度: δ+θ の占有率（すでに % なのでそのままスコアになる）。
   const reset = bands != null ? floor5(bands.delta + bands.theta) : null;
 
+  return metricTiles(youth, clarity, reset);
+}
+
+/**
+ * 非セッション時（10秒ベースラインチェック）の3指標を、セッション由来と
+ * **同じ形**で返す。ホームやレポートのタイルは出どころを気にせず描けて、
+ * 「どのモードで測ったか」の説明だけを別に添えればよくなる。
+ *
+ * 中身の式は lib/mind/baseline.ts 側（計測時に確定してレコードへ保存済み）。
+ * ここは変換だけ——スコアの意味づけが2箇所に散らないように。
+ */
+export function computeBaselineConditionMetrics(
+  check: BaselineCheck | null
+): BrainConditionMetric[] {
+  return metricTiles(check?.rate ?? null, check?.clarity ?? null, check?.reset ?? null);
+}
+
+/** 3タイルの表示メタ。セッション由来・ベースライン由来で共通。 */
+function metricTiles(
+  youth: number | null,
+  clarity: number | null,
+  reset: number | null
+): BrainConditionMetric[] {
   return [
     { key: "youth", title: "Rate", subtitle: "切り替え力・脳の適応同調度", fullName: "Rate（切り替え力・脳の適応同調度）", score: youth },
     { key: "clarity", title: "Clarity", subtitle: "脳の明晰度・ひらめき・集中度", fullName: "Clarity（脳の明晰度・ひらめき・集中度）", score: clarity },

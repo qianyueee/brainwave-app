@@ -12,6 +12,7 @@ import MindStatusText from "@/components/mind/MindStatusText";
 import BandEqualizer from "@/components/mind/BandEqualizer";
 import MindTrendChart from "@/components/mind/MindTrendChart";
 import MindRecorder from "@/components/mind/MindRecorder";
+import BaselineCheckButton from "@/components/mind/BaselineCheckButton";
 import SourceDialog, { SourceStatusLine } from "@/components/mind/SourceDialog";
 import SessionList from "@/components/mind/SessionList";
 import SubjectSelector from "@/components/mind/SubjectSelector";
@@ -69,9 +70,13 @@ export default function BrainPage() {
       </div>
 
       {/* 測定の前にやることを、やる順に3段で置く：
-          1) 接続する（＋誰を測るか）2) 測定を開始 3) いま何が流れているか。
+          1) 接続する（＋誰を測るか）2) 測るボタン 3) いま何が流れているか。
           測定者は録音開始時にセッションへ焼き込まれ、履歴もそれで束ねるので、
-          必ず「測定を開始」より前に見える位置に置く。 */}
+          必ず測定ボタンより前に見える位置に置く。
+
+          2段目は「10秒チェック」と「測定を開始」の二択。前者は平常時の
+          ベースライン（開眼⇄閉眼のBerger応答）、後者は腰を据えた計測——
+          長さも目的も違うので、選ばせてから始める。 */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <SourceDialog />
@@ -79,7 +84,14 @@ export default function BrainPage() {
             <SubjectSelector />
           </div>
         </div>
-        <MindRecorder />
+        <div className="flex gap-3">
+          <div className="w-[42%] shrink-0">
+            <BaselineCheckButton />
+          </div>
+          <div className="flex-1 min-w-0">
+            <MindRecorder />
+          </div>
+        </div>
         <SourceStatusLine />
       </div>
 

@@ -81,6 +81,17 @@ function generatePairingCode(): string {
   return `${s.slice(0, 4)}-${s.slice(4)}`;
 }
 
+/**
+ * データが実際に届いている状態か。デモは自給自足、リアルタイムはブリッジが
+ * 生きていて初めて届く。「測定を開始」と「10秒クイックチェック」は同じ条件で
+ * 開くべきなので、判定はここに一本化する（片方だけ押せる状態を作らない）。
+ */
+export const canReceiveData = (s: {
+  status: SourceStatus;
+  sourceKind: MindSourceKind;
+  bridgeOnline: boolean;
+}): boolean => s.status === "connected" && (s.sourceKind === "demo" || s.bridgeOnline);
+
 interface MindState {
   sourceKind: MindSourceKind;
   status: SourceStatus;

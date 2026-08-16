@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Play, Square, X } from "lucide-react";
-import { useMindStore, type MindSessionSummary } from "@/store/useMindStore";
+import { useMindStore, canReceiveData, type MindSessionSummary } from "@/store/useMindStore";
 import { useImportSession } from "./useImportSession";
 import { formatTime } from "@/lib/utils";
 import { isLowQuality, signalQualityPct } from "@/lib/brain-profile";
@@ -15,9 +15,6 @@ import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
  * session in the 過去の測定 list.
  */
 export default function MindRecorder() {
-  const status = useMindStore((s) => s.status);
-  const sourceKind = useMindStore((s) => s.sourceKind);
-  const bridgeOnline = useMindStore((s) => s.bridgeOnline);
   const isRecording = useMindStore((s) => s.isRecording);
   const recordingSamples = useMindStore((s) => s.recordingSamples);
   const startRecording = useMindStore((s) => s.startRecording);
@@ -30,7 +27,7 @@ export default function MindRecorder() {
   const { importSession, statusFor } = useImportSession();
 
   // Realtime needs an online bridge actually sending data; demo is self-feeding.
-  const canReceive = status === "connected" && (sourceKind === "demo" || bridgeOnline);
+  const canReceive = useMindStore(canReceiveData);
 
   const handleToggle = () => {
     if (!isRecording) {

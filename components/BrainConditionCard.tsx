@@ -4,7 +4,11 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BrainCircuit, HeartPulse } from "lucide-react";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
-import { computeBrainConditionMetrics } from "@/lib/brain-metrics";
+import { useBaselineStore, latestRealCheck } from "@/store/useBaselineStore";
+import {
+  computeBrainConditionMetrics,
+  computeBaselineConditionMetrics,
+} from "@/lib/brain-metrics";
 import { scoreColor } from "@/lib/brain-measurements";
 import RangeSlider from "@/components/RangeSlider";
 import {
@@ -36,6 +40,7 @@ const DEFAULT_VALUES: SelfRatingValues = { relax: 60, focus: 55, sleep: 70 };
  */
 export default function BrainConditionCard() {
   const storeProfile = useBrainProfileStore((s) => s.profile);
+  const storeCheck = useBaselineStore(latestRealCheck);
   const latest = useSelfRatingStore((s) => s.latest);
   const record = useSelfRatingStore((s) => s.record);
 
@@ -46,7 +51,17 @@ export default function BrainConditionCard() {
   }, []);
 
   const profile = hydrated ? storeProfile : null;
-  const metrics = computeBrainConditionMetrics(profile);
+  const check = hydrated ? storeCheck : null;
+
+  // 出どころの自動切り替え（設計書「測定モードの自動切り替え構造」）。
+  // セッション由来の脳特性と、平常時の10秒ベースラインは**別の測り方**なので、
+  // 混ぜず・平均せず、単に新しい方を今の状態として出す。片方しか無ければそれ。
+  const useBaseline =
+    check != null && (profile == null || check.recordedAt > profile.uploadedAt);
+  const metrics = useBaseline
+    ? computeBaselineConditionMetrics(check)
+    : computeBrainConditionMetrics(profile);
+  const sourceLabel = useBaseline ? "10秒クイックチェック" : "直近脳波測定データ";
 
   // つまみを動かすまでは draft = null で、表示は保存値（無ければ初期値）を
   // そのまま見せる。effect で store → state を写すのではなく描画時に解決する
@@ -109,9 +124,10 @@ export default function BrainConditionCard() {
           ))}
         </div>
 
-        {/* 3値が何の数字か（＝直近の脳波測定）を明示し、その場で測り直せる導線 */}
+        {/* 3値が何の数字か（＝どちらのモードで測ったか）を明示し、
+            その場で測り直せる導線 */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-text-muted">直近脳波測定データ</span>
+          <span className="text-xs text-text-muted">{sourceLabel}</span>
           <Link
             href="/brain"
             className="inline-flex items-center min-h-12 -my-2 px-1 -mx-1 text-xs text-primary font-medium"
