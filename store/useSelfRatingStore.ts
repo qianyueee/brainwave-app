@@ -2,16 +2,24 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /**
- * 毎日の自己評価（リラックス度／集中度／睡眠の質）。
+ * 「感コンディション」＝ユーザーが自分で入れる主観の3指標。
  *
- * 脳コンディションの Rate/Clarity/Reset とは**別物**：あちらは脳波測定から
- * 自動算出、こちらはユーザーが毎日スライダーで入力する主観値。数値を突き合わ
- * せて比べられるよう同じ 0-100 スケールに揃えてあるが、算出経路は交わらない。
+ * 軸は脳波測定の Rate / Clarity / Reset と**同じ3つ**を、日常語に言い換えた
+ * もの（⚡切り替え・💡明晰さ・🌙休息）。以前の リラックス度／集中度／睡眠の質
+ * は測定側と軸がずれていて、主観と客観を並べても何と何を比べているのか
+ * 分からなかった。同じ軸に揃えたことで「自分ではスムーズなつもりだったが
+ * Rate は低い」といった読み方ができるようになる。
+ *
+ * 算出経路は交わらない（あちらは脳波から自動算出、こちらは手入力）。同じ
+ * 0-100 スケールに揃えてあるのは、突き合わせて比べるため。
  */
 export interface SelfRating {
-  relax: number;
-  focus: number;
-  sleep: number;
+  /** ⚡ スイッチ力（脳のメリハリ感）: 0 ガチガチ ⇄ 100 スムーズ */
+  switching: number;
+  /** 💡 ひらめき度（頭の透明感）: 0 モヤモヤ ⇄ 100 クリア */
+  clarity: number;
+  /** 🌙 休息度（脳のゆとり感）: 0 疲れ ⇄ 100 リフレッシュ */
+  rest: number;
   /** 記録した時刻 (ISO) */
   recordedAt: string;
 }
@@ -19,7 +27,7 @@ export interface SelfRating {
 interface SelfRatingState {
   /** 直近に記録した自己評価。null = まだ一度も記録していない。 */
   latest: SelfRating | null;
-  record: (values: { relax: number; focus: number; sleep: number }) => void;
+  record: (values: { switching: number; clarity: number; rest: number }) => void;
 }
 
 /**
@@ -36,12 +44,20 @@ export const useSelfRatingStore = create<SelfRatingState>()(
     {
       name: "self-rating",
       partialize: (s) => ({ latest: s.latest }),
+      /**
+       * v0 は リラックス度／集中度／睡眠の質 の3軸だった。新しい3軸とは
+       * **意味が違う**（リラックス度は「スイッチ力」ではない）ので、値を
+       * 引き継ぐと古い回答を別の質問の答えとして表示することになる。
+       * 移行せず捨てる——手入力1件ぶんなので、入れ直してもらう方が正しい。
+       */
+      version: 1,
+      migrate: () => ({ latest: null }),
     }
   )
 );
 
-/** 同じ暦日か（「今日はもう記録済み」の判定用）。 */
-export function isSameDay(iso: string, now: Date): boolean {
+/** 同じ暦日か（formatRecordedAt が「今日／昨日」を出し分けるのに使う）。 */
+function isSameDay(iso: string, now: Date): boolean {
   const d = new Date(iso);
   return (
     d.getFullYear() === now.getFullYear() &&

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { BrainCircuit, HeartPulse } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BrainCircuit, HeartPulse, Lightbulb, Moon, Timer, Zap } from "lucide-react";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useBaselineStore, latestRealCheck } from "@/store/useBaselineStore";
 import {
@@ -10,37 +11,79 @@ import {
   computeBaselineConditionMetrics,
 } from "@/lib/brain-metrics";
 import { scoreColor } from "@/lib/brain-measurements";
+import { BASELINE_MEASURE_SEC } from "@/lib/mind/baseline";
 import RangeSlider from "@/components/RangeSlider";
 import {
   useSelfRatingStore,
   formatRecordedAt,
-  isSameDay,
 } from "@/store/useSelfRatingStore";
 
 interface SelfRatingValues {
-  relax: number;
-  focus: number;
-  sleep: number;
+  switching: number;
+  clarity: number;
+  rest: number;
 }
 
-/** まだ一度も記録していない人が最初に見る位置。 */
-const DEFAULT_VALUES: SelfRatingValues = { relax: 60, focus: 55, sleep: 70 };
+/**
+ * 主観3軸。測定側の Rate / Clarity / Reset と**同じ3つ**を日常語にしたもので、
+ * アイコンも測定側と揃えてある（⚡切り替え・💡明晰さ・🌙休息）。両端に言葉を
+ * 置くのは、主観に「60点」のような絶対値は無いから——「ガチガチ寄りか、
+ * スムーズ寄りか」という位置なら答えられる。数値は表示せず内部で 0-100 として
+ * 保存し、測定値と突き合わせられるようにしている。
+ */
+const SELF_AXES = [
+  {
+    key: "switching",
+    icon: Zap,
+    label: "スイッチ力",
+    sub: "脳のメリハリ感",
+    low: "ガチガチ",
+    high: "スムーズ",
+  },
+  {
+    key: "clarity",
+    icon: Lightbulb,
+    label: "ひらめき度",
+    sub: "頭の透明感",
+    low: "モヤモヤ",
+    high: "クリア",
+  },
+  {
+    key: "rest",
+    icon: Moon,
+    label: "休息度",
+    sub: "脳のゆとり感",
+    low: "疲れ",
+    high: "リフレッシュ",
+  },
+] as const;
+
+/** まだ一度も記録していない人が最初に見る位置。中央だと「未回答」に見える。 */
+const DEFAULT_VALUES: SelfRatingValues = { switching: 60, clarity: 50, rest: 55 };
 
 /**
  * ホームの脳コンディション統合カード。
  *
  * 上段「脳コンディション」の 3 値（Rate/Clarity/Reset）は**脳波測定からの自動
- * 算出**、下段「感コンディション」のスライダーは**ユーザーが毎日入れる自己
- * 評価**——出どころの違う 2 種類が 1 枚に同居するので、上段は溝（インセット）
- * に沈めて「読むもの」、下段は面の上に置いて「触るもの」と手触りで分けたうえ、
+ * 算出**、下段「感コンディション」のスライダーは**ユーザーが入れる自己評価**
+ * ——出どころの違う 2 種類が 1 枚に同居するので、上段は溝（インセット）に沈めて
+ * 「読むもの」、下段は面の上に置いて「触るもの」と手触りで分けたうえ、
  * それぞれに見出しとアイコンを付けて言葉でも切っている。
  *
- * 数値は Sync Report と同じ store・同じ computeBrainConditionMetrics を通す
- * ので、どちらの画面で見ても常に一致する。
+ * 下段の3軸は上段と**同じ軸**（切り替え／明晰さ／休息）の主観版。だから
+ * 「自分ではスムーズなつもりだったが Rate は低い」と読める。以前の
+ * リラックス度／集中度／睡眠の質 は測定側と軸がずれていて、上下に並べても
+ * 比較にならなかった。
+ *
+ * 締めのボタンは10秒の脳波測定へ——主観を入れた直後に客観を測るから、同じ
+ * 瞬間の2つが並ぶ。数値は Sync Report と同じ store・同じ計算を通すので、
+ * どちらの画面で見ても常に一致する。
  */
 export default function BrainConditionCard() {
+  const router = useRouter();
   const storeProfile = useBrainProfileStore((s) => s.profile);
   const storeCheck = useBaselineStore(latestRealCheck);
+  const requestCheck = useBaselineStore((s) => s.requestCheck);
   const latest = useSelfRatingStore((s) => s.latest);
   const record = useSelfRatingStore((s) => s.record);
 
@@ -69,17 +112,18 @@ export default function BrainConditionCard() {
   const [draft, setDraft] = useState<SelfRatingValues | null>(null);
   const values: SelfRatingValues = draft ??
     (hydrated && latest
-      ? { relax: latest.relax, focus: latest.focus, sleep: latest.sleep }
+      ? { switching: latest.switching, clarity: latest.clarity, rest: latest.rest }
       : DEFAULT_VALUES);
 
   const now = new Date();
-  const recordedToday = hydrated && latest != null && isSameDay(latest.recordedAt, now);
 
-  const sliders = [
-    { key: "relax", label: "リラックス度" },
-    { key: "focus", label: "集中度" },
-    { key: "sleep", label: "睡眠の質" },
-  ] as const;
+  // 主観を記録してから測定へ。順番が逆だと、測定結果を見たあとの主観になって
+  // しまい「自分の感覚」ではなく「数字への反応」を記録することになる。
+  const handleCheck = () => {
+    record(values);
+    requestCheck();
+    router.push("/brain");
+  };
 
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-4 neu-raised">
@@ -137,47 +181,63 @@ export default function BrainConditionCard() {
         </div>
       </div>
 
-      {/* 自己評価 — 測定とは独立した毎日の主観入力 */}
+      {/* 自己評価 — 測定と同じ3軸を、主観の言葉で */}
       <div className="flex flex-col gap-3">
         <p className="flex items-center gap-2 text-sm text-text-secondary">
           <HeartPulse size={18} strokeWidth={1.5} className="shrink-0 text-accent" />
-          感コンディション
+          今の「感コンディション」をチェック
         </p>
-        {sliders.map((s) => (
-          <div key={s.key} className="flex items-center gap-2.5">
-            <label
-              htmlFor={`self-${s.key}`}
-              className="w-24 shrink-0 text-sm font-medium text-text-primary"
-            >
-              {s.label}
-            </label>
-            <RangeSlider
-              id={`self-${s.key}`}
-              min={0}
-              max={100}
-              value={values[s.key]}
-              onChange={(e) =>
-                setDraft({ ...values, [s.key]: Number(e.target.value) })
-              }
-              className="flex-1"
-            />
-            <span className="w-9 text-right text-base font-mono font-bold tabular-nums text-primary">
-              {values[s.key]}
-            </span>
-          </div>
-        ))}
+        {SELF_AXES.map((axis) => {
+          const Icon = axis.icon;
+          return (
+            <div key={axis.key} className="flex flex-col gap-1">
+              <label
+                htmlFor={`self-${axis.key}`}
+                className="flex items-baseline gap-1.5 text-sm font-medium text-text-primary"
+              >
+                <Icon
+                  size={16}
+                  strokeWidth={2}
+                  className="shrink-0 self-center text-primary"
+                />
+                {axis.label}
+                <span className="text-xs font-normal text-text-muted">（{axis.sub}）</span>
+              </label>
+              {/* 両端の言葉が意味を運ぶので、数値は出さない。幅を固定して
+                  3本のスライダーの左右端を揃える——揃っていないと、同じ
+                  位置なのに違う位置に見えて比較にならない。右は最長の
+                  「リフレッシュ」（6文字×14px）が折り返さない幅を取る。 */}
+              <div className="flex items-center gap-2">
+                <span className="w-14 shrink-0 text-xs text-text-muted">{axis.low}</span>
+                <RangeSlider
+                  id={`self-${axis.key}`}
+                  min={0}
+                  max={100}
+                  value={values[axis.key]}
+                  onChange={(e) =>
+                    setDraft({ ...values, [axis.key]: Number(e.target.value) })
+                  }
+                  className="flex-1 min-w-0"
+                />
+                <span className="w-24 shrink-0 text-right text-xs text-text-muted whitespace-nowrap">
+                  {axis.high}
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* 記録ボタンは横いっぱい。「毎日1回」の但し書きは外し、代わりに何を
-          するボタンかを label に書き切った（"記録する" だけだと、すぐ上の
-          スライダーではなく脳波測定を保存するように読めてしまう）。前回時刻は
-          ボタンの下に小さく——押す前に読む情報ではないので、行を分けて弱める。 */}
+      {/* 締めは測定への導線。押すとスライダーの主観を保存してから Sync Brain の
+          10秒計測へ入る——「こう感じている」と「脳波はこう出た」が同じ瞬間の
+          ペアで残るので、次に開いたとき上段と下段を突き合わせて読める。 */}
       <div className="flex flex-col gap-1.5">
         <button
-          onClick={() => record(values)}
-          className="w-full h-12 rounded-2xl bg-navy text-primary text-base font-bold neu-raised-sm neu-press active:scale-95 transition-transform"
+          onClick={handleCheck}
+          className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl bg-navy text-primary text-base font-bold neu-raised-sm neu-press active:scale-95 transition-transform"
         >
-          今日のコンディションを{recordedToday ? "更新する" : "記録する"}
+          <Timer size={20} strokeWidth={2} />
+          {BASELINE_MEASURE_SEC}秒 脳波測定をはじめる
         </button>
         {hydrated && latest && (
           <span className="text-xs text-text-muted text-center">

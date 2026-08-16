@@ -48,6 +48,18 @@ function generateId(): string {
 interface BaselineState {
   /** 古い→新しい。 */
   checks: BaselineCheck[];
+  /**
+   * ホームの「10秒 脳波測定をはじめる」から遷移してきたか。true なら
+   * Sync Brain 側が計測ダイアログを自動で開く。
+   *
+   * 永続化しない（partialize が checks だけを拾う）——次に起動したときに
+   * 勝手に計測が始まったら事故。URL クエリではなく状態にしたのは、静的
+   * 書き出し（output: "export"）だと useSearchParams が Suspense 境界を
+   * 要求するのに対し、これは一度きりの受け渡しで済むため。
+   */
+  autoOpenCheck: boolean;
+  requestCheck: () => void;
+  consumeCheckRequest: () => void;
   record: (input: Omit<BaselineCheck, "id" | "recordedAt">) => BaselineCheck;
   deleteCheck: (id: string) => void;
 }
@@ -56,6 +68,10 @@ export const useBaselineStore = create<BaselineState>()(
   persist(
     (set) => ({
       checks: [],
+      autoOpenCheck: false,
+
+      requestCheck: () => set({ autoOpenCheck: true }),
+      consumeCheckRequest: () => set({ autoOpenCheck: false }),
 
       record: (input) => {
         const check: BaselineCheck = {

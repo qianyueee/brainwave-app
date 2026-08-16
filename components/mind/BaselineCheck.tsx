@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, Timer, X } from "lucide-react";
-import { useMindStore } from "@/store/useMindStore";
+import { useMindStore, canReceiveData } from "@/store/useMindStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
 import { getAudioContext } from "@/lib/audio-context";
@@ -29,6 +29,7 @@ import { scoreColor } from "@/lib/brain-measurements";
  */
 export default function BaselineCheck({ onClose }: { onClose: () => void }) {
   const sourceKind = useMindStore((s) => s.sourceKind);
+  const canReceive = useMindStore(canReceiveData);
   const record = useBaselineStore((s) => s.record);
   const subject = useSubjectStore(activeSubject);
 
@@ -208,12 +209,20 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
             <p className="text-sm text-text-muted">
               できるだけ動かず、まばたきは控えめに。音を出せる環境だと合図が分かりやすくなります
             </p>
+            {/* データが来ていない状態で始めると、10秒かけて「読み取れません
+                でした」に着地するだけ。始める前に止める。 */}
             <button
               onClick={start}
-              className="min-h-[52px] rounded-2xl bg-primary text-on-primary text-lg font-bold neu-raised-sm neu-press transition-transform"
+              disabled={!canReceive}
+              className="min-h-[52px] rounded-2xl bg-primary text-on-primary text-lg font-bold neu-raised-sm neu-press transition-transform disabled:opacity-50 disabled:active:scale-100"
             >
               計測を始める
             </button>
+            {!canReceive && (
+              <p className="text-sm text-text-muted text-center">
+                脳波データを待っています…（「接続する」から接続してください）
+              </p>
+            )}
           </>
         )}
 

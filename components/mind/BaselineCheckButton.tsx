@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Timer } from "lucide-react";
 import { useMindStore, canReceiveData } from "@/store/useMindStore";
+import { useBaselineStore } from "@/store/useBaselineStore";
 import BaselineCheck from "./BaselineCheck";
 import { BASELINE_MEASURE_SEC } from "@/lib/mind/baseline";
 
@@ -17,7 +18,17 @@ import { BASELINE_MEASURE_SEC } from "@/lib/mind/baseline";
 export default function BaselineCheckButton() {
   const canReceive = useMindStore(canReceiveData);
   const isRecording = useMindStore((s) => s.isRecording);
-  const [open, setOpen] = useState(false);
+  const consumeCheckRequest = useBaselineStore((s) => s.consumeCheckRequest);
+
+  // ホームの「10秒 脳波測定をはじめる」から来たときは最初から開けておく。
+  // 初期化時に読むので、到着後にデータが繋がるのを待つ必要がない——ダイアログ
+  // は説明文から始まり、実際にデータが要るのは「計測を始める」を押した後。
+  // その押下側を canReceive で塞いであるので、接続前に開いても破綻しない。
+  // （フラグは永続化しないので、SSR も再読み込みも false 始まりで一致する。）
+  const [open, setOpen] = useState(() => useBaselineStore.getState().autoOpenCheck);
+
+  // 依頼は一度きり。残したままだと次にこのページへ来た瞬間にまた開く。
+  useEffect(() => consumeCheckRequest(), [consumeCheckRequest]);
 
   const disabled = !canReceive || isRecording;
 
