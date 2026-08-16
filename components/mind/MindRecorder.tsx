@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Play, Square, X } from "lucide-react";
 import { useMindStore, canReceiveData, type MindSessionSummary } from "@/store/useMindStore";
-import { useImportSession } from "./useImportSession";
+import { useImportSession, sessionLabel } from "./useImportSession";
+import { syncNoteFromSession } from "@/lib/mind/note-sync";
 import { formatTime } from "@/lib/utils";
 import { isLowQuality, signalQualityPct } from "@/lib/brain-profile";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
@@ -24,7 +25,27 @@ export default function MindRecorder() {
 
   // The just-finished measurement awaiting the import decision.
   const [finished, setFinished] = useState<MindSessionSummary | null>(null);
+  /** 任意メモ。空欄なら既定（日時ラベル）のまま。 */
+  const [note, setNote] = useState("");
   const { importSession, statusFor } = useImportSession();
+
+  /**
+   * メモは測定そのものに属するので、取り込むかどうかとは無関係に残す——
+   * 「あとで」で閉じてもタイプした一文が消えないように、どの出口からでも書く。
+   * 空欄のときは書かない：既定に戻すのではなく、既存のメモを空で上書きして
+   * 消してしまわないため。
+   */
+  const commitNote = (s: MindSessionSummary) => {
+    const trimmed = note.trim();
+    if (trimmed) syncNoteFromSession({ id: s.id, startedAt: s.startedAt }, trimmed);
+    return trimmed;
+  };
+
+  /** ダイアログを閉じる全経路の共通出口（× / 背景タップ / Esc / あとで）。 */
+  const dismiss = () => {
+    if (finished) commitNote(finished);
+    setFinished(null);
+  };
 
   // Realtime needs an online bridge actually sending data; demo is self-feeding.
   const canReceive = useMindStore(canReceiveData);
@@ -40,14 +61,22 @@ export default function MindRecorder() {
     // Show the result whenever something was recorded — including a measurement
     // the headset never read, which the dialog explains instead of offering an
     // all-zero import.
-    if (summary) setFinished(summary);
+    if (summary) {
+      setNote(summary.note ?? "");
+      setFinished(summary);
+    }
   };
 
   // Lock body scroll + Escape to close while the dialog is open.
   useEffect(() => {
     if (!finished) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFinished(null);
+      if (e.key === "Escape") {
+        const trimmed = note.trim();
+        if (trimmed)
+          syncNoteFromSession({ id: finished.id, startedAt: finished.startedAt }, trimmed);
+        setFinished(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -56,7 +85,7 @@ export default function MindRecorder() {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [finished]);
+  }, [finished, note]);
 
   const importStatus = finished ? statusFor(finished.id) : "idle";
   // Older sessions predate usableSec; treat them as usable so nothing regresses.
@@ -103,12 +132,12 @@ export default function MindRecorder() {
       {finished && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          onClick={() => setFinished(null)}
+          onClick={dismiss}
           role="button"
           aria-label="閉じる"
         >
           <div
-            className="w-full max-w-[420px] mx-4 bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
+            className="w-full max-w-[420px] mx-4 max-h-[85vh] overflow-y-auto bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -116,7 +145,7 @@ export default function MindRecorder() {
                 {unusable ? "測定できませんでした" : "測定が完了しました"}
               </h2>
               <button
-                onClick={() => setFinished(null)}
+                onClick={dismiss}
                 aria-label="閉じる"
                 className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
@@ -156,6 +185,31 @@ export default function MindRecorder() {
                   </p>
                 )}
 
+                {/* 任意メモ。測定直後にしか思い出せないこと（何をした後か、
+                    体調、場所）を、記録と同じ画面で残せるようにする。入れて
+                    おくと「過去の測定」の一覧がこの一文で並ぶので、日時だけの
+                    リストから目当ての回を探さずに済む。 */}
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="measurement-note"
+                    className="text-sm text-text-secondary"
+                  >
+                    メモ（任意）
+                  </label>
+                  <input
+                    id="measurement-note"
+                    type="text"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="例：朝いちばん／会議のあと"
+                    maxLength={60}
+                    className="w-full bg-navy rounded-2xl px-4 min-h-[52px] text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-primary"
+                  />
+                  <p className="text-xs text-text-muted">
+                    未入力なら日時（{sessionLabel(finished)}）で記録されます
+                  </p>
+                </div>
+
                 <p className="text-base text-text-primary">
                   この測定結果を脳特性チャートに取り込みますか？
                 </p>
@@ -184,13 +238,19 @@ export default function MindRecorder() {
             ) : (
               <div className="flex gap-3">
                 <button
-                  onClick={() => setFinished(null)}
+                  onClick={dismiss}
                   className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
                 >
                   あとで
                 </button>
                 <button
-                  onClick={() => importSession(finished)}
+                  onClick={() => {
+                    // メモを先に確定してから取り込む。取り込み先（脳特性）は
+                    // note をコピーして持つので、順序が逆だとメモ無しの
+                    // レコードが出来上がる。
+                    const trimmed = commitNote(finished);
+                    importSession({ ...finished, note: trimmed || finished.note });
+                  }}
                   disabled={importStatus === "busy" || importStatus === "waitingCloud"}
                   className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"
                 >

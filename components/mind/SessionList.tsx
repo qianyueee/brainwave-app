@@ -89,13 +89,20 @@ export default function SessionList() {
       : []),
   ];
 
-  const sessionOptions: SelectOption[] = forSubject.map((s) => ({
-    value: s.id,
-    label: `${sessionLabel(s)}${s.source === "demo" ? "（デモ）" : ""}`,
-    detail: showAll
+  // メモがあればそれを見出しに、無ければ既定の日時ラベル。日時だけの一覧では
+  // 「どれがどの回か」が思い出せないので、本人の言葉が入っているならそちらを
+  // 先に見せる。日時は detail 側へ回して、見出しが入れ替わっても失われない。
+  const sessionOptions: SelectOption[] = forSubject.map((s) => {
+    const note = s.note?.trim();
+    const meta = showAll
       ? `${s.subjectName ?? "測定者未設定"}・${formatTime(s.durationSec)}`
-      : `${formatTime(s.durationSec)}・ゾーン率 ${s.flowRatioPct}%`,
-  }));
+      : `${formatTime(s.durationSec)}・ゾーン率 ${s.flowRatioPct}%`;
+    return {
+      value: s.id,
+      label: `${note || sessionLabel(s)}${s.source === "demo" ? "（デモ）" : ""}`,
+      detail: note ? `${sessionLabel(s)}・${meta}` : meta,
+    };
+  });
 
   const status = selected ? statusFor(selected.id) : "idle";
 

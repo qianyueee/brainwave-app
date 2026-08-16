@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, EyeOff, Timer, X } from "lucide-react";
+import { Check, Eye, EyeOff, Timer, X } from "lucide-react";
 import { useMindStore, canReceiveData } from "@/store/useMindStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
@@ -37,6 +37,9 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
   /** 現フェーズの残り秒（カウントダウン表示用）。 */
   const [remain, setRemain] = useState(0);
   const [result, setResult] = useState<ReturnType<typeof computeBaselineScores> | null>(null);
+  /** この結果を保存済みか。保存は明示操作——測ったものが全部残るとは限らない
+   *  （練習・装着確認・話しかけられた回）ので、残すかどうかは本人が決める。 */
+  const [saved, setSaved] = useState(false);
 
   // 収集中のサンプル。setState で持つと 1Hz ごとに再描画が走って
   // カウントダウンのアニメーションと競合するので ref に貯める。
@@ -102,6 +105,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
     openRef.current = [];
     closeRef.current = [];
     setResult(null);
+    setSaved(false);
 
     const { countdownSec, openSec, closeSec } = BASELINE_PROTOCOL;
 
@@ -133,28 +137,31 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
         () => {
           setPhaseBoth("done");
           setRemain(0);
-          const scores = computeBaselineScores(openRef.current, closeRef.current);
-          setResult(scores);
-          // 使える秒が無い計測は記録しない（全指標 null の空レコードになる）。
-          if (scores.usableSec > 0) {
-            record({
-              rate: scores.rate,
-              clarity: scores.clarity,
-              reset: scores.reset,
-              method: scores.method,
-              alphaRiseSec: scores.alphaRiseSec,
-              alphaRatio: scores.alphaRatio,
-              usableSec: scores.usableSec,
-              source: sourceKind,
-              subjectId: subject?.id,
-              subjectName: subject?.name,
-            });
-          }
+          // 結果は出すだけ。保存は下の handleSave（明示操作）が行う。
+          setResult(computeBaselineScores(openRef.current, closeRef.current));
         },
         (countdownSec + openSec + closeSec) * 1000
       )
     );
-  }, [chime, clearTimers, record, runCountdown, setPhaseBoth, sourceKind, subject]);
+  }, [chime, clearTimers, runCountdown, setPhaseBoth]);
+
+  const handleSave = () => {
+    // 使える秒が無い計測は保存させない（全指標 null の空レコードになる）。
+    if (!result || result.usableSec === 0 || saved) return;
+    record({
+      rate: result.rate,
+      clarity: result.clarity,
+      reset: result.reset,
+      method: result.method,
+      alphaRiseSec: result.alphaRiseSec,
+      alphaRatio: result.alphaRatio,
+      usableSec: result.usableSec,
+      source: sourceKind,
+      subjectId: subject?.id,
+      subjectName: subject?.name,
+    });
+    setSaved(true);
+  };
 
   // サンプルの取り込み。store を購読して、届いた秒を「そのとき居るフェーズ」の
   // 箱へ入れる。1Hz なので配列の添字＝そのフェーズ内の経過秒になり、
@@ -332,20 +339,60 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
               </>
             )}
 
-            <div className="flex gap-3">
-              <button
-                onClick={start}
-                className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
-              >
-                もう一度
-              </button>
-              <button
-                onClick={onClose}
-                className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
-              >
-                閉じる
-              </button>
-            </div>
+            {/* 保存は明示操作。測っただけの回（装着確認・練習・中断）まで
+                履歴に積むと、ホームの3指標や推移が濁る。 */}
+            {result.usableSec === 0 ? (
+              <div className="flex gap-3">
+                <button
+                  onClick={start}
+                  className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
+                >
+                  もう一度
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
+                >
+                  閉じる
+                </button>
+              </div>
+            ) : saved ? (
+              <>
+                <p className="flex items-center justify-center gap-1.5 text-sm font-medium text-success">
+                  <Check size={18} strokeWidth={2.5} />
+                  記録しました
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={start}
+                    className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
+                  >
+                    もう一度
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
+                  >
+                    閉じる
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
+                >
+                  保存しない
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
+                >
+                  記録を保存
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

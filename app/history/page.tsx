@@ -231,11 +231,15 @@ export default function HistoryPage() {
       : []),
   ];
 
+  // 過去の測定（Sync Brain）と同じ扱い：メモがあれば見出しに立て、無ければ
+  // 既定の日時ラベル。日時は detail の sessionTag が持っているので、見出しが
+  // メモに入れ替わっても「いつの回か」は消えない。
   const recordOptions: SelectOption[] = orderedForSubject.map((m) => {
     const total = compositeScore(m.indicators);
+    const note = m.note?.trim();
     return {
       value: m.uploadedAt,
-      label: measurementLabel(m),
+      label: note || measurementLabel(m),
       detail: showAll ? `${m.subject ?? "測定者未設定"}・${m.sessionTag}` : m.sessionTag,
       trailing: String(total),
       trailingColor: scoreColor(total),
