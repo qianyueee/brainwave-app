@@ -29,8 +29,11 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      {/* Header */}
-      <div className="flex flex-col gap-1">
+      {/* ヘッダー＝ブランド行＋ページ見出しをひと塊に。両方とも「見出し」なので、
+          あいだは中身どうしの間隔（gap-2）で詰め、カード列と分ける gap-6 は
+          この塊の外側にだけ効かせる。以前は2つが別ブロックで、見出し同士まで
+          カードと同じ24pxで離れていた。 */}
+      <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           {/* 読み仮名（ニューロシンク）は外した——ロゴの行はブランド名だけに
               して、次に来る「Home」の見出しと役割をはっきり分ける。名前が
@@ -68,16 +71,16 @@ export default function HomePage() {
           </button>
           </div>
         </div>
-      </div>
 
-      {/* ページ見出し。他のページ（Sync History / Sync Report …）と同じ
-          「英名＋日本語リード」ブロックを Home にも置いて、ブランド名の行と
-          「今どの画面にいるか」を分ける。ブランドが h1 なのでこちらは h2。 */}
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Home</h2>
-        <p className="text-sm text-text-secondary mt-1">
-          今日の星空・宇宙周波数で即座に調律
-        </p>
+        {/* ページ見出し。他のページ（Sync History / Sync Report …）と同じ
+            「英名＋日本語リード」ブロックを Home にも置いて、ブランド名の行と
+            「今どの画面にいるか」を分ける。ブランドが h1 なのでこちらは h2。 */}
+        <div>
+          <h2 className="text-2xl font-bold text-text-primary leading-tight">Home</h2>
+          <p className="text-sm text-text-secondary mt-0.5">
+            今日の星空・宇宙周波数で即座に調律
+          </p>
+        </div>
       </div>
 
       {/* モバイルは1カラムで Sync Tree → 脳コンディション → 星空。
