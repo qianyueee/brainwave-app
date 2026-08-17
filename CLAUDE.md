@@ -41,7 +41,7 @@ brainwave-app/
 │   ├── session/page.tsx        # Sync Session（顶部 Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕+ プログラム選択・再生：Sync Sound 3節目 / 所属グループへの配信プログラム。※音源制作・公開などの管理操作は置かない——管理面板「音源」タブへ移設済み）
 │   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 測定を開始 → 出どころ1行 → マインドマップ/過去の測定；分析已移至 report）
 │   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝2〜3件の6指標＆スペクトル。既定は脳特性チャート）
-│   ├── history/page.tsx        # Sync History（日历 / セッション統計 / 脳波の記録；レポートで見る→/report）
+│   ├── history/page.tsx        # Sync History（日历〔日付タップで当日の明細〕/ セッション統計 / 脳波の記録；レポートで見る→/report）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
 │   ├── tree/page.tsx           # Sync Tree 16段階ギャラリー／詳細（段階名・育てた木数はここだけ、進捗%はホーム树卡と両方；菜单外，从首页树卡进入）
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
@@ -59,6 +59,7 @@ brainwave-app/
 │   ├── zodiac-audio.ts         # 星座节目的音乐床垫映射（program id → public/sounds/zodiac/<key>-b<beat>.mp3；缺失差频就近取用）
 │   ├── sync-tree.ts            # Sync Tree 16段階成長モデル（6.25%刻み、treeStageIndex / TREE_STAGES；成長ロジック未実装期は PLACEHOLDER_TREE 固定値）。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure / SyncTreeStageTile，手描きの光の樹）；ホーム树卡背景为昼/夜二态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_DAY/NIGHT：day+afternoon=白日、midnight+evening=星空，树本体配色不随主题变）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
+│   ├── day-records.ts          # カレンダーの当日明細（buildDayRecords / recordedDayKeys / dayKeyOf）。再生ログ＋取り込んだ脳波測定＋10秒チェックの3出どころを時刻順に1本へ畳む純関数。UI から切り出してあるのは脳波測定がログイン必須ストア（per-user persist）でブラウザから仕込めないため——純関数なら3種すべて実コードで検証できる。描画は components/SimpleCalendar
 │   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，数据不足为 null）。**セッション由来**＝computeBrainConditionMetrics（入定速度×40Hz共鳴率）／**非セッション由来**＝computeBaselineConditionMetrics（下の baseline.ts が算出済みの値を変換するだけ）
 │   ├── mind/baseline.ts        # 10秒ベースラインチェック（非セッション時の3指標）。ターゲット周波数が無い平常時は引き込み速度が測れないので別ロジックへ：パターン1 Berger効果（開眼5秒⇄閉眼5秒のα波立ち上がり速度＋メリハリ比）を既定、成立しなければパターン2 静止時可塑性（スペクトル・エントロピー×帯域間移動度）へフォールバック。Clarity=(40Hzγ+高α)/高β、Reset=(δ+θ)比×ゆらぎ。係数は BASELINE_CONFIG に集約（**暫定値**、実測が貯まったら再標定）。⚠ サンプルは1Hzなので T_α-rise の分解能は1秒
 │   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）
