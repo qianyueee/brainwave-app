@@ -113,44 +113,53 @@ export const TIME_PERIODS: TimePeriod[] = [
     },
   },
   {
-    // 06-12: Day 純 — サンイエロー (sun yellow) → warm cream
+    // 06-12: Day 純 — サンライズ (sunrise) → apricot
+    //
+    // もとは平らなサンイエロー（クリーム）だったが、朝の6〜12時に見たいのは
+    // 「もう明るい昼」より「陽が昇ってくるところ」——地色を杏色へ寄せ、
+    // 主色を陽そのものの橙、accent を空の紅へ振った。午後のミントとの差も
+    // はっきりする（黄→緑は隣、橙→緑は対）。
     id: "day",
     name: "純",
     startHour: 6,
     endHour: 12,
     palette: {
-      navy: "#f5e8c0",
-      navyLight: "#f8efd0",
-      navyLighter: "#d4c488",
-      primary: "#9a6c03",
-      primaryDark: "#7c5502",
-      accent: "#c04a08",
-      accentDark: "#a03c06",
-      surface: "#f6ecc8",
-      surfaceBorder: "#d8c890",
-      textPrimary: "#1a1408",
-      textSecondary: "#5c4e20",
-      textMuted: "#6b5c28",
+      navy: "#fce0c8",
+      navyLight: "#fdeada",
+      navyLighter: "#e8b98f",
+      primary: "#b03a08",
+      primaryDark: "#8f2e05",
+      // 空の紅。橙の主色と喧嘩せず、warning（琥珀）とも読み分けられる色相へ。
+      accent: "#a8386a",
+      accentDark: "#8c2c56",
+      surface: "#fdecd8",
+      surfaceBorder: "#eec9a4",
+      textPrimary: "#2a1508",
+      textSecondary: "#6b3a18",
+      textMuted: "#7d4a24",
       onPrimary: "#ffffff",
       onAccent: "#ffffff",
-      // Deepened status hues — the defaults were picked against dark navy
-      // and washed out on this cream background
+      // Deepened status hues — the defaults were picked against dark navy and
+      // wash out on this apricot ground. warning は主色の橙と同化しないよう
+      // 琥珀寄りに置いている。
       success: "#166534",
-      warning: "#9a3412",
-      danger: "#991b1b",
+      warning: "#854d0e",
+      danger: "#a01023",
     },
-    // Morning sky — pale blue ground, ink-dark constellation lines (the
-    // daylight star-map convention), sun-warm halo
+    // Sunrise sky — apricot ground with warm-brown constellation lines (the
+    // daylight star-map convention: dark ink on a light ground), low-sun halo.
+    // 淡い水色の朝空から差し替え：ページが杏色になったので、そこに冷たい水色の
+    // 板が浮くと1枚だけ別のテーマに見える。
     sky: {
-      a: "#f4f8ff",
-      b: "#dce9fa",
-      c: "#b8cfee",
-      ink: "#3d4a80",
-      strong: "#1f2547",
-      text: "#4a5580",
-      chip: "rgba(42,48,85,0.08)",
-      glow: "rgba(255,214,130,0.50)",
-      line: "rgba(42,48,85,0.15)",
+      a: "#fff1e0",
+      b: "#ffd9b3",
+      c: "#f5b78e",
+      ink: "#7a3a12",
+      strong: "#3a1a08",
+      text: "#6e3c18",
+      chip: "rgba(90,40,10,0.09)",
+      glow: "rgba(255,190,120,0.55)",
+      line: "rgba(90,40,10,0.16)",
     },
   },
   {
@@ -314,12 +323,17 @@ export function interpolateSky(a: SkyPalette, b: SkyPalette, t: number): SkyPale
 }
 
 /**
- * Backdrop for the Sync Tree scene card (Home). Unlike the 4-way `sky`, the
- * tree design collapses the day parts to two states only: the two day themes
- * (day, afternoon) show a daylight sky, the two night themes (midnight,
- * evening) a starry night — values fixed by the Sync Tree handoff. The tree
- * art itself (foliage/trunk palette) never theme-shifts; only this backdrop,
- * its ink (ground line + sparkles) and the card chrome (border/shadow) do.
+ * Backdrop for the Sync Tree scene card (Home). Coarser than the 4-way `sky`:
+ * the two night themes (midnight, evening) share one starry night, while the
+ * daylight side splits into sunrise (day, 06-12) and full daylight (afternoon,
+ * 12-18). The night pair stays merged because a starry sky reads the same at
+ * 2am and 8pm; the daylight pair does not — a sunrise sky and a midday sky are
+ * visibly different times of day, and the page palette already distinguishes
+ * them (apricot vs mint).
+ *
+ * The tree art itself (foliage/trunk palette) never theme-shifts; only this
+ * backdrop, its ink (ground line + sparkles) and the card chrome
+ * (border/shadow) do.
  */
 export interface TreeSky {
   /** Radial gradient stops, inner → outer. */
@@ -359,10 +373,25 @@ export const TREE_SKY_DAY: TreeSky = {
   shadow: "rgba(60,70,120,0.18)",
 };
 
+/**
+ * 朝（06-12）の樹。ページが杏色になったぶん、樹の背後も陽が昇る空へ。
+ * 樹本体は寒色のままなので、暖色の空との対比で朝の逆光ぎみに見える——
+ * それを狙って glow は空の色みに合わせた橙寄りにしている。
+ */
+export const TREE_SKY_SUNRISE: TreeSky = {
+  a: "#fff0dc",
+  b: "#ffd6ad",
+  c: "#f2ac7c",
+  ink: "#7a3a12",
+  glow: "rgba(255,196,130,0.42)",
+  border: "#eec4a0",
+  shadow: "rgba(120,60,20,0.18)",
+};
+
 export function treeSkyForPeriod(period: TimePeriod): TreeSky {
-  return period.id === "day" || period.id === "afternoon"
-    ? TREE_SKY_DAY
-    : TREE_SKY_NIGHT;
+  if (period.id === "day") return TREE_SKY_SUNRISE;
+  if (period.id === "afternoon") return TREE_SKY_DAY;
+  return TREE_SKY_NIGHT;
 }
 
 function interpolateTreeSky(a: TreeSky, b: TreeSky, t: number): TreeSky {
