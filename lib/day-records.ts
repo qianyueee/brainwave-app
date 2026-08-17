@@ -95,7 +95,9 @@ export function buildDayRecords(
       // デモで取った回は必ずそう見せる（実測と並ぶ場所なので、区別が消えると
       // 「この日はこうだった」の読みが狂う）。
       title: `10秒チェック${c.source === "demo" ? "（デモ）" : ""}`,
-      detail: [scores.join("・"), rateMethodLabel(c.method)]
+      // 誘導周波数まで含めた方法名（Rate の基準がそれなので、Hz を落とすと
+      // 同じ点数が別の意味を持ったまま並ぶ）。
+      detail: [scores.join("・"), rateMethodLabel(c.method, c.targetHz)]
         .filter(Boolean)
         .join(" / "),
     });

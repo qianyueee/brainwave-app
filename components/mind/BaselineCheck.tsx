@@ -10,11 +10,24 @@ import type { EegSample } from "@/lib/mind/types";
 import {
   BASELINE_PROTOCOL,
   BASELINE_MEASURE_SEC,
+  TARGET_HZ_MIN,
+  TARGET_HZ_MAX,
+  TARGET_HZ_STEP,
+  TARGET_HZ_DEFAULT,
   computeBaselineScores,
+  formatTargetHz,
+  normalizeTargetHz,
   rateMethodLabel,
   type BaselinePhase,
 } from "@/lib/mind/baseline";
 import { scoreColor } from "@/lib/brain-measurements";
+
+/**
+ * 誘導周波数の早押し。プログラムが実際に使う差周波数から、よく使う4つを
+ * 0.1Hz 刻みに丸めて並べる（7.83 → 7.8）。小数点付きの数字を毎回スマホで
+ * 打つのは 50〜60代には厳しいので、既定の入力手段はこちら。
+ */
+const TARGET_HZ_PRESETS = [4, 7.8, 10, 40] as const;
 
 /**
  * 10秒クイックチェック（DAILY BRAIN CHECK）。
@@ -31,7 +44,15 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
   const sourceKind = useMindStore((s) => s.sourceKind);
   const canReceive = useMindStore(canReceiveData);
   const record = useBaselineStore((s) => s.record);
+  const setLastTargetHz = useBaselineStore((s) => s.setLastTargetHz);
   const subject = useSubjectStore(activeSubject);
+
+  // 誘導周波数は文字列で持つ（空欄＝指定なしを表せる。数値 state だと 0 と
+  // 未入力の区別がつかない）。初期値は前回の値、無ければ 40.0。
+  const [hzInput, setHzInput] = useState(() =>
+    formatTargetHz(useBaselineStore.getState().lastTargetHz ?? TARGET_HZ_DEFAULT)
+  );
+  const targetHz = normalizeTargetHz(parseFloat(hzInput));
 
   const [phase, setPhase] = useState<BaselinePhase>("idle");
   /** 現フェーズの残り秒（カウントダウン表示用）。 */
@@ -47,6 +68,9 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
   const closeRef = useRef<EegSample[]>([]);
   const phaseRef = useRef<BaselinePhase>("idle");
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /** 開始時点の誘導周波数を焼き込む。判定は10秒後に走るので、その間に入力が
+   *  変わっても「測ったときの基準」で採点する。 */
+  const targetHzRef = useRef<number | null>(null);
 
   const clearTimers = useCallback(() => {
     for (const t of timersRef.current) clearTimeout(t);
@@ -106,6 +130,8 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
     closeRef.current = [];
     setResult(null);
     setSaved(false);
+    targetHzRef.current = targetHz;
+    setLastTargetHz(targetHz);
 
     const { countdownSec, openSec, closeSec } = BASELINE_PROTOCOL;
 
@@ -138,12 +164,24 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
           setPhaseBoth("done");
           setRemain(0);
           // 結果は出すだけ。保存は下の handleSave（明示操作）が行う。
-          setResult(computeBaselineScores(openRef.current, closeRef.current));
+          setResult(
+            computeBaselineScores(openRef.current, closeRef.current, targetHzRef.current)
+          );
         },
         (countdownSec + openSec + closeSec) * 1000
       )
     );
-  }, [chime, clearTimers, runCountdown, setPhaseBoth]);
+  }, [chime, clearTimers, runCountdown, setPhaseBoth, targetHz, setLastTargetHz]);
+
+  /** 説明＋誘導周波数の画面へ戻す。「もう一度」はここを通す——Hz は計測ごとの
+   *  条件なので、測り直す前に必ず確認・変更できるようにしておく。 */
+  const backToStart = useCallback(() => {
+    clearTimers();
+    setResult(null);
+    setSaved(false);
+    setRemain(0);
+    setPhaseBoth("idle");
+  }, [clearTimers, setPhaseBoth]);
 
   const handleSave = () => {
     // 使える秒が無い計測は保存させない（全指標 null の空レコードになる）。
@@ -153,6 +191,9 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
       clarity: result.clarity,
       reset: result.reset,
       method: result.method,
+      targetHz: result.targetHz,
+      lockSec: result.lockSec,
+      peakRatio: result.peakRatio,
       alphaRiseSec: result.alphaRiseSec,
       alphaRatio: result.alphaRatio,
       usableSec: result.usableSec,
@@ -192,7 +233,9 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-label="10秒クイックチェック"
-        className="w-full max-w-[420px] bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
+        // 誘導周波数の入力ぶんだけ縦に伸びるので、小さい画面では中身を
+        // スクロールさせる（ダイアログごと画面外へ出ると開始ボタンに届かない）。
+        className="w-full max-w-[420px] max-h-[90vh] overflow-y-auto bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">
@@ -216,6 +259,80 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
             <p className="text-sm text-text-muted">
               できるだけ動かず、まばたきは控えめに。音を出せる環境だと合図が分かりやすくなります
             </p>
+
+            {/* 誘導周波数 — Rate の基準。いま鳴らしている音が狙う Hz を先に
+                受け取っておき、その周波数へどれだけ速く・はっきり乗れたかで
+                採点する（空欄なら従来どおり開眼⇄閉眼の応答で測る）。 */}
+            <div className="flex flex-col gap-2 rounded-2xl bg-navy neu-inset p-4">
+              <label
+                htmlFor="baseline-target-hz"
+                className="text-base font-bold text-text-primary"
+              >
+                誘導周波数
+              </label>
+              <p className="text-sm text-text-muted">
+                いま聴いている音が狙う周波数です。この Hz にどれだけ速く・はっきり
+                乗れたかで Rate を出します
+              </p>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="baseline-target-hz"
+                  type="number"
+                  inputMode="decimal"
+                  step={TARGET_HZ_STEP}
+                  min={TARGET_HZ_MIN}
+                  max={TARGET_HZ_MAX}
+                  value={hzInput}
+                  onChange={(e) => setHzInput(e.target.value)}
+                  // 離れた時点でレンジ内・0.1刻みへ揃える（打った値がそのまま
+                  // 採点に使われるので、丸めた結果を目に見せてから始める）。
+                  onBlur={() =>
+                    setHzInput(targetHz != null ? formatTargetHz(targetHz) : "")
+                  }
+                  placeholder="指定しない"
+                  className="w-32 min-h-12 rounded-2xl bg-surface px-4 text-xl font-mono tabular-nums text-text-primary text-right neu-raised-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <span className="text-lg font-bold text-text-secondary">Hz</span>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {TARGET_HZ_PRESETS.map((hz) => {
+                  const active = targetHz === hz;
+                  return (
+                    <button
+                      key={hz}
+                      onClick={() => setHzInput(formatTargetHz(hz))}
+                      aria-pressed={active}
+                      className={`min-h-12 px-4 rounded-2xl text-sm font-bold tabular-nums transition-colors ${
+                        active
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface text-text-secondary neu-raised-sm neu-press"
+                      }`}
+                    >
+                      {formatTargetHz(hz)}Hz
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setHzInput("")}
+                  aria-pressed={targetHz == null}
+                  className={`min-h-12 px-4 rounded-2xl text-sm font-bold transition-colors ${
+                    targetHz == null
+                      ? "bg-primary text-on-primary"
+                      : "bg-surface text-text-secondary neu-raised-sm neu-press"
+                  }`}
+                >
+                  指定しない
+                </button>
+              </div>
+
+              <p className="text-xs text-text-muted">
+                {targetHz == null
+                  ? "誘導音なしとして、開眼⇄閉眼テスト（Berger応答）で Rate を出します"
+                  : `${formatTargetHz(targetHz)}Hz への引き込みで Rate を出します（${TARGET_HZ_MIN}〜${TARGET_HZ_MAX}Hz・0.1Hz 刻み）`}
+              </p>
+            </div>
             {/* データが来ていない状態で始めると、10秒かけて「読み取れません
                 でした」に着地するだけ。始める前に止める。 */}
             <button
@@ -323,8 +440,27 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                 <div className="flex flex-col gap-1">
                   <p className="flex items-center gap-1.5 text-sm text-text-secondary">
                     <Timer size={16} strokeWidth={1.5} className="shrink-0" />
-                    {rateMethodLabel(result.method)}
+                    {rateMethodLabel(result.method, result.targetHz)}
                   </p>
+                  {result.method === "entrainment" &&
+                    (result.lockSec != null && result.peakRatio != null ? (
+                      <p className="text-xs text-text-muted">
+                        引き込みまで {result.lockSec}秒・ピークは周囲の{" "}
+                        {result.peakRatio.toFixed(2)}倍
+                      </p>
+                    ) : (
+                      <p className="text-xs text-text-muted">
+                        この10秒では、その周波数の立ち上がりは見られませんでした
+                      </p>
+                    ))}
+                  {/* 誘導周波数を入れたのに引き込みで測れなかった回（スペクトルを
+                      持たないブリッジ）は、なぜ別の方法になったのかを言う。 */}
+                  {result.method !== "entrainment" && result.targetHz != null && (
+                    <p className="text-xs text-text-muted">
+                      周波数ごとの強さを取得できなかったため、
+                      {formatTargetHz(result.targetHz)}Hz は判定に使えませんでした
+                    </p>
+                  )}
                   {result.alphaRiseSec != null && result.alphaRatio != null && (
                     <p className="text-xs text-text-muted">
                       α波の立ち上がり {result.alphaRiseSec}秒・閉眼／開眼のα比{" "}
@@ -344,7 +480,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
             {result.usableSec === 0 ? (
               <div className="flex gap-3">
                 <button
-                  onClick={start}
+                  onClick={backToStart}
                   className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
                 >
                   もう一度
@@ -364,7 +500,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                 </p>
                 <div className="flex gap-3">
                   <button
-                    onClick={start}
+                    onClick={backToStart}
                     className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
                   >
                     もう一度

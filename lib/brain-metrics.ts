@@ -1,5 +1,6 @@
 import type { BrainProfile } from "./brain-profile";
 import type { BaselineCheck } from "@/store/useBaselineStore";
+import { resonanceRatioAt } from "./mind/resonance";
 
 /**
  * セルフケア評価の3指標（プロダクト仕様 §3）。医療診断を避け、最新の測定
@@ -50,16 +51,8 @@ const floor5 = (v: number) => Math.max(5, clamp100(v));
  * 1.5 倍の明確なピークで 100 点、0.6 以下で 0 点）。
  */
 export function resonance40Score(spectrum: number[] | undefined): number | null {
-  if (!spectrum || spectrum.length < 40) return null;
-  const bin40 = spectrum[39]; // index 39 = 40Hz
-  const neighbours: number[] = [];
-  for (let i = 34; i <= Math.min(44, spectrum.length - 1); i++) {
-    if (i !== 39) neighbours.push(spectrum[i]);
-  }
-  if (!neighbours.length) return null;
-  const mean = neighbours.reduce((s, v) => s + v, 0) / neighbours.length;
-  if (mean <= 0) return null;
-  const ratio = bin40 / mean;
+  const ratio = resonanceRatioAt(spectrum, 40);
+  if (ratio == null) return null;
   return clamp100(((ratio - 0.6) / 0.9) * 100);
 }
 

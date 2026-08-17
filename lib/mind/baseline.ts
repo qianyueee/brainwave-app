@@ -1,5 +1,6 @@
 import type { EegSample } from "./types";
-import { BAND_KEYS, POOR_SIGNAL_LIMIT, totalPower } from "./types";
+import { BAND_KEYS, POOR_SIGNAL_LIMIT, SPECTRUM_MAX_HZ, totalPower } from "./types";
+import { resonanceRatioAt } from "./resonance";
 
 /**
  * 10秒ベースラインチェック（非セッション時の3指標算出）。
@@ -17,6 +18,12 @@ import { BAND_KEYS, POOR_SIGNAL_LIMIT, totalPower } from "./types";
  *   パターン2 静止時の可塑性（スペクトル・エントロピー × 帯域間移動度）
  *             … パターン1が成立しなかったとき（α波の立ち上がりが検出できない、
  *               閉眼区間が読めない）のフォールバック
+ *
+ * さらに、計測の直前に**誘導周波数**（いま鳴らしている音の狙う Hz、0.1Hz 刻み）
+ * を入力できる。指定があるときは引き込む先が実在するので、設計書どおりの
+ * Entrainment Lock Time でそのまま Rate を出す（パターン0＝entrainment）。
+ * 40Hz 固定ではなく入力値が基準になるので、7.8Hz でも 10.0Hz でも同じ式で
+ * 測れる。スペクトルを持たない計測（古いブリッジ）は従来の2パターンへ落ちる。
  *
  * ⚠ サンプリングは 1 Hz（ブリッジの発行レート）。したがって T_α-rise の分解能は
  * 1秒で、閉眼5秒からは 0〜4秒の5段階しか出ない。設計書の式はそのまま実装して
@@ -41,8 +48,37 @@ export const BASELINE_MEASURE_SEC =
 
 export type BaselinePhase = "idle" | "countdown" | "open" | "close" | "done";
 
-/** どちらのロジックで Rate を出したか。UI とレコードに残す。 */
-export type BaselineRateMethod = "berger" | "resting";
+/** どのロジックで Rate を出したか。UI とレコードに残す。 */
+export type BaselineRateMethod = "entrainment" | "berger" | "resting";
+
+// ─── 誘導周波数（計測前に入力する狙いの Hz） ─────────────────────────────────
+
+/**
+ * 入力レンジ。下限は 1Hz（スペクトルの最初のビン）、上限はスペクトルが届く
+ * 45Hz——ここより外を指定させても「引き込めたか」を読む材料が無い。
+ */
+export const TARGET_HZ_MIN = 1;
+export const TARGET_HZ_MAX = SPECTRUM_MAX_HZ;
+/** 入力の刻み。0.1Hz（7.8Hz のような差周波数を潰さないため）。 */
+export const TARGET_HZ_STEP = 0.1;
+/** 初期値。三大プログラムでいちばん使う 40Hz（ガンマ）。 */
+export const TARGET_HZ_DEFAULT = 40;
+
+/**
+ * 0.1Hz 刻みへ丸めてレンジ内に収める。数値でなければ null（＝誘導音なし、
+ * Rate は従来の開眼⇄閉眼テストで出す）。範囲外は弾かずに端へ寄せる——
+ * 入力欄に打った値が黙って無視されるより、丸められた値が見えるほうがいい。
+ */
+export function normalizeTargetHz(v: number | null | undefined): number | null {
+  if (v == null || !Number.isFinite(v)) return null;
+  const snapped = Math.round(v * 10) / 10;
+  return Math.min(TARGET_HZ_MAX, Math.max(TARGET_HZ_MIN, snapped));
+}
+
+/** 表示は常に小数第1位まで（40 → "40.0"）。入力の刻みと桁を揃える。 */
+export function formatTargetHz(hz: number): string {
+  return hz.toFixed(1);
+}
 
 // ─── Tunables ────────────────────────────────────────────────────────────────
 
@@ -53,6 +89,32 @@ export type BaselineRateMethod = "berger" | "resting";
  * 係数は「健常な反応が中央付近に来る」ことを狙った初期値にすぎない。
  */
 export const BASELINE_CONFIG = {
+  entrainment: {
+    /** w₁: 引き込みの速さ（T_lock）の重み。 */
+    riseWeight: 0.5,
+    /** w₂: ピークの強さ（局所突出比）の重み。 */
+    contrastWeight: 0.5,
+    /** T_max。計測区間そのもの——この10秒で乗らなければ速度点は 0。 */
+    maxLockSec: BASELINE_MEASURE_SEC,
+    /**
+     * 「乗った」と見なす局所突出比。1秒ぶんの FFT ビンは何もしなくても数%は
+     * 上下するので、平坦をわずかに超えた程度（1.04倍など）を引き込みと呼ぶと、
+     * ノイズが出た秒がそのまま「1秒で乗れた＝高得点」になってしまう。はっきり
+     * 盛り上がったと言える 1.2倍を境にして、T_lock はこれを最初に超えた秒。
+     */
+    lockRatio: 1.2,
+    /**
+     * 局所突出比の点数化: 1.0（周りと同じ＝引き込みなし）で 0点、1.6倍の
+     * はっきりしたピークで 100点。
+     *
+     * 40Hz 共鳴率（lib/brain-metrics.ts）は 0.6 を 0点にしているが、あちらは
+     * セッション全体の入定速度に混ぜる補助項で「平坦より凹んでいる」ことにも
+     * 情報がある。こちらは Rate そのもの——「音に乗れたか」を答える数字なので、
+     * 平坦は 0 でなければ意味が通らない。
+     */
+    ratioFloor: 1.0,
+    ratioCeil: 1.6,
+  },
   berger: {
     /** w₁: α波の立ち上がり速度の重み。 */
     riseWeight: 0.5,
@@ -167,6 +229,61 @@ function shares(s: EegSample): Record<(typeof BAND_KEYS)[number], number> {
 export function alphaShare(s: EegSample): number {
   const b = shares(s);
   return b.lowAlpha + b.highAlpha;
+}
+
+// ─── パターン0: 誘導周波数への引き込み（Entrainment Lock） ───────────────────
+
+export interface EntrainmentResult {
+  /** T_lock: 目標周波数が「乗った」と言える強さに達した最初の秒。乗らなければ null。 */
+  lockSec: number | null;
+  /** 目標周波数の局所突出比のピーク（1.0 = 周りと同じ）。 */
+  peakRatio: number | null;
+  /** 0-100。per-Hz スペクトルが1秒も無く測れないときだけ null。 */
+  score: number | null;
+}
+
+/**
+ * Rate = ( w₁ × (T_max − T_lock)/T_max + w₂ × normalize(ピークの局所突出比) ) × 100
+ *
+ * 設計書の Entrainment Lock Time をそのまま：鳴っている誘導周波数へ「どれだけ
+ * 速く」「どれだけはっきり」乗れたかを見る。素直に反応する脳は数秒でその Hz が
+ * 近傍から立ち上がり、固まっている脳はいつまでも平坦なまま。
+ *
+ * 秒の番号は元の配列の添字（1Hz サンプルなので＝経過秒）で数える。アーティ
+ * ファクトで捨てた秒があっても T_lock がずれないように、詰めた配列の位置では
+ * なく元の位置を持ち回る。
+ */
+export function entrainmentRate(
+  samples: EegSample[],
+  targetHz: number
+): EntrainmentResult {
+  const none: EntrainmentResult = { lockSec: null, peakRatio: null, score: null };
+  const usable = new Set(usableSamples(samples));
+  const { riseWeight, contrastWeight, maxLockSec, lockRatio, ratioFloor, ratioCeil } =
+    BASELINE_CONFIG.entrainment;
+
+  let peakRatio = -Infinity;
+  /** 乗ったと言える強さを最初に超えた秒。ピークの秒ではない——知りたいのは
+   *  「いつ乗ったか」で、その後どこで最大になったかは強さの側が持つ。 */
+  let lockSec: number | null = null;
+  samples.forEach((s, sec) => {
+    if (!usable.has(s)) return;
+    const ratio = resonanceRatioAt(s.spectrum, targetHz);
+    if (ratio == null) return;
+    if (ratio > peakRatio) peakRatio = ratio;
+    if (lockSec == null && ratio >= lockRatio) lockSec = sec;
+  });
+  // スペクトルを持つ秒が1つも無い＝この計測では引き込みを読めない。
+  if (peakRatio === -Infinity) return none;
+
+  const riseTerm = lockSec == null ? 0 : clamp01((maxLockSec - lockSec) / maxLockSec);
+  const contrastTerm = ramp(peakRatio, ratioFloor, ratioCeil);
+
+  return {
+    lockSec,
+    peakRatio,
+    score: floor5((riseWeight * riseTerm + contrastWeight * contrastTerm) * 100),
+  };
 }
 
 // ─── パターン1: Berger効果（開眼⇄閉眼） ──────────────────────────────────────
@@ -323,6 +440,12 @@ export interface BaselineScores {
   clarity: number | null;
   reset: number | null;
   method: BaselineRateMethod;
+  /** 計測前に入力した誘導周波数（Hz）。指定なしなら null。 */
+  targetHz: number | null;
+  /** T_lock（秒）。誘導周波数へ引き込めたときのみ。 */
+  lockSec: number | null;
+  /** 目標周波数の局所突出比のピーク。entrainment で算出できたときのみ。 */
+  peakRatio: number | null;
   /** T_α-rise（秒）。Berger で算出できたときのみ。 */
   alphaRiseSec: number | null;
   /** P_α(Close)/P_α(Open)。Berger で算出できたときのみ。 */
@@ -332,33 +455,68 @@ export interface BaselineScores {
 }
 
 /**
- * 開眼5秒・閉眼5秒から3指標を出す。Rate はまず Berger（パターン1）で試み、
- * 成立しなければ10秒全体の静止時可塑性（パターン2）へ落ちる。Clarity と
- * Reset は10秒全体を使う（設計書どおり、こちらはタスクに依存しない）。
+ * 開眼5秒・閉眼5秒から3指標を出す。Rate の出し方は3段構え：
+ *   誘導周波数の指定あり＋スペクトルあり … 引き込み（パターン0）
+ *   指定なし／スペクトルなし ………………… Berger（パターン1）
+ *   Berger も成立しない …………………………… 静止時可塑性（パターン2）
+ * Clarity と Reset は常に10秒全体から（設計書どおり、タスクに依存しない）。
  */
 export function computeBaselineScores(
   open: EegSample[],
-  close: EegSample[]
+  close: EegSample[],
+  targetHz: number | null = null
 ): BaselineScores {
   const all = [...open, ...close];
   const usableSec = usableSamples(all).length;
+  const common = {
+    clarity: baselineClarity(all),
+    reset: baselineReset(all),
+    targetHz,
+    usableSec,
+  };
+
+  // 引き込む先が指定されていれば、それで測るのが設計書どおりの Rate。
+  const ent = targetHz != null ? entrainmentRate(all, targetHz) : null;
+  if (ent?.score != null) {
+    return {
+      ...common,
+      rate: ent.score,
+      method: "entrainment",
+      lockSec: ent.lockSec,
+      peakRatio: ent.peakRatio,
+      alphaRiseSec: null,
+      alphaRatio: null,
+    };
+  }
 
   const berger = bergerRate(open, close);
   const useBerger = berger.score != null;
 
   return {
+    ...common,
     rate: useBerger ? berger.score : restingRate(all),
-    clarity: baselineClarity(all),
-    reset: baselineReset(all),
     method: useBerger ? "berger" : "resting",
+    lockSec: null,
+    peakRatio: null,
     alphaRiseSec: useBerger ? berger.alphaRiseSec : null,
     alphaRatio: useBerger ? berger.alphaRatio : null,
-    usableSec,
   };
 }
 
-/** 「開眼⇄閉眼テスト」/「静止時脳波の可塑性」— レコードと UI の表示名。 */
-export function rateMethodLabel(method: BaselineRateMethod): string {
+/**
+ * レコードと UI の表示名。引き込みで測った回は、基準にした Hz まで含めて
+ * 初めて意味が通る（40.0Hz の 62点 と 7.8Hz の 62点 は別のことを言っている）
+ * ので、あれば必ず添える。
+ */
+export function rateMethodLabel(
+  method: BaselineRateMethod,
+  targetHz?: number | null
+): string {
+  if (method === "entrainment") {
+    return targetHz != null
+      ? `誘導周波数への引き込み（${formatTargetHz(targetHz)}Hz）`
+      : "誘導周波数への引き込み";
+  }
   return method === "berger"
     ? "開眼⇄閉眼テスト（Berger応答）"
     : "静止時脳波の可塑性（ゆらぎ）";
