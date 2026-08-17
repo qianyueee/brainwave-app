@@ -29,20 +29,22 @@ export interface ThemePalette {
  * Sky palette for the constellation art surfaces (Home's Astro Sync hero,
  * Session's Water Mandala hero). These used to be a fixed deep-night gradient
  * in every theme; a full-height night hero on the cream day palette read as a
- * cold slab dropped into a warm page. The sky now follows the time of day: all
- * four periods use a **deep ground with the figure glowing light**, and only the
- * hue moves — dawn rust (day), deep emerald (afternoon), dusk violet (evening),
- * night indigo (midnight). The star figures themselves are unchanged.
+ * cold slab dropped into a warm page. The sky now follows the time of day, and
+ * the three daylight-ish periods (day, afternoon, evening) keep the card close
+ * to its page: **the same hue at the same low saturation, only slightly
+ * deeper** (about 0.10 luminance below the page ground). Only midnight keeps a
+ * genuinely deep ground, because at 00-06 the page itself is dark.
  *
- * The pale-ground / dark-ink variant (the printed star-chart convention) is
- * gone. It looked right in isolation, but `ZodiacConstellation` draws star cores
- * at opacity .95, so on a pale ground every star landed as a hard black dot —
- * the figure read as scribbles over the copy rather than as a sky. A deep ground
- * is also the only version where the halo/glow layers do anything.
+ * That decides the ink. On these near-page grounds the constellation is drawn
+ * in **white**, not dark: `ZodiacConstellation` draws star cores at opacity .95,
+ * so dark ink lands as hard black dots and the figure reads as scribbles over
+ * the copy. White ink on a barely-deeper ground makes it a watermark instead —
+ * present as texture, never competing with the text. It is deliberately faint
+ * (≈2–3:1 over the right half of the gradient, where the figure actually sits);
+ * legibility lives in the text tokens, not in the decoration.
  *
- * Note this makes the sky card a dark window on the two light pages (day,
- * afternoon) — the same relationship the Water Mandala hero and the night
- * Sync Tree card already have with their pages.
+ * Text therefore goes the other way: `strong`/`text` are dark on these three,
+ * light only at midnight. The binding contrast case is the **lightest** stop.
  *
  * `chip`/`glow`/`line` carry alpha, so values here may be hex OR rgba().
  */
@@ -150,28 +152,19 @@ export const TIME_PERIODS: TimePeriod[] = [
       warning: "#8a4708",
       danger: "#a30f26",
     },
-    // Dawn sky — テラコッタ赤から深い葡萄酒へ。星座は白いクリームで光る。
-    //
-    // ページの淡桃と**同じ色族**に寄せてある：前段は主色そのままの鮮やかな
-    // 橘紅（#c8330a）で、淡い地の上に彩度の高い板が1枚だけ浮いて見えた。
-    // 明度はほぼ同じまま彩度を落とし、赤側へ振ることで、地の延長として読める
-    // 深さに変えている。紫は混ぜない（参照デザインに紫が無い）。
-    //
-    // ⚠ 明るさの上限はここ（最明部 L=0.161）。星（装飾なので 3:1 で足りる）は
-    // 4.52:1、本文は 4.63:1。これ以上明るくすると本文が 4.5:1 を割り、文字を
-    // 濃くするしかなくなって「星が黒い」問題に逆戻りする。さらに地へ近づける
-    // なら、浮いている文字（今日の一言の外・周波数名）に半透明の下敷きを
-    // 与えて、文字のコントラストを空から切り離す必要がある。
+    // Dawn sky — ページの淡桃をそのまま少し深くしただけ（L 0.815 → 0.706）。
+    // 彩度も地とほぼ同じに保つ：前段は赤へ振り切った板で、淡い地の上に1枚だけ
+    // 彩度の高いカードが浮いて見えた。星座は白の透かし。
     sky: {
-      a: "#bd4a42",
-      b: "#a3383f",
-      c: "#822c38",
-      ink: "#fff2e6",
-      strong: "#ffffff",
-      text: "#fff5ee",
-      chip: "rgba(255,255,255,0.15)",
-      glow: "rgba(255,195,140,0.38)",
-      line: "rgba(255,255,255,0.24)",
+      a: "#fad2c8",
+      b: "#f2bcae",
+      c: "#e6a294",
+      ink: "#ffffff",
+      strong: "#2e1210",
+      text: "#6b3126",
+      chip: "rgba(70,20,15,0.09)",
+      glow: "rgba(255,220,190,0.55)",
+      line: "rgba(70,20,15,0.17)",
     },
   },
   {
@@ -199,21 +192,19 @@ export const TIME_PERIODS: TimePeriod[] = [
       warning: "#9a3412",
       danger: "#991b1b",
     },
-    // Deep emerald sky — 周囲のミントと同じ色族のまま、地色は暗い側へ。
-    // 淡いミントの地では星の芯が黒い点になっていたので、他の3時間帯と同じく
-    // 「暗い空に光る星座」へ揃えた（これで星座が黒く出る時間帯は無くなる）。
-    // 陽の高い時刻なので halo だけは白に近い暖色を残し、真夜中の月光と
-    // 見分けがつくようにしている。
+    // 周囲のミントを少し深くしただけ（L 0.737 → 0.635）。星座は白の透かし。
+    // 陽の高い時刻なので halo は白に近い暖色を残し、他の時間帯と見分けがつく
+    // ようにしている。
     sky: {
-      a: "#1e5c4e",
-      b: "#0f3a32",
-      c: "#06201c",
-      ink: "#d9f7ec",
-      strong: "#f0fdf8",
-      text: "#9fd8c4",
-      chip: "rgba(255,255,255,0.10)",
-      glow: "rgba(255,245,200,0.34)",
-      line: "rgba(255,255,255,0.16)",
+      a: "#a8dcc4",
+      b: "#8ecdb0",
+      c: "#6fb898",
+      ink: "#ffffff",
+      strong: "#082018",
+      text: "#123a2c",
+      chip: "rgba(8,32,24,0.09)",
+      glow: "rgba(255,250,215,0.45)",
+      line: "rgba(8,32,24,0.17)",
     },
   },
   {
@@ -241,22 +232,19 @@ export const TIME_PERIODS: TimePeriod[] = [
       warning: "#9a3412",
       danger: "#991b1b",
     },
-    // Dusk — deep violet night sky, the figure glowing light. Keeps the warm
-    // low-sun halo, which is what separates it from midnight's cool moonlight:
-    // same darkness, last light of the day still in the air. The page palette
-    // above stays pastel violet, so this card reads as an inset window onto the
-    // evening sky (exactly how the Sync Tree scene sits on the same page).
-    // 対比: text 5.1:1 / strong 9.1:1（グラデーション最明部 a に対して）
+    // 周囲の淡紫を少し深くしただけ（L 0.628 → 0.514）。星座は白の透かし。
+    // halo は暖色を残す——沈んだばかりの陽の名残で、真夜中の冷たい月光と
+    // 見分けがつく。
     sky: {
-      a: "#4a3480",
-      b: "#33215e",
-      c: "#1c1040",
-      ink: "#e9dfff",
-      strong: "#f6f2ff",
-      text: "#c3b0e8",
-      chip: "rgba(255,255,255,0.10)",
-      glow: "rgba(255,200,150,0.40)",
-      line: "rgba(255,255,255,0.16)",
+      a: "#cdb4e8",
+      b: "#b99cd8",
+      c: "#a184c6",
+      ink: "#ffffff",
+      strong: "#1c1040",
+      text: "#2c1850",
+      chip: "rgba(28,16,64,0.09)",
+      glow: "rgba(255,225,190,0.45)",
+      line: "rgba(28,16,64,0.17)",
     },
   },
 ];
