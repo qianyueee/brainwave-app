@@ -11,6 +11,7 @@ import SynthTimelineStrip from "@/components/SynthTimelineStrip";
 import SynthVibratoPanel from "@/components/SynthVibratoPanel";
 import ExportDialog from "@/components/ExportDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { BareColumn } from "@/components/PageColumn";
 import { ChevronLeft, Plus, Download, Upload, FileDown, Lock, Play, Square } from "lucide-react";
 import { downloadBlob } from "@/lib/audio-export";
 import { SynthPreset } from "@/lib/synth-engine";
@@ -373,6 +374,7 @@ export default function SynthPage() {
 
   if (!authLoading && !user) {
     return (
+      <BareColumn>
       <div className="flex flex-col items-center justify-center gap-6 pt-24" style={{ animation: "fade-in 0.3s ease-out" }}>
         <div className="w-20 h-20 rounded-full bg-surface border border-surface-border flex items-center justify-center neu-raised">
           <Lock size={36} className="text-text-muted" strokeWidth={1.5} />
@@ -396,11 +398,13 @@ export default function SynthPage() {
           戻る
         </button>
       </div>
+      </BareColumn>
     );
   }
 
   if (roleLoaded && user && !isAdmin) {
     return (
+      <BareColumn>
       <div className="flex flex-col items-center justify-center gap-6 pt-24" style={{ animation: "fade-in 0.3s ease-out" }}>
         <div className="w-20 h-20 rounded-full bg-surface border border-surface-border flex items-center justify-center neu-raised">
           <Lock size={36} className="text-text-muted" strokeWidth={1.5} />
@@ -418,10 +422,12 @@ export default function SynthPage() {
           ホームへ
         </button>
       </div>
+      </BareColumn>
     );
   }
 
   return (
+    <BareColumn>
     <div className="flex flex-col gap-6 pt-6 md:max-w-2xl md:mx-auto md:w-full" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -863,5 +869,6 @@ export default function SynthPage() {
         onClose={() => setConfirmState(null)}
       />
     </div>
+    </BareColumn>
   );
 }

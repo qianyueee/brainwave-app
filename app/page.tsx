@@ -6,6 +6,7 @@ import BrainConditionCard from "@/components/BrainConditionCard";
 import SyncTreeCard from "@/components/SyncTreeCard";
 import { User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
 /**
@@ -29,7 +30,7 @@ export default function HomePage() {
   const isLoggedIn = !!user;
 
   return (
-    <div className="flex flex-col gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+    <div style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* ブランド名は見出しの上の小さな行（eyebrow）として、他のページと同じ
           スティッキーヘッダーに同居させる。ログインと設定も同じ帯に入れて
           あるのは、下までスクロールしたときに設定へ入れなくなるのを避けるため
@@ -75,6 +76,7 @@ export default function HomePage() {
         }
       />
 
+      <PageColumn>
       {/* モバイルは1カラムで Sync Tree → 脳コンディション → 星空。
           デスクトップは 左（Tree＋コンディション）｜右（星空）の2カラムで、
           DOM 順のまま行列を明示指定している（order だけではグリッドが行方向に
@@ -99,6 +101,7 @@ export default function HomePage() {
           <ZodiacSyncCard />
         </div>
       </div>
+      </PageColumn>
     </div>
   );
 }

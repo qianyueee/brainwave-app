@@ -9,6 +9,7 @@ import { getZodiacSign } from "@/lib/zodiac";
 import ZodiacSignPicker from "@/components/ZodiacSignPicker";
 import ZodiacConstellation from "@/components/ZodiacConstellation";
 import { User, LogOut, Settings, ChevronRight } from "lucide-react";
+import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
 /**
@@ -34,8 +35,10 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-6 md:max-w-2xl" style={{ animation: "fade-in 0.3s ease-out" }}>
+    <div style={{ animation: "fade-in 0.3s ease-out" }}>
       <PageHeader title="Settings" subtitle="設定" />
+
+      <PageColumn className="md:max-w-2xl">
 
       {/* Account */}
       <div className="flex flex-col gap-3">
@@ -123,6 +126,7 @@ export default function SettingsPage() {
           </p>
         </div>
       </div>
+      </PageColumn>
     </div>
   );
 }

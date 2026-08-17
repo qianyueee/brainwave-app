@@ -11,6 +11,7 @@ import PlaybackControls from "@/components/PlaybackControls";
 import Timer from "@/components/Timer";
 import Mixer from "@/components/Mixer";
 import ExportDialog from "@/components/ExportDialog";
+import { BareColumn } from "@/components/PageColumn";
 import { Download } from "lucide-react";
 
 export default function PlayerPage() {
@@ -71,15 +72,18 @@ export default function PlayerPage() {
   // Skeleton before hydration: keep the page frame, hide store-derived content.
   if (!hydrated) {
     return (
-      <div className="flex flex-col gap-6 pt-6">
-        <div className="text-center">
-          <p className="text-xs font-bold text-primary tracking-wider">Sync Sound</p>
+      <BareColumn>
+        <div className="flex flex-col gap-6 pt-6">
+          <div className="text-center">
+            <p className="text-xs font-bold text-primary tracking-wider">Sync Sound</p>
+          </div>
         </div>
-      </div>
+      </BareColumn>
     );
   }
 
   return (
+    <BareColumn>
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Program name */}
       <div className="text-center">
@@ -133,5 +137,6 @@ export default function PlayerPage() {
 
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} mode={exportMode} customPreset={customProgram?.preset} />
     </div>
+    </BareColumn>
   );
 }

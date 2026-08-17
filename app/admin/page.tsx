@@ -8,6 +8,7 @@ import UserList from "@/components/admin/UserList";
 import GroupManager from "@/components/admin/GroupManager";
 import ProgramAssigner from "@/components/admin/ProgramAssigner";
 import AudioStudio from "@/components/admin/AudioStudio";
+import { BareColumn } from "@/components/PageColumn";
 import { ArrowLeft, Users, FolderTree, Music2, Waves } from "lucide-react";
 
 type AdminTab = "users" | "groups" | "audio" | "programs";
@@ -41,9 +42,11 @@ export default function AdminPage() {
 
   if (authLoading || !roleLoaded) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-sm text-text-muted">読み込み中...</p>
-      </div>
+      <BareColumn>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <p className="text-sm text-text-muted">読み込み中...</p>
+        </div>
+      </BareColumn>
     );
   }
 
@@ -52,6 +55,7 @@ export default function AdminPage() {
   }
 
   return (
+    <BareColumn>
     <div className="flex flex-col gap-4 pt-6 pb-24" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -95,5 +99,6 @@ export default function AdminPage() {
       {tab === "audio" && <AudioStudio />}
       {tab === "programs" && <ProgramAssigner />}
     </div>
+    </BareColumn>
   );
 }

@@ -11,6 +11,7 @@ import {
   treeStageRangeLabel,
 } from "@/lib/sync-tree";
 import { SyncTreeStageTile } from "@/components/SyncTreeArt";
+import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
 /**
@@ -38,10 +39,7 @@ export default function TreePage() {
   const grown = PLACEHOLDER_TREE.completed.length;
 
   return (
-    <div
-      className="flex flex-col gap-6 md:max-w-2xl"
-      style={{ animation: "fade-in 0.3s ease-out" }}
-    >
+    <div style={{ animation: "fade-in 0.3s ease-out" }}>
       <PageHeader
         title="Sync Tree"
         subtitle="育てる木｜16段階の成長ギャラリー"
@@ -56,6 +54,7 @@ export default function TreePage() {
         }
       />
 
+      <PageColumn className="md:max-w-2xl">
       {/* いまの木 — 段階名・進捗・育てた木数はこの画面だけが出す */}
       <div className="bg-surface border border-surface-border rounded-3xl p-5 flex items-center gap-4 neu-raised">
         <div
@@ -162,6 +161,7 @@ export default function TreePage() {
         毎日のログイン・脳波測定・セッション再生で少しずつ育ちます（加算ルールは
         調整中）。完成した木の記録は Sync History にも並びます。
       </p>
+      </PageColumn>
     </div>
   );
 }

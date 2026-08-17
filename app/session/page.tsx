@@ -9,6 +9,7 @@ import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import WaterMandalaHero from "@/components/WaterMandalaHero";
 import { ArrowRight, User } from "lucide-react";
+import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
 /**
@@ -56,9 +57,10 @@ export default function SessionPage() {
   }, [isAdmin, isLoggedIn, publishedPrograms, groupProgramIds]);
 
   return (
-    <div className="flex flex-col gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+    <div style={{ animation: "fade-in 0.3s ease-out" }}>
       <PageHeader title="Sync Session" subtitle="プログラム選択・再生" />
 
+      <PageColumn>
       {/* Mobile: single column. Desktop: mandala + built-ins | published + custom. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
       <div className="flex flex-col gap-6">
@@ -111,6 +113,7 @@ export default function SessionPage() {
       )}
       </div>
       </div>
+      </PageColumn>
     </div>
   );
 }

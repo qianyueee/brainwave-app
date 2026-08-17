@@ -19,6 +19,7 @@ import SignalQualityBadge from "@/components/SignalQualityBadge";
 import { isLowQuality } from "@/lib/brain-profile";
 import { BrainCircuit, Lock, CheckSquare, Square, X, GitCompare } from "lucide-react";
 import Link from "next/link";
+import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
 /** 大見出しの直下で切り替える2ページ。 */
@@ -209,9 +210,10 @@ export default function ReportPage() {
   );
 
   return (
-    <div className="flex flex-col gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+    <div style={{ animation: "fade-in 0.3s ease-out" }}>
       <PageHeader title="Sync Report" subtitle="脳特性分析・効果比較" />
 
+      <PageColumn>
       {!hydrated ? null : !authLoading && !user ? (
         <div className="bg-surface border border-surface-border rounded-3xl p-8 text-center neu-raised flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-navy flex items-center justify-center neu-inset">
@@ -480,6 +482,7 @@ export default function ReportPage() {
           )}
         </div>
       )}
+      </PageColumn>
     </div>
   );
 }
