@@ -96,30 +96,41 @@ export default function BrainPage() {
 
       {/* Mobile: single column. Desktop: map+meters (left) | art+trend (right).
           どちらの列も「いま」だけを映す：過去の測定一覧はこのページから外し、
-          レポート（脳特性チャート・測定の比較）とヒストリーに寄せた。 */}
-      <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-        <div className="flex flex-col gap-6">
-          {/* マインドマップ（四象限マップ + 状態）— ブレインアートと左右対称 */}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-bold text-text-primary">マインドマップ</h2>
-            <MindMapCanvas sample={latestSample} boost={zoneBoost} isRecording={isRecording} />
-            <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
-          </section>
+          レポート（脳特性チャート・測定の比較）とヒストリーに寄せた。
 
+          デスクトップは列ごとの flex ではなく2×2のグリッドに置く。列を縦に
+          積むと、上段の高さが左右で違う（マインドマップは状態テキストが2行、
+          ブレインアートは説明1行）ぶんだけ下段のカードがずれて、脳波バランス
+          と推移の頭が揃わない。行を共有すれば上段の高い方に合わせて下段が
+          同じ高さから始まる。DOM順はモバイルの並び（マップ→バランス→
+          アート→推移）のままにして、配置だけ md 以上で指定する。
+
+          下段は `self-stretch` ＋ 中のカードへ `h-full` を渡して、頭だけで
+          なく底も揃える（グラフの高さは元々22pxほど違う）。カードは単一の
+          div を返すので `[&>div]` で届く。 */}
+      <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:grid-rows-[auto_auto] md:gap-6 md:items-start">
+        {/* マインドマップ（四象限マップ + 状態）— ブレインアートと左右対称 */}
+        <section className="flex flex-col gap-3 md:col-start-1 md:row-start-1">
+          <h2 className="text-lg font-bold text-text-primary">マインドマップ</h2>
+          <MindMapCanvas sample={latestSample} boost={zoneBoost} isRecording={isRecording} />
+          <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
+        </section>
+
+        <div className="md:col-start-1 md:row-start-2 md:self-stretch md:[&>div]:h-full">
           <BandEqualizer powers={bandPowers} />
         </div>
 
-        <div className="flex flex-col gap-6">
-          {/* リアルタイム脳波アート（ニューロフィードバック）— マインドマップと左右対称：
-              見出し → 正方形キャンバス → 下に説明文 */}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
-            <MindArtCanvas sample={latestSample} boost={zoneBoost} />
-            <p className="text-sm text-text-secondary text-center">
-              脳波がリアルタイムに幾何学模様として紡ぎ出されます
-            </p>
-          </section>
+        {/* リアルタイム脳波アート（ニューロフィードバック）— マインドマップと左右対称：
+            見出し → 正方形キャンバス → 下に説明文 */}
+        <section className="flex flex-col gap-3 md:col-start-2 md:row-start-1">
+          <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
+          <MindArtCanvas sample={latestSample} boost={zoneBoost} />
+          <p className="text-sm text-text-secondary text-center">
+            脳波がリアルタイムに幾何学模様として紡ぎ出されます
+          </p>
+        </section>
 
+        <div className="md:col-start-2 md:row-start-2 md:self-stretch md:[&>div]:h-full">
           <MindTrendChart history={history} />
         </div>
       </div>

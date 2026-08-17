@@ -10,9 +10,9 @@
  * 帯を「横に continuous なパターン」として描き、同じタイルを2枚並べて等速で
  * 半分ぶん流す。1周したところで図柄が完全に一致するので継ぎ目が見えず、
  * 端で減速も反転もしない＝本当に流れて見える（往復の ease-in-out は水の流れ
- * ではなく呼吸に見えるため差し替えた）。速さは往復版と同じ体感速度
- * （毎秒3〜6.5px）に合わせてある——1周の秒数が大きいのは、1周で画面幅の
- * 1.6倍ぶんを送るため。
+ * ではなく呼吸に見えるため差し替えた）。速さは毎秒4〜8.5px（層ごとの1周を
+ * 138s / 73s / 154s）——1周の秒数が大きいのは、1周で画面幅の1.6倍ぶんを
+ * 送るため。3層の相対比は保ったまま、全体を1.3倍速にしてある。
  *
  * タイルが継ぎ目なく繋がる条件は2つ。パスは x=0 と x=1200 で y も傾きも一致
  * させてある（上下の山を2周期ぶん）。グラデーションは横方向に色が変わると
@@ -128,18 +128,18 @@ export default function WaveBackground() {
       </svg>
 
       {/* 上の帯 — ゆっくり右へ */}
-      <Layer duration="180s">
+      <Layer duration="138s">
         <path d={band(300, 70, "top")} fill="url(#wv-deep)" />
         <path d={band(430, 55, "top")} fill="url(#wv-tint)" />
       </Layer>
 
       {/* 中央のリボン — 逆向きに、いちばん速く */}
-      <Layer duration="95s" reverse>
+      <Layer duration="73s" reverse>
         <path d={ribbon(560, 720, 60)} fill="url(#wv-mid)" />
       </Layer>
 
       {/* 下の帯 — 中くらいの速さで右へ */}
-      <Layer duration="200s">
+      <Layer duration="154s">
         <path d={band(880, 65, "bottom")} fill="url(#wv-mid)" />
         <path d={band(1030, 50, "bottom")} fill="url(#wv-soft)" />
         <path d={band(1160, 45, "bottom")} fill="url(#wv-deep)" />
