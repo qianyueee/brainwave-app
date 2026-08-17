@@ -61,7 +61,7 @@ export default function TargetHzInput() {
           value={text}
           disabled={isRecording}
           onChange={(e) => commit(e.target.value)}
-          // 離れた時点でレンジ内・0.1刻みへ揃える（打った値がそのまま判定に
+          // 離れた時点でレンジ内・0.01刻みへ揃える（打った値がそのまま判定に
           // 使われるので、丸めた結果を目に見せてから始める）。
           onBlur={() => setText(targetHz != null ? formatTargetHz(targetHz) : "")}
           placeholder={formatTargetHz(DEFAULT_TARGET_HZ)}
@@ -73,7 +73,7 @@ export default function TargetHzInput() {
       <p id="target-hz-hint" className="text-xs text-text-muted">
         {targetHz != null
           ? `Rate は ${formatTargetHz(targetHz)}Hz への共鳴で判定します`
-          : `未入力のときは ${formatTargetHz(DEFAULT_TARGET_HZ)}Hz を基準に判定します（${TARGET_HZ_MIN}〜${TARGET_HZ_MAX}Hz・0.1Hz 刻み）`}
+          : `未入力のときは ${formatTargetHz(DEFAULT_TARGET_HZ)}Hz を基準に判定します（${TARGET_HZ_MIN}〜${TARGET_HZ_MAX}Hz・0.01Hz 刻み）`}
       </p>
     </div>
   );

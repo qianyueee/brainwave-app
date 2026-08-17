@@ -65,7 +65,7 @@ brainwave-app/
 │   ├── day-records.ts          # カレンダーの当日明細（buildDayRecords / recordedDayKeys / dayKeyOf）。再生ログ＋取り込んだ脳波測定＋10秒チェックの3出どころを時刻順に1本へ畳む純関数。UI から切り出してあるのは脳波測定がログイン必須ストア（per-user persist）でブラウザから仕込めないため——純関数なら3種すべて実コードで検証できる。描画は components/SimpleCalendar
 │   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，数据不足为 null）。**セッション由来**＝computeBrainConditionMetrics（入定速度×共鳴率）／**非セッション由来**＝computeBaselineConditionMetrics（下の baseline.ts が算出済みの値を変換するだけ）。共鳴率を見る周波数は**その測定の誘導周波数**（`BrainProfile.targetHz`）、未入力なら既定の 40Hz＝`DEFAULT_TARGET_HZ`（従来と同じ判定）
 │   ├── mind/baseline.ts        # 10秒ベースラインチェック（非セッション時の3指標）。ターゲット周波数が無い平常時は引き込み速度が測れないので別ロジックへ：パターン1 Berger効果（開眼5秒⇄閉眼5秒のα波立ち上がり速度＋メリハリ比）を既定、成立しなければパターン2 静止時可塑性（スペクトル・エントロピー×帯域間移動度）へフォールバック。Clarity=(40Hzγ+高α)/高β、Reset=(δ+θ)比×ゆらぎ。係数は BASELINE_CONFIG に集約（**暫定値**、実測が貯まったら再標定）。⚠ サンプルは1Hzなので T_α-rise の分解能は1秒
-│   ├── mind/resonance.ts       # 「その周波数だけ周りより立っているか」＝局所突出比（目標Hzの値 ÷ ±5Hz近傍〔±1Hzは山なので除外〕の平均）＋誘導周波数の入力ルール（`TARGET_HZ_MIN/MAX/STEP`＝1〜45Hz・0.1Hz刻み、`DEFAULT_TARGET_HZ`=40、normalize/format）。ビンは1Hz刻みなので 0.1Hz 指定は前後を線形補間する
+│   ├── mind/resonance.ts       # 「その周波数だけ周りより立っているか」＝局所突出比（目標Hzの値 ÷ ±5Hz近傍〔±1Hzは山なので除外〕の平均）＋誘導周波数の入力ルール（`TARGET_HZ_MIN/MAX/STEP`＝1〜45Hz・0.01Hz刻み、`DEFAULT_TARGET_HZ`=40、normalize/format）。ビンは1Hz刻みなので 0.01Hz 指定は前後を線形補間する
 │   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo

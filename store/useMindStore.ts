@@ -57,7 +57,7 @@ export interface MindSessionSummary {
    *  Undefined on recordings made before subjects existed. */
   subjectId?: string;
   subjectName?: string;
-  /** 測定のときに入力した誘導周波数（Hz、0.1刻み）。Rate の共鳴率をこの周波数で
+  /** 測定のときに入力した誘導周波数（Hz、0.01刻み）。Rate の共鳴率をこの周波数で
    *  見る。未入力なら undefined＝既定の 40Hz で判定する。測定者と同じく開始時に
    *  焼き込む——途中で入力欄をいじっても、走っている測定の条件は変わらない。 */
   targetHz?: number;

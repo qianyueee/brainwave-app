@@ -36,7 +36,7 @@ export interface BrainProfile {
    */
   subject?: string;
   /**
-   * 測定のときに入力した誘導周波数（Hz、0.1刻み）。Rate の共鳴率をこの周波数で
+   * 測定のときに入力した誘導周波数（Hz、0.01刻み）。Rate の共鳴率をこの周波数で
    * 見る。undefined＝未入力／アップロード／この項目より前の記録で、その場合は
    * 既定の 40Hz（DEFAULT_TARGET_HZ）で判定する。
    */
