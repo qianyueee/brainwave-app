@@ -128,46 +128,50 @@ export const TIME_PERIODS: TimePeriod[] = [
     startHour: 6,
     endHour: 12,
     palette: {
-      navy: "#fde8de",
-      navyLight: "#fef1ea",
-      navyLighter: "#f4bda9",
-      primary: "#c8330a",
-      primaryDark: "#a52807",
-      // 紅薔薇。橘紅の主色と喧嘩せず、warning（琥珀）とも読み分けられる色相。
-      accent: "#b8285a",
-      accentDark: "#9a1f4a",
-      surface: "#fdece3",
-      surfaceBorder: "#f3c9b5",
-      textPrimary: "#2e1409",
-      textSecondary: "#6e3620",
-      textMuted: "#82492f",
+      navy: "#fde4dc",
+      navyLight: "#feeee9",
+      navyLighter: "#f2b5a6",
+      primary: "#c42d18",
+      primaryDark: "#a32411",
+      // 紅薔薇。赤に寄せた主色と喧嘩せず、warning（琥珀）とも読み分けられる色相。
+      accent: "#b32550",
+      accentDark: "#961c42",
+      surface: "#fde8e1",
+      surfaceBorder: "#f2c4ba",
+      textPrimary: "#2e1210",
+      textSecondary: "#6e3428",
+      textMuted: "#824434",
       onPrimary: "#ffffff",
       onAccent: "#ffffff",
       // Deepened status hues — the defaults were picked against dark navy and
-      // wash out on this blush ground. warning は主色の橘紅と同化しないよう
+      // wash out on this blush ground. warning は主色の赤橙と同化しないよう
       // 琥珀寄りに置いている。
       success: "#166534",
-      warning: "#8a4a0a",
-      danger: "#a3102a",
+      warning: "#8a4708",
+      danger: "#a30f26",
     },
-    // Dawn sky — 陽の差す側（グラデーション内側）が鮮やかな橘紅、外へ向かって
-    // 珊瑚紅から深い栗へ落ちる。星座は白いクリームで光る。
+    // Dawn sky — テラコッタ赤から深い葡萄酒へ。星座は白いクリームで光る。
     //
-    // 紫を混ぜず全て暖色で通してあるのは参照デザインに紫が無いから。前段は
-    // 錆色→藤紫→ほぼ黒（外周 L=0.010）で暗すぎたので、いちばん明るい側を
-    // L=0.147 まで上げた——それでも星（3:1 で足りる装飾）は 4.85:1、本文は
-    // 4.97:1 取れている。この明るさが上限：さらに明るくすると本文が 4.5:1 を
-    // 割り、文字を濃くするしかなくなって「星が黒い」問題に逆戻りする。
+    // ページの淡桃と**同じ色族**に寄せてある：前段は主色そのままの鮮やかな
+    // 橘紅（#c8330a）で、淡い地の上に彩度の高い板が1枚だけ浮いて見えた。
+    // 明度はほぼ同じまま彩度を落とし、赤側へ振ることで、地の延長として読める
+    // 深さに変えている。紫は混ぜない（参照デザインに紫が無い）。
+    //
+    // ⚠ 明るさの上限はここ（最明部 L=0.161）。星（装飾なので 3:1 で足りる）は
+    // 4.52:1、本文は 4.63:1。これ以上明るくすると本文が 4.5:1 を割り、文字を
+    // 濃くするしかなくなって「星が黒い」問題に逆戻りする。さらに地へ近づける
+    // なら、浮いている文字（今日の一言の外・周波数名）に半透明の下敷きを
+    // 与えて、文字のコントラストを空から切り離す必要がある。
     sky: {
-      a: "#c8330a",
-      b: "#a82f3e",
-      c: "#6e2434",
+      a: "#bd4a42",
+      b: "#a3383f",
+      c: "#822c38",
       ink: "#fff2e6",
       strong: "#ffffff",
       text: "#fff5ee",
-      chip: "rgba(255,255,255,0.14)",
-      glow: "rgba(255,190,120,0.40)",
-      line: "rgba(255,255,255,0.22)",
+      chip: "rgba(255,255,255,0.15)",
+      glow: "rgba(255,195,140,0.38)",
+      line: "rgba(255,255,255,0.24)",
     },
   },
   {
@@ -393,13 +397,13 @@ export const TREE_SKY_DAY: TreeSky = {
  * 樹本体は寒色のままなので、暖色の空との対比で朝の逆光ぎみに見える。
  */
 export const TREE_SKY_SUNRISE: TreeSky = {
-  a: "#fff2ea",
-  b: "#fddac9",
-  c: "#f4ab94",
-  ink: "#7d3a20",
-  glow: "rgba(255,190,150,0.44)",
-  border: "#f3c9b5",
-  shadow: "rgba(140,60,35,0.18)",
+  a: "#fff2ee",
+  b: "#fdd6cd",
+  c: "#f2a498",
+  ink: "#7d3524",
+  glow: "rgba(255,185,150,0.44)",
+  border: "#f2c4ba",
+  shadow: "rgba(140,55,40,0.18)",
 };
 
 export function treeSkyForPeriod(period: TimePeriod): TreeSky {
