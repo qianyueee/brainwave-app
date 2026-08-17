@@ -16,6 +16,7 @@ import BaselineCheckButton from "@/components/mind/BaselineCheckButton";
 import SourceDialog, { SourceStatusLine } from "@/components/mind/SourceDialog";
 import SessionList from "@/components/mind/SessionList";
 import SubjectSelector from "@/components/mind/SubjectSelector";
+import PageHeader from "@/components/PageHeader";
 
 /**
  * Sync Brain — the live EEG measurement page: mind map, recording, and the
@@ -63,11 +64,8 @@ export default function BrainPage() {
   }, [sourceKind, pairingCode]);
 
   return (
-    <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Sync Brain</h1>
-        <p className="text-sm text-text-secondary mt-1">脳波同期・測定</p>
-      </div>
+    <div className="flex flex-col gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+      <PageHeader title="Sync Brain" subtitle="脳波同期・測定" />
 
       {/* 測定の前にやることを、やる順に3段で置く：
           1) 接続する（＋誰を測るか）2) 測るボタン 3) いま何が流れているか。

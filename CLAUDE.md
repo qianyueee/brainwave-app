@@ -49,6 +49,7 @@ brainwave-app/
 │   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
 │   └── mind|profile|log|compare/ # 旧路由跳转桩（客户端 redirect → session/brain/history/report）
 ├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
+│   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。地は不透明 `bg-navy`＋下端ヘアライン——半透明＋blur は 85/95% どちらでも下を流れる本文が影として読めてしまったので却下。文字は 22px/14px（ページ内見出し `text-lg`=20px を下回らない範囲で最小）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
 │   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
 ├── lib/
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
@@ -184,7 +185,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 - 调整颤音参数时不重建主振荡器，仅销毁/重建 LFO 节点，避免爆音
 
 ### UI 约束
-- 目标用户 50-60 岁：最小字号 16px、正文 18px、触控区域 ≥ 48×48px
+- 目标用户 50-60 岁：最小字号 16px、正文 18px、触控区域 ≥ 48×48px。**ナビのラベルは `text-xs`（14px）が下限**——情報を担う文字なのでこれ以上は縮めない（縦を詰めたいときはアイコン 22→20px と行高で稼ぐ）
 - **字号体系已在 `globals.css` @theme 整体重映射**：`text-xs`=14px / `text-sm`=16px / `text-base`=18px / `text-lg`=20px / `text-xl`=22px（2xl+ 不变）。写代码时按语义选类即可，不要用 `text-[10px]` 之类的任意值；Recharts 刻度是硬编码数字，保持 ≥12
 - 缩放**不可禁用**（viewport 不设 maximumScale/userScalable）；`user-select:none` 只作用于控件，正文可选择复制
 - 字体：`next/font/google` 的 Noto Sans JP（构建期自托管，兼容静态导出），栈内排在系统日文字体之前

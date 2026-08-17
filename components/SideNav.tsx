@@ -65,7 +65,7 @@ export default function SideNav() {
         >
           <div className="flex items-start justify-between gap-2 pl-3 mb-6">
             <div className="min-w-0">
-              <p className="text-lg font-bold text-text-primary leading-tight">
+              <p className="text-base font-bold text-text-primary leading-tight">
                 NeuroSync
                 <sup className="font-normal">®</sup>
               </p>
@@ -88,16 +88,18 @@ export default function SideNav() {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`flex items-center gap-3 min-h-[56px] py-2 px-3 rounded-2xl text-base font-medium transition-colors ${
+                /* 行の高さは 48px 接触域を確保したうえで詰める（旧 56px）。
+                   文字も英名 18→16px、読み仮名は 14px の下限に据え置き。 */
+                className={`flex items-center gap-3 min-h-12 py-1.5 px-3 rounded-2xl font-medium transition-colors ${
                   isActive
                     ? "bg-navy-light neu-inset text-primary"
                     : "text-text-muted hover:text-text-secondary"
                 }`}
               >
-                <Icon size={22} strokeWidth={isActive ? 2 : 1.5} className="shrink-0" />
+                <Icon size={20} strokeWidth={isActive ? 2 : 1.5} className="shrink-0" />
                 <span className="flex flex-col">
-                  <span className="text-base leading-tight">{tab.en}</span>
-                  <span className="text-xs text-text-muted leading-tight mt-0.5">{tab.kana}</span>
+                  <span className="text-sm leading-tight">{tab.en}</span>
+                  <span className="text-xs text-text-muted leading-tight">{tab.kana}</span>
                 </span>
               </Link>
             );

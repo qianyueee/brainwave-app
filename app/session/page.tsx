@@ -9,6 +9,7 @@ import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import WaterMandalaHero from "@/components/WaterMandalaHero";
 import { ArrowRight, User } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
 
 /**
  * Sync Session — 聴くための画面。今日の星座周波数の水マンダラ、Sync Sound の
@@ -55,11 +56,8 @@ export default function SessionPage() {
   }, [isAdmin, isLoggedIn, publishedPrograms, groupProgramIds]);
 
   return (
-    <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Sync Session</h1>
-        <p className="text-sm text-text-secondary mt-1">プログラム選択・再生</p>
-      </div>
+    <div className="flex flex-col gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+      <PageHeader title="Sync Session" subtitle="プログラム選択・再生" />
 
       {/* Mobile: single column. Desktop: mandala + built-ins | published + custom. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">

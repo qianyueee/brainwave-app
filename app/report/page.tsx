@@ -19,6 +19,7 @@ import SignalQualityBadge from "@/components/SignalQualityBadge";
 import { isLowQuality } from "@/lib/brain-profile";
 import { BrainCircuit, Lock, CheckSquare, Square, X, GitCompare } from "lucide-react";
 import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
 
 /** 大見出しの直下で切り替える2ページ。 */
 type ReportTab = "profile" | "compare";
@@ -208,11 +209,8 @@ export default function ReportPage() {
   );
 
   return (
-    <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Sync Report</h1>
-        <p className="text-sm text-text-secondary mt-1">脳特性分析・効果比較</p>
-      </div>
+    <div className="flex flex-col gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+      <PageHeader title="Sync Report" subtitle="脳特性分析・効果比較" />
 
       {!hydrated ? null : !authLoading && !user ? (
         <div className="bg-surface border border-surface-border rounded-3xl p-8 text-center neu-raised flex flex-col items-center gap-4">

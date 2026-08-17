@@ -17,16 +17,18 @@ export default function BottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center justify-center min-w-[64px] min-h-[48px] gap-0.5 text-sm transition-colors ${
+              className={`flex flex-col items-center justify-center min-w-[64px] min-h-[48px] gap-0.5 transition-colors ${
                 isActive ? "text-primary" : "text-text-muted"
               }`}
             >
+              {/* アイコンは 22→20px に。ラベルは text-xs（14px）のまま——
+                  情報を担う文字の下限なので、ここは縮めない。 */}
               {isActive ? (
-                <span className="w-10 h-10 rounded-xl bg-navy-light neu-inset flex items-center justify-center">
-                  <Icon size={22} strokeWidth={2} />
+                <span className="w-9 h-9 rounded-xl bg-navy-light neu-inset flex items-center justify-center">
+                  <Icon size={20} strokeWidth={2} />
                 </span>
               ) : (
-                <Icon size={22} strokeWidth={1.5} />
+                <Icon size={20} strokeWidth={1.5} />
               )}
               <span className="text-xs leading-tight whitespace-nowrap">{tab.short}</span>
             </Link>

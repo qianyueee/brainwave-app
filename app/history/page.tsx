@@ -24,6 +24,7 @@ import SelectDropdown, { type SelectOption } from "@/components/SelectDropdown";
 import { syncNoteFromMeasurement } from "@/lib/mind/note-sync";
 import { PLACEHOLDER_TREE, formatTreeDate } from "@/lib/sync-tree";
 import { Trash2, BrainCircuit, Lock, BarChart3, Pencil, StickyNote, User, CalendarClock, TreeDeciduous } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
 
 /** Max length of a measurement memo (matches the mind-map list). */
 const NOTE_MAX = 200;
@@ -247,11 +248,8 @@ export default function HistoryPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Sync History</h1>
-        <p className="text-sm text-text-secondary mt-1">あなたのチューニング記録</p>
-      </div>
+    <div className="flex flex-col gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+      <PageHeader title="Sync History" subtitle="あなたのチューニング記録" />
 
       {/* Mobile: single column. Desktop: stats+calendar | history side by side. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">

@@ -11,6 +11,7 @@ import {
   treeStageRangeLabel,
 } from "@/lib/sync-tree";
 import { SyncTreeStageTile } from "@/components/SyncTreeArt";
+import PageHeader from "@/components/PageHeader";
 
 /**
  * Sync Tree の16段階ギャラリー／詳細。ホームのシーンカード（文字なし）から
@@ -38,25 +39,22 @@ export default function TreePage() {
 
   return (
     <div
-      className="flex flex-col gap-6 pt-6 md:max-w-2xl"
+      className="flex flex-col gap-6 md:max-w-2xl"
       style={{ animation: "fade-in 0.3s ease-out" }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.push("/")}
-          aria-label="ホームへ戻る"
-          className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95 shrink-0"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Sync Tree</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            育てる木｜16段階の成長ギャラリー
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Sync Tree"
+        subtitle="育てる木｜16段階の成長ギャラリー"
+        leading={
+          <button
+            onClick={() => router.push("/")}
+            aria-label="ホームへ戻る"
+            className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95 shrink-0"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        }
+      />
 
       {/* いまの木 — 段階名・進捗・育てた木数はこの画面だけが出す */}
       <div className="bg-surface border border-surface-border rounded-3xl p-5 flex items-center gap-4 neu-raised">

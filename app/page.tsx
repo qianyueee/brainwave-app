@@ -6,6 +6,7 @@ import BrainConditionCard from "@/components/BrainConditionCard";
 import SyncTreeCard from "@/components/SyncTreeCard";
 import { User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import PageHeader from "@/components/PageHeader";
 
 /**
  * ホーム。上から Sync Tree のシーンカード → 脳コンディション（測定3値＋毎日の
@@ -28,60 +29,51 @@ export default function HomePage() {
   const isLoggedIn = !!user;
 
   return (
-    <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      {/* ヘッダー＝ブランド行＋ページ見出しをひと塊に。両方とも「見出し」なので、
-          あいだは中身どうしの間隔（gap-2）で詰め、カード列と分ける gap-6 は
-          この塊の外側にだけ効かせる。以前は2つが別ブロックで、見出し同士まで
-          カードと同じ24pxで離れていた。 */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-3">
-          {/* 読み仮名（ニューロシンク）は外した——ロゴの行はブランド名だけに
-              して、次に来る「Home」の見出しと役割をはっきり分ける。名前が
-              短くなったぶん、ログインボタンと並べても折り返さない。 */}
-          <h1 className="min-w-0 text-xl md:text-2xl font-bold text-text-primary">
+    <div className="flex flex-col gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+      {/* ブランド名は見出しの上の小さな行（eyebrow）として、他のページと同じ
+          スティッキーヘッダーに同居させる。ログインと設定も同じ帯に入れて
+          あるのは、下までスクロールしたときに設定へ入れなくなるのを避けるため
+          ——常に上に残っているので、戻らなくても押せる。 */}
+      <PageHeader
+        title="Home"
+        subtitle="今日の星空・宇宙周波数で即座に調律"
+        eyebrow={
+          <p className="text-xs font-bold text-text-secondary leading-tight">
             NeuroSync
             {/* 登録商標表示 ®。sup は preflight 既定で 75%＋上付き、太字だけ
                 解除する。本文16px下限の対象外——情報を担わない組版記号。 */}
             <sup className="font-normal">®</sup>
-          </h1>
-          <div className="flex items-center gap-2 shrink-0">
-          {!authLoading && (
-            isLoggedIn ? (
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
-                {user.email?.charAt(0).toUpperCase() ?? "U"}
-              </div>
-            ) : (
-              <button
-                onClick={() => openAuthModal("login")}
-                className="flex items-center gap-2 h-12 px-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium whitespace-nowrap neu-raised-sm neu-press active:scale-95"
-              >
-                <User size={18} strokeWidth={1.5} />
-                ログイン
-              </button>
-            )
-          )}
-          {/* Settings entry — the corner gear (the admin gear that used to sit
-              here moved into the Settings page). */}
-          <button
-            onClick={() => router.push("/settings")}
-            className="w-12 h-12 flex items-center justify-center rounded-xl text-text-muted active:scale-95"
-            title="設定"
-          >
-            <Settings size={20} strokeWidth={1.5} />
-          </button>
-          </div>
-        </div>
-
-        {/* ページ見出し。他のページ（Sync History / Sync Report …）と同じ
-            「英名＋日本語リード」ブロックを Home にも置いて、ブランド名の行と
-            「今どの画面にいるか」を分ける。ブランドが h1 なのでこちらは h2。 */}
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary leading-tight">Home</h2>
-          <p className="text-sm text-text-secondary mt-0.5">
-            今日の星空・宇宙周波数で即座に調律
           </p>
-        </div>
-      </div>
+        }
+        actions={
+          !authLoading && (
+            <>
+              {isLoggedIn ? (
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
+                  {user.email?.charAt(0).toUpperCase() ?? "U"}
+                </div>
+              ) : (
+                <button
+                  onClick={() => openAuthModal("login")}
+                  className="flex items-center gap-2 h-12 px-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium whitespace-nowrap neu-raised-sm neu-press active:scale-95"
+                >
+                  <User size={18} strokeWidth={1.5} />
+                  ログイン
+                </button>
+              )}
+              {/* Settings entry — the corner gear (the admin gear that used to
+                  sit here moved into the Settings page). */}
+              <button
+                onClick={() => router.push("/settings")}
+                className="w-12 h-12 flex items-center justify-center rounded-xl text-text-muted active:scale-95"
+                title="設定"
+              >
+                <Settings size={20} strokeWidth={1.5} />
+              </button>
+            </>
+          )
+        }
+      />
 
       {/* モバイルは1カラムで Sync Tree → 脳コンディション → 星空。
           デスクトップは 左（Tree＋コンディション）｜右（星空）の2カラムで、
