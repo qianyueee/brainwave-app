@@ -5,7 +5,13 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { BrainProfile } from "@/lib/brain-profile";
 import type { BandKey } from "@/lib/mind/types";
-import { compositeScore, scoreColor, measurementLabel } from "@/lib/brain-measurements";
+import {
+  compositeScore,
+  scoreColor,
+  measurementLabel,
+  measurementTitle,
+  measurementSeriesLabel,
+} from "@/lib/brain-measurements";
 import BrainConditionMetrics from "@/components/BrainConditionMetrics";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainBandPie from "@/components/BrainBandPie";
@@ -42,7 +48,7 @@ const REPORT_TABS: {
     key: "compare",
     label: "測定の比較",
     icon: GitCompare,
-    lead: "周波数スペクトルのある測定を2〜3件選ぶと、6指標とスペクトルを比較できます",
+    lead: "周波数スペクトルのある測定を選ぶと6指標とスペクトルを表示します。2〜3件選ぶと重ねて比較できます",
   },
 ];
 
@@ -58,6 +64,17 @@ function CompareCandidateRow({
   // Only measurements with a per-Hz spectrum can be compared.
   const selectable = Boolean(m.spectrum?.length);
   const total = compositeScore(m.indicators);
+  // 下に添える小さい行。日時は見出しがメモに入れ替わったときだけ——メモが
+  // 無ければ見出し自体が日時なので、同じ文字列を2度書かない。sessionTag も
+  // 取り込んだ測定では同じ日時の文字列になるため、違うとき（アップロードした
+  // ファイルの Tag 列）だけ添える。
+  const when = measurementLabel(m);
+  const meta = [
+    m.note?.trim() ? when : null,
+    m.sessionTag && m.sessionTag !== when ? m.sessionTag : null,
+  ]
+    .filter(Boolean)
+    .join("・");
 
   return (
     <button
@@ -74,11 +91,16 @@ function CompareCandidateRow({
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-base font-bold text-text-primary">{measurementLabel(m)}</p>
-        {m.subject && (
-          <p className="text-sm font-bold text-primary truncate">{m.subject}</p>
-        )}
-        <p className="text-sm text-text-secondary truncate">{m.sessionTag}</p>
+        {/* 取り込みのときに書いたメモを見出しに、測定者名をその下に立てる。
+            同じ人の似た回が並ぶ一覧なので、まず本人の言葉と名前で拾えるように——
+            日時は小さく最後の行へ回す（無くさない、順位を下げるだけ）。 */}
+        <p className="text-base font-bold text-text-primary break-words">
+          {measurementTitle(m)}
+        </p>
+        <p className="text-sm font-bold text-primary truncate">
+          測定者: {m.subject ?? "未設定"}
+        </p>
+        {meta && <p className="text-xs text-text-muted truncate">{meta}</p>}
         <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
         {!selectable && (
           <p className="text-xs text-text-muted mt-1">比較対象外（スペクトルなし）</p>
@@ -159,54 +181,55 @@ export default function ReportPage() {
     .sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
   const canCompare = picked.length >= 2;
 
-  const compareSection = (
-    <>
-      {canCompare && (
-        <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <p className="text-base font-bold text-text-primary">測定の比較</p>
-            <button
-              onClick={() => setSelectedIds([])}
-              aria-label="選択を解除"
-              className="w-12 h-12 rounded-lg bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-text-secondary mb-1 text-center">6指標</p>
-            <Fullscreenable title="6指標の比較">
-              <BrainRadarCompare
-                series={picked.map((m) => ({
-                  indicators: m.indicators,
-                  label: measurementLabel(m),
-                }))}
-              />
-            </Fullscreenable>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-text-secondary mb-1 text-center">
-              周波数スペクトル
-            </p>
-            <Fullscreenable title="周波数スペクトル比較">
-              <BrainSpectrumCompare
-                series={picked.map((m) => ({
-                  spectrum: m.spectrum!,
-                  label: measurementLabel(m),
-                }))}
-              />
-            </Fullscreenable>
-          </div>
+  // 1件だけ選んだときも同じ2枚（6指標・スペクトル）を描く。選んだ瞬間に何も
+  // 出ないと「押しても反応がない」画面になるし、2件目を足したときに同じ枠へ
+  // 線が1本増えるだけなので、比較の読み方がそのまま続く。
+  const compareSection = picked.length > 0 && (
+    <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-bold text-text-primary truncate">
+            {canCompare ? "測定の比較" : measurementTitle(picked[0])}
+          </p>
+          {!canCompare && (
+            <p className="text-xs text-text-muted">もう1件選ぶと重ねて比較できます</p>
+          )}
         </div>
-      )}
-      {picked.length === 1 && (
-        <p className="text-sm text-text-secondary text-center">
-          もう1件選ぶと比較を表示します
+        <button
+          onClick={() => setSelectedIds([])}
+          aria-label="選択を解除"
+          className="shrink-0 w-12 h-12 rounded-lg bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div>
+        <p className="text-sm font-medium text-text-secondary mb-1 text-center">6指標</p>
+        <Fullscreenable title={canCompare ? "6指標の比較" : "6指標"}>
+          <BrainRadarCompare
+            series={picked.map((m) => ({
+              indicators: m.indicators,
+              label: measurementSeriesLabel(m),
+            }))}
+          />
+        </Fullscreenable>
+      </div>
+
+      <div>
+        <p className="text-sm font-medium text-text-secondary mb-1 text-center">
+          周波数スペクトル
         </p>
-      )}
-    </>
+        <Fullscreenable title={canCompare ? "周波数スペクトル比較" : "周波数スペクトル"}>
+          <BrainSpectrumCompare
+            series={picked.map((m) => ({
+              spectrum: m.spectrum!,
+              label: measurementSeriesLabel(m),
+            }))}
+          />
+        </Fullscreenable>
+      </div>
+    </div>
   );
 
   return (

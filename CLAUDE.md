@@ -39,8 +39,8 @@ brainwave-app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
 │   ├── page.tsx                # Home 首页（品牌行〔NeuroSync® のみ〕→ 「Home / 今日の星空・宇宙周波数で即座に調律」页面见出し → Sync Tree 风景卡〔左上ラベル・右上％・右下矢印だけ、整卡点击进 /tree〕→ 脳コンディションカード → 星座卡；右上角設定入口。桌面端左列＝Tree＋コンディション、右列＝星座卡）
 │   ├── session/page.tsx        # Sync Session（顶部 Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕+ プログラム選択・再生：Sync Sound 3節目 / 所属グループへの配信プログラム。※音源制作・公開などの管理操作は置かない——管理面板「音源」タブへ移設済み）
-│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 測定を開始 → 出どころ1行 → マインドマップ/過去の測定；分析已移至 report）
-│   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝2〜3件の6指標＆スペクトル。既定は脳特性チャート）
+│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕）
+│   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝1件で6指標＆スペクトル表示・2〜3件で重ねて比較。既定は脳特性チャート）
 │   ├── history/page.tsx        # Sync History（日历〔日付タップで当日の明細〕/ セッション統計 / 脳波の記録；レポートで見る→/report）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
 │   ├── tree/page.tsx           # Sync Tree 16段階ギャラリー／詳細（段階名・育てた木数はここだけ、進捗%はホーム树卡と両方；菜单外，从首页树卡进入）
@@ -87,7 +87,8 @@ brainwave-app/
 - 节目卡入口统一走 `usePlayProgram`：点击＝**选择并进入 `/player`，不自动播放**（播放由用户在播放页按下再生钮；自动播放会在进入播放页前先冒出 MiniPlayer，属被否掉的方案）；正在播放（含一時停止）的节目再次点击只跳转、不重置（播放中保护，按 `playingProgramId` 真源判断）；**别的节目在响时点新卡＝停掉在响的（不记日志）再选中新节目**——播放页永远显示"刚点的那个"。全局 MiniPlayer 播放条见「播放入口与全局播放条」
 - 职责划分：Sync Brain 只管**測定**（マインドマップ等）；Sync Report 汇总**分析＋比較**（脳特性チャート＋測定の比較）。測定导入（useImportSession）与ヒストリー的「レポートで見る」都跳 `/report`；首页脳特性チャート卡也链到 `/report`。首页 BrainConditionCard 分成两个具名区块：上半「脳コンディション」（測定由来的 3 指標＋出处标注，会在「直近脳波測定データ」/「10秒クイックチェック」之间按**更新的一方**自动切换）右上「詳細へ →」链 `/report`（读分析）、指標下方「今すぐ測定へ →」链 `/brain`（测新数据）；下半「今の『感コンディション』をチェック」是自己評価滑块，**軸は測定側と同じ3つ**（⚡スイッチ力〔ガチガチ⇄スムーズ〕／💡ひらめき度〔モヤモヤ⇄クリア〕／🌙休息度〔疲れ⇄リフレッシュ〕；数値は出さず両端の言葉で答える、内部は 0-100）。締めのボタン「10秒 脳波測定をはじめる」＝主観を保存してから `useBaselineStore.requestCheck()` を立てて `/brain` へ遷移し、そこで計測ダイアログが自動で開く（フラグは非永続・一度きり）——読と書の导线分开という原則は維持したまま、主観と客観が同じ瞬間のペアで残る
 - 脳コンディション3指標（Rate/Clarity/Reset）在首页与 Sync Report 双端显示，同一 store＋同一 `computeBrainConditionMetrics`，数值恒同步
-- 過去の測定（Sync Brain）与脳波の記録（Sync History）统一为**測定者→測定データ 二段下拉**（`components/SelectDropdown.tsx`＋`lib/subject-groups.ts`）：先选人再选该人的某条记录，只展开选中的那一条（脳特性/推移/メモ/レポートで見る/削除）。分组来自记录自身（session 用 `subjectId`、measurement 用 `subject` 名），只有 1 人时隐藏測定者下拉；2 人以上追加「全員」；默认选中当前測定者（`useSubjectStore` 的 activeSubject），选择失效时自动回落到最新记录。Sync History 的推移グラフ只画所选測定者的记录（混人不成趋势）
+- 脳波の記録（Sync History）为**測定者→測定データ 二段下拉**（`components/SelectDropdown.tsx`＋`lib/subject-groups.ts`）：先选人再选该人的某条记录，只展开选中的那一条（脳特性/推移/メモ/レポートで見る/削除）。分组来自记录自身（`subject` 名），只有 1 人时隐藏測定者下拉；2 人以上追加「全員」；默认选中当前測定者（`useSubjectStore` 的 activeSubject），选择失效时自动回落到最新记录。推移グラフ只画所选測定者的记录（混人不成趋势）。※同形式の「過去の測定」が Sync Brain にもあったが、測定ページは「いま」だけを映す方針で撤去（`components/mind/SessionList.tsx` ごと削除。生セッションの削除・取り込み前のメモ編集はそこにしか無かった導線なので、必要になったらヒストリー側へ移す）
+- 測定の一覧・凡例の**名前は「取り込み時のメモ→測定者名→日時」の順**（`lib/brain-measurements.ts` の `measurementTitle` / `measurementSeriesLabel`）：日時だけでは同じ人の似た回を見分けられないので、本人の言葉を見出しに立て、日時は小さく下の行へ回す（消しはしない、順位を下げるだけ）。凡例は 12px・折返しありなので `measurementSeriesLabel` がメモを頭 12 文字で省略する
 - Sync Session 顶部为 Water Mandala 英雄卡（`components/WaterMandalaHero.tsx`＋`WaterMandala.tsx`）：SVG 水纹曼陀罗，几何由频率决定（载波→同心环数、差频→花瓣数〔log 映射，9 种差频各不相同〕、差频越快涟漪越快），默认显示与首页同源的当日星座推荐（自星座载波×当日差频），播放按钮同样带播放中保护
 
 ### 星座音乐（音楽ベッド）

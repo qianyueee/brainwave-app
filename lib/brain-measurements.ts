@@ -56,3 +56,24 @@ export function measurementLabel(m: BrainProfile): string {
     minute: "2-digit",
   });
 }
+
+/**
+ * 見出しに立てる名前：取り込みのときに書いたメモがあればそれ、無ければ日時。
+ * 日時だけの一覧では「どれがどの回か」を思い出せないので、本人の言葉があれば
+ * そちらを先に見せ、日時は小さく下の行へ回す（過去の測定・記録の並びと同じ扱い）。
+ */
+export function measurementTitle(m: BrainProfile): string {
+  return m.note?.trim() || measurementLabel(m);
+}
+
+/**
+ * チャート凡例向けの1行ラベル：「測定者・メモ（無ければ日時）」。凡例は
+ * 12px・折り返しありの狭い場所なので、メモは頭だけ取って省略する。一覧の
+ * 見出しと同じ語が出るので、どの行がどの線かを目で追える。
+ */
+export function measurementSeriesLabel(m: BrainProfile, maxNoteChars = 12): string {
+  const title = measurementTitle(m);
+  const clipped =
+    title.length > maxNoteChars ? `${title.slice(0, maxNoteChars)}…` : title;
+  return m.subject ? `${m.subject}・${clipped}` : clipped;
+}
