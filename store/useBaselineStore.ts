@@ -18,18 +18,8 @@ export interface BaselineCheck {
   rate: number | null;
   clarity: number | null;
   reset: number | null;
-  /** Rate をどのロジックで出したか（引き込み / Berger / 静止時可塑性）。 */
+  /** Rate をどちらのロジックで出したか（Berger / 静止時可塑性）。 */
   method: BaselineRateMethod;
-  /**
-   * 計測前に入力した誘導周波数（Hz、0.1刻み）。Rate をこれを基準に出している
-   * ので、数字だけ残して Hz を捨てると後から読めなくなる。指定せずに測った回と、
-   * この項目より前に取った回は undefined／null。
-   */
-  targetHz?: number | null;
-  /** T_lock（秒）。誘導周波数へ引き込めたときのみ。 */
-  lockSec?: number | null;
-  /** 目標周波数の局所突出比のピーク。引き込みで算出できたときのみ。 */
-  peakRatio?: number | null;
   /** T_α-rise（秒）。Berger で算出できたときのみ。 */
   alphaRiseSec: number | null;
   /** P_α(Close)/P_α(Open)。Berger で算出できたときのみ。 */
@@ -68,15 +58,8 @@ interface BaselineState {
    * 要求するのに対し、これは一度きりの受け渡しで済むため。
    */
   autoOpenCheck: boolean;
-  /**
-   * 前回入力した誘導周波数。毎回 40.0 に戻ると、同じ音で続けている人が毎朝
-   * 打ち直すことになる（10秒で終わるのが取り柄の機能なので、入力の手間が
-   * そのまま習慣の障害になる）。永続化する。
-   */
-  lastTargetHz: number | null;
   requestCheck: () => void;
   consumeCheckRequest: () => void;
-  setLastTargetHz: (hz: number | null) => void;
   record: (input: Omit<BaselineCheck, "id" | "recordedAt">) => BaselineCheck;
   deleteCheck: (id: string) => void;
 }
@@ -86,11 +69,9 @@ export const useBaselineStore = create<BaselineState>()(
     (set) => ({
       checks: [],
       autoOpenCheck: false,
-      lastTargetHz: null,
 
       requestCheck: () => set({ autoOpenCheck: true }),
       consumeCheckRequest: () => set({ autoOpenCheck: false }),
-      setLastTargetHz: (hz) => set({ lastTargetHz: hz }),
 
       record: (input) => {
         const check: BaselineCheck = {
@@ -107,7 +88,7 @@ export const useBaselineStore = create<BaselineState>()(
     }),
     {
       name: "baseline-checks",
-      partialize: (s) => ({ checks: s.checks, lastTargetHz: s.lastTargetHz }),
+      partialize: (s) => ({ checks: s.checks }),
     }
   )
 );

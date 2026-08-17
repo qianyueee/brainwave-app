@@ -1,6 +1,6 @@
 import type { BrainProfile } from "./brain-profile";
 import type { BaselineCheck } from "@/store/useBaselineStore";
-import { resonanceRatioAt } from "./mind/resonance";
+import { DEFAULT_TARGET_HZ, resonanceRatioAt } from "./mind/resonance";
 
 /**
  * セルフケア評価の3指標（プロダクト仕様 §3）。医療診断を避け、最新の測定
@@ -45,13 +45,20 @@ const clamp100 = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 const floor5 = (v: number) => Math.max(5, clamp100(v));
 
 /**
- * 40Hz 共鳴率: per-Hz スペクトルの 40Hz ビンが近傍（35〜45Hz、40Hz 自身を
- * 除く）の平均からどれだけ突出しているかを 0-100 に写像する。生の FFT 振幅は
- * 1/f で減衰するので絶対値ではなく局所比を使う（比 1 = 平坦 ≒ 50 点弱、
- * 1.5 倍の明確なピークで 100 点、0.6 以下で 0 点）。
+ * 共鳴率: per-Hz スペクトルの目標周波数のビンが、近傍（±5Hz、目標自身は除く）
+ * の平均からどれだけ突出しているかを 0-100 に写像する。生の FFT 振幅は 1/f で
+ * 減衰するので絶対値ではなく局所比を使う（比 1 = 平坦 ≒ 50 点弱、1.5 倍の
+ * 明確なピークで 100 点、0.6 以下で 0 点）。
+ *
+ * 基準の周波数は既定で 40Hz（ガンマ）。測定のときに誘導周波数を入力してあれば、
+ * その回はその Hz が基準になる——7.8Hz を鳴らしている最中の脳波を 40Hz で
+ * 採点しても、狙った引き込みが起きたかどうかは分からない。
  */
-export function resonance40Score(spectrum: number[] | undefined): number | null {
-  const ratio = resonanceRatioAt(spectrum, 40);
+export function resonanceScore(
+  spectrum: number[] | undefined,
+  targetHz: number = DEFAULT_TARGET_HZ
+): number | null {
+  const ratio = resonanceRatioAt(spectrum, targetHz);
   if (ratio == null) return null;
   return clamp100(((ratio - 0.6) / 0.9) * 100);
 }
@@ -61,7 +68,8 @@ export function computeBrainConditionMetrics(
 ): BrainConditionMetric[] {
   const bands = profile?.bands;
 
-  // ① 若々しさ: 入定速度（0-100）を軸に、40Hz 共鳴率があれば 4 割ブレンド。
+  // ① 若々しさ: 入定速度（0-100）を軸に、共鳴率があれば 4 割ブレンド。共鳴を
+  //    見る周波数はその測定の誘導周波数、指定が無ければ既定の 40Hz。
   //    入定点が検出されなかった測定（短時間・緊張・アップロード由来）は
   //    calmnessSpeed が 0 になるので、その時だけ集中スピードで代用する。
   let youth: number | null = null;
@@ -70,8 +78,8 @@ export function computeBrainConditionMetrics(
       profile.indicators.calmnessSpeed > 0
         ? profile.indicators.calmnessSpeed
         : profile.indicators.focusSpeed;
-    const r40 = resonance40Score(profile.spectrum);
-    youth = floor5(r40 == null ? calmness : calmness * 0.6 + r40 * 0.4);
+    const res = resonanceScore(profile.spectrum, profile.targetHz ?? DEFAULT_TARGET_HZ);
+    youth = floor5(res == null ? calmness : calmness * 0.6 + res * 0.4);
   }
 
   // ② 活性化度: 高β（18-30Hz、20Hz ピーク帯）+ γ（30-45Hz、40Hz 帯）の

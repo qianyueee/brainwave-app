@@ -57,6 +57,10 @@ export interface MindSessionSummary {
    *  Undefined on recordings made before subjects existed. */
   subjectId?: string;
   subjectName?: string;
+  /** 測定のときに入力した誘導周波数（Hz、0.1刻み）。Rate の共鳴率をこの周波数で
+   *  見る。未入力なら undefined＝既定の 40Hz で判定する。測定者と同じく開始時に
+   *  焼き込む——途中で入力欄をいじっても、走っている測定の条件は変わらない。 */
+  targetHz?: number;
 }
 
 /** Last 5 minutes of 1 Hz samples kept for the trend chart. */
@@ -109,6 +113,11 @@ interface MindState {
   /** Subject captured when 測定開始 was pressed, so switching subjects mid-run
    *  cannot relabel a measurement that is already underway. */
   recordingSubject: { id: string; name: string } | null;
+  /** 誘導周波数の入力値（Hz）。null＝未入力。設定として持ち回るので永続化する
+   *  ——同じ音で測り続ける人に毎回打ち直させない。 */
+  targetHz: number | null;
+  /** 測定開始時に焼き込んだ誘導周波数（recordingSubject と同じ理由）。 */
+  recordingTargetHz: number | null;
   sessions: MindSessionSummary[];
   pairingCode: string;
 
@@ -117,6 +126,7 @@ interface MindState {
   setStatus: (status: SourceStatus, detail?: string) => void;
   setBridgeOnline: (online: boolean) => void;
   pushSample: (s: EegSample) => void;
+  setTargetHz: (hz: number | null) => void;
   startRecording: (subject?: { id: string; name: string } | null) => void;
   /** Stops the recording and returns the finished session's summary (null if
    *  no samples were captured), so the UI can offer importing it right away. */
@@ -143,6 +153,8 @@ export const useMindStore = create<MindState>()(
       recordingSamples: [],
       recordingFlowCount: 0,
       recordingSubject: null,
+      targetHz: null,
+      recordingTargetHz: null,
       sessions: [],
       pairingCode: "",
 
@@ -222,17 +234,20 @@ export const useMindStore = create<MindState>()(
           };
         }),
 
+      setTargetHz: (hz) => set({ targetHz: hz }),
+
       startRecording: (subject) =>
         // Re-anchor the gamma baseline at measurement start (= resting state
         // before the 40Hz session), so the rise during treatment is captured.
-        set({
+        set((state) => ({
           isRecording: true,
           recordingStartedAt: Date.now(),
           recordingSamples: [],
           recordingFlowCount: 0,
           recordingSubject: subject ?? null,
+          recordingTargetHz: state.targetHz,
           gammaBaseline: 0,
-        }),
+        })),
 
       stopRecording: () => {
         const {
@@ -240,6 +255,7 @@ export const useMindStore = create<MindState>()(
           recordingStartedAt,
           recordingFlowCount,
           recordingSubject,
+          recordingTargetHz,
           sourceKind,
           sessions,
         } = get();
@@ -251,6 +267,7 @@ export const useMindStore = create<MindState>()(
             recordingSamples: [],
             recordingFlowCount: 0,
             recordingSubject: null,
+            recordingTargetHz: null,
           });
           return null;
         }
@@ -281,6 +298,7 @@ export const useMindStore = create<MindState>()(
           source: sourceKind,
           subjectId: recordingSubject?.id,
           subjectName: recordingSubject?.name,
+          targetHz: recordingTargetHz ?? undefined,
           indicators: computeIndicators(rows),
           bands: computeBandPowers(rows),
           // Poor-contact seconds are excluded here for the same reason the
@@ -300,6 +318,7 @@ export const useMindStore = create<MindState>()(
           recordingSamples: [],
           recordingFlowCount: 0,
           recordingSubject: null,
+          recordingTargetHz: null,
           // A recording the headset never read is not a measurement — every
           // indicator is 0 for lack of data. Return it so the UI can say so,
           // but keep it out of 過去の測定 and out of the 脳特性 history.
@@ -325,6 +344,7 @@ export const useMindStore = create<MindState>()(
       partialize: (state) => ({
         sessions: state.sessions,
         sourceKind: state.sourceKind,
+        targetHz: state.targetHz,
         pairingCode: state.pairingCode,
       }),
     }

@@ -4,11 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Timer, Trash2 } from "lucide-react";
 import { useBaselineStore, type BaselineCheck } from "@/store/useBaselineStore";
-import {
-  BASELINE_MEASURE_SEC,
-  formatTargetHz,
-  rateMethodLabel,
-} from "@/lib/mind/baseline";
+import { BASELINE_MEASURE_SEC, rateMethodLabel } from "@/lib/mind/baseline";
 import { scoreColor } from "@/lib/brain-measurements";
 
 /** 最初に見せる件数。これ以上は「全 N 件を表示」で開く。 */
@@ -24,14 +20,10 @@ function checkTime(c: BaselineCheck): string {
 }
 
 function CheckRow({ c, onDelete }: { c: BaselineCheck; onDelete: (id: string) => void }) {
-  // 引き込みで測った回は、基準にした Hz が見出しに立つ——同じ 62点でも
-  // 40.0Hz と 7.8Hz では別のことを言っているので、数字だけ並べても読めない。
-  const hz = c.targetHz != null ? `${formatTargetHz(c.targetHz)}Hz` : null;
   const detail = [
-    rateMethodLabel(c.method, c.targetHz),
-    c.lockSec != null ? `引き込み ${c.lockSec}秒` : null,
-    c.peakRatio != null ? `ピーク ${c.peakRatio.toFixed(2)}倍` : null,
+    rateMethodLabel(c.method),
     c.alphaRiseSec != null ? `α立ち上がり ${c.alphaRiseSec}秒` : null,
+    c.alphaRatio != null ? `閉眼／開眼のα比 ${c.alphaRatio.toFixed(2)}倍` : null,
     `有効データ ${c.usableSec}/${BASELINE_MEASURE_SEC}秒`,
   ]
     .filter(Boolean)
@@ -41,18 +33,15 @@ function CheckRow({ c, onDelete }: { c: BaselineCheck; onDelete: (id: string) =>
     <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-2 neu-raised">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-base font-bold text-text-primary">
-            {hz ?? "誘導周波数の指定なし"}
-          </p>
+          <p className="text-base font-bold text-text-primary">{checkTime(c)}</p>
           <p className="text-xs text-text-muted">
             {[
-              checkTime(c),
               c.subjectName,
               // デモで取った回は必ずそう見せる（実測と並ぶ場所なので）。
               c.source === "demo" ? "デモデータ" : null,
             ]
               .filter(Boolean)
-              .join("・")}
+              .join("・") || "測定者の指定なし"}
           </p>
         </div>
         <button
@@ -104,7 +93,7 @@ function CheckRow({ c, onDelete }: { c: BaselineCheck; onDelete: (id: string) =>
  *
  * 脳波測定（脳波の記録）と同じで、測ったものが後から見返せないと「毎日測る」
  * 意味が薄い。これまで保存した回はカレンダーの当日明細にしか出ておらず、
- * 誘導周波数を変えながら試した結果を並べて見ることができなかった。
+ * 日ごとの並びとして読むことができなかった。
  *
  * 脳波の記録と違ってログインを要求しない——このストアは素の localStorage に
  * 載っていて（習慣を止めないための設計）、未ログインでも記録が貯まるので、
@@ -128,7 +117,7 @@ export default function BaselineCheckList() {
       <div>
         <h2 className="text-xl font-bold text-text-primary">10秒チェックの記録</h2>
         <p className="text-sm text-text-secondary mt-1">
-          誘導周波数ごとの Rate・Clarity・Reset
+          保存した10秒チェックの Rate・Clarity・Reset
         </p>
       </div>
 
@@ -141,7 +130,7 @@ export default function BaselineCheckList() {
             まだ記録がありません
           </p>
           <p className="text-sm text-text-secondary mb-6">
-            シンク・ブレインの「10秒チェック」で誘導周波数を入れて測ると、ここに残ります。
+            シンク・ブレインの「10秒チェック」で測って保存すると、ここに残ります。
           </p>
           <Link
             href="/brain"
