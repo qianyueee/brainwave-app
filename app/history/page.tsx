@@ -21,6 +21,7 @@ import Fullscreenable from "@/components/Fullscreenable";
 import EegUploader from "@/components/EegUploader";
 import SignalQualityBadge from "@/components/SignalQualityBadge";
 import SelectDropdown, { type SelectOption } from "@/components/SelectDropdown";
+import BaselineCheckList from "@/components/BaselineCheckList";
 import { syncNoteFromMeasurement } from "@/lib/mind/note-sync";
 import { PLACEHOLDER_TREE, formatTreeDate } from "@/lib/sync-tree";
 import { Trash2, BrainCircuit, Lock, BarChart3, Pencil, StickyNote, User, CalendarClock, TreeDeciduous } from "lucide-react";
@@ -376,6 +377,11 @@ export default function HistoryPage() {
           </>
         )}
       </div>
+
+      {/* 10秒チェックの記録 — 脳波の記録と並べて置く（同じ「測った結果を
+          見返す」場所）。ただし認証ゲートの外：このストアは素の localStorage
+          なので未ログインでも記録が貯まる。 */}
+      <BaselineCheckList />
       </div>
       </div>
       </PageColumn>

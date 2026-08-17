@@ -12,6 +12,7 @@ import {
   measurementTitle,
   measurementSeriesLabel,
 } from "@/lib/brain-measurements";
+import { formatTargetHz } from "@/lib/mind/resonance";
 import BrainConditionMetrics from "@/components/BrainConditionMetrics";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainBandPie from "@/components/BrainBandPie";
@@ -363,6 +364,13 @@ export default function ReportPage() {
                   セッション: {displayed.sessionTag} ・ 測定日:{" "}
                   {new Date(displayed.uploadedAt).toLocaleDateString("ja-JP")}
                 </p>
+                {/* Rate の共鳴率をどの Hz で見たか。入力があった回だけ出す
+                    （無い回は既定の 40Hz で、これまでと同じ判定）。 */}
+                {displayed.targetHz != null && (
+                  <p className="text-xs text-text-muted text-center">
+                    誘導周波数: {formatTargetHz(displayed.targetHz)}Hz
+                  </p>
+                )}
                 {displayed.qualityPct !== undefined && (
                   <div className="flex flex-col items-center gap-1 mt-2">
                     <SignalQualityBadge qualityPct={displayed.qualityPct} />

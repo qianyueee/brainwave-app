@@ -79,6 +79,9 @@ export function useImportSession() {
           // Likewise for who it was measured on — without it the 脳特性 history
           // silently merges everyone the headset has been worn by.
           subject: s.subjectName,
+          // Rate の共鳴率をどの周波数で見るかは測定ごとの条件なので、記録と
+          // 一緒に運ぶ（無ければ既定の 40Hz で判定される）。
+          targetHz: s.targetHz,
         });
         setPendingId(null);
         router.push("/report");

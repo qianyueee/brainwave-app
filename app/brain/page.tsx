@@ -15,6 +15,7 @@ import MindRecorder from "@/components/mind/MindRecorder";
 import BaselineCheckButton from "@/components/mind/BaselineCheckButton";
 import SourceDialog, { SourceStatusLine } from "@/components/mind/SourceDialog";
 import SubjectSelector from "@/components/mind/SubjectSelector";
+import TargetHzInput from "@/components/mind/TargetHzInput";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
@@ -83,6 +84,10 @@ export default function BrainPage() {
             <SubjectSelector />
           </div>
         </div>
+        {/* 誘導周波数は測定ボタンの前。開始した瞬間の値が測定へ焼き込まれ、
+            Rate の共鳴率をどの Hz で見るかを決めるので、押す前に目に入る
+            位置に置く（未入力なら従来どおり 40Hz 基準）。 */}
+        <TargetHzInput />
         <div className="flex gap-3">
           <div className="w-[42%] shrink-0">
             <BaselineCheckButton />
