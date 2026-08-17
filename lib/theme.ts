@@ -29,18 +29,20 @@ export interface ThemePalette {
  * Sky palette for the constellation art surfaces (Home's Astro Sync hero,
  * Session's Water Mandala hero). These used to be a fixed deep-night gradient
  * in every theme; a full-height night hero on the cream day palette read as a
- * cold slab dropped into a warm page. The sky now follows the time of day, and
- * it flips convention at the same 6/18 boundary the app uses for day vs night
- * (`isNightNow`): by day a pale ground with ink-dark constellation lines (how a
- * printed star chart reads), by night a deep ground with the figure glowing
- * light. The star figures themselves are unchanged; only the ground and the ink
- * move.
+ * cold slab dropped into a warm page. The sky now follows the time of day: all
+ * four periods use a **deep ground with the figure glowing light**, and only the
+ * hue moves — dawn rust (day), deep emerald (afternoon), dusk violet (evening),
+ * night indigo (midnight). The star figures themselves are unchanged.
  *
- * The two night periods (evening, midnight) therefore both get a dark sky —
- * matching TREE_SKY below, which already splits day/night the same way. Keeping
- * dusk on the daytime convention left the Home hero drawing near-black lines on
- * pale violet while the Sync Tree card right above it showed a starry night, and
- * while the card's own header said 今夜の月星座.
+ * The pale-ground / dark-ink variant (the printed star-chart convention) is
+ * gone. It looked right in isolation, but `ZodiacConstellation` draws star cores
+ * at opacity .95, so on a pale ground every star landed as a hard black dot —
+ * the figure read as scribbles over the copy rather than as a sky. A deep ground
+ * is also the only version where the halo/glow layers do anything.
+ *
+ * Note this makes the sky card a dark window on the two light pages (day,
+ * afternoon) — the same relationship the Water Mandala hero and the night
+ * Sync Tree card already have with their pages.
  *
  * `chip`/`glow`/`line` carry alpha, so values here may be hex OR rgba().
  */
@@ -146,20 +148,22 @@ export const TIME_PERIODS: TimePeriod[] = [
       warning: "#854d0e",
       danger: "#a01023",
     },
-    // Sunrise sky — apricot ground with warm-brown constellation lines (the
-    // daylight star-map convention: dark ink on a light ground), low-sun halo.
-    // 淡い水色の朝空から差し替え：ページが杏色になったので、そこに冷たい水色の
-    // 板が浮くと1枚だけ別のテーマに見える。
+    // Dawn sky — 陽が昇りきる前の空。日の差す側（グラデーション内側）が
+    // 錆色、外へ向かって藤紫から深い茶へ落ちる。星座は暖かいクリームで光る。
+    //
+    // 明るい杏色の地色は捨てた：淡い地に星図を描くと星の芯（opacity .95）が
+    // 黒い点として残ってしまう。夜明けなら「まだ星が見えている空」なので、
+    // 暗い地に光る星座という素直な絵にできるうえ、朝という時刻の説明にもなる。
     sky: {
-      a: "#fff1e0",
-      b: "#ffd9b3",
-      c: "#f5b78e",
-      ink: "#7a3a12",
-      strong: "#3a1a08",
-      text: "#6e3c18",
-      chip: "rgba(90,40,10,0.09)",
-      glow: "rgba(255,190,120,0.55)",
-      line: "rgba(90,40,10,0.16)",
+      a: "#7a3a2e",
+      b: "#4a2338",
+      c: "#1e0f1c",
+      ink: "#ffe8cf",
+      strong: "#fff6ec",
+      text: "#e8bfa0",
+      chip: "rgba(255,255,255,0.10)",
+      glow: "rgba(255,170,90,0.42)",
+      line: "rgba(255,255,255,0.16)",
     },
   },
   {
@@ -187,18 +191,21 @@ export const TIME_PERIODS: TimePeriod[] = [
       warning: "#9a3412",
       danger: "#991b1b",
     },
-    // Clear afternoon — mint-tinted sky so the hero sits in the same family
-    // as the surrounding palette
+    // Deep emerald sky — 周囲のミントと同じ色族のまま、地色は暗い側へ。
+    // 淡いミントの地では星の芯が黒い点になっていたので、他の3時間帯と同じく
+    // 「暗い空に光る星座」へ揃えた（これで星座が黒く出る時間帯は無くなる）。
+    // 陽の高い時刻なので halo だけは白に近い暖色を残し、真夜中の月光と
+    // 見分けがつくようにしている。
     sky: {
-      a: "#eef9f4",
-      b: "#cdeade",
-      c: "#9fd2bd",
-      ink: "#1e5748",
-      strong: "#0c2e24",
-      text: "#2f6a55",
-      chip: "rgba(12,46,36,0.08)",
-      glow: "rgba(255,240,180,0.45)",
-      line: "rgba(12,46,36,0.15)",
+      a: "#1e5c4e",
+      b: "#0f3a32",
+      c: "#06201c",
+      ink: "#d9f7ec",
+      strong: "#f0fdf8",
+      text: "#9fd8c4",
+      chip: "rgba(255,255,255,0.10)",
+      glow: "rgba(255,245,200,0.34)",
+      line: "rgba(255,255,255,0.16)",
     },
   },
   {
