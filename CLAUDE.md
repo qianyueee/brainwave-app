@@ -49,7 +49,7 @@ brainwave-app/
 │   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
 │   └── mind|profile|log|compare/ # 旧路由跳转桩（客户端 redirect → session/brain/history/report）
 ├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
-│   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。地は不透明 `bg-navy`＋下端ヘアライン——半透明＋blur は 85/95% どちらでも下を流れる本文が影として読めてしまったので却下。文字は 22px/14px（ページ内見出し `text-lg`=20px を下回らない範囲で最小）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
+│   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。地は**すりガラス**（`bg-navy/70` ＋ `backdrop-blur-2xl`＝40px）。不透明な `bg-navy` は不可——WaveBackground は `fixed` で `--dyn-navy` の上に明るい波を重ねているので、見えている地色は場所によって違い、波が横切る位置では不透明な帯だけが暗い矩形として浮く（デスクトップで露骨に出た）。blur なら背後の波の色を拾って周囲と同じ色みになる。blur は 12px では下を流れるグラフの目盛りが読めてしまうので 40px、tint は明るいアート（ブレインアート等）の滲み出しを抑えるのに 70% 必要。文字は 22px/14px（ページ内見出し `text-lg`=20px を下回らない範囲で最小）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
 │   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
 ├── lib/
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
