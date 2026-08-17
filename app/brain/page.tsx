@@ -14,16 +14,15 @@ import MindTrendChart from "@/components/mind/MindTrendChart";
 import MindRecorder from "@/components/mind/MindRecorder";
 import BaselineCheckButton from "@/components/mind/BaselineCheckButton";
 import SourceDialog, { SourceStatusLine } from "@/components/mind/SourceDialog";
-import SessionList from "@/components/mind/SessionList";
 import SubjectSelector from "@/components/mind/SubjectSelector";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
 /**
- * Sync Brain — the live EEG measurement page: mind map, recording, and the
- * past-measurement list. The 脳特性チャート analysis and the measurement
- * comparison live together on Sync Report (/report); importing a measurement
- * from the list below navigates there.
+ * Sync Brain — the live EEG measurement page: mind map, brain art, band meters
+ * and the 推移 trend, i.e. only what is happening *right now*. The saved
+ * measurements are read elsewhere: 脳特性チャート and 測定の比較 on Sync Report
+ * (/report), the per-record list on Sync History (/history).
  */
 export default function BrainPage() {
   const sourceKind = useMindStore((s) => s.sourceKind);
@@ -95,7 +94,9 @@ export default function BrainPage() {
         <SourceStatusLine />
       </div>
 
-      {/* Mobile: single column. Desktop: map+meters (left) | art+history (right). */}
+      {/* Mobile: single column. Desktop: map+meters (left) | art+trend (right).
+          どちらの列も「いま」だけを映す：過去の測定一覧はこのページから外し、
+          レポート（脳特性チャート・測定の比較）とヒストリーに寄せた。 */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
         <div className="flex flex-col gap-6">
           {/* マインドマップ（四象限マップ + 状態）— ブレインアートと左右対称 */}
@@ -106,8 +107,6 @@ export default function BrainPage() {
           </section>
 
           <BandEqualizer powers={bandPowers} />
-
-          <MindTrendChart history={history} />
         </div>
 
         <div className="flex flex-col gap-6">
@@ -121,8 +120,7 @@ export default function BrainPage() {
             </p>
           </section>
 
-          {/* 過去の測定（タップでシンク・レポートの脳特性チャートへ） */}
-          <SessionList />
+          <MindTrendChart history={history} />
         </div>
       </div>
       </PageColumn>
