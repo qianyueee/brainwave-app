@@ -115,55 +115,59 @@ export const TIME_PERIODS: TimePeriod[] = [
     },
   },
   {
-    // 06-12: Day 純 — サンライズ (sunrise) → apricot
+    // 06-12: Day 純 — サンライズ (sunrise) → blush coral
     //
-    // もとは平らなサンイエロー（クリーム）だったが、朝の6〜12時に見たいのは
-    // 「もう明るい昼」より「陽が昇ってくるところ」——地色を杏色へ寄せ、
-    // 主色を陽そのものの橙、accent を空の紅へ振った。午後のミントとの差も
-    // はっきりする（黄→緑は隣、橙→緑は対）。
+    // 参照デザイン（淡い blush の地に、鮮やかな橘紅の面が1つ）に寄せた版。
+    // 前段は琥珀寄りの杏色だったが、狙いの印象はもっと桃紅く、主色はもっと
+    // 鮮やか——地色を blush へ、主色を焦げ茶に近い橙から鮮やかな橘紅
+    // #c8330a へ上げ、accent は参照にある珊瑚桃から紅薔薇へ取った。
+    // 地色を淡くしたのは、鮮やかな主色を 4.5:1 で載せられる明るさが必要だから
+    // （濃い地のままだと主色を暗くするしかなく、鮮やかさが死ぬ）。
     id: "day",
     name: "純",
     startHour: 6,
     endHour: 12,
     palette: {
-      navy: "#fce0c8",
-      navyLight: "#fdeada",
-      navyLighter: "#e8b98f",
-      primary: "#b03a08",
-      primaryDark: "#8f2e05",
-      // 空の紅。橙の主色と喧嘩せず、warning（琥珀）とも読み分けられる色相へ。
-      accent: "#a8386a",
-      accentDark: "#8c2c56",
-      surface: "#fdecd8",
-      surfaceBorder: "#eec9a4",
-      textPrimary: "#2a1508",
-      textSecondary: "#6b3a18",
-      textMuted: "#7d4a24",
+      navy: "#fde8de",
+      navyLight: "#fef1ea",
+      navyLighter: "#f4bda9",
+      primary: "#c8330a",
+      primaryDark: "#a52807",
+      // 紅薔薇。橘紅の主色と喧嘩せず、warning（琥珀）とも読み分けられる色相。
+      accent: "#b8285a",
+      accentDark: "#9a1f4a",
+      surface: "#fdece3",
+      surfaceBorder: "#f3c9b5",
+      textPrimary: "#2e1409",
+      textSecondary: "#6e3620",
+      textMuted: "#82492f",
       onPrimary: "#ffffff",
       onAccent: "#ffffff",
       // Deepened status hues — the defaults were picked against dark navy and
-      // wash out on this apricot ground. warning は主色の橙と同化しないよう
+      // wash out on this blush ground. warning は主色の橘紅と同化しないよう
       // 琥珀寄りに置いている。
       success: "#166534",
-      warning: "#854d0e",
-      danger: "#a01023",
+      warning: "#8a4a0a",
+      danger: "#a3102a",
     },
-    // Dawn sky — 陽が昇りきる前の空。日の差す側（グラデーション内側）が
-    // 錆色、外へ向かって藤紫から深い茶へ落ちる。星座は暖かいクリームで光る。
+    // Dawn sky — 陽の差す側（グラデーション内側）が鮮やかな橘紅、外へ向かって
+    // 珊瑚紅から深い栗へ落ちる。星座は白いクリームで光る。
     //
-    // 明るい杏色の地色は捨てた：淡い地に星図を描くと星の芯（opacity .95）が
-    // 黒い点として残ってしまう。夜明けなら「まだ星が見えている空」なので、
-    // 暗い地に光る星座という素直な絵にできるうえ、朝という時刻の説明にもなる。
+    // 紫を混ぜず全て暖色で通してあるのは参照デザインに紫が無いから。前段は
+    // 錆色→藤紫→ほぼ黒（外周 L=0.010）で暗すぎたので、いちばん明るい側を
+    // L=0.147 まで上げた——それでも星（3:1 で足りる装飾）は 4.85:1、本文は
+    // 4.97:1 取れている。この明るさが上限：さらに明るくすると本文が 4.5:1 を
+    // 割り、文字を濃くするしかなくなって「星が黒い」問題に逆戻りする。
     sky: {
-      a: "#7a3a2e",
-      b: "#4a2338",
-      c: "#1e0f1c",
-      ink: "#ffe8cf",
-      strong: "#fff6ec",
-      text: "#e8bfa0",
-      chip: "rgba(255,255,255,0.10)",
-      glow: "rgba(255,170,90,0.42)",
-      line: "rgba(255,255,255,0.16)",
+      a: "#c8330a",
+      b: "#a82f3e",
+      c: "#6e2434",
+      ink: "#fff2e6",
+      strong: "#ffffff",
+      text: "#fff5ee",
+      chip: "rgba(255,255,255,0.14)",
+      glow: "rgba(255,190,120,0.40)",
+      line: "rgba(255,255,255,0.22)",
     },
   },
   {
@@ -381,18 +385,21 @@ export const TREE_SKY_DAY: TreeSky = {
 };
 
 /**
- * 朝（06-12）の樹。ページが杏色になったぶん、樹の背後も陽が昇る空へ。
- * 樹本体は寒色のままなので、暖色の空との対比で朝の逆光ぎみに見える——
- * それを狙って glow は空の色みに合わせた橙寄りにしている。
+ * 朝（06-12）の樹。ページの blush に合わせ、淡い桃色から珊瑚色へ。参照
+ * デザインのやわらかい面と同じ色域に置いてある。星座カードのように暗く
+ * しないのは、こちらは星図ではなく風景で、黒い星の問題を持たないから
+ * ——樹の周りは明るいままのほうが「朝」に見える。
+ *
+ * 樹本体は寒色のままなので、暖色の空との対比で朝の逆光ぎみに見える。
  */
 export const TREE_SKY_SUNRISE: TreeSky = {
-  a: "#fff0dc",
-  b: "#ffd6ad",
-  c: "#f2ac7c",
-  ink: "#7a3a12",
-  glow: "rgba(255,196,130,0.42)",
-  border: "#eec4a0",
-  shadow: "rgba(120,60,20,0.18)",
+  a: "#fff2ea",
+  b: "#fddac9",
+  c: "#f4ab94",
+  ink: "#7d3a20",
+  glow: "rgba(255,190,150,0.44)",
+  border: "#f3c9b5",
+  shadow: "rgba(140,60,35,0.18)",
 };
 
 export function treeSkyForPeriod(period: TimePeriod): TreeSky {

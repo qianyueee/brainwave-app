@@ -57,7 +57,7 @@ brainwave-app/
 │   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（モジュール合成：載波=自星座固定、差频按四标签×情境可变——活性=太阳40/月20Hz、フロー=太阳12/月10Hz、バランス=平日14/休日夜间7.83Hz、回復=傍晚6/深夜4/月在魚座2Hz；48条 §6 メッセージ模板；优先级 healing→activation→flow→balance，火×地/風×水归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
 │   ├── zodiac-audio.ts         # 星座节目的音乐床垫映射（program id → public/sounds/zodiac/<key>-b<beat>.mp3；缺失差频就近取用）
-│   ├── sync-tree.ts            # Sync Tree 16段階成長モデル（6.25%刻み、treeStageIndex / TREE_STAGES；成長ロジック未実装期は PLACEHOLDER_TREE 固定値）。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure / SyncTreeStageTile，手描きの光の樹）；ホーム树卡背景为三态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_SUNRISE/DAY/NIGHT：day=日の出の杏空、afternoon=白日、midnight+evening=星空。夜2つを1つに畳むのは星空が2時でも20時でも同じに読めるから、昼2つを分けるのは朝と真昼が別の時刻に見えるから。树本体配色不随主题变）
+│   ├── sync-tree.ts            # Sync Tree 16段階成長モデル（6.25%刻み、treeStageIndex / TREE_STAGES；成長ロジック未実装期は PLACEHOLDER_TREE 固定値）。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure / SyncTreeStageTile，手描きの光の樹）；ホーム树卡背景为三态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_SUNRISE/DAY/NIGHT：day=日の出の淡桃〜珊瑚、afternoon=白日、midnight+evening=星空。夜2つを1つに畳むのは星空が2時でも20時でも同じに読めるから、昼2つを分けるのは朝と真昼が別の時刻に見えるから。树本体配色不随主题变）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── day-records.ts          # カレンダーの当日明細（buildDayRecords / recordedDayKeys / dayKeyOf）。再生ログ＋取り込んだ脳波測定＋10秒チェックの3出どころを時刻順に1本へ畳む純関数。UI から切り出してあるのは脳波測定がログイン必須ストア（per-user persist）でブラウザから仕込めないため——純関数なら3種すべて実コードで検証できる。描画は components/SimpleCalendar
 │   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，数据不足为 null）。**セッション由来**＝computeBrainConditionMetrics（入定速度×40Hz共鳴率）／**非セッション由来**＝computeBaselineConditionMetrics（下の baseline.ts が算出済みの値を変換するだけ）
@@ -188,7 +188,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 - **字号体系已在 `globals.css` @theme 整体重映射**：`text-xs`=14px / `text-sm`=16px / `text-base`=18px / `text-lg`=20px / `text-xl`=22px（2xl+ 不变）。写代码时按语义选类即可，不要用 `text-[10px]` 之类的任意值；Recharts 刻度是硬编码数字，保持 ≥12
 - 缩放**不可禁用**（viewport 不设 maximumScale/userScalable）；`user-select:none` 只作用于控件，正文可选择复制
 - 字体：`next/font/google` 的 Noto Sans JP（构建期自托管，兼容静态导出），栈内排在系统日文字体之前
-- **主题不是固定深色**：`lib/theme.ts` 按时段切 4 套调色板（00-06 midnight 深靛 / 06-12 day 杏色〔日の出：橙の主色＋紅の accent〕/ 12-18 afternoon 薄荷 / 18-24 evening 淡紫，边界 60s 渐变），经 `--dyn-*` CSS 变量 + `applyPalette` 应用，图表监听 `THEME_CHANGE_EVENT` 重读。`#0a1628` 只存在于 MindArtCanvas 的画布底色
+- **主题不是固定深色**：`lib/theme.ts` 按时段切 4 套调色板（00-06 midnight 深靛 / 06-12 day 淡桃 blush〔日の出：鮮やかな橘紅 #c8330a の主色＋紅薔薇の accent〕/ 12-18 afternoon 薄荷 / 18-24 evening 淡紫，边界 60s 渐变），经 `--dyn-*` CSS 变量 + `applyPalette` 应用，图表监听 `THEME_CHANGE_EVENT` 重读。`#0a1628` 只存在于 MindArtCanvas 的画布底色
 - 颜色必须走 token：文字/背景用 `text-on-primary`/`text-on-accent`（CTA 上禁用 text-white）、状态色用 `text-success`/`text-warning`/`text-danger`（禁用 red/green/amber-400 原生类）——这 5 个键在每套调色板里按 ≥4.5:1 对比度调过（`ThemePalette` 的 onPrimary/onAccent/success/warning/danger）。SVG 属性吃不了 var()：图表用 `useDocumentScheme()`（light/dark，来自 `data-color-scheme`）选 `getBandColors(scheme)` / `compareSeriesColors(n, scheme)` 的实色组，或走 getComputedStyle（BrainRadarChart 模式）
 - 星空卡（NIGHT_SKY）/ 水曼陀罗卡（DEEP_WATER）/ 全屏可视化是**刻意的固定深色艺术面**，其上的 text-white 保留
 - 最大内容宽度 480px 居中
