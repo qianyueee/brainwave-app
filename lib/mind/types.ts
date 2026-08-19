@@ -22,6 +22,15 @@ export interface EegSample {
    *  computed on the bridge from the raw 512Hz waveform. Realtime only —
    *  file uploads and older bridges omit it. */
   spectrum?: number[];
+  /** Raw samples the bridge counted between this band packet and the previous
+   *  one — the true sampling rate of the window `spectrum` was computed over.
+   *  The bridge cuts that window by sample count and assumes it spans one
+   *  second, so ~512 means the Hz axis is trustworthy and a value well below it
+   *  means the axis is stretched by 512/rawPerSec. Diagnostic only for now:
+   *  nothing reads it, it is archived to the bridge's CSV so a spectrum that
+   *  came out wrong can be told apart from an unusual measurement. Realtime
+   *  only — older bridges omit it. */
+  rawPerSec?: number;
   ts: number; // epoch ms
 }
 

@@ -39,6 +39,15 @@ CODE_ASIC_EEG_POWER = 0x83
 # (1 s) window gives 1 Hz resolution; we emit magnitudes for 1..SPECTRUM_MAX_HZ
 # Hz alongside the once-per-second band sample. Pure Python (a windowed DFT over
 # 45 target bins) keeps the packaged exe dependency-free — ~23k mults/sec.
+#
+# NOTE: the basis below is built for FS Hz, and the window is cut by *sample
+# count*, not by time. If raw samples go missing (Bluetooth hiccup, dropped
+# bytes, a device that streams raw at another rate), the 512 buffered samples
+# span more than a second and every frequency in the result is scaled by that
+# span — a 10Hz alpha reads as 11Hz at 0.2% byte loss, 15Hz at 2%. Nothing here
+# detects that, so each sample also carries `rawPerSec` (raw samples counted
+# between consecutive band packets) and it is archived to the CSV: when a
+# spectrum comes out wrong, that column says whether this is why.
 SPECTRUM_MAX_HZ = 45
 FS = 512
 FFT_WINDOW = 512
@@ -98,6 +107,7 @@ class ThinkGearParser:
         self._attention = 0
         self._meditation = 0
         self._raw: deque = deque(maxlen=FFT_WINDOW)  # raw 512Hz waveform ring
+        self._raw_since_bands = 0  # raw samples seen since the last band packet
 
     def feed(self, data: bytes) -> list[dict]:
         """Consume raw bytes; return any complete samples parsed from them."""
@@ -181,6 +191,7 @@ class ThinkGearParser:
                 if code == CODE_RAW and vlen == 2:
                     # Signed 16-bit big-endian raw EEG sample (~512 Hz).
                     self._raw.append(int.from_bytes(value_bytes, "big", signed=True))
+                    self._raw_since_bands += 1
                 elif code == CODE_ASIC_EEG_POWER and vlen == 24:
                     bands = [
                         int.from_bytes(value_bytes[j : j + 3], "big")
@@ -195,8 +206,15 @@ class ThinkGearParser:
             "meditation": self._meditation,
             **dict(zip(BAND_KEYS, bands)),
             "signal": self._signal,
+            # How many raw samples arrived since the previous band packet, i.e.
+            # the real sampling rate of the window `_spectrum` just analysed.
+            # ~FS means the Hz axis is trustworthy; well below it means the axis
+            # is stretched by FS/rawPerSec. The first value after start-up (or
+            # after a resync) covers a partial second and is expected to be low.
+            "rawPerSec": self._raw_since_bands,
             "ts": int(time.time() * 1000),
         }
+        self._raw_since_bands = 0
         spectrum = _spectrum(self._raw)
         if spectrum is not None:
             sample["spectrum"] = spectrum
