@@ -79,11 +79,13 @@ export default function MiniPlayer() {
   const openPlayer = () => router.push(openTarget);
 
   return (
-    // Mobile: floats above the bottom nav. Desktop: full-width bar docked to
-    // the bottom of the content area, starting right of the 240px side rail —
-    // or from the window edge while the rail is collapsed.
+    // Mobile: floats above the bottom nav — `bottom-14` is that nav's 56px
+    // height (BottomNav's `h-14`), so the two move together. Desktop:
+    // full-width bar docked to the bottom of the content area, starting right
+    // of the 240px side rail — or from the window edge while the rail is
+    // collapsed.
     <div
-      className={`fixed bottom-16 inset-x-0 z-40 md:bottom-0 md:right-0 md:transition-[left] md:duration-300 md:ease-out motion-reduce:transition-none ${
+      className={`fixed bottom-14 inset-x-0 z-40 md:bottom-0 md:right-0 md:transition-[left] md:duration-300 md:ease-out motion-reduce:transition-none ${
         sidebarOpen ? "md:left-60" : "md:left-0"
       }`}
     >

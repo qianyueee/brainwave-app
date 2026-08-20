@@ -13,17 +13,20 @@ import { useMiniPlayerVisible } from "@/components/MiniPlayer";
  * しまう。負マージンで逃がすこともできない：`mx-auto` が作る左右の余白は
  * 画面幅とレールの開閉で変わるので、CSS で打ち消せる固定値が無い。
  *
- * 下パディングはミニプレイヤーが出ている間だけ広げる（モバイル：下ナビ 64px
+ * 下パディングはミニプレイヤーが出ている間だけ広げる（モバイル：下ナビ 56px
  * ＋バー 72px／デスクトップ：据え置きバー 88px）ので、長いページでも最後まで
  * スクロールできる。初回描画は常に狭いほう（再生は false 始まり）なので
  * hydration mismatch は起きない。
+ *
+ * モバイル側の 56px は BottomNav の `h-14` そのもの——帯の高さを変えたら
+ * ここと MiniPlayer の `bottom-14` も一緒に動かす。
  */
 export default function AppMain({ children }: { children: ReactNode }) {
   const miniPlayerVisible = useMiniPlayerVisible();
   return (
     <main
       className={`w-full min-h-screen ${
-        miniPlayerVisible ? "pb-36 md:pb-32" : "pb-20 md:pb-10"
+        miniPlayerVisible ? "pb-34 md:pb-32" : "pb-18 md:pb-10"
       }`}
     >
       {children}
