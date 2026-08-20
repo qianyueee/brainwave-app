@@ -89,7 +89,10 @@ export default function SideNav() {
                 key={tab.href}
                 href={tab.href}
                 /* 行の高さは 48px 接触域を確保したうえで詰める（旧 56px）。
-                   文字も英名 18→16px、読み仮名は 14px の下限に据え置き。 */
+                   英名は `text-sm`（14px）、読み仮名は下ナビのラベルと同じ
+                   `text-2xs`（11px）——2行組の下の行は英名の読みを添えるだけ
+                   なので、上の行との差をはっきり付けたほうが1項目として
+                   まとまって見える。 */
                 className={`flex items-center gap-3 min-h-12 py-1.5 px-3 rounded-2xl font-medium transition-colors ${
                   isActive
                     ? "bg-navy-light neu-inset text-primary"
@@ -99,7 +102,7 @@ export default function SideNav() {
                 <Icon size={20} strokeWidth={isActive ? 2 : 1.5} className="shrink-0" />
                 <span className="flex flex-col">
                   <span className="text-sm leading-tight">{tab.en}</span>
-                  <span className="text-xs text-text-muted leading-tight">{tab.kana}</span>
+                  <span className="text-2xs text-text-muted leading-tight">{tab.kana}</span>
                 </span>
               </Link>
             );
