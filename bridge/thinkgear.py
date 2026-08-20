@@ -68,6 +68,12 @@ BASIS_CACHE_MAX = 4
 
 _BASIS_CACHE: dict = {}  # rate -> (hann[], cos[f][n], sin[f][n])
 
+# Ramp used to fit and subtract a straight line across the window, and the sum
+# of its squares (the denominator of the least-squares slope). Centred on zero
+# so the fit needs only one pass over the samples.
+_RAMP = [n - (FFT_WINDOW - 1) / 2 for n in range(FFT_WINDOW)]
+_RAMP_SS = sum(r * r for r in _RAMP)
+
 
 def _basis(rate: int):
     cached = _BASIS_CACHE.get(rate)
@@ -88,14 +94,28 @@ def _basis(rate: int):
 
 def _spectrum(raw: "deque", rate: int) -> list | None:
     """Per-Hz magnitude (1..SPECTRUM_MAX_HZ Hz) of the last FFT_WINDOW raw
-    samples, DC-removed and Hann-windowed, read at `rate` samples/second. None
-    until a full window is buffered."""
+    samples, detrended and Hann-windowed, read at `rate` samples/second. None
+    until a full window is buffered.
+
+    A straight line is fitted and removed, not just the mean. Subtracting the
+    mean leaves any slope inside the window, and a Hann window does not cancel
+    it — a slow electrode drift comes through as a large 1-5Hz hump that is not
+    brain activity. It showed up as a real disagreement: over one recording the
+    headset's own band analysis reported δ steady near 60% while total power
+    *rose*, and this spectrum's 1-4Hz band *fell* by two thirds over the same
+    seconds. Contact drift settling at the start of a measurement is exactly the
+    shape that produces that, and it is worst in the first minutes, when the
+    electrode is still stabilising and the real signal is weakest.
+    """
     if len(raw) < FFT_WINDOW:
         return None
     x = list(raw)
     mean = sum(x) / FFT_WINDOW
+    # Least-squares slope about the window centre; `_RAMP` sums to zero, so the
+    # mean drops out of the numerator.
+    slope = sum(_RAMP[n] * x[n] for n in range(FFT_WINDOW)) / _RAMP_SS
     hann, cos_t, sin_t = _basis(rate)
-    win = [(x[n] - mean) * hann[n] for n in range(FFT_WINDOW)]
+    win = [(x[n] - mean - slope * _RAMP[n]) * hann[n] for n in range(FFT_WINDOW)]
     out = []
     for f in range(SPECTRUM_MAX_HZ):
         cf, sf = cos_t[f], sin_t[f]
