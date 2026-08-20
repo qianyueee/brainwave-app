@@ -164,11 +164,17 @@ class ThinkGearParser:
                 break  # wait for more bytes
 
             payload = bytes(self._buf[3 : 3 + plen])
-            checksum = self._buf[3 + plen]
-            del self._buf[: 3 + plen + 1]
-
-            if ((~sum(payload)) & 0xFF) != checksum:
+            if ((~sum(payload)) & 0xFF) != self._buf[3 + plen]:
+                # The checksum failing means this was never a packet — most
+                # often a 0xAA 0xAA pair that happens to fall inside raw sample
+                # bytes, matched because an earlier byte was lost and the buffer
+                # is no longer aligned. Consuming the plen bytes it claimed
+                # would throw away up to 173 bytes of stream (≈21 raw samples),
+                # including whatever real packets sit inside them, turning one
+                # lost byte into a burst. Skip the sync pair only and rescan.
+                del self._buf[:2]
                 continue
+            del self._buf[: 3 + plen + 1]
 
             sample = self._parse_payload(payload)
             if sample is not None:
