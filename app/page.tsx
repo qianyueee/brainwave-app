@@ -39,7 +39,11 @@ export default function HomePage() {
         title="Home"
         subtitle="今日の星空・宇宙周波数で即座に調律"
         eyebrow={
-          <p className="text-xs font-bold text-text-secondary leading-tight">
+          /* ブランド名は本文と同じ 16px（`text-base`）。ヘッダーの中でいちばん
+             小さい注記だった頃は、下の「Home」に埋もれて商標に見えなかった
+             ——ページ見出し 20px を超えない範囲でいちばん大きく取り、左レールの
+             ブランド表記（同じ `text-base`）とも揃えている。 */
+          <p className="text-base font-bold text-text-secondary leading-tight">
             NeuroSync
             {/* 登録商標表示 ®。sup は preflight 既定で 75%＋上付き、太字だけ
                 解除する。本文16px下限の対象外——情報を担わない組版記号。 */}

@@ -28,8 +28,12 @@ interface SelfRatingValues {
  * 主観3軸。測定側の Rate / Clarity / Reset と**同じ3つ**を日常語にしたもので、
  * アイコンも測定側と揃えてある（⚡切り替え・💡明晰さ・🌙休息）。両端に言葉を
  * 置くのは、主観に「60点」のような絶対値は無いから——「ガチガチ寄りか、
- * スムーズ寄りか」という位置なら答えられる。数値は表示せず内部で 0-100 として
- * 保存し、測定値と突き合わせられるようにしている。
+ * スムーズ寄りか」という位置なら答えられる。
+ *
+ * そのうえで現在値を％で併記する（0-100、内部の保存値そのまま）。言葉だけだと
+ * つまみが中央寄りのときに前回との差が確かめられず、上段の測定3値も同じ
+ * 0-100 なのに突き合わせようが無かった。言葉が「どちら寄りか」、％が
+ * 「どれくらいか」を担う分担。
  */
 const SELF_AXES = [
   {
@@ -191,23 +195,45 @@ export default function BrainConditionCard() {
           const Icon = axis.icon;
           return (
             <div key={axis.key} className="flex flex-col gap-1">
-              <label
-                htmlFor={`self-${axis.key}`}
-                className="flex items-baseline gap-1.5 text-sm font-medium text-text-primary"
-              >
-                <Icon
-                  size={16}
-                  strokeWidth={2}
-                  className="shrink-0 self-center text-primary"
-                />
-                {axis.label}
-                <span className="text-xs font-normal text-text-muted">（{axis.sub}）</span>
-              </label>
-              {/* 両端の言葉が意味を運ぶので、数値は出さない。幅を固定して
-                  3本のスライダーの左右端を揃える——揃っていないと、同じ
-                  位置なのに違う位置に見えて比較にならない。幅は最長の語が
-                  折り返さない実寸＋わずかな余裕：左は4文字（ガチガチ）、
-                  右は6文字（リフレッシュ）。`text-xs` が 14→12px になったぶん
+              <div className="flex items-baseline gap-1.5">
+                <label
+                  htmlFor={`self-${axis.key}`}
+                  className="flex items-baseline gap-1.5 min-w-0 text-sm font-medium text-text-primary"
+                >
+                  <Icon
+                    size={16}
+                    strokeWidth={2}
+                    className="shrink-0 self-center text-primary"
+                  />
+                  {axis.label}
+                  <span className="text-xs font-normal text-text-muted">（{axis.sub}）</span>
+                </label>
+                {/* いま何％かを見出し行の右端に。両端の言葉だけだと、つまみが
+                    真ん中寄りのときに「前回より上げたつもり」が確かめられず、
+                    上段の測定3値（同じ0-100）とも突き合わせられなかった。
+
+                    ・`tabular-nums`：ドラッグ中に桁が変わっても数字の幅が
+                      変わらない（等幅でないと 1 と 8 で行がにじむ）
+                    ・`ml-auto` で右寄せ＝伸び縮みは左側の余白が吸うので、
+                      60%→100% で桁が増えても右端は動かない
+                    ・色は accent＝この下段ブロック（主観）の色。上段の測定値は
+                      スコア色なので、同じ 0-100 でも出どころが色で分かる
+                    ・`aria-hidden`：値は input[type=range] 自身が読み上げる。
+                      label の中に入れると入力欄の名前が「スイッチ力…60%」に
+                      なってドラッグのたびに名前が変わってしまうので、label の
+                      外に出したうえで支援技術からは隠す */}
+                <span
+                  aria-hidden="true"
+                  className="ml-auto shrink-0 text-sm font-bold tabular-nums text-accent"
+                >
+                  {values[axis.key]}%
+                </span>
+              </div>
+              {/* 両端の言葉が「どちら寄りか」を、右上の％が「どれくらいか」を
+                  担う。幅を固定して3本のスライダーの左右端を揃える——揃って
+                  いないと、同じ位置なのに違う位置に見えて比較にならない。
+                  幅は最長の語が折り返さない実寸＋わずかな余裕：左は4文字
+                  （ガチガチ）、右は6文字（リフレッシュ）。`text-xs` が 14→12px になったぶん
                   56/96px から詰めてある——文字が縮んでも枠を据え置くと、
                   余った 24px がそのままスライダーの可動域から削られる。 */}
               <div className="flex items-center gap-2">
