@@ -331,8 +331,9 @@ export function interpolateSky(a: SkyPalette, b: SkyPalette, t: number): SkyPale
  * daylight side splits into sunrise (day, 06-12) and full daylight (afternoon,
  * 12-18). The night pair stays merged because a starry sky reads the same at
  * 2am and 8pm; the daylight pair does not — a sunrise sky and a midday sky are
- * visibly different times of day, and the page palette already distinguishes
- * them (apricot vs mint).
+ * visibly different times of day. Both daylight skies take their hue from the
+ * page palette (apricot vs mint) and share the same lightness ramp, so the
+ * hue alone says which one you are looking at.
  *
  * The tree art itself (foliage/trunk palette) never theme-shifts; only this
  * backdrop, its ink (ground line + sparkles) and the card chrome
@@ -363,17 +364,30 @@ export const TREE_SKY_NIGHT: TreeSky = {
   shadow: "rgba(20,16,60,0.25)",
 };
 
-export const TREE_SKY_DAY: TreeSky = {
-  a: "#f4f8ff",
-  b: "#dce9fa",
-  c: "#b8cfee",
-  ink: "#3d4a80",
-  // ハンドオフ原案の rgba(255,214,130,.50) は平塗りだと空に対して唐突
-  // だったので、淡く・薄く（シーン側の feGaussianBlur とセットで陽だまり
-  // に読める強さへ）
-  glow: "rgba(255,228,175,0.38)",
-  border: "#cbd6e8",
-  shadow: "rgba(60,70,120,0.18)",
+/**
+ * 昼（12-18）の樹。ページのミントに合わせた真昼の空。
+ *
+ * 以前は寒色の青空（#f4f8ff→#b8cfee）だった。空としては自然でも、地の
+ * ミントの上では色相がひとりだけ違う板に見え、しかも外周が地とほとんど同じ
+ * 明るさ（L 0.61 対 0.74）だったので、奥行きの無い水色の矩形として浮いて
+ * いた。朝の樹をページの blush に寄せたのと同じ扱いに揃える。
+ *
+ * 明るさの段は朝とほぼ同じ（0.91 → 0.52）にして、朝と昼の差は**色相だけ**が
+ * 語るようにしてある。外周だけは朝より一段明るい（0.52 対 0.48）——真昼が
+ * その日いちばん暗い空になるのはおかしいので。中間の b は地の navy とほぼ
+ * 同じ明るさなので、カードは地から生えているように見え、中心の明るさと
+ * 外周の落ちだけが風景の奥行きを作る。
+ *
+ * halo は同時間帯の星座カードと同じ白に近い暖色（真昼の太陽の色）。
+ */
+export const TREE_SKY_NOON: TreeSky = {
+  a: "#e9f9f1",
+  b: "#c0ead6",
+  c: "#84ceab",
+  ink: "#14503c",
+  glow: "rgba(255,250,215,0.42)",
+  border: "#90c8a8",
+  shadow: "rgba(18,78,58,0.18)",
 };
 
 /**
@@ -395,8 +409,9 @@ export const TREE_SKY_SUNRISE: TreeSky = {
 };
 
 export function treeSkyForPeriod(period: TimePeriod): TreeSky {
+  // 「day」は 06-12（＝朝）。名前が紛らわしいので定数側は SUNRISE / NOON。
   if (period.id === "day") return TREE_SKY_SUNRISE;
-  if (period.id === "afternoon") return TREE_SKY_DAY;
+  if (period.id === "afternoon") return TREE_SKY_NOON;
   return TREE_SKY_NIGHT;
 }
 
