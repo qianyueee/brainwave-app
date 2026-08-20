@@ -13,6 +13,10 @@ instantaneous count, `specRate` the median-smoothed rate the axis was actually
 built on — with both archived, a spectrum can be re-labelled from the row alone.
 An empty `specRate` means the rate was unknown or implausible and no spectrum
 was emitted for that second.
+
+`skipRows` and `parseErr` answer the next question down: *why* are samples
+missing. Both are normally blank; anything steady in them is a stream the parser
+is walking past rather than reading.
 """
 
 import csv
@@ -35,6 +39,8 @@ FIELDS = [
     "battery",
     "rawPerSec",
     "specRate",
+    "skipRows",
+    "parseErr",
     "spectrum",
 ]
 

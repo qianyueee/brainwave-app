@@ -32,6 +32,15 @@ export interface EegSample {
    *  number. Absent when the rate was unknown or implausible, in which case
    *  `spectrum` is absent too. Realtime only — older bridges omit it. */
   specRate?: number;
+  /** Diagnostics from the bridge's packet parser, both normally empty strings.
+   *  `skipRows` lists payload rows it walked past without reading
+   *  (`<code>/<vlen>:<count>`), `parseErr` counts framing failures
+   *  (`chk`/`trunc`/`plen`). They exist to explain a sampling-rate deficit:
+   *  one headset delivers 512 raw samples per second and another a steady 481,
+   *  and these say whether the missing ones are rows we ignore. Nothing reads
+   *  them; they are archived to the bridge's CSV. Realtime only. */
+  skipRows?: string;
+  parseErr?: string;
   ts: number; // epoch ms
 }
 

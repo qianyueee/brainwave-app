@@ -107,6 +107,13 @@ def _spectrum(raw: "deque", rate: int) -> list | None:
         out.append(round(math.hypot(re, im) / FFT_WINDOW, 3))
     return out
 
+def _fmt_counts(counts: dict) -> str:
+    """`key:count;key:count` for the non-zero entries, oldest-stable order.
+    Empty string when there is nothing to report, so the CSV cell stays blank
+    in the normal case instead of carrying a row of zeros."""
+    return ";".join("%s:%d" % (k, v) for k, v in sorted(counts.items()) if v)
+
+
 BAND_KEYS = (
     "delta",
     "theta",
@@ -128,6 +135,13 @@ class ThinkGearParser:
         self._raw: deque = deque(maxlen=FFT_WINDOW)  # raw waveform ring
         self._raw_since_bands = 0  # raw samples seen since the last band packet
         self._rate_hist: deque = deque(maxlen=RATE_HISTORY)  # recent rawPerSec
+        # Diagnostics, reset at every band packet (same window as rawPerSec):
+        # what the payload walk did *not* consume, and where framing broke.
+        self._skipped: dict = {}
+        self._parse_err = {"chk": 0, "trunc": 0, "plen": 0}
+
+    def _skip(self, key: str) -> None:
+        self._skipped[key] = self._skipped.get(key, 0) + 1
 
     def _effective_rate(self) -> int | None:
         """Raw samples per second, as actually measured — the sampling rate the
@@ -158,6 +172,7 @@ class ThinkGearParser:
 
             plen = self._buf[2]
             if plen > MAX_PLEN:
+                self._parse_err["plen"] += 1
                 del self._buf[:2]  # bad length: skip this sync pair, resync
                 continue
             if len(self._buf) < 3 + plen + 1:
@@ -172,6 +187,7 @@ class ThinkGearParser:
                 # would throw away up to 173 bytes of stream (≈21 raw samples),
                 # including whatever real packets sit inside them, turning one
                 # lost byte into a burst. Skip the sync pair only and rescan.
+                self._parse_err["chk"] += 1
                 del self._buf[:2]
                 continue
             del self._buf[: 3 + plen + 1]
@@ -199,13 +215,16 @@ class ThinkGearParser:
         n = len(payload)
         while i < n:
             while i < n and payload[i] == EXCODE:
+                self._skip("excode")
                 i += 1
             if i >= n:
+                self._parse_err["trunc"] += 1
                 break
             code = payload[i]
             i += 1
             if code < 0x80:
                 if i >= n:
+                    self._parse_err["trunc"] += 1
                     break
                 value = payload[i]
                 i += 1
@@ -215,12 +234,18 @@ class ThinkGearParser:
                     self._attention = value
                 elif code == CODE_MEDITATION:
                     self._meditation = value
+                else:
+                    self._skip("%02x" % code)
             else:
                 if i >= n:
+                    self._parse_err["trunc"] += 1
                     break
                 vlen = payload[i]
                 i += 1
                 if i + vlen > n:
+                    # The row claims more bytes than the payload holds, so the
+                    # walk is off the rails and everything after it is lost.
+                    self._parse_err["trunc"] += 1
                     break
                 value_bytes = payload[i : i + vlen]
                 i += vlen
@@ -233,7 +258,13 @@ class ThinkGearParser:
                         int.from_bytes(value_bytes[j : j + 3], "big")
                         for j in range(0, 24, 3)
                     ]
-                # other unknown rows: skipped
+                else:
+                    # Anything we do not consume — a proprietary BrainLink row,
+                    # or a RAW/ASIC row of an unexpected length. Recorded with
+                    # its length because "0x80 with vlen 3" and "0x80 with vlen
+                    # 2" mean very different things: the first is raw waveform
+                    # we are silently throwing away.
+                    self._skip("%02x/%d" % (code, vlen))
 
         if bands is None:
             return None
@@ -246,10 +277,21 @@ class ThinkGearParser:
             # instantaneous sampling rate. The first value after start-up (or
             # after a resync) covers a partial second and is expected to be low.
             "rawPerSec": self._raw_since_bands,
+            # Rows the payload walk did not consume, `<code>/<vlen>:<count>`
+            # (single-byte codes have no length). Normally empty — a steady
+            # entry here means the headset speaks a dialect we ignore, and if
+            # the key is a RAW code that is missing waveform.
+            "skipRows": _fmt_counts(self._skipped),
+            # Framing failures: chk = checksum mismatch (resync), trunc = a row
+            # claiming more bytes than the payload holds (the rest of that
+            # packet is lost), plen = an impossible length byte. Normally empty.
+            "parseErr": _fmt_counts(self._parse_err),
             "ts": int(time.time() * 1000),
         }
         self._rate_hist.append(self._raw_since_bands)
         self._raw_since_bands = 0
+        self._skipped = {}
+        self._parse_err = {"chk": 0, "trunc": 0, "plen": 0}
 
         # The smoothed rate the spectrum's Hz axis was actually built on. Kept
         # separate from rawPerSec because that one still jitters second to
