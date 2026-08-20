@@ -6,10 +6,13 @@ logs stay readable by anything that reads this file by header name.
 `spectrum` and `rawPerSec` are here to make a bad spectrum diagnosable after the
 fact. Until now the per-Hz curve existed only in flight — computed on the bridge,
 broadcast to the phone, reduced to one median curve per measurement — so a
-recording that came out wrong left nothing behind to inspect. `rawPerSec` is the
-partner column: `_spectrum` cuts its window by sample count and assumes it spans
-one second, so a rate well below FS means the Hz axis of that row is stretched by
-FS/rawPerSec rather than the brain having done anything unusual.
+recording that came out wrong left nothing behind to inspect. `rawPerSec` and
+`specRate` are the partner columns: `_spectrum` cuts its window by sample count,
+so the Hz axis depends on how fast those samples arrived. `rawPerSec` is the
+instantaneous count, `specRate` the median-smoothed rate the axis was actually
+built on — with both archived, a spectrum can be re-labelled from the row alone.
+An empty `specRate` means the rate was unknown or implausible and no spectrum
+was emitted for that second.
 """
 
 import csv
@@ -31,6 +34,7 @@ FIELDS = [
     "signal",
     "battery",
     "rawPerSec",
+    "specRate",
     "spectrum",
 ]
 

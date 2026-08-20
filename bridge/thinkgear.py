@@ -34,48 +34,67 @@ CODE_MEDITATION = 0x05
 CODE_RAW = 0x80
 CODE_ASIC_EEG_POWER = 0x83
 
-# ── Per-Hz FFT spectrum from the raw 512Hz waveform ──
-# BrainLink/TGAM streams raw EEG samples (code 0x80) ~512×/sec. A 512-sample
-# (1 s) window gives 1 Hz resolution; we emit magnitudes for 1..SPECTRUM_MAX_HZ
-# Hz alongside the once-per-second band sample. Pure Python (a windowed DFT over
-# 45 target bins) keeps the packaged exe dependency-free — ~23k mults/sec.
+# ── Per-Hz FFT spectrum from the raw waveform ──
+# BrainLink/TGAM streams raw EEG samples (code 0x80) alongside the
+# once-per-second band packet; we emit magnitudes for 1..SPECTRUM_MAX_HZ Hz.
+# Pure Python (a windowed DFT over the target bins) keeps the packaged exe
+# dependency-free.
 #
-# NOTE: the basis below is built for FS Hz, and the window is cut by *sample
-# count*, not by time. If raw samples go missing (Bluetooth hiccup, dropped
-# bytes, a device that streams raw at another rate), the 512 buffered samples
-# span more than a second and every frequency in the result is scaled by that
-# span — a 10Hz alpha reads as 11Hz at 0.2% byte loss, 15Hz at 2%. Nothing here
-# detects that, so each sample also carries `rawPerSec` (raw samples counted
-# between consecutive band packets) and it is archived to the CSV: when a
-# spectrum comes out wrong, that column says whether this is why.
-SPECTRUM_MAX_HZ = 45
-FS = 512
+# The window is cut by *sample count* (FFT_WINDOW samples), so the frequency
+# axis depends entirely on how fast those samples actually arrived. Assuming a
+# fixed 512 Hz was wrong: measured across two headsets, one delivers exactly 512
+# raw samples per band packet and the other a steady 481 — a 6.4% deficit that
+# put every frequency 6.4% too high (a true 40Hz peak drew at 42.6Hz). Bluetooth
+# loss stretches the axis the same way, just less steadily. So the basis is now
+# built for the *measured* rate (`rawPerSec`, median-smoothed over
+# RATE_HISTORY seconds), and no spectrum is emitted at all while that rate is
+# unknown or implausible — an axis we cannot label is worse than no chart.
+SPECTRUM_MAX_HZ = 64
+FS_NOMINAL = 512
 FFT_WINDOW = 512
 
-_BASIS = None  # (hann[], cos[f][n], sin[f][n]) built lazily on first use
+# Plausible raw rates, in samples per band packet. Below RATE_MIN too much of
+# the window is missing for any labelling to survive (and it approaches the
+# Nyquist limit of the top bin); above RATE_MAX we counted more samples than the
+# hardware can produce, i.e. the byte stream is being misparsed.
+RATE_MIN = 256
+RATE_MAX = 560
+# Seconds of `rawPerSec` kept for the median. Median, not mean, because the
+# first count after start-up (and after a resync) covers a partial second.
+RATE_HISTORY = 15
+RATE_MIN_SAMPLES = 5
+# Bases are ~SPECTRUM_MAX_HZ×FFT_WINDOW×2 floats each, so keep only a few.
+BASIS_CACHE_MAX = 4
+
+_BASIS_CACHE: dict = {}  # rate -> (hann[], cos[f][n], sin[f][n])
 
 
-def _build_basis():
-    global _BASIS
+def _basis(rate: int):
+    cached = _BASIS_CACHE.get(rate)
+    if cached is not None:
+        return cached
+    if len(_BASIS_CACHE) >= BASIS_CACHE_MAX:
+        _BASIS_CACHE.clear()
     w = FFT_WINDOW
     hann = [0.5 - 0.5 * math.cos(2 * math.pi * n / (w - 1)) for n in range(w)]
     cos_t, sin_t = [], []
     for f in range(1, SPECTRUM_MAX_HZ + 1):
-        wf = 2 * math.pi * f / FS
+        wf = 2 * math.pi * f / rate
         cos_t.append([math.cos(wf * n) for n in range(w)])
         sin_t.append([math.sin(wf * n) for n in range(w)])
-    _BASIS = (hann, cos_t, sin_t)
-    return _BASIS
+    _BASIS_CACHE[rate] = (hann, cos_t, sin_t)
+    return _BASIS_CACHE[rate]
 
 
-def _spectrum(raw: "deque") -> list | None:
+def _spectrum(raw: "deque", rate: int) -> list | None:
     """Per-Hz magnitude (1..SPECTRUM_MAX_HZ Hz) of the last FFT_WINDOW raw
-    samples, DC-removed and Hann-windowed. None until a full window is buffered."""
+    samples, DC-removed and Hann-windowed, read at `rate` samples/second. None
+    until a full window is buffered."""
     if len(raw) < FFT_WINDOW:
         return None
     x = list(raw)
     mean = sum(x) / FFT_WINDOW
-    hann, cos_t, sin_t = _BASIS or _build_basis()
+    hann, cos_t, sin_t = _basis(rate)
     win = [(x[n] - mean) * hann[n] for n in range(FFT_WINDOW)]
     out = []
     for f in range(SPECTRUM_MAX_HZ):
@@ -106,8 +125,19 @@ class ThinkGearParser:
         self._signal = 200
         self._attention = 0
         self._meditation = 0
-        self._raw: deque = deque(maxlen=FFT_WINDOW)  # raw 512Hz waveform ring
+        self._raw: deque = deque(maxlen=FFT_WINDOW)  # raw waveform ring
         self._raw_since_bands = 0  # raw samples seen since the last band packet
+        self._rate_hist: deque = deque(maxlen=RATE_HISTORY)  # recent rawPerSec
+
+    def _effective_rate(self) -> int | None:
+        """Raw samples per second, as actually measured — the sampling rate the
+        spectrum's frequency axis is built on. None while too few counts have
+        been seen to smooth, or when the result is outside RATE_MIN..RATE_MAX."""
+        if len(self._rate_hist) < RATE_MIN_SAMPLES:
+            return None
+        ordered = sorted(self._rate_hist)
+        rate = ordered[len(ordered) // 2]
+        return rate if RATE_MIN <= rate <= RATE_MAX else None
 
     def feed(self, data: bytes) -> list[dict]:
         """Consume raw bytes; return any complete samples parsed from them."""
@@ -206,16 +236,23 @@ class ThinkGearParser:
             "meditation": self._meditation,
             **dict(zip(BAND_KEYS, bands)),
             "signal": self._signal,
-            # How many raw samples arrived since the previous band packet, i.e.
-            # the real sampling rate of the window `_spectrum` just analysed.
-            # ~FS means the Hz axis is trustworthy; well below it means the axis
-            # is stretched by FS/rawPerSec. The first value after start-up (or
+            # How many raw samples arrived since the previous band packet — the
+            # instantaneous sampling rate. The first value after start-up (or
             # after a resync) covers a partial second and is expected to be low.
             "rawPerSec": self._raw_since_bands,
             "ts": int(time.time() * 1000),
         }
+        self._rate_hist.append(self._raw_since_bands)
         self._raw_since_bands = 0
-        spectrum = _spectrum(self._raw)
-        if spectrum is not None:
-            sample["spectrum"] = spectrum
+
+        # The smoothed rate the spectrum's Hz axis was actually built on. Kept
+        # separate from rawPerSec because that one still jitters second to
+        # second; this is the number the frequencies were divided by, so a
+        # spectrum can always be re-labelled from the archived row alone.
+        rate = self._effective_rate()
+        if rate is not None:
+            sample["specRate"] = rate
+            spectrum = _spectrum(self._raw, rate)
+            if spectrum is not None:
+                sample["spectrum"] = spectrum
         return sample

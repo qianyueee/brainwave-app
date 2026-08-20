@@ -23,20 +23,31 @@ export interface EegSample {
    *  file uploads and older bridges omit it. */
   spectrum?: number[];
   /** Raw samples the bridge counted between this band packet and the previous
-   *  one — the true sampling rate of the window `spectrum` was computed over.
-   *  The bridge cuts that window by sample count and assumes it spans one
-   *  second, so ~512 means the Hz axis is trustworthy and a value well below it
-   *  means the axis is stretched by 512/rawPerSec. Diagnostic only for now:
-   *  nothing reads it, it is archived to the bridge's CSV so a spectrum that
-   *  came out wrong can be told apart from an unusual measurement. Realtime
-   *  only — older bridges omit it. */
+   *  one — the instantaneous sampling rate. Diagnostic: nothing reads it, it is
+   *  archived to the bridge's CSV. Realtime only — older bridges omit it. */
   rawPerSec?: number;
+  /** The median-smoothed rate (samples/second) the bridge built `spectrum`'s
+   *  frequency axis on. Headsets differ — one measured 512, another a steady
+   *  481 — so this is not a constant and the axis is only as good as this
+   *  number. Absent when the rate was unknown or implausible, in which case
+   *  `spectrum` is absent too. Realtime only — older bridges omit it. */
+  specRate?: number;
   ts: number; // epoch ms
 }
 
-/** Highest frequency (Hz) in the per-Hz spectrum; the array has this length,
- *  index 0 = 1 Hz … index SPECTRUM_MAX_HZ-1 = SPECTRUM_MAX_HZ Hz. */
-export const SPECTRUM_MAX_HZ = 45;
+/**
+ * Highest frequency (Hz) in the per-Hz spectrum; the array has this length,
+ * index 0 = 1 Hz … index SPECTRUM_MAX_HZ-1 = SPECTRUM_MAX_HZ Hz.
+ *
+ * Above the 45Hz top of the band table on purpose. Recorded spectra rise
+ * steadily toward the old 45Hz edge instead of rolling off the way EEG does,
+ * and the 12Hz and 38Hz bumps that made curves look scrambled track each other
+ * across sessions (r≈0.95) and sum to 50 — the signature of mains hum sitting
+ * just outside the analysed band. Reaching past it is what turns that
+ * inference into something visible. Records written before this change are 45
+ * long; every consumer reads the array's own length, so both sizes render.
+ */
+export const SPECTRUM_MAX_HZ = 64;
 
 /**
  * POOR_SIGNAL above this means the electrodes aren't reading the scalp (0 =
@@ -300,35 +311,13 @@ export function combineZoneBoost(gammaBoost: number, programBoost: number): numb
   return Math.min(ZONE_BOOST_MAX, gammaBoost + programBoost);
 }
 
-// ── Program-active γ-band gain (raise the measured γ ratio) ──
-//
-// While a program plays, amplify the measured γ bands so the γ ratio visibly
-// rises — demonstrating the 40Hz entrainment effect. Unlike the Zone pull
-// (display only), this amplifies the sample itself, so the higher γ flows
-// consistently into the live 脳波バランス, the recording, and the 脳特性 import.
-// Ramps in over the same window as the Zone pull so nothing jumps at start.
-
-/** Peak extra gain on the γ bands at full ramp (2 ⇒ up to 3× γ-band power). */
-export const PROGRAM_GAMMA_GAIN_MAX = 2;
-
-/** γ-band gain 0..PROGRAM_GAMMA_GAIN_MAX, ramping in over the first minutes of
- *  playback. 0 with nothing playing, so behavior is unchanged when idle. */
-export function programGammaGain(isPlaying: boolean, elapsedSec: number): number {
-  if (!isPlaying) return 0;
-  const t = Math.min(1, Math.max(0, elapsedSec / PROGRAM_BOOST_RAMP_SEC));
-  return PROGRAM_GAMMA_GAIN_MAX * t;
-}
-
-/** Return the sample with its low/high-γ bands scaled by (1 + gain); other
- *  bands and Attention/Meditation are untouched. Identity when gain ≤ 0. */
-export function withGammaGain(s: EegSample, gain: number): EegSample {
-  if (gain <= 0) return s;
-  return {
-    ...s,
-    lowGamma: s.lowGamma * (1 + gain),
-    highGamma: s.highGamma * (1 + gain),
-  };
-}
+// The γ bands used to be amplified up to 3× while a program played, and that
+// amplified sample was what got stored — so the 8-band pie, Clarity, Reset and
+// avgGammaRatio all described a number the headset never reported. Two
+// measurements ten minutes apart read Clarity 19 and 82 off the back of it. It
+// is gone: the sample is now passed through untouched, and the only thing a
+// program still moves is the dot's position on screen (the Zone pull above),
+// which is display-only and never reaches the record.
 
 /** Relative power (%) of the five classic bands, for the equalizer. */
 export function relativeBandPowers(s: EegSample): {

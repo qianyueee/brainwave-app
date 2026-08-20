@@ -10,7 +10,7 @@ import {
   ReferenceArea,
   ResponsiveContainer,
 } from "recharts";
-import { SPECTRUM_BANDS } from "./BrainSpectrumChart";
+import { SPECTRUM_BANDS, spectrumTicks } from "./BrainSpectrumChart";
 import { getBandColors } from "@/lib/mind/types";
 import { useDocumentScheme } from "@/components/useDocumentScheme";
 import { compareSeriesColors } from "@/lib/compare-colors";
@@ -85,7 +85,7 @@ export default function BrainSpectrumCompare({ series }: { series: SpectrumSerie
             dataKey="hz"
             type="number"
             domain={[1, len]}
-            ticks={[1, 5, 10, 15, 20, 25, 30, 35, 40, 45]}
+            ticks={spectrumTicks(len)}
             tick={{ fill: axis, fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: grid }}

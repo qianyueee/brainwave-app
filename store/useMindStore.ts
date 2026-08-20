@@ -8,8 +8,6 @@ import {
   gammaBoostScale,
   boostedPosition,
   programBoostFromElapsed,
-  programGammaGain,
-  withGammaGain,
   combineZoneBoost,
   medianSpectrum,
   GAMMA_BASELINE_ALPHA,
@@ -185,22 +183,17 @@ export const useMindStore = create<MindState>()(
 
       setBridgeOnline: (online) => set({ bridgeOnline: online }),
 
-      pushSample: (rawSample) =>
+      pushSample: (s) =>
         set((state) => {
           const app = useAppStore.getState();
 
-          // While a program plays, amplify the measured γ bands (ramping in over
-          // playback) so the γ ratio visibly rises — the 40Hz entrainment effect
-          // made visible. The amplified sample IS the measurement from here on:
-          // it feeds the live 脳波バランス, the recording, and the 脳特性 import
-          // alike, so those stay consistent. Attention/Meditation are untouched.
-          const s = withGammaGain(rawSample, programGammaGain(app.isPlaying, app.elapsed));
-
-          // The Zone pull and the "γ波 上昇中" badge stay on the RAW γ, so the
-          // badge remains an honest physiological signal and the dot pull is
-          // unchanged — the program's contribution to the pull is the separate,
-          // explicit programBoost below.
-          const ratio = gammaRatio(rawSample);
+          // The sample is stored exactly as the headset reported it. Playing a
+          // program used to amplify its γ bands up to 3×, and since that
+          // amplified copy was what got recorded, the pie, Clarity, Reset and
+          // avgGammaRatio all reported a value no instrument had measured. The
+          // program's effect on the display is the Zone pull below, which moves
+          // the dot only and never touches the numbers that get saved.
+          const ratio = gammaRatio(s);
           const baseline =
             state.gammaBaseline <= 0
               ? ratio

@@ -25,6 +25,16 @@ export const SPECTRUM_BANDS = BAND_META.map((b) => ({
   to: BAND_HZ_RANGE[b.key][1],
 }));
 
+/** Axis ticks for a spectrum `maxHz` bins wide: 1Hz, then every 5Hz. The array's
+ *  own length is the source of truth — measurements recorded before the band was
+ *  widened are 45 bins long, newer ones 64 — so the ticks cannot be a fixed list.
+ *  Shared with the compare chart so both label the same axis. */
+export function spectrumTicks(maxHz: number): number[] {
+  const ticks = [1];
+  for (let hz = 5; hz <= maxHz; hz += 5) ticks.push(hz);
+  return ticks;
+}
+
 const SERVER_COLORS = "#4a7fd4|#1e3a5f|#8890a8";
 
 function readThemeColors(): string {
@@ -85,7 +95,7 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
             dataKey="hz"
             type="number"
             domain={[1, maxHz]}
-            ticks={[1, 5, 10, 15, 20, 25, 30, 35, 40, 45]}
+            ticks={spectrumTicks(maxHz)}
             tick={{ fill: axis, fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: grid }}
