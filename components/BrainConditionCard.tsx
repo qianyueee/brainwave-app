@@ -205,10 +205,13 @@ export default function BrainConditionCard() {
               </label>
               {/* 両端の言葉が意味を運ぶので、数値は出さない。幅を固定して
                   3本のスライダーの左右端を揃える——揃っていないと、同じ
-                  位置なのに違う位置に見えて比較にならない。右は最長の
-                  「リフレッシュ」（6文字×14px）が折り返さない幅を取る。 */}
+                  位置なのに違う位置に見えて比較にならない。幅は最長の語が
+                  折り返さない実寸＋わずかな余裕：左は4文字（ガチガチ）、
+                  右は6文字（リフレッシュ）。`text-xs` が 14→12px になったぶん
+                  56/96px から詰めてある——文字が縮んでも枠を据え置くと、
+                  余った 24px がそのままスライダーの可動域から削られる。 */}
               <div className="flex items-center gap-2">
-                <span className="w-14 shrink-0 text-xs text-text-muted">{axis.low}</span>
+                <span className="w-13 shrink-0 text-xs text-text-muted">{axis.low}</span>
                 <RangeSlider
                   id={`self-${axis.key}`}
                   min={0}
@@ -219,7 +222,7 @@ export default function BrainConditionCard() {
                   }
                   className="flex-1 min-w-0"
                 />
-                <span className="w-24 shrink-0 text-right text-xs text-text-muted whitespace-nowrap">
+                <span className="w-20 shrink-0 text-right text-xs text-text-muted whitespace-nowrap">
                   {axis.high}
                 </span>
               </div>

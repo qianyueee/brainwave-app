@@ -40,8 +40,10 @@ interface PageHeaderProps {
  * 読めてしまった——大きく散らせば文字は完全に潰れ、波のような大きな色面だけが
  * 残る。tint はその上で文字のコントラストを確保するぶんだけ足している。
  *
- * 文字サイズは本文より一段だけ上（22px）。ページ内の見出し（`text-lg`=20px）
- * を下回らない範囲でいちばん小さく、常時居座るヘッダーとして高さを取らない。
+ * 文字サイズは `text-xl`（20px）。ページ内の見出し（`text-lg`=18px）を下回ら
+ * ない範囲でいちばん小さく、常時居座るヘッダーとして高さを取らない。帯の上下
+ * パディングも文字が縮んだぶん詰めてある（pt-4/pb-2）——高さを据え置くと、
+ * 小さくなった見出しが広い帯の中で浮いて見える。
  */
 export default function PageHeader({
   title,
@@ -52,7 +54,7 @@ export default function PageHeader({
 }: PageHeaderProps) {
   const columnClass = usePageColumnClass();
   return (
-    <div className="sticky top-0 z-30 pt-5 pb-2.5 bg-navy/70 backdrop-blur-2xl">
+    <div className="sticky top-0 z-30 pt-4 pb-2 bg-navy/70 backdrop-blur-2xl">
       <div className={columnClass}>
         <div className="flex items-center gap-3">
           {leading}

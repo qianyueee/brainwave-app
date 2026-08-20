@@ -80,20 +80,50 @@
   --color-sky-line: var(--sky-line);
   --color-sky-chip: var(--sky-chip);
 
-  /* Readability remap for the 50-60 audience: every text-* class one step up
-     (12→14, 14→16, 16→18, 18→20, 20→22; 2xl+ unchanged). Call sites keep
-     their classes — the scale itself moves, so nothing informational renders
-     below 14px and body copy lands on the documented 18px. */
-  --text-xs: 0.875rem;
-  --text-xs--line-height: calc(1.25 / 0.875);
-  --text-sm: 1rem;
-  --text-sm--line-height: calc(1.5 / 1);
-  --text-base: 1.125rem;
-  --text-base--line-height: calc(1.75 / 1.125);
-  --text-lg: 1.25rem;
-  --text-lg--line-height: calc(1.75 / 1.25);
-  --text-xl: 1.375rem;
-  --text-xl--line-height: calc(1.875 / 1.375);
+  /* ===== 文字サイズの階段 =====
+     以前はすべての `text-*` を Tailwind 既定から丸ごと一段上げていた
+     （12→14 / 14→16 / 16→18 …）。読みやすさは確保できたが、隣り合う段の差が
+     つねに 2px の平らな階段になり、見出しも本文も注記もほぼ同じ大きさに見えて
+     いた——画面が「大きい文字で埋まった板」になり、どこを先に読めばいいのかが
+     文字サイズから伝わらない。
+
+     そこで全体を一段ぶん引き下げて、本文 16px を基準に組み直した。上げ幅を
+     捨てたのではなく、**上げ幅を階段の傾きに振り替えた**：本文まわり
+     （12〜16px）は詰めて情報密度を上げ、そのぶん見出し・数値（18px 以上）と
+     の開きを大きく取る。触れる部品の 48px 下限は文字と独立なので変わらない。
+
+     行間は日本語向けに既定より広め（小さい段ほど広く、見出し・数値は詰める）
+     ——サイズを落としたぶんは行送りで返す。 */
+
+  /* ナビのラベル専用。画面下に常駐する 5 つの短いカタカナ語は、アイコンと
+     一緒に読む「見出し語」であって読み下す文章ではない。ここだけ本文の階段
+     より一段下に置き、そのぶんアイコンに縦を渡す。用途を限る値なので
+     `text-[11px]` のような場当たりの任意値ではなくトークンで持つ。 */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.45;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.55;
+  --text-base: 1rem;
+  --text-base--line-height: 1.6;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.5;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.45;
+
+  /* 見出し・大きな数値。本文が縮んだぶんここも下げるが、下げ幅は緩く取って
+     本文との差＝視線の順序を残す（2xl は本文の 1.375 倍、3xl 以上は数値ひと
+     つで画面の焦点になる部品なので比率をさらに広げる）。 */
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: 1.35;
+  --text-3xl: 1.75rem;
+  --text-3xl--line-height: 1.25;
+  --text-4xl: 2rem;
+  --text-4xl--line-height: 1.15;
+  --text-5xl: 2.75rem;
+  --text-5xl--line-height: 1.1;
 }
 
 body {
@@ -101,8 +131,11 @@ body {
   color: var(--dyn-text-primary);
   transition: background-color 1s ease-out, color 1s ease-out;
   font-family: var(--font-noto-sans-jp), -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
-  font-size: 18px;
-  line-height: 1.6;
+  /* `text-*` を持たない要素の既定。上の階段の `base` と同じ 16px に揃える
+     （階段だけ下げて body を 18px のまま残すと、クラス指定のない素の
+     <p> だけが本文より大きく浮く）。行送りは日本語向けに 1.7。 */
+  font-size: 16px;
+  line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;

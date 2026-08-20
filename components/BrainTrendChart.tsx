@@ -116,7 +116,7 @@ export default function BrainTrendChart({ measurements }: { measurements: BrainP
                 border: `1px solid ${colors.grid}`,
                 borderRadius: "12px",
                 color: colors.textPrimary,
-                fontSize: "16px",
+                fontSize: "14px",
                 boxShadow: "4px 4px 10px rgba(0,0,0,0.4), -2px -2px 6px rgba(255,255,255,0.04)",
               }}
               formatter={(value: number | undefined) => [`${value ?? 0}`, activeLabel]}

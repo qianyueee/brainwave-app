@@ -49,7 +49,7 @@ brainwave-app/
 │   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
 │   └── mind|profile|log|compare/ # 旧路由跳转桩（客户端 redirect → session/brain/history/report）
 ├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
-│   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。**帯は横いっぱい**（`<main>` の幅そのまま＝画面端まで／デスクトップはレールの右端から右端まで）、中身だけ `usePageColumnClass()` に入れて下のカードと左端を揃える。地は**すりガラス**（`bg-navy/70` ＋ `backdrop-blur-2xl`＝40px）。不透明な `bg-navy` は不可——WaveBackground は `fixed` で `--dyn-navy` の上に明るい波を重ねているので、見えている地色は場所によって違い、波が横切る位置では不透明な帯だけが暗い矩形として浮く（デスクトップで露骨に出た）。blur なら背後の波の色を拾って周囲と同じ色みになる。blur は 12px では下を流れるグラフの目盛りが読めてしまうので 40px、tint は明るいアート（ブレインアート等）の滲み出しを抑えるのに 70% 必要。文字は 22px/14px（ページ内見出し `text-lg`=20px を下回らない範囲で最小）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
+│   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。**帯は横いっぱい**（`<main>` の幅そのまま＝画面端まで／デスクトップはレールの右端から右端まで）、中身だけ `usePageColumnClass()` に入れて下のカードと左端を揃える。地は**すりガラス**（`bg-navy/70` ＋ `backdrop-blur-2xl`＝40px）。不透明な `bg-navy` は不可——WaveBackground は `fixed` で `--dyn-navy` の上に明るい波を重ねているので、見えている地色は場所によって違い、波が横切る位置では不透明な帯だけが暗い矩形として浮く（デスクトップで露骨に出た）。blur なら背後の波の色を拾って周囲と同じ色みになる。blur は 12px では下を流れるグラフの目盛りが読めてしまうので 40px、tint は明るいアート（ブレインアート等）の滲み出しを抑えるのに 70% 必要。文字は `text-xl`/`text-xs`＝20px/12px（ページ内見出し `text-lg`=18px を下回らない範囲で最小）。帯の上下は pt-4/pb-2——文字の縮小に合わせて詰めてある（高さを据え置くと小さくなった見出しが広い帯の中で浮く）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
 │   ├── PageColumn.tsx          # 内容カラム（最大幅＋左右パディング）の**唯一の持ち主**＝`usePageColumnClass()`。`PageHeader` の帯と本文が同じ値を使う（ズレると見出しがカードから外れて浮く）。`PageColumn`＝カラム＋`flex flex-col gap-6 pt-6`（見出しページ用）、`BareColumn`＝カラムだけ（gap/padding が違う /player・/synth・/admin・旧路由スタブ用——Tailwind は同プロパティのクラスを並べても「後に書いたほう」が勝つとは限らないので上書きに頼らない）
 │   ├── AppMain.tsx             # `<main>`。**横幅は制限しない**（カラムは PageColumn 側）——ここで `mx-auto max-w-5xl` を掛けると sticky な見出しがカラム幅どまりで「浮いた棒」になり、`mx-auto` の余白は画面幅×レール開閉で変わるので負マージンでも逃がせない。持つのはミニプレイヤー分の下パディングだけ
 │   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
@@ -189,8 +189,10 @@ AudioContext（全局单例，getAudioContext() 管理）
 - 调整颤音参数时不重建主振荡器，仅销毁/重建 LFO 节点，避免爆音
 
 ### UI 约束
-- 目标用户 50-60 岁：最小字号 16px、正文 18px、触控区域 ≥ 48×48px。**ナビのラベルは `text-xs`（14px）が下限**——情報を担う文字なのでこれ以上は縮めない（縦を詰めたいときはアイコン 22→20px と行高で稼ぐ）
-- **字号体系已在 `globals.css` @theme 整体重映射**：`text-xs`=14px / `text-sm`=16px / `text-base`=18px / `text-lg`=20px / `text-xl`=22px（2xl+ 不变）。写代码时按语义选类即可，不要用 `text-[10px]` 之类的任意值；Recharts 刻度是硬编码数字，保持 ≥12
+- 目标用户 50-60 岁：正文 16px（`text-base`）、触控区域 ≥ 48×48px。**接触域は文字サイズと独立**——文字を縮めても 48px の下限は動かさない（`min-h-12` / `min-h-[48px]` はそのまま）
+- **ナビのラベルだけは本文の階段の外**：BottomNav / SideNav の読み仮名は `text-2xs`（11px）。5つ並ぶ短いカタカナ語はアイコンの読みであって読み下す文章ではなく、本文と同じ大きさだと常駐する帯なのに画面のどこよりも文字が詰まって見える（実際「ヒストリー」が右端で切れていた）。縮めたぶんの縦はアイコンに返す（下ナビ 20→22px）。`text-2xs` の用途はここだけ、本文には使わない
+- **字号体系在 `globals.css` @theme 统一定义**：`text-2xs`=11px（仅导航）/ `text-xs`=12px / `text-sm`=14px / `text-base`=16px / `text-lg`=18px / `text-xl`=20px / `text-2xl`=22px / `text-3xl`=28px / `text-4xl`=32px / `text-5xl`=44px；`body` 也是 16px。曾经把每一级都比 Tailwind 默认整体上调一档（12→14 / 14→16 …），可读性有了，但相邻档永远只差 2px＝阶梯是平的，标题正文注记看着一样大。现在把那一档的上调**换成阶梯的斜率**：正文一带（12〜16px）收紧提高信息密度，标题与数值（18px 以上）拉开差距。行间按日文取得比默认宽（小档更宽、标题数值收紧）。写代码时按语义选类即可，不要用 `text-[10px]` 之类的任意值；Recharts 刻度是硬编码数字，保持 ≥12
+- **改了字号就要回头看按字宽写死的固定宽度**：`w-*` 的文字栏是按「最长的词不折行」算出来的实寸，字缩小了却留着原来的框，多出来的宽度就白白从旁边的部件（滑块可动域等）扣掉（例：BrainConditionCard 两端标签 56/96px → 52/80px）
 - 缩放**不可禁用**（viewport 不设 maximumScale/userScalable）；`user-select:none` 只作用于控件，正文可选择复制
 - 字体：`next/font/google` 的 Noto Sans JP（构建期自托管，兼容静态导出），栈内排在系统日文字体之前
 - **主题不是固定深色**：`lib/theme.ts` 按时段切 4 套调色板（00-06 midnight 深靛 / 06-12 day 淡桃 blush〔日の出：赤橙 #c42d18 の主色＋紅薔薇の accent〕/ 12-18 afternoon 薄荷 / 18-24 evening 淡紫，边界 60s 渐变），经 `--dyn-*` CSS 变量 + `applyPalette` 应用，图表监听 `THEME_CHANGE_EVENT` 重读。`#0a1628` 只存在于 MindArtCanvas 的画布底色
