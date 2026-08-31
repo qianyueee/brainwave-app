@@ -49,5 +49,11 @@ bridge/build/
 bridge/dist/
 *.pyc
 
+# desktop measurement app (bridge/desktop_app.py)
+bridge/web/
+bridge/profile/
+bridge/desktop_config.json
+bridge/neurosync_desktop.log*
+
 # Local staging for the zodiac music source files (never committed)
 .zodiac-src/

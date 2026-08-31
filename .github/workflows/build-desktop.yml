@@ -1,0 +1,60 @@
+name: Build Desktop App (Windows)
+
+# デスクトップ測定アプリ（NeuroSyncMeasure.exe）のビルド。
+# Web バンドル（pnpm build:desktop → bridge/web/）→ PyInstaller の2段構え。
+# Actions タブから手動実行（Run workflow）するか、`desktop-v*` タグを push する。
+# 成果物は run の Artifacts（タグビルドは Release にも添付）。
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "desktop-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # Supabase の env を渡さないのは仕様（build-desktop.mjs 参照）：UI からの
+      # クラウド呼び出しを無効化する。クラウド送信は Python 側だけが持つ。
+      - name: Build web bundle
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build:desktop
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r bridge/requirements-desktop.txt pyinstaller
+
+      - name: Build exe
+        working-directory: bridge
+        run: pyinstaller NeuroSyncMeasure.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeuroSyncMeasure-windows
+          path: bridge/dist/NeuroSyncMeasure.exe
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bridge/dist/NeuroSyncMeasure.exe

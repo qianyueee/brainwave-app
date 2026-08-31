@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored Claude Code skills (third-party scripts, not app code)
     ".claude/**",
+    // Desktop app bundle — a copy of out/ that `pnpm build:desktop` drops into
+    // bridge/web/ for PyInstaller to pick up (generated, minified, gitignored)
+    "bridge/web/**",
   ]),
 ]);
 
