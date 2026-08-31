@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, PanelLeftClose } from "lucide-react";
 import { NAV_TABS, isTabActive } from "@/components/nav-tabs";
+import { isDesktopRoute } from "@/lib/desktop";
 import { useSidebarStore } from "@/store/useSidebarStore";
 
 /**
@@ -30,6 +31,10 @@ export default function SideNav() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, setOpen]);
+
+  // デスクトップ測定アプリ（/desktop）ではレールもランチャーも出さない
+  // （フックの後に置く——早期 return でフック数を変えない）。
+  if (isDesktopRoute(pathname)) return null;
 
   return (
     <>

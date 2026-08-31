@@ -1,6 +1,8 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import { isDesktopRoute } from "@/lib/desktop";
 import { useSidebarStore } from "@/store/useSidebarStore";
 
 /**
@@ -18,8 +20,12 @@ import { useSidebarStore } from "@/store/useSidebarStore";
  */
 export function usePageColumnClass(): string {
   const sidebarOpen = useSidebarStore((s) => s.open);
+  const pathname = usePathname();
+  // デスクトップ測定アプリ（/desktop）は SideNav ごと消えるのでランチャーも
+  // 存在しない——収納時に空ける 5rem の溝は要らず、通常の余白でよい。
+  const closedPad = isDesktopRoute(pathname) ? "md:pl-8" : "md:pl-20";
   return `mx-auto w-full max-w-[480px] md:max-w-5xl px-4 transition-[padding] duration-300 ease-out motion-reduce:transition-none ${
-    sidebarOpen ? "md:pl-8 md:pr-8" : "md:pl-20 md:pr-8"
+    sidebarOpen ? "md:pl-8 md:pr-8" : `${closedPad} md:pr-8`
   }`;
 }
 

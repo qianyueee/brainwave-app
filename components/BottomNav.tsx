@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_TABS, isTabActive } from "@/components/nav-tabs";
+import { isDesktopRoute } from "@/lib/desktop";
 
 export default function BottomNav() {
   const pathname = usePathname();
+
+  // デスクトップ測定アプリ（/desktop）はアプリ内の一画面ではないのでナビを出さない。
+  if (isDesktopRoute(pathname)) return null;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-navy neu-nav">

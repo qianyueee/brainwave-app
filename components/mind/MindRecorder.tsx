@@ -14,8 +14,14 @@ import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
  * finishes, a dialog asks whether to import it into the 脳特性 chart right
  * away; declining is fine — it can still be imported later by tapping the
  * session in the 過去の測定 list.
+ *
+ * `allowImport={false}`（デスクトップ測定アプリ /desktop 用）は取り込み導線
+ * だけを畳む：終了ダイアログ（統計・品質注記・メモ）は同じで、取り込みの
+ * 問いかけ・状態行・ボタンを単独の「閉じる」に置き換える。取り込み先の
+ * /report はログイン＋クラウド前提で、単体アプリには存在しないため。
+ * メモは dismiss 経由なのでどちらでも保存される。
  */
-export default function MindRecorder() {
+export default function MindRecorder({ allowImport = true }: { allowImport?: boolean }) {
   const isRecording = useMindStore((s) => s.isRecording);
   const recordingSamples = useMindStore((s) => s.recordingSamples);
   const startRecording = useMindStore((s) => s.startRecording);
@@ -210,19 +216,21 @@ export default function MindRecorder() {
                   </p>
                 </div>
 
-                <p className="text-base text-text-primary">
-                  この測定結果を脳特性チャートに取り込みますか？
-                </p>
+                {allowImport && (
+                  <p className="text-base text-text-primary">
+                    この測定結果を脳特性チャートに取り込みますか？
+                  </p>
+                )}
               </>
             )}
 
-            {!unusable && importStatus === "waitingLogin" && (
+            {allowImport && !unusable && importStatus === "waitingLogin" && (
               <p className="text-sm text-text-muted">ログインすると自動で取り込まれます</p>
             )}
-            {!unusable && importStatus === "waitingCloud" && (
+            {allowImport && !unusable && importStatus === "waitingCloud" && (
               <p className="text-sm text-text-muted">データの同期を待っています…</p>
             )}
-            {!unusable && importStatus === "error" && (
+            {allowImport && !unusable && importStatus === "error" && (
               <p className="text-sm text-danger">
                 取り込みに失敗しました。通信環境をご確認のうえ、もう一度お試しください
               </p>
@@ -231,6 +239,14 @@ export default function MindRecorder() {
             {unusable ? (
               <button
                 onClick={() => setFinished(null)}
+                className="min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
+              >
+                閉じる
+              </button>
+            ) : !allowImport ? (
+              /* dismiss 経由でメモを確定してから閉じる（取り込み無し版）。 */
+              <button
+                onClick={dismiss}
                 className="min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
               >
                 閉じる
@@ -259,7 +275,7 @@ export default function MindRecorder() {
               </div>
             )}
 
-            {!unusable && (
+            {allowImport && !unusable && (
               <p className="text-sm text-text-muted">
                 あとからでも「過去の測定」をタップすると取り込めます
               </p>

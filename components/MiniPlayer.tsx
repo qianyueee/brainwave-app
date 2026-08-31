@@ -7,6 +7,7 @@ import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { useAudio } from "@/components/AudioProvider";
 import { getProgramById, isCustomProgramId } from "@/lib/programs";
+import { isDesktopRoute } from "@/lib/desktop";
 import { formatTime } from "@/lib/utils";
 import { Play, Pause } from "lucide-react";
 
@@ -23,6 +24,9 @@ export function useMiniPlayerVisible(): boolean {
   const playingProgramId = useAppStore((s) => s.playingProgramId);
   const isSynthPlaying = useSynthStore((s) => s.isSynthPlaying);
   const pathname = usePathname();
+  // デスクトップ測定アプリ（/desktop）には再生導線が無い——バーも、AppMain が
+  // バーのために広げる下パディングも、この1判定で両方消える。
+  if (isDesktopRoute(pathname)) return false;
   const programPlayback = isPlaying && playingProgramId !== null;
   const synthPlayback = playingProgramId === null && isSynthPlaying;
   if (programPlayback) return pathname !== "/player";
