@@ -47,6 +47,7 @@ brainwave-app/
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
 │   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
+│   ├── desktop/page.tsx        # デスクトップ測定アプリ（bridge/desktop_app.py の WebView2）が開く**単体画面**。中身は /brain と同構成、違いは3点：源が LocalSource（ローカルWS）／接続ダイアログが DesktopSourceDialog（配对码→COMポート選択）／取り込み無し（MindRecorder allowImport=false）。ナビ・MiniPlayer 等の chrome は isDesktopRoute（lib/desktop.ts）守卫で全消し。导航に載せない（Pages 版にも無リンクで存在するが無害）
 │   └── mind|profile|log|compare/ # 旧路由跳转桩（客户端 redirect → session/brain/history/report）
 ├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
 │   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。**帯は横いっぱい**（`<main>` の幅そのまま＝画面端まで／デスクトップはレールの右端から右端まで）、中身だけ `usePageColumnClass()` に入れて下のカードと左端を揃える。地は**すりガラス**（`bg-navy/70` ＋ `backdrop-blur-2xl`＝40px）。不透明な `bg-navy` は不可——WaveBackground は `fixed` で `--dyn-navy` の上に明るい波を重ねているので、見えている地色は場所によって違い、波が横切る位置では不透明な帯だけが暗い矩形として浮く（デスクトップで露骨に出た）。blur なら背後の波の色を拾って周囲と同じ色みになる。blur は 12px では下を流れるグラフの目盛りが読めてしまうので 40px、tint は明るいアート（ブレインアート等）の滲み出しを抑えるのに 70% 必要。文字は `text-xl`/`text-xs`＝20px/12px（ページ内見出し `text-lg`=18px を下回らない範囲で最小）。帯の上下は pt-4/pb-2——文字の縮小に合わせて詰めてある（高さを据え置くと小さくなった見出しが広い帯の中で浮く）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
@@ -66,6 +67,9 @@ brainwave-app/
 │   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，数据不足为 null）。**セッション由来**＝computeBrainConditionMetrics（入定速度×共鳴率）／**非セッション由来**＝computeBaselineConditionMetrics（下の baseline.ts が算出済みの値を変換するだけ）。共鳴率を見る周波数は**その測定の誘導周波数**（`BrainProfile.targetHz`）、未入力なら既定の 40Hz＝`DEFAULT_TARGET_HZ`（従来と同じ判定）
 │   ├── mind/baseline.ts        # 10秒ベースラインチェック（非セッション時の3指標）。ターゲット周波数が無い平常時は引き込み速度が測れないので別ロジックへ：パターン1 Berger効果（開眼5秒⇄閉眼5秒のα波立ち上がり速度＋メリハリ比）を既定、成立しなければパターン2 静止時可塑性（スペクトル・エントロピー×帯域間移動度）へフォールバック。Clarity=(40Hzγ+高α)/高β、Reset=(δ+θ)比×ゆらぎ。係数は BASELINE_CONFIG に集約（**暫定値**、実測が貯まったら再標定）。⚠ サンプルは1Hzなので T_α-rise の分解能は1秒
 │   ├── mind/resonance.ts       # 「その周波数だけ周りより立っているか」＝局所突出比（目標Hzの値 ÷ ±5Hz近傍〔±1Hzは山なので除外〕の平均）＋誘導周波数の入力ルール（`TARGET_HZ_MIN/MAX/STEP`＝1〜45Hz・0.01Hz刻み、`DEFAULT_TARGET_HZ`=40、normalize/format）。ビンは1Hz刻みなので 0.01Hz 指定は前後を線形補間する
+│   ├── mind/desktop-bridge.ts  # デスクトップ測定アプリのローカル WS クライアント（シングルトン・参照カウント・?ws= でポート受取・0.5→5s バックオフ再接続）＋プロトコル型（DesktopBridgeState / DesktopCommand）。**プロトコルの正は bridge/local_server.py のコメント**
+│   ├── mind/local-source.ts    # LocalSource＝MindDataSource 第三の実装（/desktop 用）。WS 接続→onStatus("connected")、装置パイプライン稼働→onBridgeOnline——canReceiveData が /brain と同義で機能する写像
+│   ├── desktop.ts              # isDesktopRoute()：/desktop で BottomNav・SideNav・MiniPlayer・ランチャー溝（PageColumn）を消す**唯一の判定**。ビルドフラグでなく pathname なので dev/Pages/同梱ビルドで挙動が同じ
 │   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
@@ -74,7 +78,10 @@ brainwave-app/
 │   ├── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
 │   ├── useBaselineStore.ts     # 10秒ベースラインチェックの履歴 + persist（素の localStorage＝未ログインでも習慣が続く。最大60件。demo/realtime を必ず区別し、ホームの3指標は latestRealCheck＝実測のみを読む）
 │   ├── useSidebarStore.ts      # 桌面左栏开合（不 persist：每次加载都从收起开始）
+│   ├── useDesktopBridgeStore.ts # デスクトップ測定アプリのローカル WS 状態ミラー（wsConnected / state 全量快照 / lastLog、**不 persist**——正は Python 側）。deviceOnline セレクタ＝「装置パイプライン稼働」
 │   └── useZodiacStore.ts       # マイ星座偏好 + persist（普通 localStorage，未登录也生效）
+├── bridge/                     # PC 側プログラム群（Python）。①従来ブリッジ：BrainLink(SPP串口)→ThinkGear 解析→Supabase Realtime（main.py CLI / gui.py Tkinter / bridge_core.py / publisher.py / thinkgear.py / csv_logger.py / demo_source.py）②デスクトップ測定アプリ：desktop_app.py（入口・pywebview）+ desktop_bridge.py（管线编排）+ local_server.py（WS 协议正本）+ static_server.py + desktop_config.py。詳細は下の「デスクトップ測定アプリ与 PC 桥接」与 bridge/README.md
+├── scripts/build-desktop.mjs   # `pnpm build:desktop`：basePath 空＋无 Supabase env 构建 → bridge/web/（剔除 sounds/ ~300MB）→ 校验无 /brainwave-app 残留
 ├── public/sounds/              # 自然音素材
 │   └── zodiac/                 # 96 首星座音乐（12星座×8差频，128kbps 立体声，已去封面图，共 284MB）
 └── zodiac-music/               # 星座音乐素材说明（README；原始 190kbps 版本只存在于 `zodiac-music` 分支，不合并进 main）
@@ -177,6 +184,47 @@ AudioContext（全局单例，getAudioContext() 管理）
 - `playingProgramId` = 实际在响的节目 id（音频真源），仅由 AudioProvider 的 start/stop 写入；显示端（/player 及其子组件、ExportDialog）一律用 `useDisplayProgramId()`（在响→真源，否则→选择），MiniPlayer 直接用真源——保证"听到的"和"看到的"永远一致
 - `useSynthStore` 启用 persist + partialize，仅持久化 `savedPresets`
 - `crypto.randomUUID` 在 HTTP 环境下不可用，需降级为 `Date.now().toString(36) + Math.random()`
+
+### デスクトップ測定アプリ与 PC 桥接（bridge/）
+
+实时脑波链路有两条，共用同一套串口读取＋ThinkGear 解析＋CSV 存档（Python）：
+
+```
+经典桥接:  BrainLink ──蓝牙SPP串口──> BrainLinkBridge.exe/main.py ──Supabase Realtime──> /brain（RealtimeSource）
+桌面单体:  BrainLink ──蓝牙SPP串口──> NeuroSyncMeasure.exe（desktop_app.py）──本地WS──> /desktop（LocalSource）
+                                        └─（可选开关，默认关）──Supabase Realtime──> /brain 照常观看
+```
+
+- **wire contract 三方共通**：`EegSample`（`lib/mind/types.ts`）＝ `bridge/publisher.py` 的
+  broadcast payload ＝ 本地 WS `{"type":"sample","sample":{…}}` 的 sample，逐键相同，改任何
+  一方必须三处同步。云端频道 `eeg:{归一化配对码}`、事件 `"sample"` 不变。
+- **本地 WS 协议正本在 `bridge/local_server.py` 模块注释**（web 侧类型在 `lib/mind/desktop-bridge.ts`）：
+  单条 socket 承载样本+控制；命令 `scan/connect/disconnect/demo/cloud`，无逐命令 ack，
+  一律回 `state` 全量快照。
+- **端口**：HTTP=17860 **必须固定**（localStorage 按 origin〔含端口〕隔离，端口漂移＝
+  测定记录全部"消失"）；WS=17861 可漂（实端口经页面 URL `?ws=` 传入，缺省回落 17861）。
+  HTTP 绑定失败＝已有实例在跑 → 弹窗退出（也避免抢串口）。
+- **pywebview 必须 `private_mode=False` + `storage_path`**（默认隐私模式每次退出清空
+  localStorage）；WebView2 缺失时弹 Evergreen Runtime 下载指引。
+- 云端同送**默认关、不持久化开关**（只记配对码）：起動しただけで脳波が外に流れない。
+  码是**手机侧**的码（/brain「接続する」显示），桌面端只做输入。
+- `bridge_core.run_bridge()` 是 CLI/GUI 的一本道生命周期，桌面端不用它——复用其部件
+  `_serial_reader` / `_demo_producer` ＋ `CsvLogger` ＋ `SupabasePublisher`，由
+  `desktop_bridge.DesktopBridge` 动态编排（connect/disconnect/demo/cloud 可随时切）。
+  `gui.py` 顶层 import tkinter，headless 不可 import——`list_serial_ports()` 在
+  desktop_bridge 里有带描述的复制版。
+- **websockets 版本由 realtime（supabase 依赖）钉死**：local_server 用双路径 import
+  ＋单参 handler＋手写广播循环，新旧 API 通吃；不要另钉版本、不要用 `broadcast()`
+  helper 或 `process_request`。
+- **构建**：`next.config.ts` 的 basePath 读 `NEXT_PUBLIC_BASE_PATH`（`??` 保留显式空串；
+  未设时按 NODE_ENV 回落 `/brainwave-app`＝Pages 部署不变）。`pnpm build:desktop` 出
+  无前缀包到 `bridge/web/`（剔除 sounds/）；CI lane：`build-desktop.yml`
+  （workflow_dispatch / `desktop-v*` tag → `NeuroSyncMeasure.exe`），与经典桥的
+  `build-bridge.yml`（`bridge-v*`）并行独立。Next 静态导出对 `/desktop` 会同时产出
+  `desktop.html` 与 `desktop/`（RSC payload 目录）——static_server 对无扩展名路径
+  优先 `.html` 同名文件，正是为了这个双胞胎结构。
+- 开发流：`python bridge/desktop_app.py --no-window [--demo]` ＋ `pnpm dev` →
+  `http://localhost:3000/desktop`；打包同源验证走 `http://127.0.0.1:17860/desktop`。
 
 ## Notes & Prompts
 

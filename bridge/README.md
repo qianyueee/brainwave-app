@@ -1,27 +1,92 @@
-# BrainLink ブリッジ（PC用）
+# BrainLink ブリッジ／デスクトップ測定アプリ（PC用）
 
-BrainLink Pro ヘッドセットの脳波データを Bluetooth シリアル経由で読み取り、
-Supabase Realtime でクラウドに送信するプログラムです。
-スマホの Web アプリ（マインドマップ画面）に表示される**ペアリングコード**を
-このプログラムに入力すると、リアルタイムに脳波の状態が表示されます。
+BrainLink Pro ヘッドセットの脳波データを Bluetooth シリアル経由で読み取る
+PC 側プログラム群です。用途は3通り：
+
+- **A. デスクトップ測定アプリ（NeuroSyncMeasure.exe）** — **PC 単体で完結**。
+  Web アプリの Sync Brain と同じ測定画面をそのまま載せた単体アプリで、
+  クラウドもスマホも不要（スマホ連携はオプション）。→「デスクトップ測定アプリ」へ
+- **B. 配布版ブリッジ（BrainLinkBridge.exe、Windows、Python不要）** — 従来方式。
+  脳波をクラウドへ中継し、**スマホの Web アプリで見る**。→「配布版ブリッジ」へ
+- **C. コマンドライン版（開発・検証用）** — Python が必要。→「コマンドライン版」へ
 
 ```
-BrainLink Pro ──Bluetooth──> このプログラム（PC） ──インターネット──> スマホのWebアプリ
+A: BrainLink ──Bluetooth──> NeuroSyncMeasure.exe（読取・解析・表示・保存を1プロセスで）
+                              └─（任意・既定OFF）クラウド同時配信 ──> スマホの Sync Brain
+B: BrainLink ──Bluetooth──> BrainLinkBridge.exe ──インターネット──> スマホの Sync Brain
 ```
 
 > **アカウント・パスワードは不要です。** スマホ側はGoogleでもメールでも、どの方法で
-> ログインしていても（またはログインしていなくても）構いません。両者が同じ
-> ペアリングコードを使うことだけが条件です。
-
-利用方法は2通りあります：
-
-- **A. 配布版アプリ（Windows、Python不要）** — 一般の利用者向け。`.exe`をダウンロード
-  してダブルクリックするだけ。→ 下の「配布版アプリ」へ
-- **B. コマンドライン版（開発・検証用）** — Python が必要。→ 「コマンドライン版」へ
+> ログインしていても（またはログインしていなくても）構いません。クラウド連携は
+> 両者が同じ**ペアリングコード**（スマホの Sync Brain「接続する」に表示）を使う
+> ことだけが条件です。
 
 ---
 
-## 配布版アプリ（Windows、Python不要）
+## デスクトップ測定アプリ（NeuroSyncMeasure.exe、PC単体で完結）
+
+ブリッジと同じシリアル読取・ThinkGear 解析・CSV 記録の上に、Web アプリの
+Sync Brain と同じ測定画面（マインドマップ／脳波バランス／ブレインアート／推移、
+測定の開始・終了とローカル保存、10秒チェック）を載せた単体アプリです。
+
+### 使い方
+
+1. ヘッドセットの電源を入れ、PC とペアリング（→ 下の「Bluetooth ペアリングと
+   シリアルポートの確認」）。
+2. `NeuroSyncMeasure.exe` をダブルクリック（未署名のため SmartScreen が警告したら
+   「詳細情報」→「実行」）。
+3. 画面左上の **接続する** → BrainLink のポートを選んで **このポートに接続する**。
+4. **測定を開始** で測定。終了すると集中／リラックス／ゾーン率のまとめとメモ入力が
+   出ます。記録はアプリ内（測定者ごとのローカル保存）と `logs/` の CSV に残ります。
+
+- 実機が無いときは接続設定の「**合成データでテストする**」で、実機と同じ経路
+  （解析→表示→CSV→クラウド）を合成データで確認できます。
+- **クラウド同時配信（既定 OFF）**: 接続設定にスマホの Sync Brain「接続する」で
+  表示されるペアリングコードを入力して「配信を開始する」を押すと、従来どおり
+  スマホでも同じ測定をリアルタイムに見られます。コードは記憶しますが、配信の
+  ON は起動のたびに入れ直します（起動しただけで黙って外に送り続けない）。
+
+### 必要環境・作られるファイル
+
+- Windows 10/11 と **Microsoft Edge WebView2 ランタイム**（通常はプリインストール。
+  無ければ起動時に案内が出ます: https://developer.microsoft.com/microsoft-edge/webview2/ ）
+- exe と同じフォルダに作られるもの：
+  - `desktop_config.json` … ポート・コードなどの設定（`bridge_config.json` とは別）
+  - `profile/` … 画面内の保存データ（測定記録・測定者・10秒チェック。消すと記録も消える）
+  - `logs/session_*.csv` … 測定の生データ（従来ブリッジと同形式、下の「CSV ログの列」）
+  - `neurosync_desktop.log` … 動作ログ
+
+### ビルド（GitHub Actions）
+
+**Actions** タブ → **Build Desktop App (Windows)** → **Run workflow**
+（または `desktop-v1.0` のようなタグを push）。成果物は `NeuroSyncMeasure-windows`、
+タグビルドは Releases にも添付。中では Web バンドル（`pnpm build:desktop` →
+`bridge/web/`）→ PyInstaller（`NeuroSyncMeasure.spec`）の順にビルドされます。
+
+### 開発（ソースから実行）
+
+```bash
+# リポジトリ直下
+pnpm install && pnpm build:desktop        # 同梱 UI を生成（bridge/web/）
+cd bridge
+pip install -r requirements-desktop.txt
+python desktop_app.py                     # ウィンドウ起動（Windows）
+python desktop_app.py --no-window --demo  # サーバのみ + 合成データ（Linux/Mac 検証用）
+```
+
+`--no-window` のときは `pnpm dev` を立てて http://localhost:3000/desktop から
+繋げます（UI の変更が即座に反映される）。ローカル待受は
+`http://127.0.0.1:17860`（画面）と `ws://127.0.0.1:17861`（データ＋制御、
+プロトコルは `local_server.py` のコメントが正）。**HTTP のポートは固定**です——
+画面内の保存データ（localStorage）は「アドレス＋ポート」単位で隔離されるため、
+ポートが変わると記録が全部見えなくなります。
+
+> GitHub Pages 版のサイトにも `/desktop` ページ自体は存在しますが、リンクは
+> どこにも無く、開いても `ws://127.0.0.1` に繋がらないだけで無害です。
+
+---
+
+## 配布版ブリッジ（BrainLinkBridge.exe、Windows、Python不要）
 
 ### 入手とビルド
 
@@ -37,8 +102,8 @@ BrainLink Pro ──Bluetooth──> このプログラム（PC） ──イン�
 ### 使い方（利用者）
 
 1. ヘッドセットの電源を入れ、PC とペアリング（→ 下の「シリアルポートの確認」）。
-2. スマホでアプリの「マインド」→「リアルタイム」を開き、表示される
-   **ペアリングコード**（例: `AB23-CD45`）を確認。
+2. スマホでアプリの **Sync Brain**（脳波同期・測定）を開き、「**接続する**」を
+   押すと表示される**ペアリングコード**（例: `AB23-CD45`）を確認。
 3. `BrainLinkBridge.exe` をダブルクリック。
 4. 画面に入力：
    - **ペアリングコード**: 手順2のコード
@@ -93,7 +158,7 @@ cp .env.example .env
 ```
 
 - `SUPABASE_URL` / `SUPABASE_ANON_KEY`: 既定値が同梱されているので通常は変更不要
-- `PAIRING_CODE`: スマホアプリの「マインド」→「リアルタイム」に表示されるコード
+- `PAIRING_CODE`: スマホアプリの Sync Brain「接続する」に表示されるコード
   （`--code AB23-CD45` のように実行時に渡すことも可能）
 - `EEG_PORT`: 手順1で確認したシリアルポート
 
@@ -107,8 +172,8 @@ cp .env.example .env
 python main.py --demo
 ```
 
-合成データがクラウドに送信されます。スマホで Web アプリの
-「マインド」タブ →「リアルタイム」に切り替えて、
+合成データがクラウドに送信されます。スマホで Web アプリの Sync Brain を開き、
+「接続する」を押してリアルタイムに切り替えると、そのダイアログに
 **「ブリッジ：オンライン」** と表示され、光る点が動けば成功です。
 
 ### ステップ B: 実機の確認（クラウド不要）
