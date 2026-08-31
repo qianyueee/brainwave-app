@@ -1,0 +1,5 @@
+# デスクトップ測定アプリ（desktop_app.py）用。従来ブリッジの依存 + pywebview。
+# websockets はここで固定しない — realtime（supabase の依存）が握っている版に
+# 従い、local_server.py 側が新旧 API どちらでも動くように書いてある。
+-r requirements.txt
+pywebview>=5.1
