@@ -260,3 +260,11 @@ AudioContext（全局单例，getAudioContext() 管理）
 | ナイトリカバリー | night-recovery | 136.1Hz | 1.5Hz (Delta) | 30min |
 
 另有星座节目体系（`ZODIAC_PROGRAMS`，模块合成型）：12 个固有节目（`zodiac-<sign>`，自星座载波×自星座差频）+ 各星座×9 种矩阵差频的模块版（`zodiac-<sign>-b<beat>`，共 110 个，工厂生成，统一 15min / 導入→遷移→同調→収束 四相位），经 `getProgramById` 兜底解析，全链路（播放/定时/导出/可视化）可用；首相位名必须保持 `導入`（Visualizer 特判）。
+
+## collection-app/（独立子项目・与 NeuroSync 无关）
+
+个人素材收藏工具：把封面标题样本 / 照片 / 视频链接或录屏 / 动效录屏拖进窗口，**按规则自动分类（无 AI）**，原文件原样保存到普通文件夹，分错可手改，每条可写评述。零依赖（Node ≥ 18），无构建步骤，不进 Next 的 lint/tsc 范围（`eslint.config.mjs` 已忽略）。
+
+- 运行：`cd collection-app && node server.mjs [--dir <素材库>] [--port 7788]`；测试：`pnpm test`（`node --test test/run.mjs`）
+- 素材库＝`library.json`（唯一真源）＋按分类命名的文件夹（改分类＝移动文件）＋ `_previews/`（链接封面缓存）＋ `.trash/`（删除只挪不删）。数据格式与接口见 `collection-app/README.md`
+- 规则全在 `public/classify.js`（域名表 / 文件名线索 / 时长阈值），浏览器与服务端共用；「上图下文」封面检测在 `public/analyze.js`（缩到 96px 逐行找"均匀底色 + 稀疏文字"的带子，另附交界直线与底色一致性两道防误判）。每个条目同时保留 `autoCategory` 与 `category`，人工改正即是将来训练分类器的标注

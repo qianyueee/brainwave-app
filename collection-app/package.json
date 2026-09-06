@@ -1,0 +1,12 @@
+{
+  "name": "collection-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "素材收藏：拖入图片/视频/链接，按规则自动分类，保留原文件，可评述。零依赖本地应用。",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node test/run.mjs"
+  }
+}

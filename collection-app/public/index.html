@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>素材收藏</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <h1>素材收藏</h1>
+    <p class="sub">把图片、视频、链接拖到这个窗口，就会自动归类。分错了点开改一下。</p>
+  </div>
+  <form id="link-form" class="link-form" autocomplete="off">
+    <input id="link-input" type="url" placeholder="粘贴链接，回车收藏" aria-label="链接">
+    <button type="submit" class="btn primary">收藏链接</button>
+  </form>
+  <label class="btn ghost file-btn">选择文件<input id="file-input" type="file" multiple hidden></label>
+</header>
+
+<nav class="tabs" id="tabs" aria-label="分类"></nav>
+
+<div class="toolbar">
+  <input id="search" type="search" placeholder="搜索标题 / 评述 / 网址" aria-label="搜索">
+  <span class="path" id="lib-path" title="素材库文件夹"></span>
+  <a class="path-link" id="lib-json" href="/files/library.json" target="_blank" rel="noopener">library.json</a>
+</div>
+
+<main id="grid" class="grid" aria-live="polite"></main>
+
+<section id="empty" class="empty" hidden>
+  <div class="empty-art" aria-hidden="true">⬇</div>
+  <h2>还没有素材</h2>
+  <p>把图片、视频、录屏拖进来，或者把网址拖 / 粘贴进来。</p>
+  <p class="dim">图片会按「上图下文」结构判断是不是封面标题；录屏按时长分成动效和视频；链接按站点分类。</p>
+</section>
+
+<aside id="drawer" class="drawer" hidden aria-label="素材详情">
+  <header class="drawer-head">
+    <span class="kind-badge" id="d-kind"></span>
+    <span class="save-state" id="d-save"></span>
+    <button class="icon-btn" id="d-close" aria-label="关闭">✕</button>
+  </header>
+  <div class="d-preview" id="d-preview"></div>
+  <input id="d-title" class="d-title" placeholder="标题" aria-label="标题">
+  <div class="d-url" id="d-url"></div>
+
+  <h3 class="d-label">分类 <span class="dim">点一下就改，文件会跟着挪到对应文件夹</span></h3>
+  <div class="cats" id="d-cats" role="radiogroup"></div>
+  <p class="auto" id="d-auto"></p>
+
+  <h3 class="d-label">评述 <span class="dim">好在哪里？为什么收藏？自动保存</span></h3>
+  <textarea id="d-note" class="d-note" rows="6" placeholder="例：标题用了数字＋反差；图只留一个主体，色彩克制……"></textarea>
+
+  <dl class="meta" id="d-meta"></dl>
+
+  <div class="d-actions">
+    <a class="btn ghost" id="d-open" target="_blank" rel="noopener">打开原文件</a>
+    <button class="btn ghost" id="d-reveal">在文件夹中显示</button>
+    <button class="btn danger" id="d-delete">删除（移到回收站）</button>
+  </div>
+</aside>
+
+<div id="drop-overlay" class="drop-overlay" hidden>
+  <div class="drop-box">
+    <strong>松开即收藏</strong>
+    <span>会自动分类，分错了可以改</span>
+  </div>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
