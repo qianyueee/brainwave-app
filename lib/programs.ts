@@ -10,6 +10,12 @@ export interface FrequencyPhase {
   endBeatFreq: number;
 }
 
+/**
+ * Sync Session のタブ。既存の3節目と新規の Morning Tuning が "default"、
+ * 星座節目（ZODIAC_PROGRAMS）が "astro"、あとは新しいカタログ2種。
+ */
+export type ProgramCategory = "default" | "target" | "energy" | "astro";
+
 export interface ProgramConfig {
   id: string;
   name: string;
@@ -22,6 +28,27 @@ export interface ProgramConfig {
   /** Target beat frequency displayed during intro phase (Hz) */
   targetBeatFreq: number;
   phases: FrequencyPhase[];
+
+  // --- カタログ用（すべて任意。既存の消費側は読まないので後方互換） ---
+
+  /** Sync Session のどのタブに並ぶか。省略時は "default" 扱い。 */
+  category?: ProgramCategory;
+  /** Target 内の小分類（仕事・勉強 など）。他カテゴリでは未使用。 */
+  subGenre?: string;
+  /** 英語原題。プレイヤーの副題と検索に使う。 */
+  titleEn?: string;
+  /**
+   * 音楽ベッドの mp3 がまだ無い。誘導ビートは BinauralSession が実時間合成する
+   * ので再生自体は通常どおりできる——伴奏が付かないだけ。
+   */
+  audioPending?: boolean;
+  /** 周波数が一覧 xlsx 未取り込みの暫定値であることの印。 */
+  paramsProvisional?: boolean;
+  /**
+   * 検索用の追加語。名前・説明・英題から導けない読みだけを足す
+   * （漢字→かなは辞書が要るので機械では畳めない）。
+   */
+  keywords?: string;
 }
 
 /**
@@ -30,6 +57,7 @@ export interface ProgramConfig {
  */
 const resetAndDeep: ProgramConfig = {
   id: "reset-deep",
+  category: "default",
   name: "リセット＆ディープ",
   description: "シューマン共鳴 7.83Hz でリセット",
   icon: "🌊",
@@ -74,6 +102,7 @@ const resetAndDeep: ProgramConfig = {
  */
 const clarityFocus: ProgramConfig = {
   id: "clarity-focus",
+  category: "default",
   name: "クラリティ・フォーカス",
   description: "ガンマ波 40Hz で集中力アップ",
   icon: "⚡",
@@ -118,6 +147,7 @@ const clarityFocus: ProgramConfig = {
  */
 const nightRecovery: ProgramConfig = {
   id: "night-recovery",
+  category: "default",
   name: "ナイトリカバリー",
   description: "デルタ波で深い睡眠をサポート",
   icon: "🌙",
@@ -163,7 +193,67 @@ const nightRecovery: ProgramConfig = {
   ],
 };
 
-export const PROGRAMS: ProgramConfig[] = [resetAndDeep, clarityFocus, nightRecovery];
+/**
+ * Morning Tuning & Energize — アルファからベータへ、朝の立ち上げ
+ * Carrier: 432Hz, Default: 10 min
+ *
+ * 4節目めとして追加。他の3つが「下げる／深める」方向なのに対し、これだけが
+ * 朝いちばんに上げる向き——だから終わりを 10Hz へ戻さず、そのまま 20Hz まで
+ * 送り出して終わる（覚めたまま一日へ渡すのが狙い）。
+ *
+ * ⚠ 尺と相位の切りどころは暫定（paramsProvisional）。一覧 xlsx
+ * 「Morning Tuning & Energizeプログラム.xlsx」取り込みで確定させる。
+ */
+const morningTuning: ProgramConfig = {
+  id: "morning-tuning",
+  category: "default",
+  name: "モーニングチューニング",
+  titleEn: "Morning Tuning & Energize",
+  description: "アルファ→ベータ 432Hz で朝の覚醒",
+  icon: "🌅",
+  carrierFreq: 432,
+  defaultDuration: 10 * 60,
+  targetBeatFreq: 14.0,
+  paramsProvisional: true,
+  audioPending: true,
+  phases: [
+    {
+      name: "導入",
+      startTime: 0,
+      endTime: 2 * 60,
+      startBeatFreq: 10.0,
+      endBeatFreq: 10.0,
+    },
+    {
+      name: "覚醒",
+      startTime: 2 * 60,
+      endTime: 5 * 60,
+      startBeatFreq: 10.0,
+      endBeatFreq: 14.0,
+    },
+    {
+      name: "定着",
+      startTime: 5 * 60,
+      endTime: 8.5 * 60,
+      startBeatFreq: 14.0,
+      endBeatFreq: 14.0,
+    },
+    {
+      name: "送り出し",
+      startTime: 8.5 * 60,
+      endTime: 10 * 60,
+      startBeatFreq: 14.0,
+      endBeatFreq: 20.0,
+    },
+  ],
+};
+
+export const PROGRAMS: ProgramConfig[] = [
+  resetAndDeep,
+  clarityFocus,
+  nightRecovery,
+  morningTuning,
+];
 
 // --- Zodiac Programs (Cosmic & Brain Sync, modular synthesis) ---
 
@@ -198,6 +288,9 @@ function zodiacPhases(t: number) {
 function createZodiacProgram(sign: ZodiacSign): ProgramConfig {
   return {
     id: zodiacProgramId(sign.key),
+    category: "astro",
+    subGenre: sign.nameJa,
+    keywords: `${sign.nameJa} ${sign.key}`,
     name: sign.programName,
     description: sign.description,
     icon: sign.glyph,
@@ -217,6 +310,9 @@ function createModularProgram(sign: ZodiacSign, beat: number): ProgramConfig {
   const beatKey = String(beat);
   return {
     id: modularProgramId(sign.key, beat),
+    category: "astro",
+    subGenre: sign.nameJa,
+    keywords: `${sign.nameJa} ${sign.key}`,
     name: `${Math.round(sign.carrierFreq)}Hz × ${beatKey}Hz ${BEAT_TITLE[beatKey]}`,
     description: BEAT_EFFECT[beatKey],
     icon: sign.glyph,
@@ -241,8 +337,80 @@ export const ZODIAC_PROGRAMS: ProgramConfig[] = [
   ),
 ];
 
+// --- Catalog (Target / Energy) & cross-category lookup ---
+
+import { CATALOG_PROGRAMS } from "./catalog";
+import { CATEGORY_LABEL } from "./catalog/categories";
+import { assertCatalog } from "./catalog/invariants";
+import { buildSearchText, matchesQuery } from "./catalog/search";
+
+/** 全カテゴリの節目。デフォルト4 ＋ 星座118 ＋ カタログ55。 */
+export const ALL_PROGRAMS: ProgramConfig[] = [
+  ...PROGRAMS,
+  ...ZODIAC_PROGRAMS,
+  ...CATALOG_PROGRAMS,
+];
+
+/**
+ * id → 節目の一発引き。以前は3配列の線形探索だったが、カタログが入って
+ * 総数が 170 を超えた——ProgramCard は1枚ごとに getAdjustedProgram 経由で
+ * ここを叩くので、検索欄を1文字打つたびに数万回の比較になっていた。
+ * 先に見つかったほうを残すので、PROGRAMS → ZODIAC → CATALOG の優先順は従来どおり。
+ */
+const PROGRAM_BY_ID: ReadonlyMap<string, ProgramConfig> = (() => {
+  const map = new Map<string, ProgramConfig>();
+  for (const p of ALL_PROGRAMS) {
+    if (!map.has(p.id)) map.set(p.id, p);
+  }
+  return map;
+})();
+
+if (process.env.NODE_ENV !== "production") {
+  assertCatalog(ALL_PROGRAMS);
+}
+
 export function getProgramById(id: string): ProgramConfig | undefined {
-  return PROGRAMS.find((p) => p.id === id) ?? ZODIAC_PROGRAMS.find((p) => p.id === id);
+  return PROGRAM_BY_ID.get(id);
+}
+
+/** category 未指定の節目（既存の内蔵3つ）は "default" 扱い。 */
+export function programCategory(p: ProgramConfig): ProgramCategory {
+  return p.category ?? "default";
+}
+
+export function programsByCategory(category: ProgramCategory): ProgramConfig[] {
+  return ALL_PROGRAMS.filter((p) => programCategory(p) === category);
+}
+
+/**
+ * 検索の当たり先。節目の文字列はどれも既にバンドルに載っているので、
+ * 正規化済みの写しを節目オブジェクトに持たせる（＝全ページで読み込まれる
+ * 共有チャンクを太らせる）のではなく、初回の検索時に組んで覚えておく。
+ * 170件ぶんでも1ミリ秒に満たず、しかもページ読み込みごとに一度きり。
+ */
+const searchTextCache = new Map<string, string>();
+
+function searchTextOf(p: ProgramConfig): string {
+  const cached = searchTextCache.get(p.id);
+  if (cached !== undefined) return cached;
+  const built = buildSearchText([
+    p.name,
+    p.titleEn,
+    p.description,
+    CATEGORY_LABEL[programCategory(p)],
+    p.subGenre,
+    p.keywords,
+    `${p.carrierFreq}Hz`,
+    `${p.targetBeatFreq}Hz`,
+  ]);
+  searchTextCache.set(p.id, built);
+  return built;
+}
+
+/** 全カテゴリ横断の検索。空クエリは空配列（呼び出し側はタブ表示へ戻る）。 */
+export function searchPrograms(query: string): ProgramConfig[] {
+  if (!query.trim()) return [];
+  return ALL_PROGRAMS.filter((p) => matchesQuery(searchTextOf(p), query));
 }
 
 // --- Custom Programs (synth-based) ---
