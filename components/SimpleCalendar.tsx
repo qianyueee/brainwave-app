@@ -6,12 +6,18 @@ import { ChevronLeft, ChevronRight, BarChart3, Music, Timer } from "lucide-react
 import { useAppStore } from "@/store/useAppStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
+import { useJournalStore, type JournalEntry } from "@/store/useJournalStore";
 import { scoreColor } from "@/lib/brain-measurements";
+import { moodColor } from "@/lib/journal";
 import { buildDayRecords, recordedDayKeys, type DayRecordKind } from "@/lib/day-records";
+import DayJournal from "@/components/DayJournal";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 const cellKey = (y: number, m: number, d: number) => `${y}-${m}-${d}`;
+
+/** 初回描画用の空。毎回 {} を作ると参照が毎回変わる。 */
+const EMPTY_JOURNAL: Record<string, JournalEntry> = {};
 
 const hhmm = (at: number) =>
   new Date(at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
@@ -31,6 +37,11 @@ const KIND_META: Record<DayRecordKind, { icon: typeof Music; color: string }> = 
  * 脳波測定の一種なので「脳波の記録がある日」という意味は同じだから。どちらが
  * あったかは開いた明細が answers する。
  *
+ * 振り返り（本人が書いたぶん）の印だけは**右上の角**に置く。下の2つと同じ列に
+ * 3つ目を足すと上の理由で潰れるが、位置が違えば潰れないし、そもそも種類が違う
+ * ——下はアプリが自動で残した記録、右上は本人が書いたもの。色はその日の調子を
+ * そのまま持たせてあるので、月を眺めるだけで調子の並びが読める。
+ *
  * 月送りを付けたのは、タップできるのに今月しか見られないと先月の記録に手が
  * 届かないため。未来の月へは進めない（記録が存在し得ない）。
  */
@@ -40,6 +51,7 @@ export default function SimpleCalendar() {
   const measurements = useBrainProfileStore((s) => s.measurements);
   const setViewingMeasurement = useBrainProfileStore((s) => s.setViewingMeasurement);
   const checks = useBaselineStore((s) => s.checks);
+  const journalEntries = useJournalStore((s) => s.entries);
 
   // Persisted stores aren't available on the server / first paint; gate their
   // dots behind mount to avoid a hydration mismatch.
@@ -68,6 +80,9 @@ export default function SimpleCalendar() {
       }),
     [sessionLogs, measurements, checks, mounted]
   );
+
+  /** 振り返りも persist 由来なので、ドットと同じく mounted まで出さない。 */
+  const journal = mounted ? journalEntries : EMPTY_JOURNAL;
 
   /** 選択日の明細。時刻順（古い→新しい）。 */
   const entries = useMemo(
@@ -143,6 +158,7 @@ export default function SimpleCalendar() {
           const key = cellKey(year, month, day);
           const hasLog = dots.session.has(key);
           const hasBrain = dots.brain.has(key);
+          const note = journal[key];
           const isToday = isCurrentMonth && day === now.getDate();
           const isSelected = selectedKey === key;
           return (
@@ -160,6 +176,15 @@ export default function SimpleCalendar() {
               }`}
             >
               {day}
+              {note && (
+                <span
+                  aria-hidden
+                  className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full"
+                  style={{
+                    background: isSelected ? "var(--dyn-on-primary)" : moodColor(note.mood),
+                  }}
+                />
+              )}
               {(hasLog || hasBrain) && (
                 <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
                   {hasLog && (
@@ -189,7 +214,7 @@ export default function SimpleCalendar() {
         })}
       </div>
 
-      <div className="flex items-center justify-center gap-4 mt-3 text-xs text-text-muted">
+      <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-text-muted">
         <span className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-accent" />
           セッション
@@ -197,6 +222,13 @@ export default function SimpleCalendar() {
         <span className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-primary" />
           脳波測定
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: "var(--dyn-text-secondary)" }}
+          />
+          振り返り（右上）
         </span>
       </div>
 
@@ -206,6 +238,7 @@ export default function SimpleCalendar() {
           <p className="text-base font-bold text-text-primary">{selectedLabel}</p>
 
           {entries.length === 0 ? (
+            // 記録が無い日でも振り返りは書ける（下に続く）ので、言い切らない。
             <p className="text-sm text-text-secondary">この日の記録はありません</p>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -268,6 +301,8 @@ export default function SimpleCalendar() {
               })}
             </ul>
           )}
+
+          <DayJournal dayKey={selectedKey} />
         </div>
       )}
     </div>
