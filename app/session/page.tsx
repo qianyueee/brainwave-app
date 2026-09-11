@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { PROGRAMS } from "@/lib/programs";
-import ProgramCard from "@/components/ProgramCard";
 import PublishedProgramCard from "@/components/PublishedProgramCard";
+import CatalogSection from "@/components/CatalogSection";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -13,8 +12,12 @@ import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
 /**
- * Sync Session — 聴くための画面。今日の星座周波数の水マンダラ、Sync Sound の
- * 3節目、グループに配信されたプログラムが並ぶ。
+ * Sync Session — 聴くための画面。上段は今日の星座周波数の水マンダラと、
+ * グループに配信されたプログラム。下段は Sync Sound の一覧——デフォルト /
+ * Target / Energy / Astro の4タブと、全カテゴリ横断の検索（CatalogSection）。
+ *
+ * 一覧を上段の2列グリッドの片側に入れず、幅いっぱいの段として下に置いてある：
+ * 節目が170件あるので、半分の幅に押し込むとカードが縦に延々と続く筒になる。
  *
  * 音源をつくる・公開する管理者向けの操作（カスタムプログラム、合成器の新規
  * 作成、公開／取り下げ）はここには置かない——管理パネルの「音源」タブに集約
@@ -66,14 +69,6 @@ export default function SessionPage() {
       <div className="flex flex-col gap-6">
       {/* Today's frequency as a water mandala — the first thing on entry */}
       <WaterMandalaHero />
-
-      {/* Programs — the "Sync Sound" lineup */}
-      <div className="flex flex-col gap-3 breathe-stagger">
-        <p className="text-sm text-text-secondary">Sync Sound｜脳波同期サウンド</p>
-        {PROGRAMS.map((program) => (
-          <ProgramCard key={program.id} program={program} />
-        ))}
-      </div>
       </div>
 
       <div className="flex flex-col gap-6">
@@ -112,6 +107,12 @@ export default function SessionPage() {
         </div>
       )}
       </div>
+      </div>
+
+      {/* Sync Sound の一覧。幅いっぱいの段（上の理由はファイル冒頭）。 */}
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-text-secondary">Sync Sound｜脳波同期サウンド</p>
+        <CatalogSection />
       </div>
       </PageColumn>
     </div>
