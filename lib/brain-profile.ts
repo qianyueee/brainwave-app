@@ -649,13 +649,21 @@ function extendPhase(phases: FrequencyPhase[], phaseName: string, extraSeconds: 
  * Returns a modified ProgramConfig adjusted for the user's brain profile.
  * Total extension is capped at +50% of original defaultDuration.
  */
+/**
+ * 個別調整の分岐（下の switch）を持つのは内蔵の3節目だけ。星座節目とカタログ
+ * 節目は switch を素通りするので、深い複製を作るだけ無駄になる——Sync Session
+ * のタブは一度に数十枚のカードを描き、カードは1枚ごとにここを呼ぶので、
+ * その無駄が検索欄の打鍵ごとに効いてくる。
+ */
+const PERSONALIZED_IDS = new Set(["clarity-focus", "reset-deep", "night-recovery"]);
+
 export function getAdjustedProgram(
   programId: string,
   indicators: BrainIndicators | null
 ): ProgramConfig | undefined {
   const base = getProgramById(programId);
   if (!base) return undefined;
-  if (!indicators) return base;
+  if (!indicators || !PERSONALIZED_IDS.has(programId)) return base;
 
   const program = deepCloneProgram(base);
   const maxExtension = base.defaultDuration * 0.5;
