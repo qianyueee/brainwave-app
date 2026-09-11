@@ -1,5 +1,13 @@
 import type { ProgramCategory, ProgramConfig } from "../programs";
+import { CATALOG_PARAMS } from "./params.generated";
 import { catalogPhases, type CatalogPhaseOptions } from "./phases";
+
+/** 一覧 xlsx が持っている値＝周波数と尺だけ。名前や並びは人の側が持つ。 */
+export interface CatalogParams {
+  carrierFreq?: number;
+  targetBeatFreq?: number;
+  durationMin?: number;
+}
 
 /**
  * カタログ1件の素の定義。周波数とタイムラインの決まりごとは
@@ -32,14 +40,20 @@ export interface CatalogEntry {
 }
 
 /**
- * カタログ節目はいまのところ全件が
- *   - audioPending: true（mp3 未納品。誘導ビートは実時間合成されるので再生は可能）
- *   - paramsProvisional: true（周波数は一覧 xlsx 未取り込みの暫定値）
- * なので、ここで一括して立てる。取り込みが済んだ節目から個別に外していく。
+ * カタログ節目はいまのところ全件が mp3 未納品（audioPending）。誘導ビートは
+ * BinauralSession が実時間合成するので、再生自体は最後まで通常どおりできる。
+ *
+ * 周波数は既定で暫定値（paramsProvisional）だが、params.generated.ts に id が
+ * 載っている＝一覧 xlsx から取り込み済みの節目はそちらが勝ち、印も外れる。
  */
 export function createCatalogProgram(e: CatalogEntry): ProgramConfig {
+  const confirmed = CATALOG_PARAMS[e.id];
+  const carrierFreq = confirmed?.carrierFreq ?? e.carrierFreq;
+  const targetBeatFreq = confirmed?.targetBeatFreq ?? e.targetBeatFreq;
+  const durationMin = confirmed?.durationMin ?? e.durationMin ?? 15;
+
   const opts: CatalogPhaseOptions = { intro: e.intro, outro: e.outro };
-  const { phases, duration } = catalogPhases(e.targetBeatFreq, e.durationMin ?? 15, opts);
+  const { phases, duration } = catalogPhases(targetBeatFreq, durationMin, opts);
 
   return {
     id: e.id,
@@ -49,13 +63,13 @@ export function createCatalogProgram(e: CatalogEntry): ProgramConfig {
     titleEn: e.titleEn,
     description: e.description,
     icon: e.icon,
-    carrierFreq: e.carrierFreq,
+    carrierFreq,
     // duration は phases と同じ計算から取る（ズレると嘘のバッジが出る。phases.ts 参照）
     defaultDuration: duration,
-    targetBeatFreq: e.targetBeatFreq,
+    targetBeatFreq,
     phases,
     keywords: e.keywords,
     audioPending: true,
-    paramsProvisional: true,
+    ...(confirmed ? {} : { paramsProvisional: true as const }),
   };
 }

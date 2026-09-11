@@ -38,7 +38,7 @@ brainwave-app/
 ├── app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
 │   ├── page.tsx                # Home 首页（品牌行〔NeuroSync® のみ・`text-base`=16px。ページ見出し 20px を超えない範囲でいちばん大きく〕→ 「Home / 今日の星空・宇宙周波数で即座に調律」页面见出し → Sync Tree 风景卡〔左上ラベル・右上％・右下矢印だけ、整卡点击进 /tree〕→ 脳コンディションカード → 星座卡；右上角設定入口。桌面端左列＝Tree＋コンディション、右列＝星座卡）
-│   ├── session/page.tsx        # Sync Session（顶部 Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕+ プログラム選択・再生：Sync Sound 3節目 / 所属グループへの配信プログラム。※音源制作・公開などの管理操作は置かない——管理面板「音源」タブへ移設済み）
+│   ├── session/page.tsx        # Sync Session（上段＝Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕｜所属グループへの配信プログラム／未ログイン CTA。下段＝幅いっぱいの `CatalogSection`：デフォルト・Target・Energy・Astro の4タブ＋全カテゴリ横断の検索。一覧を上段2列グリッドの片側に入れないのは、169 件を半分の幅に押し込むとカードが縦に続く筒になるから。※音源制作・公開などの管理操作は置かない——管理面板「音源」タブへ移設済み）
 │   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 誘導周波数の入力 → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕）
 │   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝1件で6指標＆スペクトル表示・2〜3件で重ねて比較。既定は脳特性チャート）
 │   ├── history/page.tsx        # Sync History（日历〔日付タップで当日の明細〕/ セッション統計 / 脳波の記録〔ログイン必須〕/ 10秒チェックの記録〔認証ゲートの外＝未ログインでも見える〕；レポートで見る→/report）
@@ -57,10 +57,19 @@ brainwave-app/
 ├── lib/
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
 │   ├── synth-engine.ts         # SynthSession class（多层振荡器合成 + 颤音 / 颤振）
-│   ├── programs.ts             # 三大程序频率参数（从设计文档映射）+ ZODIAC_PROGRAMS（12星座节目，工厂生成，id 前缀 `zodiac-`，不并入 PROGRAMS）
+│   ├── programs.ts             # 基础程序频率参数（从设计文档映射）+ ZODIAC_PROGRAMS（12星座节目，工厂生成，id 前缀 `zodiac-`，不并入 PROGRAMS）+ 跨分类的 ALL_PROGRAMS / programsByCategory / searchPrograms。`getProgramById` 是**全链路唯一收口**（player/Timer/Visualizer/MiniPlayer/ExportDialog/英雄卡全走它），已改为 Map 查表——总数 169，卡片每张都经 getAdjustedProgram 叫它一次，线性扫描会让搜索框每敲一个字产生数万次比较；优先顺 PROGRAMS→ZODIAC→CATALOG 以先勝ち保持
+│   ├── catalog/                # Sync Session 目录（Target 42／Energy 13）。**`lib/programs.ts` からは値として import しない**——向きは常に programs.ts → catalog の一方通行（型だけ `import type`）。逆向きの値 import を1本でも入れると ALL_PROGRAMS の組み立てが `undefined.map` で死に、型エラーではなく真っ白な画面になる
+│   │   ├── target.ts           # 42 件／5小分類（仕事・勉強・睡眠・リズム・緊張・精神・身体・不調・生活・環境）。行は1行1件・`{ id, name, titleEn` の順を守る（取り込みスクリプトが正規表現で読む）。`kana` は漢字のよみ（検索の正規化はカタカナ→ひらがなまでしか畳めないので手で足す）
+│   │   ├── energy.ts           # 第0〜第12 チャクラの 13 件
+│   │   ├── factory.ts          # 行 → ProgramConfig。`params.generated.ts` に id があればそちらの周波数が勝ち、paramsProvisional も外れる
+│   │   ├── phases.ts           # `catalogPhases(beat, min, {intro, outro})`。**phases と duration を必ず同じ計算から返す**——ズレると全カードに嘘の「パーソナライズ済み」バッジが出る（下の理由参照）。睡眠系は outro を下げたまま終える
+│   │   ├── search.ts           # NFKC＋小文字化＋カタカナ→ひらがな＋記号落とし。クエリは空白区切りの全トークン一致（AND）
+│   │   ├── categories.ts       # タブの名前・順・説明
+│   │   ├── invariants.ts       # 開発時のみ走る自己点検（相位名「導入」／duration 一致／id 重複／載波上限／暫定ビートの語彙）。テストランナーが無いのでここが唯一の番人
+│   │   └── params.generated.ts # ⚠ 生成物。`scripts/import-program-xlsx.mjs` が書く。直接編集しない
 │   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（モジュール合成：載波=自星座固定、差频按四标签×情境可变——活性=太阳40/月20Hz、フロー=太阳12/月10Hz、バランス=平日14/休日夜间7.83Hz、回復=傍晚6/深夜4/月在魚座2Hz；48条 §6 メッセージ模板；优先级 healing→activation→flow→balance，火×地/風×水归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
-│   ├── zodiac-audio.ts         # 星座节目的音乐床垫映射（program id → public/sounds/zodiac/<key>-b<beat>.mp3；缺失差频就近取用）
+│   ├── zodiac-audio.ts         # 音乐床垫映射（program id → public/sounds/zodiac/<key>-b<beat>.mp3；缺失差频就近取用）。カタログ節目（Target/Energy）と morning-tuning はまだ曲が無いので `musicBedUrl` が null を返し、`hasMusicBed` はそのまま**嘘をつかない**——Mixer の音楽スライダーは出ず、カードに「ビートのみ」が付く
 │   ├── sync-tree.ts            # Sync Tree 16段階成長モデル（6.25%刻み、treeStageIndex / TREE_STAGES；成長ロジック未実装期は PLACEHOLDER_TREE 固定値）。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure / SyncTreeStageTile，手描きの光の樹）；ホーム树卡背景为三态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_SUNRISE/NOON/NIGHT：day=日の出の淡桃〜珊瑚、afternoon=真昼のミント、midnight+evening=星空。昼側2つは**ページの色相をそのまま**借り、明るさの段（0.91→0.5前後）は共通——朝と昼の差は色相だけが語る。夜2つを1つに畳むのは星空が2時でも20時でも同じに読めるから。树本体配色不随主题变）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── day-records.ts          # カレンダーの当日明細（buildDayRecords / recordedDayKeys / dayKeyOf）。再生ログ＋取り込んだ脳波測定＋10秒チェックの3出どころを時刻順に1本へ畳む純関数。UI から切り出してあるのは脳波測定がログイン必須ストア（per-user persist）でブラウザから仕込めないため——純関数なら3種すべて実コードで検証できる。描画は components/SimpleCalendar
@@ -82,6 +91,7 @@ brainwave-app/
 │   └── useZodiacStore.ts       # マイ星座偏好 + persist（普通 localStorage，未登录也生效）
 ├── bridge/                     # PC 側プログラム群（Python）。①従来ブリッジ：BrainLink(SPP串口)→ThinkGear 解析→Supabase Realtime（main.py CLI / gui.py Tkinter / bridge_core.py / publisher.py / thinkgear.py / csv_logger.py / demo_source.py）②デスクトップ測定アプリ：desktop_app.py（入口・pywebview）+ desktop_bridge.py（管线编排）+ local_server.py（WS 协议正本）+ static_server.py + desktop_config.py。詳細は下の「デスクトップ測定アプリ与 PC 桥接」与 bridge/README.md
 ├── scripts/build-desktop.mjs   # `pnpm build:desktop`：basePath 空＋无 Supabase env 构建 → bridge/web/（剔除 sounds/ ~300MB）→ 校验无 /brainwave-app 残留
+├── scripts/import-program-xlsx.mjs # 一覧 xlsx → `lib/catalog/params.generated.ts`。**必ず `--inspect <file>` を先に**走らせて見出しの対応を確かめ、必要なら HEADER_SYNONYMS に足してから `--in <file>`。出力するのは周波数と尺だけ——名前・よみ・アイコン・並びは人が決めたものなので取り込みで消さない。突き合わせは名前（id は xlsx に無く、しかも localStorage に残る利用者の選択そのものなので機械に振り直させない）
 ├── public/sounds/              # 自然音素材
 │   └── zodiac/                 # 96 首星座音乐（12星座×8差频，128kbps 立体声，已去封面图，共 284MB）
 └── zodiac-music/               # 星座音乐素材说明（README；原始 190kbps 版本只存在于 `zodiac-music` 分支，不合并进 main）
@@ -90,6 +100,7 @@ brainwave-app/
 ### 菜单与页面命名（Sync 体系）
 
 - 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Brain `/brain`、Sync Report `/report`、Sync History `/history`
+- Sync Session 的节目一覧は `components/CatalogSection.tsx`：**検索がタブより優先**（169 件から探すとき、先にタブを当てさせるのは「どのタブにあるか知っている人」にしか通じない）。検索中はタブを隠し、カテゴリ見出し付きで平らに出す。Astro タブは12星座の段組みで、自星座の節目は常に出しつつモジュール版は畳む——初期描画12枚・開いても20枚ほどなので仮想リストは要らない。マイ星座の段だけ最初から開くのに `useZodiacStore`（persist）を初回描画で読んでよいのは、既定タブが「デフォルト」でこの成分がタブ操作まで描画されない＝必ず hydration の後だから
 - Settings `/settings` 与播放页 `/player` 均不在导航中：設定从首页右上角齿轮进入，播放页从节目卡 / 心情选择进入
 - 桌面左栏（SideNav）可收起，**默认收起**（`useSidebarStore`，故意不 persist——每次加载都从收起开始，SSR/首屏一致无 hydration mismatch，客户端路由期间保持）。收起时只留左上角 `fixed` 的悬浮圆角按钮（56px，`aria-label="メニューを開く"`），点击后外框宽度 0→15rem 动画展开把内容推向右侧（不是浮层覆盖）；内侧面板是 `absolute right-0 w-60` 固定宽度，所以看起来是从左边滑入。关闭走面板头部右侧的按钮或 Esc。收起期间面板挂 `inert`，不进 Tab 序与读屏。**240px / 15rem 这个数值在 SideNav（`md:w-60`）与 MiniPlayer（`md:left-60`）两处要一致**；AppMain 在收起时改用 `md:pl-20` 给悬浮按钮让出左侧沟槽，避免压住页面标题
 - 节目卡入口统一走 `usePlayProgram`：点击＝**选择并进入 `/player`，不自动播放**（播放由用户在播放页按下再生钮；自动播放会在进入播放页前先冒出 MiniPlayer，属被否掉的方案）；正在播放（含一時停止）的节目再次点击只跳转、不重置（播放中保护，按 `playingProgramId` 真源判断）；**别的节目在响时点新卡＝停掉在响的（不记日志）再选中新节目**——播放页永远显示"刚点的那个"。全局 MiniPlayer 播放条见「播放入口与全局播放条」
@@ -102,6 +113,8 @@ brainwave-app/
 ### 星座音乐（音楽ベッド）
 
 - 96 首（12星座 × 8差频）放在 `public/sounds/zodiac/<key>-b<beat>.mp3`，由 `lib/zodiac-audio.ts` 的 `musicBedUrl(programId)` 解析（`zodiac-<key>` 走自星座差频，`zodiac-<key>-b<beat>` 走模块差频）；**三大基础程序也各有专属曲**（Suno 生成）放在 `public/sounds/programs/<节目id>.mp3`，同一 resolver 优先命中。`hasMusicBed(programId)` 门控 Mixer 音乐滑块，标签对星座节目为「星座ミュージック」、对基础程序为「ミュージック」
+- **曲の無い節目があってよい**——Target 42・Energy 13・morning-tuning の 56 件は曲が未納品。誘導ビートは `BinauralSession` が実時間合成するので、これらも最後まで通常どおり再生でき、欠けるのは伴奏だけ。カードには「ビートのみ」と出す（「準備中」とは書かない——鳴るのだから使える）。`musicBedUrl` が null を返すので Mixer の音楽スライダーも自動で消える
+- 曲が届いたら：`public/sounds/<category>/<プログラムid>.mp3` に置き、`musicBedUrl` にその分岐を1本足すだけ。ただし**置く前にリポジトリの重さを決めること**——パックは既に 303MiB、Git LFS 無し、静的導出なので mp3 は全部 GitHub Pages に載る。56 件を既存の平均で足すと約 +170MB（GitHub Pages の公開サイト上限 1GB に近づく）。選択肢は ①新規分を 96kbps モノラルに落とす（合成ビートの下に敷く伴奏なので実用上充分）②そのまま入れて次回に持ち越す ③Git LFS（`.gitattributes` と CI の `lfs: true` が要る）④外部ホスト（オフラインと `/desktop` が壊れるので不可）
 - **这些音频里没有任何诱导成分**（经三项检测：左右声道无频率差、包络无差频调制、无差频纯音）。它们是围绕载波频率做的音乐，文件名里的 `_40Hz` 只是标记所属节目。因此诱导仍由 `BinauralSession` 实时合成，音乐只作为**伴奏铺在节拍下面**循环播放（曲长 1〜8 分钟，平均 3 分，对 15 分钟节目）
 - 音量独立于自然音：`useAppStore.musicVolume`（默认 0.6）→ `BinauralSession.playMusicBed / setMusicVolume`（内部第二个 `NaturePlayer` 实例，与自然音互不干扰，可同时开）；Mixer 在有音乐床垫的节目（星座＋三大基础）显示音乐滑块
 - 缺失差频就近取用（只换伴奏，合成的诱导差频不变）：4Hz 未交付 → 2Hz（2/6 等距，取更深的）；獅子座自星座 15Hz → 14Hz；天秤座 8Hz → 7.83Hz
@@ -248,15 +261,36 @@ AudioContext（全局单例，getAudioContext() 管理）
 - **星座カードの空（`--sky-*`）はページの延長**：昼側3時間帯（day/afternoon/evening）は**同じ色相・同じ低彩度のまま明度だけ約 0.10 下げる**だけ（地の上に彩度の高い板を1枚浮かせない）。真夜中だけはページ自体が暗いので従来どおり深い紺。この地色に対し星座は **`ink` を白**にする——`ZodiacConstellation` は星の芯を opacity .95 で描くので濃い ink だと黒い点になり、図が本文の上の落書きに見える。白なら透かしとして効く（図が載る右半分で 2〜3:1、意図的に淡い）。読みやすさは装飾ではなく `strong`/`text` が担保し、昼側3つは**濃い文字**、真夜中だけ淡い文字。コントラストの拘束条件はグラデーションの**最も明るい stop**
 - 颜色必须走 token：文字/背景用 `text-on-primary`/`text-on-accent`（CTA 上禁用 text-white）、状态色用 `text-success`/`text-warning`/`text-danger`（禁用 red/green/amber-400 原生类）——这 5 个键在每套调色板里按 ≥4.5:1 对比度调过（`ThemePalette` 的 onPrimary/onAccent/success/warning/danger）。SVG 属性吃不了 var()：图表用 `useDocumentScheme()`（light/dark，来自 `data-color-scheme`）选 `getBandColors(scheme)` / `compareSeriesColors(n, scheme)` 的实色组，或走 getComputedStyle（BrainRadarChart 模式）
 - 星空卡（NIGHT_SKY）/ 水曼陀罗卡（DEEP_WATER）/ 全屏可视化是**刻意的固定深色艺术面**，其上的 text-white 保留
+- **`breathe` の呼吸アニメは少数のカード向け**：`ProgramCard` の既定は `breathe`（`gentle-breathe` 3.5s 無限、拡大縮小）だが、`breathe-stagger` の遅延は**6枚目までしか定義が無い**。7枚目から先は全部が同じ拍で膨らみ、画面がざわつくうえ合成の負荷も枚数ぶん増える。数十枚並ぶ一覧では `breathe={false}` を渡す（`CatalogSection` はそうしている）
 - 最大内容宽度 480px 居中
 - 播放页动画用 CSS animation 或 requestAnimationFrame，避免 React 重渲染
 - 载波频率 ≤ 1000Hz（适配中老年听觉）
 
-### 三大程序概要（详见 programs.ts）
+### 基础程序概要（详见 programs.ts）
 | Program | ID | Carrier | Target Beat | Default Duration |
 |---|---|---|---|---|
 | リセット＆ディープ | reset-deep | 174Hz | 7.83Hz (Schumann) | 15min |
 | クラリティ・フォーカス | clarity-focus | 432Hz | 40Hz (Gamma) | 20min |
 | ナイトリカバリー | night-recovery | 136.1Hz | 1.5Hz (Delta) | 30min |
+| モーニングチューニング | morning-tuning | 432Hz | 14Hz (α→β) | 10min |
+
+`morning-tuning` 是第 4 个基础程序（素材文件夹「デフォルトプログラム」新增的 Morning Tuning & Energize）。它是四者里**唯一朝上走**的：结尾不回落到 10Hz，而是一路送到 20Hz——早晨要把人交给一天，不是让人躺回去。参数暂定（`paramsProvisional`），等 xlsx 取り込み。
+
+### 目录体系（Sync Session 的 4 个分类）
+
+`ProgramConfig` 上有一组**全部可选**的目录字段（`category` / `subGenre` / `titleEn` / `keywords` / `audioPending` / `paramsProvisional`）。做成可选字段而不是旁挂一张 meta 表，是因为所有消费端本来就经 `getProgramById` 拿到 `ProgramConfig`——放在对象上，一次查表就够，也不可能两边不同步。
+
+| 分类 | 来源 | 件数 | 备注 |
+|---|---|---|---|
+| デフォルト | `PROGRAMS`（lib/programs.ts） | 4 | 上表 |
+| Target | `lib/catalog/target.ts` | 42 | 5 小分类，`subGenre` 是段标题 |
+| Energy | `lib/catalog/energy.ts` | 13 | 第0〜第12 チャクラ |
+| Astro | `ZODIAC_PROGRAMS` | 110 | 工厂里加一行 `category: "astro"`，数据不复制；`subGenre` = 星座名 |
+
+**周波数は 56 件が暫定値**（一覧 xlsx 未入手）。暫定値は本プロジェクトの既存の語彙からのみ選ぶ——載波はソルフェジオ（星座載波と同じ並び）、ビートは `MODULAR_BEATS`（lib/zodiac.ts）の 9 種。`scripts/import-program-xlsx.mjs` で取り込むと `params.generated.ts` が埋まり、その節目の `paramsProvisional` が外れる（外れた節目はビートの語彙の縛りからも外れる——仕様が決めた値なら語彙の外でも正しい）。
+
+**⚠ カタログ節目を足すときに黙って壊れる2点**：
+1. `defaultDuration` は**最後の相位の `endTime` と厳密に一致**させること。`getAdjustedProgram`（lib/brain-profile.ts）は未知 id でも switch を素通りしたうえで `defaultDuration` を最後の相位から書き戻すので、ズレていると `ProgramCard` が全カードに嘘の「パーソナライズ済み」バッジを出す。`catalogPhases()` が phases と duration を一緒に返すのはこのため。
+2. 最初の相位名は必ず `導入`（`components/Visualizer.tsx` がそこだけ `targetBeatFreq` を表示する特判を持つ）。
 
 另有星座节目体系（`ZODIAC_PROGRAMS`，模块合成型）：12 个固有节目（`zodiac-<sign>`，自星座载波×自星座差频）+ 各星座×9 种矩阵差频的模块版（`zodiac-<sign>-b<beat>`，共 110 个，工厂生成，统一 15min / 導入→遷移→同調→収束 四相位），经 `getProgramById` 兜底解析，全链路（播放/定时/导出/可视化）可用；首相位名必须保持 `導入`（Visualizer 特判）。

@@ -57,11 +57,12 @@ export function assertCatalog(all: readonly ProgramConfig[]): void {
       problems.push(`${p.id}: Target なのに subGenre が無い（見出しに入らず消える）`);
     }
 
-    // カタログのビートは既存の語彙から選ぶ（lib/zodiac.ts の MODULAR_BEATS）。
-    // 内蔵3節目だけは仕様書どおりの独自値（1.5Hz 等）なので対象外。
+    // 暫定値のビートは既存の語彙から選ぶ（lib/zodiac.ts の MODULAR_BEATS）。
+    // 縛るのは「こちらが名前から当てずっぽうで決めた値」だけ——一覧 xlsx から
+    // 取り込んだ確定値は仕様が決めたものなので、この語彙の外でも正しい。
     // MODULAR_BEATS はリテラル型の組なので、任意の number を照合するには広げる。
     const beatVocabulary: readonly number[] = MODULAR_BEATS;
-    if ((p.category === "target" || p.category === "energy") &&
+    if (p.paramsProvisional && (p.category === "target" || p.category === "energy") &&
         !beatVocabulary.includes(p.targetBeatFreq)) {
       problems.push(`${p.id}: ビート ${p.targetBeatFreq}Hz が MODULAR_BEATS の外`);
     }
