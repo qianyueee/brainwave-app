@@ -76,6 +76,8 @@ public class NowPlayingService extends Service {
     private static volatile boolean playing = true;
 
     private MediaSession session;
+    /** この起動で startForeground 済みか（2回目からの描き直しは notify。render の注記）。 */
+    private boolean foreground = false;
     private AudioManager audioManager;
     private AudioFocusRequest focusRequest; // API 26+
     private boolean hasFocus = false;
@@ -185,6 +187,7 @@ public class NowPlayingService extends Service {
                 }
             }
         );
+        enableMediaButtonsBeforeOreo();
         session.setActive(true);
 
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
@@ -247,7 +250,16 @@ public class NowPlayingService extends Service {
     private void shutdown() {
         abandonFocus();
         stopForeground(STOP_FOREGROUND_REMOVE);
+        foreground = false;
         stopSelf();
+    }
+
+    /** 8.0 未満は、この印が無いとイヤホンのボタンとロック画面の操作がセッションに届かない（以降は常に届く）。 */
+    @SuppressWarnings("deprecation")
+    private void enableMediaButtonsBeforeOreo() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            session.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
+        }
     }
 
     /** 再生を始める（再開する）ときにフォーカスを取る。取れなくても音は JS が鳴らす。 */
@@ -326,10 +338,28 @@ public class NowPlayingService extends Service {
         );
 
         Notification notification = buildNotification(isPlaying);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
-        } else {
-            startForeground(NOTIFICATION_ID, notification);
+        if (!foreground) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                } else {
+                    startForeground(NOTIFICATION_ID, notification);
+                }
+                foreground = true;
+            } catch (IllegalStateException | SecurityException e) {
+                // 起こされた直後の1回目は通るはずだが、万一拒まれてもメインスレッドで落とさない
+                // （音は WebView が鳴らし続ける。通知と後台の保証が無くなるだけ）。
+                stopSelf();
+            }
+            return;
+        }
+        // 2回目からは startForeground を呼ばず、同じ ID への notify で描き直す（前面のまま）。
+        // Android 12 以降、繰り返しの startForeground はそのときアプリが後台だと拒まれて
+        // 例外になり（メインスレッドなのでアプリごと落ちる）、一時停止・再開はまさに後台で
+        // 起きる——着信・通話の終わり・イヤホンが抜けた。
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager != null) {
+            manager.notify(NOTIFICATION_ID, notification);
         }
     }
 

@@ -350,7 +350,9 @@ BrainLink ─RFCOMM(SPP)─> BrainLinkPlugin（Java：バイトを約50msごと�
 - **Chrome が黙ってやっていることの補い**（どれも画面は変えない）：
   - 後台再生・ロック画面：`lib/keep-alive.ts` の navigator.mediaSession 呼び出しを、Android では
     同じ順で NowPlaying（前面サービス mediaPlayback＋MediaSession 通知）へも渡す。着信・他アプリで
-    一時停止（一時的なら再開）、イヤホンが抜けたら一時停止。AudioProvider は無変更
+    一時停止（一時的なら再開）、イヤホンが抜けたら一時停止。AudioProvider は無変更。
+    **`startForeground` は起動ごとに1回だけ**、以後の描き直しは同じ ID への `notify`——一時停止・再開は
+    後台で起きる（着信・イヤホン）ので、繰り返しの `startForeground` は Android 12+ で拒まれて落ちる
   - ダウンロード：`downloadBlob` が「ダウンロード」フォルダへ保存（DownloadsPlugin、1MB ずつ）。
     保存し終えてから resolve するので書き出しの「完了」も保存後
   - Google ログイン：Custom Tab＋PKCE＋独自スキームで戻す（lib/mind/desktop-google-auth.ts を
