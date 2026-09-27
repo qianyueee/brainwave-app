@@ -25,6 +25,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Google ログインの戻り（Supabase → io.github.qianyueee.neurosync://auth/callback）。
+                 lib/mind/desktop-google-auth.ts の ANDROID_GOOGLE_REDIRECT と対。Supabase の
+                 Redirect URLs にも同じ URL を登録しておくこと。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="auth"
+                    android:path="/callback"
+                    android:scheme="io.github.qianyueee.neurosync" />
+            </intent-filter>
+
         </activity>
 
         <!-- 再生中だけ動く前面サービス（通知・ロック画面の再生／一時停止と、画面を

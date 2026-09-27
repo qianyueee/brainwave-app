@@ -1,6 +1,7 @@
 import { App } from "@capacitor/app";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 import { AppChrome } from "./app-chrome";
+import { installGoogleLoginReturn } from "./android-google-auth";
 
 /**
  * Android アプリの常駐処理（components/AndroidAppShell.tsx が起動時に1回だけ呼ぶ）。
@@ -39,8 +40,14 @@ export async function installAndroidShell(): Promise<() => void> {
     else App.minimizeApp().catch(() => {});
   });
 
+  // ── Google ログインの戻り（Custom Tab → アプリの独自スキーム） ──
+  // ログインのダイアログを閉じていても、アプリが冷えた状態から起こされても
+  // 受け取れるよう、起動時から聞いておく。
+  const disposeLogin = await installGoogleLoginReturn();
+
   return () => {
     window.removeEventListener(THEME_CHANGE_EVENT, syncSystemBars);
     void back.remove();
+    disposeLogin();
   };
 }
