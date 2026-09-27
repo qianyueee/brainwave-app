@@ -190,7 +190,12 @@ public class DownloadsPlugin extends Plugin {
             // 閉じられなくても消す
         }
         if (target.uri != null) {
-            getContext().getContentResolver().delete(target.uri, null, null);
+            try {
+                getContext().getContentResolver().delete(target.uri, null, null);
+            } catch (RuntimeException ignored) {
+                // 失敗の後始末の中で投げると、プラグインの例外としてアプリごと落ちる。
+                // 書きかけ（IS_PENDING）は一覧に出ず、端末が後で片付ける。
+            }
         } else if (target.file != null) {
             //noinspection ResultOfMethodCallIgnored
             target.file.delete();
