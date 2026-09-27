@@ -55,5 +55,10 @@ bridge/profile/
 bridge/desktop_config.json
 bridge/neurosync_desktop.log*
 
+# Android app (Capacitor): the web bundle `pnpm build:android` writes for
+# `cap sync` (a filtered copy of out/). android/ keeps its own .gitignore for
+# the Gradle outputs and the synced assets.
+/android-web/
+
 # Local staging for the zodiac music source files (never committed)
 .zodiac-src/

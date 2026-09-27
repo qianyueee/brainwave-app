@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NeuroSync のアイコン：同期の輪（テーマ主色の薄紫）と、その中の脳波（白）。
+     地色は @color/ic_launcher_background（ステータスバーの既定色 #1E1B4B と同じ）。
+     アダプティブアイコンの安全域（中心から半径33dp）の内側に収めてある。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M30,54a24,24 0,1 0,48 0a24,24 0,1 0,-48 0"
+        android:strokeWidth="3"
+        android:strokeColor="#A78BFA" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M38,54Q42,40 46,54T54,54T62,54T70,54"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

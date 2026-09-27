@@ -1,6 +1,5 @@
 import { getZodiacSign } from "./zodiac";
-
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+import { soundUrl } from "./sounds";
 
 /**
  * プログラムの音楽ベッド（星座 96 曲＋内蔵 3 曲）。
@@ -53,7 +52,7 @@ function nearestAvailableBeat(beat: number): number {
  */
 export function musicBedUrl(programId: string): string | null {
   const base = BASE_PROGRAM_MUSIC[programId];
-  if (base) return `${BASE_PATH}/sounds/programs/${base}`;
+  if (base) return soundUrl(`programs/${base}`);
 
   if (!programId.startsWith("zodiac-")) return null;
 
@@ -71,7 +70,7 @@ export function musicBedUrl(programId: string): string | null {
     ? rawBeat
     : nearestAvailableBeat(rawBeat);
 
-  return `${BASE_PATH}/sounds/zodiac/${sign.key}-b${beatKey(beat)}.mp3`;
+  return soundUrl(`zodiac/${sign.key}-b${beatKey(beat)}.mp3`);
 }
 
 /** 音楽ベッドを持つプログラムかどうか（Mixer のスライダー表示に使う）。 */

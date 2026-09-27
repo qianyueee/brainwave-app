@@ -42,7 +42,7 @@ export default function EegUploader() {
       <input
         ref={inputRef}
         type="file"
-        accept=".xlsx,.xls,.csv"
+        accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/comma-separated-values"
         onChange={handleChange}
         className="hidden"
         id="eeg-upload"

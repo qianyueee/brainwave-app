@@ -766,7 +766,7 @@ export default function SynthPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".json"
+          accept=".json,application/json"
           onChange={handleImportPresets}
           className="hidden"
         />

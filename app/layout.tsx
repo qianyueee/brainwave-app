@@ -9,6 +9,8 @@ import SideNav from "@/components/SideNav";
 import ThemeProvider from "@/components/ThemeProvider";
 import AuthProvider from "@/components/AuthProvider";
 import WaveBackground from "@/components/WaveBackground";
+import AndroidAppShell from "@/components/AndroidAppShell";
+import { IS_ANDROID_APP } from "@/lib/platform";
 
 // Self-hosted at build time (works with output:"export"); gives Android a
 // proper Japanese face — the system stack only covers iOS (Hiragino) and
@@ -39,7 +41,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ja" className={notoSansJP.variable}>
+    <html
+      lang="ja"
+      className={notoSansJP.variable}
+      // Android アプリのビルドだけに付く目印（scripts/build-android.mjs が書き出しを
+      // 確かめるのに使う）。Web 版の DOM には何も足さない。
+      data-app-platform={IS_ANDROID_APP ? "android" : undefined}
+    >
       <body>
         <ThemeProvider>
           {/* 波の背景。body の直下に置いて全ページ共通の地にする */}
@@ -55,6 +63,8 @@ export default function RootLayout({
               </div>
               <MiniPlayer />
               <BottomNav />
+              {/* Android アプリの殻（システムバー・戻るキー等）。Web 版では空。 */}
+              <AndroidAppShell />
             </AudioProvider>
           </AuthProvider>
         </ThemeProvider>

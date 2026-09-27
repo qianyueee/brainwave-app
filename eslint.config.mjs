@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     // Desktop app bundle — a copy of out/ that `pnpm build:desktop` drops into
     // bridge/web/ for PyInstaller to pick up (generated, minified, gitignored)
     "bridge/web/**",
+    // Android app: the bundle `pnpm build:android` writes (and `cap sync`
+    // copies into android/app/src/main/assets), plus the Gradle project
+    "android-web/**",
+    "android/**",
   ]),
 ]);
 
