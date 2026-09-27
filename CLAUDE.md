@@ -47,7 +47,7 @@ brainwave-app/
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
 │   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
-│   ├── desktop/page.tsx        # デスクトップ測定アプリ（bridge/desktop_app.py の WebView2）が開く**単体画面**。中身は /brain と同構成、違いは3点：源が LocalSource（ローカルWS）／接続ダイアログが DesktopSourceDialog（配对码→COMポート選択）／取り込み無し（MindRecorder allowImport=false）。ナビ・MiniPlayer 等の chrome は isDesktopRoute（lib/desktop.ts）守卫で全消し。导航に載せない（Pages 版にも無リンクで存在するが無害）
+│   ├── desktop/page.tsx        # デスクトップ測定アプリ（bridge/desktop_app.py の WebView2）が開く**単体画面**。中身は /brain と同構成、違いは3点：源が LocalSource（ローカルWS）／接続ダイアログが DesktopSourceDialog（配对码→COMポート選択）／取り込みを尋ねず**自動保存**（MindRecorder mode="autoSave"＋右上 DesktopAccountButton でログイン、下の「アカウント同期」参照）。ナビ・MiniPlayer 等の chrome は isDesktopRoute（lib/desktop.ts）守卫で全消し。导航に載せない（Pages 版にも無リンクで存在するが無害）
 │   └── mind|profile|log|compare/ # 旧路由跳转桩（客户端 redirect → session/brain/history/report）
 ├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
 │   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。**帯は横いっぱい**（`<main>` の幅そのまま＝画面端まで／デスクトップはレールの右端から右端まで）、中身だけ `usePageColumnClass()` に入れて下のカードと左端を揃える。地は**すりガラス**（`bg-navy/70` ＋ `backdrop-blur-2xl`＝40px）。不透明な `bg-navy` は不可——WaveBackground は `fixed` で `--dyn-navy` の上に明るい波を重ねているので、見えている地色は場所によって違い、波が横切る位置では不透明な帯だけが暗い矩形として浮く（デスクトップで露骨に出た）。blur なら背後の波の色を拾って周囲と同じ色みになる。blur は 12px では下を流れるグラフの目盛りが読めてしまうので 40px、tint は明るいアート（ブレインアート等）の滲み出しを抑えるのに 70% 必要。文字は `text-xl`/`text-xs`＝20px/12px（ページ内見出し `text-lg`=18px を下回らない範囲で最小）。帯の上下は pt-4/pb-2——文字の縮小に合わせて詰めてある（高さを据え置くと小さくなった見出しが広い帯の中で浮く）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
@@ -77,9 +77,12 @@ brainwave-app/
 │   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，数据不足为 null）。**セッション由来**＝computeBrainConditionMetrics（入定速度×共鳴率）／**非セッション由来**＝computeBaselineConditionMetrics（下の baseline.ts が算出済みの値を変換するだけ）。共鳴率を見る周波数は**その測定の誘導周波数**（`BrainProfile.targetHz`）、未入力なら既定の 40Hz＝`DEFAULT_TARGET_HZ`（従来と同じ判定）
 │   ├── mind/baseline.ts        # 10秒ベースラインチェック（非セッション時の3指標）。ターゲット周波数が無い平常時は引き込み速度が測れないので別ロジックへ：パターン1 Berger効果（開眼5秒⇄閉眼5秒のα波立ち上がり速度＋メリハリ比）を既定、成立しなければパターン2 静止時可塑性（スペクトル・エントロピー×帯域間移動度）へフォールバック。Clarity=(40Hzγ+高α)/高β、Reset=(δ+θ)比×ゆらぎ。係数は BASELINE_CONFIG に集約（**暫定値**、実測が貯まったら再標定）。⚠ サンプルは1Hzなので T_α-rise の分解能は1秒
 │   ├── mind/resonance.ts       # 「その周波数だけ周りより立っているか」＝局所突出比（目標Hzの値 ÷ ±5Hz近傍〔±1Hzは山なので除外〕の平均）＋誘導周波数の入力ルール（`TARGET_HZ_MIN/MAX/STEP`＝1〜45Hz・0.01Hz刻み、`DEFAULT_TARGET_HZ`=40、normalize/format）。ビンは1Hz刻みなので 0.01Hz 指定は前後を線形補間する
-│   ├── mind/desktop-bridge.ts  # デスクトップ測定アプリのローカル WS クライアント（シングルトン・参照カウント・?ws= でポート受取・0.5→5s バックオフ再接続）＋プロトコル型（DesktopBridgeState / DesktopCommand）。**プロトコルの正は bridge/local_server.py のコメント**
+│   ├── mind/desktop-bridge.ts  # デスクトップ測定アプリのローカル WS クライアント（シングルトン・参照カウント・?ws= でポート受取・0.5→5s バックオフ再接続）＋プロトコル型（DesktopBridgeState / DesktopCommand / DesktopAuthCallback）。`auth_callback` は subscribeDesktopAuthCallbacks へ。**プロトコルの正は bridge/local_server.py のコメント**
+│   ├── mind/desktop-google-auth.ts # デスクトップの Google ログイン（既定のブラウザ＋ループバック＋PKCE、RFC 8252）。WebView 内のログインは Google が拒むので window.open（pywebview が既定のブラウザへ回す）→ Supabase → `state.authCallbackUrl`（Python の /auth/callback）→ WS `auth_callback` → verifier と引き換え（`/auth/v1/token?grant_type=pkce`）→ setSession。**全体の supabase クライアントは implicit のまま**（Web の Google ログイン・確認メールを変えない）。verifier は1回きり・待っていない code は捨てる。flow state は /authorize から5分
+│   ├── mind/session-record.ts  # 測定セッション → 脳特性記録（BrainProfile）の唯一の写像（measurementFromSession / sessionLabel / measurementKey）。/brain の取り込みとデスクトップの自動保存が同じ1本を通る
 │   ├── mind/local-source.ts    # LocalSource＝MindDataSource 第三の実装（/desktop 用）。WS 接続→onStatus("connected")、装置パイプライン稼働→onBridgeOnline——canReceiveData が /brain と同義で機能する写像
-│   ├── desktop.ts              # isDesktopRoute()：/desktop で BottomNav・SideNav・MiniPlayer・ランチャー溝（PageColumn）を消す**唯一の判定**。ビルドフラグでなく pathname なので dev/Pages/同梱ビルドで挙動が同じ
+│   ├── desktop.ts              # isDesktopRoute()：/desktop で BottomNav・SideNav・MiniPlayer・ランチャー溝（PageColumn）を消す**唯一の判定**。ビルドフラグでなく pathname なので dev/Pages/同梱ビルドで挙動が同じ。WEB_APP_URL（「Web版で記録を見る」の先、NEXT_PUBLIC_WEB_APP_URL で上書き可）
+│   ├── sync/                   # アカウント同期（下の「アカウント同期」）：brain-profile.ts / baseline-checks.ts＝1記録1行の API（keyset ページング・必ず user_id で絞る）／cloud-mark.ts＝記録に付ける宛先・保存済みの印（純関数）／outbox.ts＝送信箱（全体で1つ、AuthProvider が起動）／account-views.ts＝Web の読み直し／per-user-storage.ts・migrate.ts・presets.ts・programs.ts・custom-audios.ts は従来どおり
 │   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
@@ -87,12 +90,15 @@ brainwave-app/
 │   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志）
 │   ├── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
 │   ├── useJournalStore.ts      # その日の振り返り + persist（素の localStorage＝未ログインでも習慣が続く。key `sync-journal`）。**1日1件**で書き直すと上書き——「その日どうだったか」の評価なので。時刻を持つ出来事の記録は day-records.ts 側の担当で、そちらは1日に何件でも並ぶ。文章も調子も空なら保存せず削除する（中身の無い印だけがカレンダーに残るのを防ぐ）
-│   ├── useBaselineStore.ts     # 10秒ベースラインチェックの履歴 + persist（素の localStorage＝未ログインでも習慣が続く。最大60件。demo/realtime を必ず区別し、ホームの3指標は latestRealCheck＝実測のみを読む）
+│   ├── useBaselineStore.ts     # 10秒ベースラインチェックの履歴 + persist（素の localStorage＝未ログインでも習慣が続く。最大60件〔未送信は消さない〕。demo/realtime を必ず区別し、ホームの3指標は latestRealCheck＝実測のみを読む）。ログイン中に取った実測はアカウントにも載る（`cloud` の印→outbox）。Web はアカウント分を `cloudChecks`（メモリ）に読み、**表示は必ず `useAllBaselineChecks()`**（端末∪アカウントを id で重ね、削除予約 `tombstones`〔永続〕と別端末で消された分を隠す）
+│   ├── useCloudSyncStore.ts    # この端末が結びついているアカウント `account`（persist key `cloud-account`、**SIGNED_OUT でだけ消す**＝オフライン起動でトークン更新できない間も記録の宛先が決まる）＋送信箱の状態（phase / lastError）＋「ログインして保存」の予約
+│   ├── useDesktopLoginStore.ts # デスクトップの Google ログインの進み具合（waiting / exchanging / error、不 persist）
 │   ├── useSidebarStore.ts      # 桌面左栏开合（不 persist：每次加载都从收起开始）
 │   ├── useDesktopBridgeStore.ts # デスクトップ測定アプリのローカル WS 状態ミラー（wsConnected / state 全量快照 / lastLog、**不 persist**——正は Python 側）。deviceOnline セレクタ＝「装置パイプライン稼働」
 │   └── useZodiacStore.ts       # マイ星座偏好 + persist（普通 localStorage，未登录也生效）
 ├── bridge/                     # PC 側プログラム群（Python）。①従来ブリッジ：BrainLink(SPP串口)→ThinkGear 解析→Supabase Realtime（main.py CLI / gui.py Tkinter / bridge_core.py / publisher.py / thinkgear.py / csv_logger.py / demo_source.py）②デスクトップ測定アプリ：desktop_app.py（入口・pywebview）+ desktop_bridge.py（管线编排）+ local_server.py（WS 协议正本）+ static_server.py + desktop_config.py。詳細は下の「デスクトップ測定アプリ与 PC 桥接」与 bridge/README.md
-├── scripts/build-desktop.mjs   # `pnpm build:desktop`：basePath 空＋无 Supabase env 构建 → bridge/web/（剔除 sounds/ ~300MB）→ 校验无 /brainwave-app 残留
+├── scripts/build-desktop.mjs   # `pnpm build:desktop`：basePath 空＋**Web 版と同じ Supabase env を焼き込む**（ログイン・自動保存用。CI で env が無ければ失敗、焼き込み確認あり）→ bridge/web/（剔除 sounds/ ~300MB）→ 校验无 /brainwave-app 残留
+├── supabase/migrations/        # 手で SQL Editor に流す（CLI 設定なし）。001 管理者・グループ／002 ユーザー同期（旧 user_brain_profile＝1ユーザー1 JSONB）／**003 account_sync＝1記録1行の user_brain_measurements・user_baseline_checks＋旧表から移行＋旧表を読み取り・削除専用に**
 ├── scripts/import-program-xlsx.mjs # 一覧 xlsx → `lib/catalog/params.generated.ts`。**必ず `--inspect <file>` を先に**走らせて見出しの対応を確かめ、必要なら HEADER_SYNONYMS に足してから `--in <file>`。出力するのは周波数と尺だけ——名前・よみ・アイコン・並びは人が決めたものなので取り込みで消さない。突き合わせは名前（id は xlsx に無く、しかも localStorage に残る利用者の選択そのものなので機械に振り直させない）
 ├── public/sounds/              # 自然音素材
 │   └── zodiac/                 # 96 首星座音乐（12星座×8差频，128kbps 立体声，已去封面图，共 284MB）
@@ -213,9 +219,17 @@ AudioContext（全局单例，getAudioContext() 管理）
 - **wire contract 三方共通**：`EegSample`（`lib/mind/types.ts`）＝ `bridge/publisher.py` 的
   broadcast payload ＝ 本地 WS `{"type":"sample","sample":{…}}` 的 sample，逐键相同，改任何
   一方必须三处同步。云端频道 `eeg:{归一化配对码}`、事件 `"sample"` 不变。
+  `synthetic: true` ＝合成データ（`demo_source.py`／画面内 DummySource）：録音中に1秒でも
+  混ざった測定・10秒チェックは source "demo" になり、アカウントへは送らない（CSV は固定列で無影響）。
 - **本地 WS 协议正本在 `bridge/local_server.py` 模块注释**（web 侧类型在 `lib/mind/desktop-bridge.ts`）：
   单条 socket 承载样本+控制；命令 `scan/connect/disconnect/demo/cloud`，无逐命令 ack，
-  一律回 `state` 全量快照。
+  一律回 `state` 全量快照（含 `authCallbackUrl`）。下行另有 `auth_callback`（Google ログインの戻り，
+  直近1件保留 120 秒、之后新连上的客户端也会收到）。**只接受本机页面**（Origin 为
+  127.0.0.1/localhost 任意端口，或无 Origin 的非浏览器程序）——浏览器允许任意网站连 ws://127.0.0.1。
+- **`/auth/callback` 由 static_server 自己回答，不交给 Next 页面**：系统浏览器里一旦跑起
+  supabase-js 就会自己持有会话、与桌面端抢刷新令牌。只把 code 经 WS 交给画面，回一页日文 HTML
+  （no-store / no-referrer，查询串不记日志）。target=_blank・window.open 由 pywebview
+  （`OPEN_EXTERNAL_LINKS_IN_BROWSER`，desktop_app 里显式置 True）交给系统浏览器。
 - **端口**：HTTP=17860 **必须固定**（localStorage 按 origin〔含端口〕隔离，端口漂移＝
   测定记录全部"消失"）；WS=17861 可漂（实端口经页面 URL `?ws=` 传入，缺省回落 17861）。
   HTTP 绑定失败＝已有实例在跑 → 弹窗退出（也避免抢串口）。
@@ -240,6 +254,44 @@ AudioContext（全局单例，getAudioContext() 管理）
   优先 `.html` 同名文件，正是为了这个双胞胎结构。
 - 开发流：`python bridge/desktop_app.py --no-window [--demo]` ＋ `pnpm dev` →
   `http://localhost:3000/desktop`；打包同源验证走 `http://127.0.0.1:17860/desktop`。
+
+### アカウント同期（デスクトップの自動保存 ↔ Web の Report / History）
+
+```
+/desktop: 測り終えた測定・保存した10秒チェック ─記録に cloud={owner} の印─┐
+Web:      ログイン中に保存した10秒チェック ────────────────────────┤
+                                           lib/sync/outbox.ts（1本の順番で逐条 upsert）
+                                                        ↓
+                          user_brain_measurements / user_baseline_checks（1記録1行）
+                                                        ↓
+Web /report・/history・ホーム：ログイン時＋タブに戻ったとき＋ページを開いたとき読み直す
+```
+
+- **1記録1行**（`supabase/migrations/003_account_sync.sql`）。旧 `user_brain_profile`（1ユーザー
+  1 JSONB を丸ごと上書き）は書き手が2つになると互いの追加を消すので使わない。003 で行へ移し、
+  旧表は INSERT/UPDATE ポリシーを外した読み取り・削除専用の控え（「すべて削除」は控えも消す）。
+  キーは `uploaded_at`＝`BrainProfile.uploadedAt`（text のまま・文字列完全一致で照合）。
+- **印は記録そのものに付ける**（`lib/sync/cloud-mark.ts`）：`cloud` 無し＝宛先未定（未ログインで
+  測った回・機能より前の回・/brain の回）／`{owner, savedRev}`＝そのアカウント宛て、`savedRev===rev`
+  で保存済み（メモを書くと `rev+1` で送り直し）／`{localOnly}`＝「保存しない」。宛先は**測り終えた
+  時点の `useCloudSyncStore.account`**（共用 PC で後から別の人がログインしても、前の人の記録は
+  その人の宛てのまま）。未分配の記録はログイン後に CloudSaveBanner で「保存する／保存しない」を
+  尋ねる（黙って今のアカウントへ送らない）。載せるのは実測だけ（`isSessionUploadable` /
+  `isCheckUploadable`：source realtime・読めた秒あり）。
+- **送信箱**は全体で1つ（AuthProvider が ensure、StrictMode 二重でも1つ）。削除予約→チェック→
+  測定の順、古い順・直列。失敗は 5s→15s→30s→60s→以後5分で再試行、`online`・ログイン・記録の
+  変化で即再開。送るのは `useAuthStore.user` が居るとき（=トークンが有効）だけ。
+- **Web の store**（useBrainProfileStore）：書き込みはモジュール内の Promise 鎖で直列・逐行、
+  `measurements` は uploadedAt 昇順、読み直しは鎖の後ろに並び「読んでいる間に画面側が変わったら
+  捨てる」版番号付き。**読み直しの入口**は AuthProvider（focus / visibilitychange）と
+  `useRefreshAccountViewsOnMount()`（ホーム・レポート・ヒストリー）、どちらも 15 秒間引き。
+- **桌面端の AuthProvider は user の追跡だけ**（合成器・カスタム音源・脳特性の一覧・管理者権限・
+  首登迁移は読まない）。ログアウトは `scope:"local"`（既定の global だとスマホでのログアウトが
+  デスクトップのログインまで切る）。
+- **部署順**：①Supabase SQL Editor で 003 を実行 → ②すぐ Web をデプロイ（その間、古い Web は
+  脳波測定を保存できずエラーになるだけ）→ ③「Build Desktop App」で exe を作り直す。Google
+  ログインには Supabase の Redirect URLs に `http://127.0.0.1:17860/auth/callback` を足しておく
+  （最近の GoTrue はループバック IP を許可済みだが保険）。
 
 ## Notes & Prompts
 
