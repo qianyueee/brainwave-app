@@ -5,6 +5,7 @@ import { NATURE_SOUNDS } from "./nature-player";
 import { getAudioBlob } from "./custom-audio-db";
 import { ensureBlobCached } from "./sync/custom-audios";
 import { useCustomAudioStore } from "@/store/useCustomAudioStore";
+import { IS_ANDROID_APP } from "./platform";
 
 // --- Types ---
 
@@ -489,6 +490,16 @@ function floatTo16BitPCM(float32: Float32Array): Int16Array {
 // --- Download ---
 
 export function downloadBlob(blob: Blob, filename: string): void {
+  // Android アプリの WebView は blob: の <a download> を保存できない。キャッシュに
+  // 書き出して共有シートを開く（lib/native/save-file.ts）。
+  if (IS_ANDROID_APP) {
+    import("./native/save-file")
+      .then((m) => m.shareBlobAsFile(blob, filename))
+      .catch(() => {
+        window.alert("ファイルを書き出せませんでした。端末の空き容量を確認して、もう一度お試しください。");
+      });
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

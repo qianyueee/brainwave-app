@@ -12,13 +12,34 @@
  * Additionally:
  * - Media Session API provides lock-screen metadata and play/pause controls.
  * - visibilitychange listener resumes AudioContext when returning to foreground.
+ *
+ * Android app (IS_ANDROID_APP): the WebView has no navigator.mediaSession, and
+ * without a foreground service the app is frozen once the screen goes off. Every
+ * Media Session call below is therefore mirrored, in the same order, to the
+ * native NowPlaying plugin (lib/native/now-playing.ts), which shows the same
+ * lock-screen/notification controls and keeps the app alive while playing.
  */
 
 import { getAudioContext, isUserPaused } from "./audio-context";
+import { IS_ANDROID_APP } from "./platform";
 
 let audioEl: HTMLAudioElement | null = null;
 let streamDest: MediaStreamAudioDestinationNode | null = null;
 let listening = false;
+
+const MEDIA_ARTIST = "NeuroSync";
+const MEDIA_ALBUM = "Binaural Beats";
+
+type NowPlayingModule = typeof import("./native/now-playing");
+let nowPlaying: Promise<NowPlayingModule> | null = null;
+
+/** Android only: run `fn` against the native NowPlaying bridge. Calls queue on
+ *  one promise, so they reach the plugin in the order they were made. */
+function withNowPlaying(fn: (m: NowPlayingModule) => void): void {
+  if (!IS_ANDROID_APP) return;
+  nowPlaying ??= import("./native/now-playing");
+  nowPlaying.then(fn).catch(() => {});
+}
 
 /**
  * Get the audio destination node that all engines should connect to.
@@ -72,10 +93,13 @@ export function startKeepAlive(title?: string): void {
   if ("mediaSession" in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: title ?? "NeuroSync",
-      artist: "NeuroSync",
-      album: "Binaural Beats",
+      artist: MEDIA_ARTIST,
+      album: MEDIA_ALBUM,
     });
   }
+  withNowPlaying((m) =>
+    m.nowPlayingStart({ title: title ?? "NeuroSync", artist: MEDIA_ARTIST, album: MEDIA_ALBUM })
+  );
 
   // visibilitychange listener (resume AudioContext when returning)
   if (!listening) {
@@ -97,6 +121,7 @@ export function stopKeepAlive(): void {
     navigator.mediaSession.setActionHandler("play", null);
     navigator.mediaSession.setActionHandler("pause", null);
   }
+  withNowPlaying((m) => m.nowPlayingStop());
 
   if (listening) {
     document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -111,6 +136,7 @@ export function setMediaSessionHandlers(
   onPlay: () => void,
   onPause: () => void,
 ): void {
+  withNowPlaying((m) => m.nowPlayingSetHandlers(onPlay, onPause));
   if (!("mediaSession" in navigator)) return;
   navigator.mediaSession.setActionHandler("play", onPlay);
   navigator.mediaSession.setActionHandler("pause", onPause);
@@ -120,6 +146,7 @@ export function setMediaSessionHandlers(
 export function setMediaSessionPlaybackState(
   state: "playing" | "paused" | "none",
 ): void {
+  withNowPlaying((m) => m.nowPlayingSetState(state));
   if (!("mediaSession" in navigator)) return;
   navigator.mediaSession.playbackState = state;
 }

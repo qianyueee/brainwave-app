@@ -26,6 +26,13 @@
 
         </activity>
 
+        <!-- 再生中だけ動く前面サービス（通知・ロック画面の再生／一時停止と、画面を
+             消しても再生が止まらないこと）。NowPlayingService.java 参照。 -->
+        <service
+            android:name=".NowPlayingService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -43,4 +50,8 @@
     <!-- 通信の回復（online イベント）を WebView に届ける。アカウント同期の送信箱
          （lib/sync/outbox.ts）が再送のきっかけに使う。 -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 後台再生（NowPlayingService）。メディアの通知は Android 13+ の通知許可の
+         対象外なので POST_NOTIFICATIONS は要らない。 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 </manifest>

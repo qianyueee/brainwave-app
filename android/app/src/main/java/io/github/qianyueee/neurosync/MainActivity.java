@@ -21,6 +21,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // プラグインは super.onCreate（＝Bridge の生成）より前に登録する。
         registerPlugin(AppChromePlugin.class);
+        registerPlugin(NowPlayingPlugin.class);
         super.onCreate(savedInstanceState);
         if (bridge == null) {
             // WebView が入っていない端末（BridgeActivity が no_webview 画面を出す）。
