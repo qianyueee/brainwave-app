@@ -12,7 +12,8 @@ import com.getcapacitor.BridgeActivity;
  * ための数か所だけ:
  * - 本リポジトリ内のプラグイン（システムバー・後台再生・BrainLink）の登録
  * - /brain などを読み直したときに brain.html を返す（ExportRouteWebViewClient）
- * - 端末の文字サイズ設定に追従する（Chrome と同じ。WebView の既定は 100% 固定）
+ * - alert / confirm のボタンを端末の言語で出す（LocalizedChromeClient）
+ * - 端末の文字サイズ設定に追従する（Chrome と同じ。変更は Activity を作り直さずに反映）
  * - 画面が見えていなくてもレンダラの優先度を落とさない（後台再生中に落とされない）
  */
 public class MainActivity extends BridgeActivity {
@@ -22,12 +23,14 @@ public class MainActivity extends BridgeActivity {
         // プラグインは super.onCreate（＝Bridge の生成）より前に登録する。
         registerPlugin(AppChromePlugin.class);
         registerPlugin(NowPlayingPlugin.class);
+        registerPlugin(DownloadsPlugin.class);
         super.onCreate(savedInstanceState);
         if (bridge == null) {
             // WebView が入っていない端末（BridgeActivity が no_webview 画面を出す）。
             return;
         }
         bridge.setWebViewClient(new ExportRouteWebViewClient(bridge));
+        bridge.getWebView().setWebChromeClient(new LocalizedChromeClient(bridge));
         applyTextZoom(getResources().getConfiguration());
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             bridge.getWebView().setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);

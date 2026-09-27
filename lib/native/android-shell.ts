@@ -13,21 +13,23 @@ export async function installAndroidShell(): Promise<() => void> {
   // <meta name="theme-color"> を palette.navy に書き換え、THEME_CHANGE_EVENT を
   // 出す（ThemeProvider が10秒ごと）。スマホの Chrome はこの色でステータスバーを
   // 塗るので、同じ色をネイティブに渡す。アイコンの明暗は data-color-scheme
-  // （地が明るい＝light なら暗いアイコン）。
+  // （地が明るい＝light なら暗いアイコン）。回転・ダークモード切替などで端末側が
+  // 色を戻したときの塗り直しはネイティブ（AppChromePlugin）が自分でするので、
+  // ここは値が変わったときだけ送る。
+  let sent = "";
   const syncSystemBars = () => {
     const color = document.querySelector('meta[name="theme-color"]')?.getAttribute("content");
     if (!color) return;
     const lightBackground = document.documentElement.dataset.colorScheme === "light";
-    AppChrome.setSystemBars({ color, lightBackground }).catch(() => {});
+    const key = `${color}|${lightBackground}`;
+    if (key === sent) return;
+    sent = key;
+    AppChrome.setSystemBars({ color, lightBackground }).catch(() => {
+      sent = "";
+    });
   };
   syncSystemBars();
   window.addEventListener(THEME_CHANGE_EVENT, syncSystemBars);
-  // 背面にいる間に端末のダークモード等が変わると、ネイティブ側が既定の色に
-  // 戻すことがある。前面に戻ったら塗り直す。
-  const onVisible = () => {
-    if (document.visibilityState === "visible") syncSystemBars();
-  };
-  document.addEventListener("visibilitychange", onVisible);
 
   // ── 端末の「戻る」 ──
   // ブラウザと同じく履歴を1つ戻る。戻る先が無い（最初の画面）ときだけ、アプリを
@@ -39,7 +41,6 @@ export async function installAndroidShell(): Promise<() => void> {
 
   return () => {
     window.removeEventListener(THEME_CHANGE_EVENT, syncSystemBars);
-    document.removeEventListener("visibilitychange", onVisible);
     void back.remove();
   };
 }

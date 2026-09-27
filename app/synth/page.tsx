@@ -342,7 +342,9 @@ export default function SynthPage() {
     if (savedPresets.length === 0) return;
     const json = JSON.stringify(savedPresets, null, 2);
     const blob = new Blob([json], { type: "application/json" });
-    downloadBlob(blob, "brainwave-presets.json");
+    downloadBlob(blob, "brainwave-presets.json").catch(() => {
+      window.alert("ファイルを保存できませんでした");
+    });
   };
 
   const handleImportPresets = (e: React.ChangeEvent<HTMLInputElement>) => {

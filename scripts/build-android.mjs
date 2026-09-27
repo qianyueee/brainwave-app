@@ -74,6 +74,38 @@ fs.cpSync(outDir, webDir, {
   },
 });
 
+// 端末の Android System WebView が古すぎるとき（capacitor.config.ts の
+// minWebViewVersion 未満）に Capacitor が開くページ。画面のスタイルは読めない
+// 前提なので、これだけは素の HTML ＋インライン CSS で書く。
+fs.writeFileSync(
+  path.join(webDir, "webview-update.html"),
+  `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NeuroSync</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+         background: #1E1B4B; color: #fff; font-family: sans-serif; padding: 24px; box-sizing: border-box; }
+  .box { max-width: 420px; font-size: 18px; line-height: 1.8; }
+  h1 { font-size: 22px; line-height: 1.5; margin: 0 0 16px; }
+  a { display: block; margin-top: 24px; padding: 14px 16px; border-radius: 16px; background: #A78BFA;
+      color: #1E1B4B; text-align: center; font-weight: bold; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>「Android System WebView」の更新が必要です</h1>
+  <p>NeuroSync は、端末の「Android System WebView」を使って画面を表示しています。この端末の WebView は古いため、画面を正しく表示できません。</p>
+  <p>Google Play ストアで「Android System WebView」を更新してから、アプリを開き直してください。</p>
+  <a href="https://play.google.com/store/apps/details?id=com.google.android.webview">Play ストアで更新する</a>
+</div>
+</body>
+</html>
+`
+);
+
 const walk = (dir, pick) => {
   const found = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

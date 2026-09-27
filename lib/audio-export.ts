@@ -489,16 +489,18 @@ function floatTo16BitPCM(float32: Float32Array): Int16Array {
 
 // --- Download ---
 
-export function downloadBlob(blob: Blob, filename: string): void {
-  // Android アプリの WebView は blob: の <a download> を保存できない。キャッシュに
-  // 書き出して共有シートを開く（lib/native/save-file.ts）。
+/**
+ * ファイルとして保存する（ブラウザのダウンロード）。Android アプリの WebView は
+ * blob: の <a download> を保存できないので、端末の「ダウンロード」フォルダへ
+ * ネイティブで書く（lib/native/downloads.ts）——保存し終えてから resolve する。
+ */
+export async function downloadBlob(blob: Blob, filename: string): Promise<void> {
   if (IS_ANDROID_APP) {
-    import("./native/save-file")
-      .then((m) => m.shareBlobAsFile(blob, filename))
-      .catch(() => {
-        window.alert("ファイルを書き出せませんでした。端末の空き容量を確認して、もう一度お試しください。");
-      });
-    return;
+    const native = await import("./native/downloads");
+    if (native.canSaveToDownloads()) {
+      await native.saveBlobToDownloads(blob, filename);
+      return;
+    }
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -536,7 +538,7 @@ export async function exportBinaural(options: {
 
     const ext = format === "wav" ? "wav" : "mp3";
     const safeName = program.name.replace(/[^\w\u3000-\u9fff\u30a0-\u30ff\u3040-\u309f]/g, "_");
-    downloadBlob(blob, `${safeName}_${duration}s.${ext}`);
+    await downloadBlob(blob, `${safeName}_${duration}s.${ext}`);
 
     onProgress({ status: "done" });
   } catch (err) {
@@ -574,7 +576,7 @@ export async function exportSynth(options: {
       : await encodeMp3(buffer);
 
     const ext = format === "wav" ? "wav" : "mp3";
-    downloadBlob(blob, `synth_export_${duration}s.${ext}`);
+    await downloadBlob(blob, `synth_export_${duration}s.${ext}`);
 
     onProgress({ status: "done" });
   } catch (err) {

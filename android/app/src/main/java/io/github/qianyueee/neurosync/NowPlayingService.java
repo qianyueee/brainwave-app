@@ -5,10 +5,15 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
@@ -32,6 +37,13 @@ import android.os.Looper;
  *
  * 通知の見せ方は Android の標準（MediaSession ＋ MediaStyle）。Android 13 以降は
  * メディアセッションの通知が通知許可の対象外なので、許可ダイアログは出さない。
+ *
+ * Chrome がメディア再生中にしていることも同じくする：
+ * - 着信・ほかのアプリの再生（オーディオフォーカスを失う）→ 一時停止。着信など
+ *   一時的な喪失なら、戻ってきたら再開
+ * - イヤホン／ヘッドホンが抜けた（AUDIO_BECOMING_NOISY）→ 一時停止（バイノーラル
+ *   ビートが急にスピーカーから鳴り出さないように）
+ * どれも JS の pauseSession / resumeSession を呼ぶだけで、音には直接触らない。
  *
  * スレッド：show / setPlaying / hide はプラグインのスレッドから呼ばれ、サービス
  * 自身の処理はすべてメインスレッドで行う（static の状態は volatile）。
@@ -64,6 +76,49 @@ public class NowPlayingService extends Service {
     private static volatile boolean playing = true;
 
     private MediaSession session;
+    private AudioManager audioManager;
+    private AudioFocusRequest focusRequest; // API 26+
+    private boolean hasFocus = false;
+    private boolean resumeOnFocusGain = false;
+
+    private final AudioManager.OnAudioFocusChangeListener focusListener = (change) -> {
+        switch (change) {
+            case AudioManager.AUDIOFOCUS_LOSS:
+                hasFocus = false;
+                resumeOnFocusGain = false;
+                if (playing) {
+                    dispatch("pause");
+                }
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                // 着信・読み上げなど。音量を下げるだけではビートの聞こえ方が変わるので止める。
+                if (playing) {
+                    resumeOnFocusGain = true;
+                    dispatch("pause");
+                }
+                break;
+            case AudioManager.AUDIOFOCUS_GAIN:
+                hasFocus = true;
+                if (resumeOnFocusGain) {
+                    resumeOnFocusGain = false;
+                    dispatch("play");
+                }
+                break;
+            default:
+                break;
+        }
+    };
+
+    private final BroadcastReceiver noisyReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction()) && playing) {
+                resumeOnFocusGain = false;
+                dispatch("pause");
+            }
+        }
+    };
 
     static void setListener(ActionListener l) {
         listener = l;
@@ -131,6 +186,14 @@ public class NowPlayingService extends Service {
             }
         );
         session.setActive(true);
+
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        IntentFilter noisy = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(noisyReceiver, noisy, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(noisyReceiver, noisy);
+        }
     }
 
     @Override
@@ -162,6 +225,12 @@ public class NowPlayingService extends Service {
     @Override
     public void onDestroy() {
         instance = null;
+        try {
+            unregisterReceiver(noisyReceiver);
+        } catch (IllegalArgumentException e) {
+            // 登録前に落ちた
+        }
+        abandonFocus();
         if (session != null) {
             session.setActive(false);
             session.release();
@@ -176,8 +245,50 @@ public class NowPlayingService extends Service {
     }
 
     private void shutdown() {
+        abandonFocus();
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
+    }
+
+    /** 再生を始める（再開する）ときにフォーカスを取る。取れなくても音は JS が鳴らす。 */
+    private void requestFocus() {
+        if (hasFocus || audioManager == null) {
+            return;
+        }
+        int result;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (focusRequest == null) {
+                focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(
+                        new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setOnAudioFocusChangeListener(focusListener)
+                    .build();
+            }
+            result = audioManager.requestAudioFocus(focusRequest);
+        } else {
+            result = audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        }
+        hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void abandonFocus() {
+        resumeOnFocusGain = false;
+        if (!hasFocus || audioManager == null) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (focusRequest != null) {
+                audioManager.abandonAudioFocusRequest(focusRequest);
+            }
+        } else {
+            audioManager.abandonAudioFocus(focusListener);
+        }
+        hasFocus = false;
     }
 
     private void dispatch(String action) {
@@ -192,6 +303,9 @@ public class NowPlayingService extends Service {
             return;
         }
         boolean isPlaying = playing;
+        if (isPlaying) {
+            requestFocus();
+        }
         session.setMetadata(
             new MediaMetadata.Builder()
                 .putString(MediaMetadata.METADATA_KEY_TITLE, title)

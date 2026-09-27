@@ -20,17 +20,26 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: "https",
     hostname: "localhost",
+    // 下の minWebViewVersion に満たない端末で開くページ（scripts/build-android.mjs が書く）。
+    errorPath: "webview-update.html",
+  },
+  android: {
+    // 画面は Chromium 111 以上向けに書き出される（Next.js 16 の既定ターゲット、
+    // Tailwind v4 も同じ）。それより古い System WebView だとレイアウトが崩れるので、
+    // 開かずに「WebView を更新してください」を出す。
+    minWebViewVersion: 111,
   },
   // Web 版はピンチズームを意図的に残している（50〜60代の最後の拡大手段。
   // app/layout.tsx の viewport 参照）。Capacitor の既定は無効なので戻す。
   zoomEnabled: true,
   plugins: {
-    // 既定の "css" のままにする：ページが viewport-fit=cover を宣言していない
-    // （app/layout.tsx）ので、SystemBars はステータスバー・ナビゲーションバー
-    // （キーボード表示中は IME）の分だけ decorView に余白を取る——スマホの
-    // ブラウザと同じ「バーの間だけがページ」になり、共有 CSS を触らずに済む。
+    // ページが viewport-fit=cover を宣言していない（app/layout.tsx）ので、
+    // SystemBars はステータスバー・ナビゲーションバー（キーボード表示中は IME）の
+    // 分だけ decorView に余白を取る——スマホのブラウザと同じ「バーの間だけが
+    // ページ」になり、共有 CSS を触らずに済む。"native" は使わない
+    // --safe-area-inset-* の注入だけを省く（"css" と余白の取り方は同じ）。
     SystemBars: {
-      insetsHandling: "css",
+      insetsHandling: "native",
     },
   },
 };
