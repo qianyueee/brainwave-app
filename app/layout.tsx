@@ -45,8 +45,8 @@ export default function RootLayout({
       lang="ja"
       className={notoSansJP.variable}
       // Android アプリのビルドだけに付く目印（scripts/build-android.mjs が書き出しを
-      // 確かめるのに使う）。Web 版の DOM には何も足さない。
-      data-app-platform={IS_ANDROID_APP ? "android" : undefined}
+      // 確かめるのに使う）。Web 版には属性ごと足さない（RSC の中身にも出ない）。
+      {...(IS_ANDROID_APP ? { "data-app-platform": "android" } : {})}
     >
       <body>
         <ThemeProvider>

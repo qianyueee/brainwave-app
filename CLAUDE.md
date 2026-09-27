@@ -17,6 +17,7 @@ NeuroSync（ニューロシンク）— 基于个人脑波数据的移动端 Web
 - Charts: Recharts
 - Astronomy: astronomy-engine（太陽/月星座计算；仅在 `lib/zodiac.ts` 的 `getTodaySky` 内动态 import → 独立懒加载 chunk，禁止顶层静态 import）
 - Package Manager: pnpm
+- Android: Capacitor 8（同じ静的書き出しを APK に入れる。`android/`・`capacitor.config.ts`。規則は下の「Android アプリ（Capacitor）」、配布手順は android/README.md）
 
 ## Development Commands
 
@@ -27,6 +28,8 @@ pnpm build            # 构建生产版本
 pnpm start            # 本地预览
 pnpm tsc --noEmit     # 类型检查
 pnpm lint             # Lint
+pnpm build:android    # Android 版の書き出し → android-web/ → cap sync（APK は android/ で Gradle）
+pnpm check:thinkgear  # ThinkGear パーサ（TS）と bridge/thinkgear.py の突き合わせ（python3 が要る）
 ```
 
 ## Architecture
@@ -39,7 +42,7 @@ brainwave-app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
 │   ├── page.tsx                # Home 首页（品牌行〔NeuroSync® のみ・`text-base`=16px。ページ見出し 20px を超えない範囲でいちばん大きく〕→ 「Home / 今日の星空・宇宙周波数で即座に調律」页面见出し → Sync Tree 风景卡〔左上ラベル・右上＝段階名・右下矢印だけ（**数値は出さない**）、整卡点击进 /tree。未ログインは星の種＋右上「ログインで育てる」、読み込み中は空だけ〕→ 脳コンディションカード → 星座卡；右上角設定入口。桌面端左列＝Tree＋コンディション、右列＝星座卡）
 │   ├── session/page.tsx        # Sync Session（上段＝Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕｜所属グループへの配信プログラム／未ログイン CTA。下段＝幅いっぱいの `CatalogSection`：デフォルト・Target・Energy・Astro の4タブ＋全カテゴリ横断の検索。一覧を上段2列グリッドの片側に入れないのは、169 件を半分の幅に押し込むとカードが縦に続く筒になるから。※音源制作・公開などの管理操作は置かない——管理面板「音源」タブへ移設済み）
-│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 誘導周波数の入力 → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕）
+│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 誘導周波数の入力 → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕。Android アプリでは源が BluetoothSource、「接続する」が BluetoothSourceDialog〔Bluetooth で BrainLink に直結〕）
 │   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝1件で6指標＆スペクトル表示・2〜3件で重ねて比較。既定は脳特性チャート）
 │   ├── history/page.tsx        # Sync History（日历〔日付タップで当日の明細＋**その日の振り返り**を書く〕/ セッション統計 / 脳波の記録〔ログイン必須〕/ 10秒チェックの記録〔認証ゲートの外＝未ログインでも見える〕；レポートで見る→/report）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
@@ -53,6 +56,7 @@ brainwave-app/
 │   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。**帯は横いっぱい**（`<main>` の幅そのまま＝画面端まで／デスクトップはレールの右端から右端まで）、中身だけ `usePageColumnClass()` に入れて下のカードと左端を揃える。地は**すりガラス**（`bg-navy/70` ＋ `backdrop-blur-2xl`＝40px）。不透明な `bg-navy` は不可——WaveBackground は `fixed` で `--dyn-navy` の上に明るい波を重ねているので、見えている地色は場所によって違い、波が横切る位置では不透明な帯だけが暗い矩形として浮く（デスクトップで露骨に出た）。blur なら背後の波の色を拾って周囲と同じ色みになる。blur は 12px では下を流れるグラフの目盛りが読めてしまうので 40px、tint は明るいアート（ブレインアート等）の滲み出しを抑えるのに 70% 必要。文字は `text-xl`/`text-xs`＝20px/12px（ページ内見出し `text-lg`=18px を下回らない範囲で最小）。帯の上下は pt-4/pb-2——文字の縮小に合わせて詰めてある（高さを据え置くと小さくなった見出しが広い帯の中で浮く）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
 │   ├── PageColumn.tsx          # 内容カラム（最大幅＋左右パディング）の**唯一の持ち主**＝`usePageColumnClass()`。`PageHeader` の帯と本文が同じ値を使う（ズレると見出しがカードから外れて浮く）。`PageColumn`＝カラム＋`flex flex-col gap-6 pt-6`（見出しページ用）、`BareColumn`＝カラムだけ（gap/padding が違う /player・/synth・/admin・旧路由スタブ用——Tailwind は同プロパティのクラスを並べても「後に書いたほう」が勝つとは限らないので上書きに頼らない）
 │   ├── AppMain.tsx             # `<main>`。**横幅は制限しない**（カラムは PageColumn 側）——ここで `mx-auto max-w-5xl` を掛けると sticky な見出しがカラム幅どまりで「浮いた棒」になり、`mx-auto` の余白は画面幅×レール開閉で変わるので負マージンでも逃がせない。持つのはミニプレイヤー分の下パディングだけ
+│   ├── AndroidAppShell.tsx     # Android アプリだけの常駐処理の入口（何も描かない。本体は lib/native/android-shell.ts：システムバーを theme-color に合わせる・戻るキー・Google ログインの戻り）。Web 版では空
 │   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
 ├── lib/
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
@@ -81,7 +85,14 @@ brainwave-app/
 │   ├── mind/desktop-google-auth.ts # デスクトップの Google ログイン（既定のブラウザ＋ループバック＋PKCE、RFC 8252）。WebView 内のログインは Google が拒むので window.open（pywebview が既定のブラウザへ回す）→ Supabase → `state.authCallbackUrl`（Python の /auth/callback）→ WS `auth_callback` → verifier と引き換え（`/auth/v1/token?grant_type=pkce`）→ setSession。**全体の supabase クライアントは implicit のまま**（Web の Google ログイン・確認メールを変えない）。verifier は1回きり・待っていない code は捨てる。flow state は /authorize から5分
 │   ├── mind/session-record.ts  # 測定セッション → 脳特性記録（BrainProfile）の唯一の写像（measurementFromSession / sessionLabel / measurementKey）。/brain の取り込みとデスクトップの自動保存が同じ1本を通る
 │   ├── mind/local-source.ts    # LocalSource＝MindDataSource 第三の実装（/desktop 用）。WS 接続→onStatus("connected")、装置パイプライン稼働→onBridgeOnline——canReceiveData が /brain と同義で機能する写像
+│   ├── mind/thinkgear.ts       # ThinkGear（BrainLink）のバイト列 → EegSample。**bridge/thinkgear.py の1行ずつの移植**（分帧・payload を読み切ってから組む・実測率・去趨勢＋Hann＋整数 Hz の DFT・Python の round まで同じ）。**片方を直したら必ずもう片方も**——`pnpm check:thinkgear` が乱れた列を含む同じバイト列を両方に通して一致を確かめる。型以外 import しない（node で直接動く）
+│   ├── mind/thinkgear-synth.ts # 決定的な ThinkGear の列（512/481Hz の個体・装着なし）。突き合わせと、ブラウザ開発用の脳波計の替え玉が使う
+│   ├── mind/bluetooth-link.ts  # Android アプリ：BrainLink との Bluetooth 接続の単一の係（ネイティブから受けたバイトを ThinkGearParser に通して配る・意図せず切れたら Sync Brain を開いている間5秒ごとに再接続〔ブリッジと同じ〕・ページを離れても接続は保つ・繋がっている間は画面を消さない・ts は必ず前より大きく）。状態は useBluetoothStore。許可/Bluetooth オンのダイアログは画面のボタンからだけ
+│   ├── mind/bluetooth-source.ts # BluetoothSource＝MindDataSource 第四の実装（Android の /brain 用）。繋がっている→onStatus("connected")、6秒以内にサンプル→onBridgeOnline——LocalSource と同じ写し方
 │   ├── desktop.ts              # isDesktopRoute()：/desktop で BottomNav・SideNav・MiniPlayer・ランチャー溝（PageColumn）を消す**唯一の判定**。ビルドフラグでなく pathname なので dev/Pages/同梱ビルドで挙動が同じ。WEB_APP_URL（「Web版で記録を見る」の先、NEXT_PUBLIC_WEB_APP_URL で上書き可）
+│   ├── platform.ts             # IS_ANDROID_APP：Android アプリのビルドか（**ビルド時の定数**、NEXT_PUBLIC_APP_PLATFORM=android を build-android.mjs だけが焼き込む）。静的 HTML もこれで描かれるのでハイドレーションが一致する
+│   ├── sounds.ts               # `/sounds/*` の置き場所（soundUrl）。Web 版は同じ origin、Android は NEXT_PUBLIC_SOUNDS_BASE＝Web 版（GitHub Pages）から取る（APK に 300MB を入れない）
+│   ├── native/                 # Android アプリの Capacitor 側（**ここ以外で @capacitor/* と lib/native/ を静的 import しない**、ESLint が禁止。外からは IS_ANDROID_APP の中で動的 import()）：android-shell（バー色・戻る・ログインの戻り）/ app-chrome（バー色・画面常時点灯）/ now-playing（後台再生・ロック画面）/ downloads（「ダウンロード」へ保存）/ android-google-auth（Custom Tab＋appUrlOpen）/ brainlink（Bluetooth のバイトの管）＋ brainlink-web（ブラウザ開発用の替え玉）
 │   ├── sync/                   # アカウント同期（下の「アカウント同期」）：brain-profile.ts / baseline-checks.ts＝1記録1行の API（keyset ページング・必ず user_id で絞る）／cloud-mark.ts＝記録に付ける宛先・保存済みの印（純関数）／outbox.ts＝送信箱（全体で1つ、AuthProvider が起動）／account-views.ts＝Web の読み直し（木も）／tree-events.ts＝Sync Tree の出来事の API（1件1行・追記のみ・ignoreDuplicates）／tree-runtime.ts＝木の常駐処理（リスニング積算＋送信のやり直し、AuthProvider が起動・/desktop では起動しない）／per-user-storage.ts・migrate.ts・presets.ts・programs.ts・custom-audios.ts は従来どおり
 │   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
@@ -96,9 +107,14 @@ brainwave-app/
 │   ├── useSidebarStore.ts      # 桌面左栏开合（不 persist：每次加载都从收起开始）
 │   ├── useDesktopBridgeStore.ts # デスクトップ測定アプリのローカル WS 状態ミラー（wsConnected / state 全量快照 / lastLog、**不 persist**——正は Python 側）。deviceOnline セレクタ＝「装置パイプライン稼働」
 │   ├── useSyncTreeStore.ts     # Sync Tree の出来事（ログイン中のアカウントのぶん）。**persist しない**——木はログイン中だけの機能でデータはアカウントにだけ置く（AuthProvider がログインで読み込み・ログアウトで捨てる）。読み直しは手元∪サーバ（行は追記のみなので和集合が常に正しい）。水やり等は pending 付きで先に足し、**木専用の送信係**が1件ずつ送る（共通の送信箱は1件失敗で止まり phase も共用なので乗せない）。画面は `useSyncTreeView()`（view＝unavailable/loading/logged-out/error/ready）と `useTreeToday()`（日付が変わると自分で切り替わる）
+│   ├── useBluetoothStore.ts    # Android アプリの BrainLink 接続の状態（phase：idle/connecting/pairing/connected/reconnecting/error・許可・アダプタ・一覧、**不 persist**）。最後に繋いだ機器だけ useBluetoothDeviceStore（persist key `bt-device`、mind-map の形は変えない）
 │   └── useZodiacStore.ts       # マイ星座偏好 + persist（普通 localStorage，未登录也生效）
 ├── bridge/                     # PC 側プログラム群（Python）。①従来ブリッジ：BrainLink(SPP串口)→ThinkGear 解析→Supabase Realtime（main.py CLI / gui.py Tkinter / bridge_core.py / publisher.py / thinkgear.py / csv_logger.py / demo_source.py）②デスクトップ測定アプリ：desktop_app.py（入口・pywebview）+ desktop_bridge.py（管线编排）+ local_server.py（WS 协议正本）+ static_server.py + desktop_config.py。詳細は下の「デスクトップ測定アプリ与 PC 桥接」与 bridge/README.md
 ├── scripts/build-desktop.mjs   # `pnpm build:desktop`：basePath 空＋**Web 版と同じ Supabase env を焼き込む**（ログイン・自動保存用。CI で env が無ければ失敗、焼き込み確認あり）→ bridge/web/（剔除 sounds/ ~300MB）→ 校验无 /brainwave-app 残留
+├── scripts/build-android.mjs   # `pnpm build:android`：basePath 空＋NEXT_PUBLIC_APP_PLATFORM=android＋音源の取り先＋Web 版と同じ Supabase env（CI で無ければ失敗）→ android-web/（剔除 sounds/）＋ WebView 更新案内ページ → 残留・焼き込みを確認 → cap sync
+├── scripts/check-thinkgear.mjs # `pnpm check:thinkgear`：lib/mind/thinkgear.ts と bridge/thinkgear.py の突き合わせ
+├── capacitor.config.ts         # Android アプリの設定（appId・origin は配布後に変えない。ピンチズーム有効・最低 WebView 111・SystemBars native）
+├── android/                    # Capacitor の Android プロジェクト（Java、コミットする）。自前のプラグイン：AppChrome / NowPlaying（＋前面サービス）/ Downloads / BrainLink、WebView の補い：ExportRouteWebViewClient（/brain → brain.html）/ LocalizedChromeClient。配布・署名鍵・確認リストは android/README.md
 ├── supabase/migrations/        # 手で SQL Editor に流す（CLI 設定なし）。001 管理者・グループ／002 ユーザー同期（旧 user_brain_profile＝1ユーザー1 JSONB）／**003 account_sync＝1記録1行の user_brain_measurements・user_baseline_checks＋旧表から移行＋旧表を読み取り・削除専用に**／**004 sync_tree＝Sync Tree の出来事 user_tree_events（1件1行・追記のみ。キーの形で1日の上限を守る）**
 ├── scripts/import-program-xlsx.mjs # 一覧 xlsx → `lib/catalog/params.generated.ts`。**必ず `--inspect <file>` を先に**走らせて見出しの対応を確かめ、必要なら HEADER_SYNONYMS に足してから `--in <file>`。出力するのは周波数と尺だけ——名前・よみ・アイコン・並びは人が決めたものなので取り込みで消さない。突き合わせは名前（id は xlsx に無く、しかも localStorage に残る利用者の選択そのものなので機械に振り直させない）
 ├── public/sounds/              # 自然音素材
@@ -217,7 +233,7 @@ AudioContext（全局单例，getAudioContext() 管理）
                                         └─（可选开关，默认关）──Supabase Realtime──> /brain 照常观看
 ```
 
-- **wire contract 三方共通**：`EegSample`（`lib/mind/types.ts`）＝ `bridge/publisher.py` 的
+- **wire contract 四方共通**（Android アプリは TS に移植したパーサ `lib/mind/thinkgear.ts` で自分で組み立てる）：`EegSample`（`lib/mind/types.ts`）＝ `bridge/publisher.py` 的
   broadcast payload ＝ 本地 WS `{"type":"sample","sample":{…}}` 的 sample，逐键相同，改任何
   一方必须三处同步。云端频道 `eeg:{归一化配对码}`、事件 `"sample"` 不变。
   `synthetic: true` ＝合成データ（`demo_source.py`／画面内 DummySource）：録音中に1秒でも
@@ -303,6 +319,59 @@ Web /report・/history・ホーム：ログイン時＋タブに戻ったとき�
   ログインには Supabase の Redirect URLs に `http://127.0.0.1:17860/auth/callback` を足しておく
   （最近の GoTrue はループバック IP を許可済みだが保険）。Sync Tree は **004 を SQL Editor で流してから Web を
   デプロイ**（先に Web が出ても /tree が「読み込めませんでした」になるだけ。デスクトップ exe の作り直しは不要）。
+
+### Android アプリ（Capacitor）
+
+Web 版の静的書き出しを Capacitor 8 で APK に入れたもの（配布・署名鍵・端末の確認リストは
+android/README.md）。**画面と操作は Web 版と同じコード**で、違いは Sync Brain が Bluetooth で
+BrainLink に直結すること（PC ブリッジ・ペアリングコードは使わない）だけ。
+
+```
+BrainLink ─RFCOMM(SPP)─> BrainLinkPlugin（Java：バイトを約50msごとに受信時刻付きで渡すだけ）
+   ─"data"─> lib/mind/bluetooth-link.ts ─ThinkGearParser（bridge/thinkgear.py の移植）─> EegSample
+   ─> BluetoothSource（MindDataSource 第四）─> useMindStore.pushSample（不変）
+```
+
+- **分岐はビルド時の定数 `IS_ANDROID_APP`（lib/platform.ts）だけ**：`pnpm build:android` が
+  NEXT_PUBLIC_APP_PLATFORM=android を焼き込み、静的 HTML も Android 版で描かれる（実行時に
+  Capacitor を見て描き分けるとハイドレーションがずれる）。Web ビルドでは false で、Pages 版の
+  挙動は変わらない。**`@capacitor/*` と `lib/native/` は `lib/native/` の外で静的 import しない**
+  （ESLint の no-restricted-imports が止める）——外からは `if (IS_ANDROID_APP)` の中で `import()`。
+- **⚠ Capacitor のプラグインは Proxy**：どんな名前のプロパティも「メソッド」に見えるので、
+  **Promise をプラグインそのもので resolve しない／async 関数から返さない**（resolve が `then` を
+  探して `plugin.then()` を呼び「not implemented」で落ちる）。`{ p }` のように包んで渡す
+  （bluetooth-link.ts の load）。
+- **配布後に変えないもの**：appId `io.github.qianyueee.neurosync`・署名鍵（同じ鍵でしか上書き
+  更新できない）・`server.androidScheme/hostname`＝origin `https://localhost`（変えると端末内の
+  localStorage/IndexedDB が見えなくなる。デスクトップの 17860 と同じ理由）。
+- **ページの読み直し**：Capacitor の端末内サーバは拡張子の無いパスを一律 index.html で返すので、
+  `ExportRouteWebViewClient` が `/brain` → `brain.html` に言い換える（bridge/static_server.py と
+  同じ規則。trailingSlash を変えるならここも）。
+- **Chrome が黙ってやっていることの補い**（どれも画面は変えない）：
+  - 後台再生・ロック画面：`lib/keep-alive.ts` の navigator.mediaSession 呼び出しを、Android では
+    同じ順で NowPlaying（前面サービス mediaPlayback＋MediaSession 通知）へも渡す。着信・他アプリで
+    一時停止（一時的なら再開）、イヤホンが抜けたら一時停止。AudioProvider は無変更
+  - ダウンロード：`downloadBlob` が「ダウンロード」フォルダへ保存（DownloadsPlugin、1MB ずつ）。
+    保存し終えてから resolve するので書き出しの「完了」も保存後
+  - Google ログイン：Custom Tab＋PKCE＋独自スキームで戻す（lib/mind/desktop-google-auth.ts を
+    デスクトップと共用。戻りは起動時から appUrlOpen で待つ、verifier は Android では localStorage）。
+    **Supabase の Redirect URLs に `io.github.qianyueee.neurosync://auth/callback` が要る**
+  - システムバー：`<meta name="theme-color">`（applyPalette が palette.navy に書き換える）を
+    ネイティブへ渡して塗る。SystemBars は `native`（viewport-fit=cover が無いのでバーの間だけが
+    ページ＝ブラウザと同じ。共有 CSS に safe-area は要らない）
+  - 文字サイズ（fontScale に追従、Activity は作り直さない）・ピンチズーム（zoomEnabled）・
+    alert/confirm のボタン文言（端末の言語）・戻るキー（履歴を戻る、最初の画面では背面へ）
+- **音源は APK に入れない**：lib/sounds.ts の SOUNDS_BASE で Web 版（GitHub Pages、ACAO:*）から取る。
+- **Sync Brain の接続（bluetooth-link.ts）**：sourceKind の "realtime" は「実機の脳波（経路は問わない）」
+  のまま（/desktop と同じ）なので、canReceiveData・取り込み・アカウント保存の判定は Web 版と同じ。
+  接続はページを離れても保つ（ブリッジが送り続けるのと同じ）、意図せず切れたら Sync Brain を開いている
+  間だけ5秒ごとに再接続、開いていて繋がっている間は画面を消さない。許可や「Bluetooth をオンに」は
+  画面のボタンからしか出さない（自動接続は許可と Bluetooth が揃っているときだけ）。
+- **開発**：`NEXT_PUBLIC_APP_PLATFORM=android pnpm dev` で Android 版の画面をブラウザで触れる
+  （「接続する」は lib/native/brainlink-web.ts の替え玉＝合成の ThinkGear。そこからの測定は
+  synthetic＝source "demo" で保存・送信されない。状態は localStorage "brainlink-mock"）。
+- **CI**：`.github/workflows/build-android.yml`（Android まわりの push＝debug ビルドで通るかだけ、
+  `android-v*` タグ＝Secrets の鍵で署名した release APK を Release に添付）。
 
 ## Notes & Prompts
 
