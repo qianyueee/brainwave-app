@@ -57,7 +57,13 @@ jobs:
           java-version: 21
           cache: gradle
 
+      # 既定の packages（"tools platform-tools"）の "tools" は SDK から消えていて失敗する。
+      # ランナーには SDK が入っているので、ライセンスの受諾と platform-tools だけ。
+      # compileSdk 36 のプラットフォーム等は Gradle（AGP）が必要なら取りに行く。
       - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools"
+          log-accepted-android-sdk-licenses: false
 
       # ThinkGear の突き合わせ（bridge/thinkgear.py を動かす）。
       - uses: actions/setup-python@v5
