@@ -370,8 +370,9 @@ BrainLink ─RFCOMM(SPP)─> BrainLinkPlugin（Java：バイトを約50msごと�
 - **開発**：`NEXT_PUBLIC_APP_PLATFORM=android pnpm dev` で Android 版の画面をブラウザで触れる
   （「接続する」は lib/native/brainlink-web.ts の替え玉＝合成の ThinkGear。そこからの測定は
   synthetic＝source "demo" で保存・送信されない。状態は localStorage "brainlink-mock"）。
-- **CI**：`.github/workflows/build-android.yml`（Android まわりの push＝debug ビルドで通るかだけ、
-  `android-v*` タグ＝Secrets の鍵で署名した release APK を Release に添付）。
+- **CI**：`.github/workflows/build-android.yml`（Android まわりの push＝debug ビルドに加えて、release の
+  経路〔lintVital・署名〕も使い捨ての鍵で通す〔配らない〕。`android-v*` タグ＝Secrets の鍵で署名した
+  release APK を Release に添付）。
 
 ## Notes & Prompts
 
