@@ -11,15 +11,20 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useCustomAudioStore } from "@/store/useCustomAudioStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import { useCloudSyncStore } from "@/store/useCloudSyncStore";
+import { useSyncTreeStore } from "@/store/useSyncTreeStore";
 import { setActiveCloudUserId } from "@/lib/sync/per-user-storage";
 import { runFirstLoginMigration } from "@/lib/sync/migrate";
 import { ensureCloudOutbox, releaseCloudOutbox } from "@/lib/sync/outbox";
 import { refreshAccountViews } from "@/lib/sync/account-views";
+import { startSyncTreeRuntime } from "@/lib/sync/tree-runtime";
 import { isDesktopRoute } from "@/lib/desktop";
 import AuthModal from "@/components/AuthModal";
 
 async function hydrateForUser(user: User) {
   setActiveCloudUserId(user.id);
+  // Sync Tree はアカウントにだけある。読み込みは失敗しても reject しないが、
+  // 下の Promise.all には入れない——木の都合で初回ログインの移行を待たせない。
+  void useSyncTreeStore.getState().loadForUser(user.id);
   await Promise.all([
     useSynthStore.getState().loadFromCloud(user.id),
     useBrainProfileStore.getState().loadFromCloud(user.id),
@@ -34,6 +39,7 @@ function clearAllForLogout() {
   useBrainProfileStore.getState().clearForLogout();
   useCustomAudioStore.getState().clearForLogout();
   useBaselineStore.getState().clearCloudChecks();
+  useSyncTreeStore.getState().clear();
   setActiveCloudUserId(null);
 }
 
@@ -110,6 +116,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     ensureCloudOutbox();
     return () => releaseCloudOutbox();
   }, []);
+
+  // Sync Tree：リスニングの積算と、送れていない出来事の送り直し。デスクトップ
+  // 測定アプリには木も再生も無い（そもそも木を読み込まない）。
+  useEffect(() => {
+    if (desktop) return;
+    return startSyncTreeRuntime();
+  }, [desktop]);
 
   // タブに戻ったら記録を読み直す：デスクトップ測定アプリで測ってからブラウザに
   // 切り替えると、そのまま新しい記録が見える。

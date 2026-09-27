@@ -89,7 +89,7 @@ export default function HomePage() {
           DOM 順のまま行列を明示指定している（order だけではグリッドが行方向に
           流れてしまい、意図しない位置に回り込む）。 */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-        {/* 樹だけの風景カード（タップで /tree の16段階ギャラリーへ） */}
+        {/* 樹だけの風景カード（タップで /tree——いまの木に水をやる画面へ） */}
         <div className="md:col-start-1 md:row-start-1">
           <SyncTreeCard />
         </div>

@@ -482,6 +482,70 @@ input[type="range"]:disabled::-moz-range-thumb {
   animation-direction: reverse;
 }
 
+/* Sync Tree（/tree）— 水やりの手応え。どれも1回きりで、React の key を
+   変えて付け直すと最初から再生される（ループさせない＝常駐の負荷にならない）。
+   樹に掛けるものは SVG の内側の <g> に付ける：transform-box: fill-box で
+   その <g> 自身の外接矩形を基準にし、根元（下辺の中央）を支点にする。 */
+@keyframes tree-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.tree-fade-in {
+  animation: tree-fade-in 0.6s ease-out both;
+}
+/* 段階が上がった（植え替えた）ときに、新しい絵が根元から育つ */
+@keyframes tree-grow {
+  from { opacity: 0.3; transform: scale(0.86); }
+  to { opacity: 1; transform: scale(1); }
+}
+.tree-grow {
+  animation: tree-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+/* しずくが届いたところで、樹が根元から小さく揺れる */
+@keyframes tree-sway {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2.2deg); }
+  60% { transform: rotate(1.6deg); }
+  85% { transform: rotate(-0.6deg); }
+}
+.tree-sway {
+  animation: tree-sway 0.9s ease-in-out 0.45s both;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+/* しずく（HTML の重ね）。上から落ちて樹冠で消える */
+@keyframes tree-drop {
+  0% { opacity: 0; transform: translateY(-36px); }
+  20% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(10px); }
+}
+.tree-drop {
+  animation: tree-drop 0.8s ease-in both;
+  animation-delay: var(--drop-delay, 0s);
+}
+/* 「+1」が樹冠から浮かんで消える */
+@keyframes tree-plus-one {
+  0% { opacity: 0; transform: translateY(8px); }
+  18% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-30px); }
+}
+.tree-plus-one {
+  animation: tree-plus-one 1.6s ease-out 0.35s both;
+}
+/* 「『若木』に育ちました」などのひと言。出て、しばらく居て、消える */
+@keyframes tree-toast {
+  0% { opacity: 0; transform: translateY(6px); }
+  10%, 82% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0); }
+}
+.tree-toast {
+  animation: tree-toast 3.2s ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   @keyframes wave-flow {
     from, to { transform: translate3d(0, 0, 0); }
@@ -515,5 +579,28 @@ input[type="range"]:disabled::-moz-range-thumb {
   }
   @keyframes mandala-spin {
     0%, 50%, 100% { transform: rotate(0deg); }
+  }
+  /* Sync Tree：動きは止め、現れる・消えるだけ残す（何が起きたかは文字でも出る） */
+  @keyframes tree-grow {
+    from { opacity: 0.3; transform: none; }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes tree-sway {
+    0%, 100% { transform: none; }
+  }
+  @keyframes tree-drop {
+    0% { opacity: 0; transform: none; }
+    30%, 70% { opacity: 1; transform: none; }
+    100% { opacity: 0; transform: none; }
+  }
+  @keyframes tree-plus-one {
+    0% { opacity: 0; transform: none; }
+    20%, 70% { opacity: 1; transform: none; }
+    100% { opacity: 0; transform: none; }
+  }
+  @keyframes tree-toast {
+    0% { opacity: 0; transform: none; }
+    10%, 82% { opacity: 1; transform: none; }
+    100% { opacity: 0; transform: none; }
   }
 }

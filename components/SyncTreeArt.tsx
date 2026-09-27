@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { TREE_STAGE_COUNT } from "@/lib/sync-tree";
 
 /**
@@ -13,9 +13,10 @@ import { TREE_STAGE_COUNT } from "@/lib/sync-tree";
  * 樹本体（葉・幹のパレット）はテーマで変わらない固定色。
  *
  * - SyncTreeFigure: 樹本体＋段階固有のきらめき等だけの <g>（オーラ・地面は
- *   持たない）。ホームのシーンカードが transform をかけて空に置く。
- * - SyncTreeStageTile: ギャラリー用の 120×140 タイル1枚ぶんの <svg>
- *   （段階ごとのオーラ＋地面＋樹）。タイル背景は呼び出し側が敷く。
+ *   持たない）。
+ * - SyncTreeScene: 空に立つ樹の風景1枚ぶんの <svg>（光・地面・盛り土・
+ *   きらめき）。ホームのシーンカードと /tree の大きな木が共有する。空の色は
+ *   呼び出し側が敷く（--tree-* 変数）。
  */
 
 // ── 共有パス（ハンドオフの SVG ボキャブラリ） ──
@@ -203,7 +204,7 @@ function Fruit({ t, stem = false }: { t: string; stem?: boolean }) {
   );
 }
 
-// ── 各段階（tree: 樹本体＋段階固有のきらめき。aura: タイル用オーラ楕円） ──
+// ── 各段階（Art: 樹本体＋段階固有のきらめき。aura: 樹冠の中心と広がり＝ハンドオフのオーラ楕円） ──
 
 interface StageArt {
   aura: { cx: number; cy: number; rx: number; ry: number };
@@ -518,8 +519,8 @@ function TreeGradientDefs({ ids }: { ids: Ids }) {
 
 /**
  * 樹本体の <g>（120×140 空間、接地線 y=124）。親 <svg> 側で transform を
- * かけて使う。グラデ id は useId でインスタンスごとに一意（1ページに
- * ギャラリー16枚＋ホームカードが同居しても衝突しない）。
+ * かけて使う。グラデ id は useId でインスタンスごとに一意（1ページに複数の
+ * 樹が同居しても衝突しない）。
  */
 export function SyncTreeFigure({ stage }: { stage: number }) {
   // useId の区切り記号（: や «»）は url(#…) 参照で扱いづらいので除いておく
@@ -540,53 +541,110 @@ export function SyncTreeFigure({ stage }: { stage: number }) {
 }
 
 /**
- * ギャラリー用タイル1枚（オーラ＋盛り土＋地面の線＋樹）。地面まわりの
- * 固定色はハンドオフのタイル仕様（深い星空タイルに載せる前提の色）。
+ * 段階ごとの樹冠の中心と広がり（樹空間 120×140）。デザインハンドオフで各段階に
+ * 付いていたオーラの楕円で、/tree の水やりのしずくをここへ落とす。
  */
-export function SyncTreeStageTile({
-  stage,
+export function treeCanopy(stage: number): { cx: number; cy: number; rx: number; ry: number } {
+  return STAGE_ART[clampStage(stage)].aura;
+}
+
+// ── 風景（空に立つ樹） ──
+
+/** 風景の幅。高さと樹の大きさは使う側が決める。 */
+export const TREE_SCENE_W = 340;
+/** 樹空間（120×140）での接地線の y。 */
+const GROUND_Y = 124;
+
+/**
+ * 樹空間 → 風景の写し方。幹の接地が風景の高さの 95% に来るよう、横は中央に置く。
+ * 樹の上に何かを重ねる（水やりのしずく等）ときは、この値で位置を合わせる。
+ */
+export function treeSceneGeometry(h: number, scale: number): { tx: number; ty: number } {
+  return {
+    tx: (TREE_SCENE_W - 120 * scale) / 2,
+    ty: h * 0.95 - GROUND_Y * scale,
+  };
+}
+
+/**
+ * 空に立つ樹の風景1枚（幅 340、高さ h）。樹のうしろのやわらかな光・うねる地面の
+ * ひと筆・盛り土は樹空間で持ち、樹と一緒に scale する。手描きのきらめき3つは
+ * 樹ではなく空に属するので、風景の座標（横は絶対値・縦は h 比）に散らす——
+ * 縦に伸ばしても空の上のほうに残る。
+ *
+ * children は樹空間に描く中身（ふつうは <SyncTreeFigure>。空だけ見せたいときは
+ * 渡さない）。揺らす・育てるアニメは children の側で内側の <g> に掛けること——
+ * CSS の transform は要素自身の transform 属性を上書きするので、ここの位置合わせ
+ * の <g> に掛けると樹が原点へ飛ぶ。
+ */
+export function SyncTreeScene({
+  h,
+  scale,
   className,
+  children,
 }: {
-  stage: number;
+  h: number;
+  scale: number;
   className?: string;
+  children?: ReactNode;
 }) {
-  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const auraId = `tree-aura-${uid}`;
-  const i = clampStage(stage);
-  const { aura } = STAGE_ART[i];
-  const grand = i === TREE_STAGE_COUNT - 1;
+  // オーラのぼかしフィルタ id はインスタンスごとに一意に
+  const glowId = `tree-glow-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const { tx, ty } = treeSceneGeometry(h, scale);
   return (
-    <svg viewBox="0 0 120 140" className={className} aria-hidden="true">
+    <svg viewBox={`0 0 ${TREE_SCENE_W} ${h}`} className={className} aria-hidden="true">
       <defs>
-        <radialGradient id={auraId}>
-          <stop offset="0" stopColor="rgba(140,220,255,0.2)" />
-          <stop offset="1" stopColor="rgba(140,220,255,0)" />
-        </radialGradient>
+        {/* 平塗り楕円のフチが（特に昼の空で）唐突だったので輪郭を羽化させる。
+            ぼかしがフィルタ領域で切れないよう余白を広めに取る */}
+        <filter id={glowId} x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation={7} />
+        </filter>
       </defs>
-      <ellipse
-        cx={aura.cx}
-        cy={aura.cy}
-        rx={aura.rx}
-        ry={aura.ry}
-        fill={`url(#${auraId})`}
-      />
-      {/* 大樹（16）だけ地面がひとまわり広い */}
+      <g transform={`translate(${tx.toFixed(1)},${ty.toFixed(1)}) scale(${scale})`}>
+        {/* 樹のうしろのやわらかな光 */}
+        <ellipse
+          cx={59.5}
+          cy={77.2}
+          rx={54.9}
+          ry={40.8}
+          fill="var(--tree-glow)"
+          opacity={0.55}
+          filter={`url(#${glowId})`}
+        />
+        {/* うねる地面のひと筆と盛り土 */}
+        <path
+          d="M-1.1,119.4 Q28.5,113.8 59.5,115.9 Q93.3,119.4 120.1,114.5"
+          fill="none"
+          stroke="var(--tree-ink)"
+          opacity={0.35}
+          strokeWidth={1.06}
+          strokeLinecap="round"
+        />
+        <path
+          d="M18.7,119.4 Q59.5,109.6 100.4,119.4 Z"
+          fill="var(--tree-ink)"
+          opacity={0.08}
+        />
+        {children}
+      </g>
       <path
-        d={grand ? "M32,124 Q60,115 88,124 Z" : "M38,124 Q60,117 82,124 Z"}
-        fill={grand ? "rgba(140,200,255,0.1)" : "rgba(140,200,255,0.08)"}
+        d={TREE_SPARKLE_PATH}
+        transform={`translate(272,${(0.235 * h).toFixed(1)}) scale(0.85)`}
+        fill="var(--tree-ink)"
+        opacity={0.7}
       />
       <path
-        d={
-          grand
-            ? "M22,124 Q42,119 60,121.5 Q80,124 98,120.5"
-            : "M28,124 Q44,120 60,122 Q78,124 92,121"
-        }
-        fill="none"
-        stroke={grand ? "rgba(170,205,255,0.45)" : "rgba(170,205,255,0.4)"}
-        strokeWidth={1.3}
-        strokeLinecap="round"
+        d={TREE_SPARKLE_PATH}
+        transform={`translate(62,${(0.32 * h).toFixed(1)}) scale(0.69)`}
+        fill="var(--tree-ink)"
+        opacity={0.5}
       />
-      <SyncTreeFigure stage={i} />
+      <path
+        d={TREE_SPARKLE_PATH}
+        transform={`translate(296,${(0.63 * h).toFixed(1)}) scale(0.58)`}
+        fill="var(--tree-ink)"
+        opacity={0.45}
+      />
     </svg>
   );
 }

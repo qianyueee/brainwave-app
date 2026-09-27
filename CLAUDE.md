@@ -37,13 +37,13 @@ pnpm lint             # Lint
 brainwave-app/
 ├── app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
-│   ├── page.tsx                # Home 首页（品牌行〔NeuroSync® のみ・`text-base`=16px。ページ見出し 20px を超えない範囲でいちばん大きく〕→ 「Home / 今日の星空・宇宙周波数で即座に調律」页面见出し → Sync Tree 风景卡〔左上ラベル・右上％・右下矢印だけ、整卡点击进 /tree〕→ 脳コンディションカード → 星座卡；右上角設定入口。桌面端左列＝Tree＋コンディション、右列＝星座卡）
+│   ├── page.tsx                # Home 首页（品牌行〔NeuroSync® のみ・`text-base`=16px。ページ見出し 20px を超えない範囲でいちばん大きく〕→ 「Home / 今日の星空・宇宙周波数で即座に調律」页面见出し → Sync Tree 风景卡〔左上ラベル・右上％・右下矢印だけ、整卡点击进 /tree。未ログインは星の種＋右上「ログインで育てる」、読み込み中は空だけ〕→ 脳コンディションカード → 星座卡；右上角設定入口。桌面端左列＝Tree＋コンディション、右列＝星座卡）
 │   ├── session/page.tsx        # Sync Session（上段＝Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕｜所属グループへの配信プログラム／未ログイン CTA。下段＝幅いっぱいの `CatalogSection`：デフォルト・Target・Energy・Astro の4タブ＋全カテゴリ横断の検索。一覧を上段2列グリッドの片側に入れないのは、169 件を半分の幅に押し込むとカードが縦に続く筒になるから。※音源制作・公開などの管理操作は置かない——管理面板「音源」タブへ移設済み）
 │   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 誘導周波数の入力 → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕）
 │   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝1件で6指標＆スペクトル表示・2〜3件で重ねて比較。既定は脳特性チャート）
 │   ├── history/page.tsx        # Sync History（日历〔日付タップで当日の明細＋**その日の振り返り**を書く〕/ セッション統計 / 脳波の記録〔ログイン必須〕/ 10秒チェックの記録〔認証ゲートの外＝未ログインでも見える〕；レポートで見る→/report）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
-│   ├── tree/page.tsx           # Sync Tree 16段階ギャラリー／詳細（段階名・育てた木数はここだけ、進捗%はホーム树卡と両方；菜单外，从首页树卡进入）
+│   ├── tree/page.tsx           # Sync Tree：いまの木が**1本だけ大きく**立つ毎日のチェックイン画面（16段階ギャラリーは廃止）。大きな木＝components/SyncTreeWaterScene（**ダブルタップで水やり**：1回目で「もう一度タップで水やり」を出して 1.5 秒待ち、その間の2回目で水やり——350ms の厳密判定は 50〜60代の指に速すぎ、iOS は dblclick を安定して出さず VoiceOver の実行も1クリックで届くため。Enter/Space は1回で水やり。しずく・+1・揺れ・段階替わりの「育つ」は CSS の1回きりアニメ）→ 育ち具合（段階内の区切りバー 13 マス／大樹後 7 マス・ポイント実数・育てた木）→ 今日のおせわ（水やり済み？・今日のリスニング +N/5）→ 完成したら「新しい木を育てる」（ConfirmDialog）。**ログイン中だけ**使える（未ログインはログイン誘導）。段階名・育てた木数はここだけ、進捗%はホーム树卡と両方；菜单外，从首页树卡进入
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
 │   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
@@ -70,7 +70,7 @@ brainwave-app/
 │   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（モジュール合成：載波=自星座固定、差频按四标签×情境可变——活性=太阳40/月20Hz、フロー=太阳12/月10Hz、バランス=平日14/休日夜间7.83Hz、回復=傍晚6/深夜4/月在魚座2Hz；48条 §6 メッセージ模板；优先级 healing→activation→flow→balance，火×地/風×水归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
 │   ├── zodiac-audio.ts         # 音乐床垫映射（program id → public/sounds/zodiac/<key>-b<beat>.mp3；缺失差频就近取用）。カタログ節目（Target/Energy）と morning-tuning はまだ曲が無いので `musicBedUrl` が null を返し、`hasMusicBed` はそのまま**嘘をつかない**——Mixer の音楽スライダーは出ず、カードに「ビートのみ」が付く
-│   ├── sync-tree.ts            # Sync Tree 16段階成長モデル（6.25%刻み、treeStageIndex / TREE_STAGES；成長ロジック未実装期は PLACEHOLDER_TREE 固定値）。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure / SyncTreeStageTile，手描きの光の樹）；ホーム树卡背景为三态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_SUNRISE/NOON/NIGHT：day=日の出の淡桃〜珊瑚、afternoon=真昼のミント、midnight+evening=星空。昼側2つは**ページの色相をそのまま**借り、明るさの段（0.91→0.5前後）は共通——朝と昼の差は色相だけが語る。夜2つを1つに畳むのは星空が2時でも20時でも同じに読めるから。树本体配色不随主题变）
+│   ├── sync-tree.ts            # Sync Tree の成長モデル（**純関数・import なし**＝node で直接確かめられる）。ルール：水やり 1日1回 +1／プログラムを5分聴くごとに +2・1日 +5 まで（2+2+1）＝1日最大 +6／13 で次の段階（16段階、大樹＝195）／大樹から 7（計 202）で完成→植え替えで育てた木 +1。**状態は保存せず出来事（水やり・リスニング・植え替え）を畳む**（foldTreeEvents：時刻順・202 で頭打ち・植え替えは 202 のときだけ数える、完成日＝202 に届いた日。並べ替えは Date.parse——端末の `…Z` と DB の `…+00:00` が混ざる）。日付は treeDayKey（ローカル YYYY-MM-DD。dayKeyOf の0始まり月とは別物）。リスニング積算 trackListening（新しい再生の最初のサンプルは起点・巻き戻りは数えない・数えてよくない間は積まない・持ち主が替われば端数を捨てる）。**点数は行に持たずここで決める**——定数を変えると過去の木も数え直される。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure＝樹本体／SyncTreeScene＝空に立つ樹の風景、ホームカードと /tree が共有／treeCanopy＝しずくを落とす樹冠，手描きの光の樹）；ホーム树卡背景为三态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_SUNRISE/NOON/NIGHT：day=日の出の淡桃〜珊瑚、afternoon=真昼のミント、midnight+evening=星空。昼側2つは**ページの色相をそのまま**借り、明るさの段（0.91→0.5前後）は共通——朝と昼の差は色相だけが語る。夜2つを1つに畳むのは星空が2時でも20時でも同じに読めるから。树本体配色不随主题变）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── journal.ts              # その日の振り返り（日誌）の語彙：5段階の調子 MOOD_SCALE（絵文字＋**必ず言葉も**——50〜60代には表情の描き分けが読み取りにくい）/ moodColor（token を返す。生の色名はテーマ4種のどれかで必ず浮く）/ JOURNAL_TEXT_MAX
 │   ├── day-records.ts          # カレンダーの当日明細（buildDayRecords / recordedDayKeys / dayKeyOf）。再生ログ＋取り込んだ脳波測定＋10秒チェックの3出どころを時刻順に1本へ畳む純関数。UI から切り出してあるのは脳波測定がログイン必須ストア（per-user persist）でブラウザから仕込めないため——純関数なら3種すべて実コードで検証できる。描画は components/SimpleCalendar
@@ -82,7 +82,7 @@ brainwave-app/
 │   ├── mind/session-record.ts  # 測定セッション → 脳特性記録（BrainProfile）の唯一の写像（measurementFromSession / sessionLabel / measurementKey）。/brain の取り込みとデスクトップの自動保存が同じ1本を通る
 │   ├── mind/local-source.ts    # LocalSource＝MindDataSource 第三の実装（/desktop 用）。WS 接続→onStatus("connected")、装置パイプライン稼働→onBridgeOnline——canReceiveData が /brain と同義で機能する写像
 │   ├── desktop.ts              # isDesktopRoute()：/desktop で BottomNav・SideNav・MiniPlayer・ランチャー溝（PageColumn）を消す**唯一の判定**。ビルドフラグでなく pathname なので dev/Pages/同梱ビルドで挙動が同じ。WEB_APP_URL（「Web版で記録を見る」の先、NEXT_PUBLIC_WEB_APP_URL で上書き可）
-│   ├── sync/                   # アカウント同期（下の「アカウント同期」）：brain-profile.ts / baseline-checks.ts＝1記録1行の API（keyset ページング・必ず user_id で絞る）／cloud-mark.ts＝記録に付ける宛先・保存済みの印（純関数）／outbox.ts＝送信箱（全体で1つ、AuthProvider が起動）／account-views.ts＝Web の読み直し／per-user-storage.ts・migrate.ts・presets.ts・programs.ts・custom-audios.ts は従来どおり
+│   ├── sync/                   # アカウント同期（下の「アカウント同期」）：brain-profile.ts / baseline-checks.ts＝1記録1行の API（keyset ページング・必ず user_id で絞る）／cloud-mark.ts＝記録に付ける宛先・保存済みの印（純関数）／outbox.ts＝送信箱（全体で1つ、AuthProvider が起動）／account-views.ts＝Web の読み直し（木も）／tree-events.ts＝Sync Tree の出来事の API（1件1行・追記のみ・ignoreDuplicates）／tree-runtime.ts＝木の常駐処理（リスニング積算＋送信のやり直し、AuthProvider が起動・/desktop では起動しない）／per-user-storage.ts・migrate.ts・presets.ts・programs.ts・custom-audios.ts は従来どおり
 │   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
@@ -95,10 +95,11 @@ brainwave-app/
 │   ├── useDesktopLoginStore.ts # デスクトップの Google ログインの進み具合（waiting / exchanging / error、不 persist）
 │   ├── useSidebarStore.ts      # 桌面左栏开合（不 persist：每次加载都从收起开始）
 │   ├── useDesktopBridgeStore.ts # デスクトップ測定アプリのローカル WS 状態ミラー（wsConnected / state 全量快照 / lastLog、**不 persist**——正は Python 側）。deviceOnline セレクタ＝「装置パイプライン稼働」
+│   ├── useSyncTreeStore.ts     # Sync Tree の出来事（ログイン中のアカウントのぶん）。**persist しない**——木はログイン中だけの機能でデータはアカウントにだけ置く（AuthProvider がログインで読み込み・ログアウトで捨てる）。読み直しは手元∪サーバ（行は追記のみなので和集合が常に正しい）。水やり等は pending 付きで先に足し、**木専用の送信係**が1件ずつ送る（共通の送信箱は1件失敗で止まり phase も共用なので乗せない）。画面は `useSyncTreeView()`（view＝unavailable/loading/logged-out/error/ready）と `useTreeToday()`（日付が変わると自分で切り替わる）
 │   └── useZodiacStore.ts       # マイ星座偏好 + persist（普通 localStorage，未登录也生效）
 ├── bridge/                     # PC 側プログラム群（Python）。①従来ブリッジ：BrainLink(SPP串口)→ThinkGear 解析→Supabase Realtime（main.py CLI / gui.py Tkinter / bridge_core.py / publisher.py / thinkgear.py / csv_logger.py / demo_source.py）②デスクトップ測定アプリ：desktop_app.py（入口・pywebview）+ desktop_bridge.py（管线编排）+ local_server.py（WS 协议正本）+ static_server.py + desktop_config.py。詳細は下の「デスクトップ測定アプリ与 PC 桥接」与 bridge/README.md
 ├── scripts/build-desktop.mjs   # `pnpm build:desktop`：basePath 空＋**Web 版と同じ Supabase env を焼き込む**（ログイン・自動保存用。CI で env が無ければ失敗、焼き込み確認あり）→ bridge/web/（剔除 sounds/ ~300MB）→ 校验无 /brainwave-app 残留
-├── supabase/migrations/        # 手で SQL Editor に流す（CLI 設定なし）。001 管理者・グループ／002 ユーザー同期（旧 user_brain_profile＝1ユーザー1 JSONB）／**003 account_sync＝1記録1行の user_brain_measurements・user_baseline_checks＋旧表から移行＋旧表を読み取り・削除専用に**
+├── supabase/migrations/        # 手で SQL Editor に流す（CLI 設定なし）。001 管理者・グループ／002 ユーザー同期（旧 user_brain_profile＝1ユーザー1 JSONB）／**003 account_sync＝1記録1行の user_brain_measurements・user_baseline_checks＋旧表から移行＋旧表を読み取り・削除専用に**／**004 sync_tree＝Sync Tree の出来事 user_tree_events（1件1行・追記のみ。キーの形で1日の上限を守る）**
 ├── scripts/import-program-xlsx.mjs # 一覧 xlsx → `lib/catalog/params.generated.ts`。**必ず `--inspect <file>` を先に**走らせて見出しの対応を確かめ、必要なら HEADER_SYNONYMS に足してから `--in <file>`。出力するのは周波数と尺だけ——名前・よみ・アイコン・並びは人が決めたものなので取り込みで消さない。突き合わせは名前（id は xlsx に無く、しかも localStorage に残る利用者の選択そのものなので機械に振り直させない）
 ├── public/sounds/              # 自然音素材
 │   └── zodiac/                 # 96 首星座音乐（12星座×8差频，128kbps 立体声，已去封面图，共 284MB）
@@ -288,10 +289,20 @@ Web /report・/history・ホーム：ログイン時＋タブに戻ったとき�
 - **桌面端の AuthProvider は user の追跡だけ**（合成器・カスタム音源・脳特性の一覧・管理者権限・
   首登迁移は読まない）。ログアウトは `scope:"local"`（既定の global だとスマホでのログアウトが
   デスクトップのログインまで切る）。
+- **Sync Tree は別立て**（`supabase/migrations/004_sync_tree.sql`）：端末には持たず `user_tree_events` にだけ
+  置く（ログイン中だけの機能）。キーの形で1日の上限を守る——`water:YYYY-MM-DD`（1日1行）・
+  `replant:YYYY-MM-DD`・`listen:YYYY-MM-DD:<乱数>`（端末ごとに聴いた分がどれも残るよう乱数入り、1日 +5 の
+  上限は lib/sync-tree.ts が数える）。別の端末で同じ日に水やりしても `ON CONFLICT DO NOTHING` で1行。
+  書き込みは INSERT のみ（UPDATE/DELETE ポリシー無し）、読むときは必ず user_id で絞る。送信は共通の送信箱
+  ではなく useSyncTreeStore の送信係（失敗は 5s→…→5分で再試行、制約・権限の失敗はその1件を捨てる）。
+  リスニングは lib/sync/tree-runtime.ts が useAppStore の elapsed を見て積算する——終わりのタイマーは最後の
+  1秒ポーリングより先に鳴るので、5分の番組が 299 秒どまりにならないよう再生ログ（sessionLogs、停止より前・
+  playingProgramId がまだその番組のうちに届く）の秒数で締める。
 - **部署順**：①Supabase SQL Editor で 003 を実行 → ②すぐ Web をデプロイ（その間、古い Web は
   脳波測定を保存できずエラーになるだけ）→ ③「Build Desktop App」で exe を作り直す。Google
   ログインには Supabase の Redirect URLs に `http://127.0.0.1:17860/auth/callback` を足しておく
-  （最近の GoTrue はループバック IP を許可済みだが保険）。
+  （最近の GoTrue はループバック IP を許可済みだが保険）。Sync Tree は **004 を SQL Editor で流してから Web を
+  デプロイ**（先に Web が出ても /tree が「読み込めませんでした」になるだけ。デスクトップ exe の作り直しは不要）。
 
 ## Notes & Prompts
 
