@@ -251,6 +251,7 @@ public class NowPlayingService extends Service {
     }
 
     /** 再生を始める（再開する）ときにフォーカスを取る。取れなくても音は JS が鳴らす。 */
+    @SuppressWarnings("deprecation") // Android 8 未満の分岐
     private void requestFocus() {
         if (hasFocus || audioManager == null) {
             return;
@@ -332,6 +333,7 @@ public class NowPlayingService extends Service {
         }
     }
 
+    @SuppressWarnings("deprecation") // Android 8 未満の分岐（通知チャンネルが無い）
     private Notification buildNotification(boolean isPlaying) {
         Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             ? new Notification.Builder(this, CHANNEL_ID)

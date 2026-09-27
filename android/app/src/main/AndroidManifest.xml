@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -74,4 +75,30 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+
+    <!-- BrainLink（Bluetooth Classic の SPP）を直接読む（BrainLinkPlugin）。
+         Android 12+：「付近のデバイス」＝ CONNECT（接続・ペアリング済み一覧）と
+         SCAN（近くの機器を探す。位置の推定には使わない）。
+         Android 11 以前：BLUETOOTH / ADMIN は自動で付き、探すときだけ位置情報の許可が要る。 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="30" />
+    <!-- Bluetooth の無い端末にも入れられる（Sync Brain 以外は使える）。 -->
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
 </manifest>

@@ -24,6 +24,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AppChromePlugin.class);
         registerPlugin(NowPlayingPlugin.class);
         registerPlugin(DownloadsPlugin.class);
+        registerPlugin(BrainLinkPlugin.class);
         super.onCreate(savedInstanceState);
         if (bridge == null) {
             // WebView が入っていない端末（BridgeActivity が no_webview 画面を出す）。
