@@ -93,6 +93,7 @@ export class DummySource implements MindDataSource {
       highGamma: base * (inBurst ? 1.1 : 0.12) * jitter(),
       signal: 0,
       battery: 80,
+      synthetic: true,
       ts: now,
     };
     for (const k of [

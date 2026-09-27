@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BrainCircuit, HeartPulse, Lightbulb, Moon, Timer, Zap } from "lucide-react";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
-import { useBaselineStore, latestRealCheck } from "@/store/useBaselineStore";
+import {
+  useAllBaselineChecks,
+  useBaselineStore,
+  latestRealCheck,
+} from "@/store/useBaselineStore";
 import {
   computeBrainConditionMetrics,
   computeBaselineConditionMetrics,
@@ -86,7 +90,8 @@ const DEFAULT_VALUES: SelfRatingValues = { switching: 60, clarity: 50, rest: 55 
 export default function BrainConditionCard() {
   const router = useRouter();
   const storeProfile = useBrainProfileStore((s) => s.profile);
-  const storeCheck = useBaselineStore(latestRealCheck);
+  // この端末の記録＋アカウントの記録（デスクトップ測定アプリで取った分も）。
+  const storeCheck = latestRealCheck(useAllBaselineChecks());
   const requestCheck = useBaselineStore((s) => s.requestCheck);
   const latest = useSelfRatingStore((s) => s.latest);
   const record = useSelfRatingStore((s) => s.record);

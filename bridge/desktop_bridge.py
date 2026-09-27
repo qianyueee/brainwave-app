@@ -47,8 +47,12 @@ def list_serial_ports() -> list[dict]:
 class DesktopBridge:
     """シリアル／デモの排他パイプライン + 任意のクラウド同時配信。"""
 
-    def __init__(self, saved: dict) -> None:
+    def __init__(self, saved: dict, http_port: int = desktop_config.DEFAULT_HTTP_PORT) -> None:
         self.loop = asyncio.get_running_loop()
+        # Google ログインで既定のブラウザを戻す先（static_server が受ける）。画面は
+        # これを state で受け取って Supabase に渡す——`--no-window` + `pnpm dev` の
+        # 開発時も、画面の origin ではなくこの HTTP サーバへ戻す必要がある。
+        self.auth_callback_url = f"http://127.0.0.1:{http_port}/auth/callback"
         # local_server 起動後に配線される（それまでの emit は握りつぶし）。
         self.emitter: Optional[EmitFn] = None
 
@@ -96,6 +100,7 @@ class DesktopBridge:
             },
             "csvPath": self.csv_path,
             "sampleCount": self.sample_count,
+            "authCallbackUrl": self.auth_callback_url,
         }
 
     def refresh_ports(self) -> None:

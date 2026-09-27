@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Timer, Trash2 } from "lucide-react";
-import { useBaselineStore, type BaselineCheck } from "@/store/useBaselineStore";
+import {
+  useAllBaselineChecks,
+  useBaselineStore,
+  type BaselineCheck,
+} from "@/store/useBaselineStore";
 import { BASELINE_MEASURE_SEC, rateMethodLabel } from "@/lib/mind/baseline";
 import { scoreColor } from "@/lib/brain-measurements";
 
@@ -97,10 +101,13 @@ function CheckRow({ c, onDelete }: { c: BaselineCheck; onDelete: (id: string) =>
  *
  * 脳波の記録と違ってログインを要求しない——このストアは素の localStorage に
  * 載っていて（習慣を止めないための設計）、未ログインでも記録が貯まるので、
- * 同じ画面でも認証ゲートの**外**に置く。
+ * 同じ画面でも認証ゲートの**外**に置く。ログイン中はアカウントに載っている
+ * 記録（デスクトップ測定アプリで取った分を含む）も重ねて並べ、削除すると
+ * アカウントからも消える。
  */
 export default function BaselineCheckList() {
-  const checks = useBaselineStore((s) => s.checks);
+  // この端末の記録＋アカウントの記録（デスクトップ測定アプリで取った分も）。
+  const checks = useAllBaselineChecks();
   const deleteCheck = useBaselineStore((s) => s.deleteCheck);
 
   // persist 由来なので初回描画では空。mount 後に出す（hydration mismatch 対策）。

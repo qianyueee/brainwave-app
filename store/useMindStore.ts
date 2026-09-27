@@ -14,6 +14,12 @@ import {
   POOR_SIGNAL_LIMIT,
 } from "@/lib/mind/types";
 import type { SourceStatus } from "@/lib/mind/data-source";
+import {
+  isSessionUploadable,
+  needsUpload,
+  sessionRev,
+  type CloudMark,
+} from "@/lib/sync/cloud-mark";
 import type { BrainIndicators } from "@/lib/brain-profile";
 import {
   computeIndicators,
@@ -59,16 +65,39 @@ export interface MindSessionSummary {
    *  見る。未入力なら undefined＝既定の 40Hz で判定する。測定者と同じく開始時に
    *  焼き込む——途中で入力欄をいじっても、走っている測定の条件は変わらない。 */
   targetHz?: number;
+  /** アカウントへ保存するか・保存済みか（lib/sync/cloud-mark.ts）。デスクトップ
+   *  測定アプリの自動保存だけが書く。/brain の回は取り込み（useImportSession）が
+   *  別経路で送るので undefined のまま。 */
+  cloud?: CloudMark;
+  /** 測定後に中身（メモ）を書き換えるたびに +1。保存済みの版（cloud.savedRev）と
+   *  比べて、アカウントへ送り直すかを決める。undefined は 0。 */
+  rev?: number;
 }
 
 /** Last 5 minutes of 1 Hz samples kept for the trend chart. */
 const HISTORY_MAX = 300;
+
+/** 端末に残す測定の件数。アカウントへまだ送れていないものはこの外でも消さない。 */
+const SESSIONS_MAX = 100;
 
 function generateId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+/** アカウントへ送り終えていない測定か（宛先の誰かにとって未送信）。 */
+function awaitingUpload(s: MindSessionSummary): boolean {
+  const owner = s.cloud && "owner" in s.cloud ? s.cloud.owner : null;
+  return owner !== null && needsUpload(s.cloud, sessionRev(s), owner);
+}
+
+/** 新しい順の一覧を SESSIONS_MAX 件に畳む。ただし未送信の測定は残す——オフラインで
+ *  測り続けても、送る前に端末から消えないように。 */
+function trimSessions(list: MindSessionSummary[]): MindSessionSummary[] {
+  if (list.length <= SESSIONS_MAX) return list;
+  return [...list.slice(0, SESSIONS_MAX), ...list.slice(SESSIONS_MAX).filter(awaitingUpload)];
 }
 
 // Pairing code alphabet without ambiguous characters (no 0/O/1/I/L).
@@ -116,6 +145,10 @@ interface MindState {
   targetHz: number | null;
   /** 測定開始時に焼き込んだ誘導周波数（recordingSubject と同じ理由）。 */
   recordingTargetHz: number | null;
+  /** 録音中に合成データ（EegSample.synthetic）が1秒でも混ざったか。混ざった測定は
+   *  source を "demo" として残す——実測と区別しないと、テストの数字がアカウントの
+   *  脳特性の推移に紛れ込む。 */
+  recordingSynthetic: boolean;
   sessions: MindSessionSummary[];
   pairingCode: string;
 
@@ -127,11 +160,19 @@ interface MindState {
   setTargetHz: (hz: number | null) => void;
   startRecording: (subject?: { id: string; name: string } | null) => void;
   /** Stops the recording and returns the finished session's summary (null if
-   *  no samples were captured), so the UI can offer importing it right away. */
-  stopRecording: () => MindSessionSummary | null;
+   *  no samples were captured), so the UI can offer importing it right away.
+   *  `cloudOwner`（デスクトップの自動保存）：その測定をこのアカウントへ保存する
+   *  予約を記録に焼き込む（載せてよい実測だけ）。 */
+  stopRecording: (opts?: { cloudOwner?: string }) => MindSessionSummary | null;
   deleteSession: (id: string) => void;
   /** Set (or clear, with "") the free-text memo on a measurement. */
   setSessionNote: (id: string, note: string) => void;
+  /** 版 `rev` の内容を `owner` のアカウントへ保存できた（同期処理が呼ぶ）。 */
+  markSessionSaved: (id: string, owner: string, rev: number) => void;
+  /** 宛先未定の測定を `owner` のアカウントへ保存する予約にする。 */
+  assignSessions: (ids: readonly string[], owner: string) => void;
+  /** 宛先未定の測定を「このPCだけに残す」にする（以後は尋ねない）。 */
+  markSessionsLocalOnly: (ids: readonly string[]) => void;
 }
 
 export const useMindStore = create<MindState>()(
@@ -153,6 +194,7 @@ export const useMindStore = create<MindState>()(
       recordingSubject: null,
       targetHz: null,
       recordingTargetHz: null,
+      recordingSynthetic: false,
       sessions: [],
       pairingCode: "",
 
@@ -177,6 +219,7 @@ export const useMindStore = create<MindState>()(
           recordingSamples: [],
           recordingFlowCount: 0,
           recordingSubject: null,
+          recordingSynthetic: false,
         }),
 
       setStatus: (status, detail) => set({ status, statusDetail: detail ?? "" }),
@@ -208,8 +251,10 @@ export const useMindStore = create<MindState>()(
 
           let recordingSamples = state.recordingSamples;
           let recordingFlowCount = state.recordingFlowCount;
+          let recordingSynthetic = state.recordingSynthetic;
           if (state.isRecording) {
             recordingSamples = [...state.recordingSamples, s];
+            if (s.synthetic) recordingSynthetic = true;
             const eff = boostedPosition(s.attention, s.meditation, zoneBoost);
             if (getQuadrant(eff.attention, eff.meditation) === "flow") {
               recordingFlowCount += 1;
@@ -224,6 +269,7 @@ export const useMindStore = create<MindState>()(
             zoneBoost,
             recordingSamples,
             recordingFlowCount,
+            recordingSynthetic,
           };
         }),
 
@@ -239,16 +285,18 @@ export const useMindStore = create<MindState>()(
           recordingFlowCount: 0,
           recordingSubject: subject ?? null,
           recordingTargetHz: state.targetHz,
+          recordingSynthetic: false,
           gammaBaseline: 0,
         })),
 
-      stopRecording: () => {
+      stopRecording: (opts) => {
         const {
           recordingSamples,
           recordingStartedAt,
           recordingFlowCount,
           recordingSubject,
           recordingTargetHz,
+          recordingSynthetic,
           sourceKind,
           sessions,
         } = get();
@@ -261,6 +309,7 @@ export const useMindStore = create<MindState>()(
             recordingFlowCount: 0,
             recordingSubject: null,
             recordingTargetHz: null,
+            recordingSynthetic: false,
           });
           return null;
         }
@@ -288,7 +337,8 @@ export const useMindStore = create<MindState>()(
           avgGammaRatio: Math.round((gammaSum / n) * 10) / 10,
           // Zone rate reflects the gamma-boosted position the user actually saw.
           flowRatioPct: Math.round((recordingFlowCount / n) * 100),
-          source: sourceKind,
+          // 合成データが混ざった測定はデモ扱い（実機の経路を通っていても脳波ではない）。
+          source: recordingSynthetic ? "demo" : sourceKind,
           subjectId: recordingSubject?.id,
           subjectName: recordingSubject?.name,
           targetHz: recordingTargetHz ?? undefined,
@@ -305,6 +355,11 @@ export const useMindStore = create<MindState>()(
               .map((s) => s.spectrum)
           ),
         };
+        // デスクトップの自動保存：載せてよい実測だけ、測り終えた時点のアカウントへ
+        // 予約する（デモ・合成・読めなかった測定は予約しない）。
+        if (opts?.cloudOwner && isSessionUploadable(summary)) {
+          summary.cloud = { owner: opts.cloudOwner };
+        }
         set({
           isRecording: false,
           recordingStartedAt: null,
@@ -312,10 +367,11 @@ export const useMindStore = create<MindState>()(
           recordingFlowCount: 0,
           recordingSubject: null,
           recordingTargetHz: null,
+          recordingSynthetic: false,
           // A recording the headset never read is not a measurement — every
           // indicator is 0 for lack of data. Return it so the UI can say so,
           // but keep it out of 過去の測定 and out of the 脳特性 history.
-          sessions: usableSec > 0 ? [summary, ...sessions].slice(0, 100) : sessions,
+          sessions: usableSec > 0 ? trimSessions([summary, ...sessions]) : sessions,
         });
         return summary;
       },
@@ -324,10 +380,41 @@ export const useMindStore = create<MindState>()(
         set((state) => ({ sessions: state.sessions.filter((s) => s.id !== id) })),
 
       setSessionNote: (id, note) => {
-        const trimmed = note.trim();
+        const next = note.trim() || undefined;
         set((state) => ({
           sessions: state.sessions.map((s) =>
-            s.id === id ? { ...s, note: trimmed || undefined } : s
+            // 版を進めるのは中身が変わったときだけ（同じメモの再保存で送り直さない）。
+            s.id === id && s.note !== next ? { ...s, note: next, rev: sessionRev(s) + 1 } : s
+          ),
+        }));
+      },
+
+      markSessionSaved: (id, owner, rev) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            // 送っている間に宛先が変わっていたら（あり得ないが）印を付けない。
+            s.id === id && s.cloud && "owner" in s.cloud && s.cloud.owner === owner
+              ? { ...s, cloud: { owner, savedRev: rev, savedAt: new Date().toISOString() } }
+              : s
+          ),
+        })),
+
+      assignSessions: (ids, owner) => {
+        const pick = new Set(ids);
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            pick.has(s.id) && s.cloud === undefined && isSessionUploadable(s)
+              ? { ...s, cloud: { owner } }
+              : s
+          ),
+        }));
+      },
+
+      markSessionsLocalOnly: (ids) => {
+        const pick = new Set(ids);
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            pick.has(s.id) && s.cloud === undefined ? { ...s, cloud: { localOnly: true } } : s
           ),
         }));
       },

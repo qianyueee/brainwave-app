@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useRefreshAccountViewsOnMount } from "@/lib/sync/account-views";
 import type { BrainProfile } from "@/lib/brain-profile";
 import type { BandKey } from "@/lib/mind/types";
 import {
@@ -138,6 +139,9 @@ export default function ReportPage() {
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
+  // Pick up records measured on another device (the desktop app) since the
+  // last read — navigating here inside the app fires no focus event.
+  useRefreshAccountViewsOnMount();
 
   // Guard hydration mismatch from persist
   const [hydrated, setHydrated] = useState(false);
@@ -459,7 +463,7 @@ export default function ReportPage() {
                 脳波データを分析しましょう
               </p>
               <p className="text-sm text-text-secondary mb-6">
-                シンク・ブレインで測定するか、BrainLinkデバイスで測定したExcelまたはCSVファイルをアップロードすると、あなたの脳特性を6つの指標で可視化します。
+                シンク・ブレインや PC の測定アプリ（ログインして測定）で測るか、BrainLinkデバイスで測定したExcelまたはCSVファイルをアップロードすると、あなたの脳特性を6つの指標で可視化します。
               </p>
               <EegUploader />
             </div>

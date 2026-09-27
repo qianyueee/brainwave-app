@@ -33,6 +33,20 @@ export interface DesktopBridgeState {
   cloud: { enabled: boolean; connected: boolean; code: string };
   csvPath: string | null;
   sampleCount: number;
+  /** Google ログインで既定のブラウザを戻す先（Python の HTTP サーバの
+   *  /auth/callback）。古い測定アプリは送ってこない。 */
+  authCallbackUrl?: string;
+}
+
+/**
+ * Google ログインの戻り（既定のブラウザ → Python の /auth/callback → ここ）。
+ * code は PKCE の verifier と引き換えて初めて使える（lib/mind/desktop-google-auth.ts）。
+ */
+export interface DesktopAuthCallback {
+  code?: string;
+  error?: string;
+  errorCode?: string;
+  description?: string;
 }
 
 export type DesktopCommand =
@@ -52,6 +66,7 @@ let refCount = 0;
 let attempt = 0;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 const sampleListeners = new Set<(s: EegSample) => void>();
+const authListeners = new Set<(ev: DesktopAuthCallback) => void>();
 
 function wsUrl(): string {
   let port = DEFAULT_WS_PORT;
@@ -79,7 +94,12 @@ function connect(): void {
       return;
     }
     if (typeof msg !== "object" || msg === null) return;
-    const m = msg as { type?: string; state?: DesktopBridgeState; sample?: unknown; msg?: string };
+    const m = msg as {
+      type?: string;
+      state?: DesktopBridgeState;
+      sample?: unknown;
+      msg?: string;
+    } & DesktopAuthCallback;
     if (m.type === "state" && m.state) {
       useDesktopBridgeStore.getState().setBridgeState(m.state);
     } else if (m.type === "sample" && isValidSample(m.sample)) {
@@ -87,6 +107,14 @@ function connect(): void {
     } else if (m.type === "log" && typeof m.msg === "string") {
       console.info("[desktop-bridge]", m.msg);
       useDesktopBridgeStore.getState().setLastLog(m.msg);
+    } else if (m.type === "auth_callback") {
+      const ev: DesktopAuthCallback = {
+        code: typeof m.code === "string" ? m.code : undefined,
+        error: typeof m.error === "string" ? m.error : undefined,
+        errorCode: typeof m.errorCode === "string" ? m.errorCode : undefined,
+        description: typeof m.description === "string" ? m.description : undefined,
+      };
+      for (const fn of authListeners) fn(ev);
     }
   };
   ws.onclose = () => {
@@ -142,5 +170,13 @@ export function subscribeDesktopSamples(fn: (s: EegSample) => void): () => void 
   sampleListeners.add(fn);
   return () => {
     sampleListeners.delete(fn);
+  };
+}
+
+/** Google ログインの戻りを受け取る（/desktop のページが常時購読する）。 */
+export function subscribeDesktopAuthCallbacks(fn: (ev: DesktopAuthCallback) => void): () => void {
+  authListeners.add(fn);
+  return () => {
+    authListeners.delete(fn);
   };
 }

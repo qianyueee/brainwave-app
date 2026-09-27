@@ -5,34 +5,26 @@ import { useRouter } from "next/navigation";
 import { useMindStore, type MindSessionSummary } from "@/store/useMindStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
-import { signalQualityPct } from "@/lib/brain-profile";
-
-export function sessionLabel(s: MindSessionSummary): string {
-  return new Date(s.startedAt).toLocaleString("ja-JP", {
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { measurementFromSession } from "@/lib/mind/session-record";
 
 export type ImportStatus = "idle" | "busy" | "waitingLogin" | "waitingCloud" | "error";
 
 /**
- * Shared 測定 → 脳特性 import flow, used by both the post-measurement prompt
- * (MindRecorder) and the 過去の測定 list (SessionList). It writes the session's
- * precomputed indicators + bands into the brain-profile store and navigates to
- * /report (脳特性チャート). Login and cloud-hydrate gated: a pending import resumes once both
- * complete, and is deduped by the session's timestamp so re-importing refreshes
- * instead of duplicating. Failures clear the pending marker (no endless retry)
- * and are surfaced through `statusFor` for the caller's UI.
+ * 測定 → 脳特性 import flow for the post-measurement prompt on /brain
+ * (MindRecorder). It writes the session's precomputed indicators + bands into
+ * the brain-profile store and navigates to /report (脳特性チャート). Login and
+ * cloud-hydrate gated: a pending import resumes once both complete, and is keyed
+ * by the session's timestamp so re-importing refreshes instead of duplicating.
+ * Failures clear the pending marker (no endless retry) and are surfaced through
+ * `statusFor` for the caller's UI. The session → record mapping is shared with
+ * the desktop app's auto-save (lib/mind/session-record.ts).
  */
 export function useImportSession() {
   const sessions = useMindStore((s) => s.sessions);
   const user = useAuthStore((s) => s.user);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
   const addMeasurement = useBrainProfileStore((s) => s.addMeasurement);
-  const deleteMeasurement = useBrainProfileStore((s) => s.deleteMeasurement);
+  const setViewingMeasurement = useBrainProfileStore((s) => s.setViewingMeasurement);
   const cloudUserId = useBrainProfileStore((s) => s.cloudUserId);
   const router = useRouter();
 
@@ -44,7 +36,8 @@ export function useImportSession() {
     async (s: MindSessionSummary) => {
       setErrorId(null);
       // Legacy sessions (recorded before this feature) carry no analysis data.
-      if (!s.indicators || !s.bands) {
+      const record = measurementFromSession(s);
+      if (!record) {
         router.push("/report");
         return;
       }
@@ -54,35 +47,19 @@ export function useImportSession() {
         return;
       }
       // Wait for the account's cloud data to load, else loadFromCloud would
-      // overwrite the measurement we are about to add.
+      // replace the list we are about to add to.
       if (!cloudUserId) {
         setPendingId(s.id);
         return;
       }
       setBusyId(s.id);
       try {
-        const uploadedAt = new Date(s.startedAt).toISOString();
-        // Upsert by timestamp so re-importing the same session refreshes it to
-        // the latest (shown) measurement instead of creating a duplicate.
-        await deleteMeasurement(uploadedAt).catch(() => {});
-        await addMeasurement({
-          indicators: s.indicators,
-          bands: s.bands,
-          spectrum: s.spectrum,
-          note: s.note,
-          uploadedAt,
-          sessionTag: sessionLabel(s),
-          // Travels with the record so the caveat survives the import: the
-          // 脳特性 chart shows scores long after the post-measurement prompt
-          // that used to be the only place contact loss was mentioned.
-          qualityPct: signalQualityPct(s.usableSec, s.durationSec),
-          // Likewise for who it was measured on — without it the 脳特性 history
-          // silently merges everyone the headset has been worn by.
-          subject: s.subjectName,
-          // Rate の共鳴率をどの周波数で見るかは測定ごとの条件なので、記録と
-          // 一緒に運ぶ（無ければ既定の 40Hz で判定される）。
-          targetHz: s.targetHz,
-        });
+        // Keyed by the session's start time, so re-importing the same session
+        // replaces its record instead of creating a duplicate.
+        await addMeasurement(record);
+        // Show exactly this record on /report: a newer one measured on another
+        // device (the desktop app) would otherwise be what "latest" opens on.
+        setViewingMeasurement(record.uploadedAt);
         setPendingId(null);
         router.push("/report");
       } catch (e) {
@@ -94,7 +71,7 @@ export function useImportSession() {
         setBusyId(null);
       }
     },
-    [user, cloudUserId, openAuthModal, addMeasurement, deleteMeasurement, router]
+    [user, cloudUserId, openAuthModal, addMeasurement, setViewingMeasurement, router]
   );
 
   // Resume a pending import once login + cloud hydrate complete.

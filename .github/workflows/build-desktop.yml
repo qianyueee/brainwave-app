@@ -27,12 +27,16 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      # Supabase の env を渡さないのは仕様（build-desktop.mjs 参照）：UI からの
-      # クラウド呼び出しを無効化する。クラウド送信は Python 側だけが持つ。
+      # Supabase の env は Web 版（deploy.yml）と同じリポジトリ変数：アプリ内の
+      # ログインと、測定のアカウントへの自動保存が使う。無いと build-desktop.mjs が
+      # 失敗する（ログインできない exe を配らないため）。
       - name: Build web bundle
         run: |
           pnpm install --frozen-lockfile
           pnpm build:desktop
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
       - uses: actions/setup-python@v5
         with:

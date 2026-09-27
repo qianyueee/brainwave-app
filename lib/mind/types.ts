@@ -43,6 +43,12 @@ export interface EegSample {
    *  them; they are archived to the bridge's CSV. Realtime only. */
   skipRows?: string;
   parseErr?: string;
+  /** Synthetic data, not a headset reading: the demo generators set it (the
+   *  bridge's `--demo` / the desktop app's 合成データ pipeline in
+   *  bridge/demo_source.py, and the in-page DummySource). A recording that saw
+   *  any synthetic second is stored as source "demo" and never goes into an
+   *  account. Absent on real samples and from older bridges. */
+  synthetic?: boolean;
   ts: number; // epoch ms
 }
 

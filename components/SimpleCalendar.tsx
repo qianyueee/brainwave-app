@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, BarChart3, Music, Timer } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
-import { useBaselineStore } from "@/store/useBaselineStore";
+import { useAllBaselineChecks } from "@/store/useBaselineStore";
 import { useJournalStore, type JournalEntry } from "@/store/useJournalStore";
 import { scoreColor } from "@/lib/brain-measurements";
 import { moodColor } from "@/lib/journal";
@@ -50,7 +50,7 @@ export default function SimpleCalendar() {
   const sessionLogs = useAppStore((s) => s.sessionLogs);
   const measurements = useBrainProfileStore((s) => s.measurements);
   const setViewingMeasurement = useBrainProfileStore((s) => s.setViewingMeasurement);
-  const checks = useBaselineStore((s) => s.checks);
+  const checks = useAllBaselineChecks();
   const journalEntries = useJournalStore((s) => s.entries);
 
   // Persisted stores aren't available on the server / first paint; gate their

@@ -4,7 +4,12 @@ import { useEffect } from "react";
 import { useMindStore } from "@/store/useMindStore";
 import { DummySource } from "@/lib/mind/dummy-source";
 import { LocalSource } from "@/lib/mind/local-source";
-import { ensureDesktopBridge, releaseDesktopBridge } from "@/lib/mind/desktop-bridge";
+import {
+  ensureDesktopBridge,
+  releaseDesktopBridge,
+  subscribeDesktopAuthCallbacks,
+} from "@/lib/mind/desktop-bridge";
+import { completeDesktopGoogleLogin } from "@/lib/mind/desktop-google-auth";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
 import { rawBandPowers, EMPTY_BAND_POWERS } from "@/lib/mind/types";
 import MindMapCanvas from "@/components/mind/MindMapCanvas";
@@ -18,6 +23,8 @@ import { SourceStatusLine } from "@/components/mind/SourceDialog";
 import DesktopSourceDialog from "@/components/mind/DesktopSourceDialog";
 import SubjectSelector from "@/components/mind/SubjectSelector";
 import TargetHzInput from "@/components/mind/TargetHzInput";
+import DesktopAccountButton from "@/components/mind/DesktopAccountButton";
+import CloudSaveBanner from "@/components/mind/CloudSaveBanner";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
@@ -27,8 +34,10 @@ import PageHeader from "@/components/PageHeader";
  * - データ源：Supabase 経由の RealtimeSource ではなく、同じ PC で動いている
  *   Python 測定アプリのローカル WS（LocalSource）。「接続する」も配対コード
  *   ではなく BrainLink のポート選択（DesktopSourceDialog）。
- * - 取り込み導線なし（MindRecorder allowImport={false}）：/report はログイン＋
- *   クラウド前提で、単体アプリには無い。測定はローカル保存＋CSV に残る。
+ * - 取り込みを尋ねない（MindRecorder mode="autoSave"）：右上でログインして
+ *   いれば、測り終えた測定と保存した10秒チェックは自動でアカウントに保存され、
+ *   Web 版の Sync Report・Sync History に出る（lib/sync/outbox.ts）。未ログイン
+ *   なら今までどおりこの PC（と CSV）にだけ残り、何も外に出ない。
  * - アプリの chrome（ナビ・MiniPlayer）は isDesktopRoute 守卫で消える。
  *
  * sourceKind の意味はこのページでは「realtime ＝ ローカル装置」。型は増やさない
@@ -52,6 +61,13 @@ export default function DesktopPage() {
     return () => releaseDesktopBridge();
   }, []);
 
+  // Google ログインの戻り（既定のブラウザ → 測定アプリ → ローカル WS）。ログインの
+  // ダイアログを閉じていても受け取れるよう、ページが常に聞いておく。
+  useEffect(
+    () => subscribeDesktopAuthCallbacks((ev) => void completeDesktopGoogleLogin(ev)),
+    []
+  );
+
   // /brain と同じ形の源ライフサイクル。realtime だけ LocalSource に差し替わる。
   useEffect(() => {
     const handlers: MindSourceHandlers = {
@@ -71,9 +87,10 @@ export default function DesktopPage() {
 
   return (
     <div style={{ animation: "fade-in 0.3s ease-out" }}>
-      <PageHeader title="Sync Brain" subtitle="脳波同期・測定" />
+      <PageHeader title="Sync Brain" subtitle="脳波同期・測定" actions={<DesktopAccountButton />} />
 
       <PageColumn>
+      <CloudSaveBanner />
       {/* 並びは /brain と同一（操作の習熟がそのまま移るように）。 */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
@@ -88,7 +105,7 @@ export default function DesktopPage() {
             <BaselineCheckButton />
           </div>
           <div className="flex-1 min-w-0">
-            <MindRecorder allowImport={false} />
+            <MindRecorder mode="autoSave" />
           </div>
         </div>
         <SourceStatusLine />

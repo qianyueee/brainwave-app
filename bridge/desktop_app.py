@@ -76,6 +76,7 @@ class Runtime:
         self.saved = saved
         self.loop: asyncio.AbstractEventLoop | None = None
         self.ws_port: int | None = None
+        self.srv: local_server.LocalServer | None = None
         self.ready = threading.Event()
         self.error: BaseException | None = None
         self._stop: asyncio.Event | None = None
@@ -91,9 +92,10 @@ class Runtime:
     async def _main(self) -> None:
         self.loop = asyncio.get_running_loop()
         self._stop = asyncio.Event()
-        bridge = DesktopBridge(self.saved)
+        bridge = DesktopBridge(self.saved, http_port=self.args.http_port)
         srv, server, actual = await local_server.start(bridge, self.args.ws_port)
         bridge.emitter = srv.emit
+        self.srv = srv
         self.ws_port = actual
         log.info("WS:   ws://127.0.0.1:%d", actual)
         self.ready.set()
@@ -109,6 +111,17 @@ class Runtime:
     def request_stop(self) -> None:
         if self.loop is not None and self._stop is not None:
             self.loop.call_soon_threadsafe(self._stop.set)
+
+    def relay_auth(self, event: dict) -> bool:
+        """HTTP スレッド（/auth/callback）から呼ばれる：Google ログインの戻りを WS の
+        ループへ渡し、画面に届いたかを返す（届かなければブラウザにそう表示する）。"""
+        if self.loop is None or self.srv is None:
+            return False
+        try:
+            fut = asyncio.run_coroutine_threadsafe(self.srv.relay_auth(event), self.loop)
+            return bool(fut.result(timeout=3))
+        except Exception:  # noqa: BLE001 — 失敗はブラウザ側の案内に回す
+            return False
 
 
 def main() -> None:
@@ -157,6 +170,10 @@ def main() -> None:
         _fatal(f"サーバの起動に失敗しました: {rt.error}")
         sys.exit(1)
 
+    # Google ログインの戻り（/auth/callback）を画面へ渡す口。HTTP は Runtime より先に
+    # 立っているので、ここで後から繋ぐ（それまでの戻りは「画面が見つからない」扱い）。
+    static_server.set_auth_callback_sink(rt.relay_auth)
+
     url = f"http://127.0.0.1:{args.http_port}/desktop?ws={rt.ws_port}"
 
     if args.no_window:
@@ -193,9 +210,16 @@ def main() -> None:
         height=860,
         min_size=(820, 640),
     )
+    # target=_blank のリンクと window.open は既定のブラウザで開く（pywebview の既定値
+    # だが、明示しておく）：Google ログインと「Web版で記録を見る」がこれに頼る——
+    # Google は WebView 内でのログインを拒むので、ブラウザ側で済ませる必要がある。
+    try:
+        webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
+    except Exception:  # noqa: BLE001 — 設定辞書の無い古い pywebview でも起動は続ける
+        pass
     try:
         # private_mode=False + storage_path は必須：既定のプライベートモードだと
-        # localStorage（測定記録・測定者・チェック履歴）が終了のたびに消える。
+        # localStorage（測定記録・測定者・チェック履歴・ログイン状態）が終了のたびに消える。
         webview.start(private_mode=False, storage_path=os.path.join(app_dir(), "profile"))
     except Exception as e:  # noqa: BLE001 — WebView2 ランタイム欠如が典型
         _fatal(

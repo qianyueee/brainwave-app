@@ -15,4 +15,9 @@ if (url && key) {
   console.warn("[supabase] NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY missing — Supabase disabled");
 }
 
+/** 接続先（未設定なら null）。デスクトップの Google ログインが PKCE の交換を
+ *  直接呼ぶのに使う（lib/mind/desktop-google-auth.ts）。 */
+export const SUPABASE_URL = url ?? null;
+export const SUPABASE_ANON_KEY = key ?? null;
+
 export { supabase };

@@ -15,7 +15,13 @@ interface AuthState {
   openAuthModal: (view?: AuthModalView) => void;
   closeAuthModal: () => void;
   setAuthModalView: (view: AuthModalView) => void;
-  signOut: () => Promise<void>;
+  /**
+   * この端末だけログアウトする（scope: "local"）。既定の global だと、スマホで
+   * ログアウトしただけでデスクトップ測定アプリのログインまで切れて、測定が
+   * 黙ってアカウントに届かなくなる。オフラインではサーバーに届かず失敗する
+   * ——そのときはログイン状態のまま error を返す。
+   */
+  signOut: () => Promise<{ error: Error | null }>;
 }
 
 export const useAuthStore = create<AuthState>()((set) => ({
@@ -36,8 +42,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   signOut: async () => {
     if (supabase) {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
+      if (error) return { error };
     }
     set({ user: null });
+    return { error: null };
   },
 }));

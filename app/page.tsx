@@ -6,6 +6,7 @@ import BrainConditionCard from "@/components/BrainConditionCard";
 import SyncTreeCard from "@/components/SyncTreeCard";
 import { User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useRefreshAccountViewsOnMount } from "@/lib/sync/account-views";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
@@ -28,6 +29,8 @@ export default function HomePage() {
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
   const isLoggedIn = !!user;
+  // 脳コンディションカードはデスクトップ測定アプリで測った記録も読む。
+  useRefreshAccountViewsOnMount();
 
   return (
     <div style={{ animation: "fade-in 0.3s ease-out" }}>

@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
+import { useRefreshAccountViewsOnMount } from "@/lib/sync/account-views";
 import type { BrainProfile } from "@/lib/brain-profile";
 import { compositeScore, scoreColor, measurementLabel } from "@/lib/brain-measurements";
 import {
@@ -177,6 +178,9 @@ export default function HistoryPage() {
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
   const subject = useSubjectStore(activeSubject);
+  // Pick up records measured on another device (the desktop app) since the
+  // last read — navigating here inside the app fires no focus event.
+  useRefreshAccountViewsOnMount();
 
   const viewOnReport = (uploadedAt: string) => {
     setViewingMeasurement(uploadedAt);
@@ -327,7 +331,7 @@ export default function HistoryPage() {
             </div>
             <p className="text-base font-bold text-text-primary mb-2">まだ記録がありません</p>
             <p className="text-sm text-text-secondary mb-6">
-              脳波データをアップロードすると、ここに測定の履歴と推移が表示されます。
+              シンク・ブレインや PC の測定アプリ（ログインして測定）で測るか、脳波データをアップロードすると、ここに測定の履歴と推移が表示されます。
             </p>
             <EegUploader />
           </div>

@@ -53,7 +53,14 @@ export default function SettingsPage() {
                 <p className="text-base text-text-primary break-all">{user.email}</p>
               </div>
               <button
-                onClick={signOut}
+                onClick={async () => {
+                  const { error } = await signOut();
+                  if (error) {
+                    window.alert(
+                      "ログアウトできませんでした。通信環境をご確認のうえ、もう一度お試しください"
+                    );
+                  }
+                }}
                 className="w-full h-12 rounded-2xl bg-navy text-danger text-base font-medium flex items-center justify-center gap-2 neu-raised-sm neu-press transition-transform"
               >
                 <LogOut size={18} strokeWidth={1.5} />

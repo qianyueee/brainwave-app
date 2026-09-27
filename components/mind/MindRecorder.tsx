@@ -3,25 +3,30 @@
 import { useEffect, useState } from "react";
 import { Play, Square, X } from "lucide-react";
 import { useMindStore, canReceiveData, type MindSessionSummary } from "@/store/useMindStore";
-import { useImportSession, sessionLabel } from "./useImportSession";
+import { useImportSession } from "./useImportSession";
+import { sessionLabel } from "@/lib/mind/session-record";
 import { syncNoteFromSession } from "@/lib/mind/note-sync";
 import { formatTime } from "@/lib/utils";
 import { isLowQuality, signalQualityPct } from "@/lib/brain-profile";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
+import { useCloudSyncStore } from "@/store/useCloudSyncStore";
+import CloudSaveStatus from "./CloudSaveStatus";
 
 /**
  * Record start/stop button for the mind-map top bar. When a measurement
- * finishes, a dialog asks whether to import it into the 脳特性 chart right
- * away; declining is fine — it can still be imported later by tapping the
- * session in the 過去の測定 list.
+ * finishes, a dialog shows its summary and a memo field, then:
  *
- * `allowImport={false}`（デスクトップ測定アプリ /desktop 用）は取り込み導線
- * だけを畳む：終了ダイアログ（統計・品質注記・メモ）は同じで、取り込みの
- * 問いかけ・状態行・ボタンを単独の「閉じる」に置き換える。取り込み先の
- * /report はログイン＋クラウド前提で、単体アプリには存在しないため。
- * メモは dismiss 経由なのでどちらでも保存される。
+ * - `mode="import"`（/brain）：この測定を脳特性チャートに取り込むかを尋ねる。
+ * - `mode="autoSave"`（デスクトップ測定アプリ /desktop）：尋ねない。測り終えた
+ *   時点のアカウント宛てに記録へ印を付け、裏の送信箱（lib/sync/outbox.ts）が
+ *   送る。ダイアログはその状態（保存中→保存しました）を見せて「閉じる」だけ。
+ *   未ログインなら「ログインして保存」。/report は単体アプリに無いので遷移しない。
+ *
+ * メモは dismiss 経由なのでどちらでも保存される（autoSave では版が進み、書いた
+ * メモ付きでもう一度送られる）。
  */
-export default function MindRecorder({ allowImport = true }: { allowImport?: boolean }) {
+export default function MindRecorder({ mode = "import" }: { mode?: "import" | "autoSave" }) {
+  const allowImport = mode === "import";
   const isRecording = useMindStore((s) => s.isRecording);
   const recordingSamples = useMindStore((s) => s.recordingSamples);
   const startRecording = useMindStore((s) => s.startRecording);
@@ -63,7 +68,13 @@ export default function MindRecorder({ allowImport = true }: { allowImport?: boo
       startRecording(subject && { id: subject.id, name: subject.name });
       return;
     }
-    const summary = stopRecording();
+    // 自動保存：この端末が結びついているアカウント宛て（オフライン起動で
+    // ログインが一時的に切れていても宛先は決まる。送るのは後でよい）。
+    const summary = stopRecording(
+      mode === "autoSave"
+        ? { cloudOwner: useCloudSyncStore.getState().account?.id }
+        : undefined
+    );
     // Show the result whenever something was recorded — including a measurement
     // the headset never read, which the dialog explains instead of offering an
     // all-zero import.
@@ -224,6 +235,8 @@ export default function MindRecorder({ allowImport = true }: { allowImport?: boo
               </>
             )}
 
+            {!allowImport && !unusable && <CloudSaveStatus kind="session" id={finished.id} />}
+
             {allowImport && !unusable && importStatus === "waitingLogin" && (
               <p className="text-sm text-text-muted">ログインすると自動で取り込まれます</p>
             )}
@@ -244,7 +257,8 @@ export default function MindRecorder({ allowImport = true }: { allowImport?: boo
                 閉じる
               </button>
             ) : !allowImport ? (
-              /* dismiss 経由でメモを確定してから閉じる（取り込み無し版）。 */
+              /* dismiss 経由でメモを確定してから閉じる（自動保存版：書いたメモは版が
+                 進んで、もう一度アカウントへ送られる）。 */
               <button
                 onClick={dismiss}
                 className="min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
@@ -275,11 +289,6 @@ export default function MindRecorder({ allowImport = true }: { allowImport?: boo
               </div>
             )}
 
-            {allowImport && !unusable && (
-              <p className="text-sm text-text-muted">
-                あとからでも「過去の測定」をタップすると取り込めます
-              </p>
-            )}
           </div>
         </div>
       )}

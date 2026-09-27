@@ -5,6 +5,8 @@ import { Check, Eye, EyeOff, Timer, X } from "lucide-react";
 import { useMindStore, canReceiveData } from "@/store/useMindStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
+import { useCloudSyncStore } from "@/store/useCloudSyncStore";
+import CloudSaveStatus from "./CloudSaveStatus";
 import { getAudioContext } from "@/lib/audio-context";
 import type { EegSample } from "@/lib/mind/types";
 import {
@@ -37,9 +39,10 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
   /** 現フェーズの残り秒（カウントダウン表示用）。 */
   const [remain, setRemain] = useState(0);
   const [result, setResult] = useState<ReturnType<typeof computeBaselineScores> | null>(null);
-  /** この結果を保存済みか。保存は明示操作——測ったものが全部残るとは限らない
-   *  （練習・装着確認・話しかけられた回）ので、残すかどうかは本人が決める。 */
-  const [saved, setSaved] = useState(false);
+  /** 保存した記録の id（null＝未保存）。保存は明示操作——測ったものが全部残るとは
+   *  限らない（練習・装着確認・話しかけられた回）ので、残すかどうかは本人が決める。 */
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const saved = savedId !== null;
 
   // 収集中のサンプル。setState で持つと 1Hz ごとに再描画が走って
   // カウントダウンのアニメーションと競合するので ref に貯める。
@@ -105,7 +108,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
     openRef.current = [];
     closeRef.current = [];
     setResult(null);
-    setSaved(false);
+    setSavedId(null);
 
     const { countdownSec, openSec, closeSec } = BASELINE_PROTOCOL;
 
@@ -148,19 +151,27 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
   const handleSave = () => {
     // 使える秒が無い計測は保存させない（全指標 null の空レコードになる）。
     if (!result || result.usableSec === 0 || saved) return;
-    record({
-      rate: result.rate,
-      clarity: result.clarity,
-      reset: result.reset,
-      method: result.method,
-      alphaRiseSec: result.alphaRiseSec,
-      alphaRatio: result.alphaRatio,
-      usableSec: result.usableSec,
-      source: sourceKind,
-      subjectId: subject?.id,
-      subjectName: subject?.name,
-    });
-    setSaved(true);
+    // 合成データ（デスクトップの「合成データでテストする」など）が1秒でも混ざった
+    // 回はデモとして残す——実測の推移やアカウントに紛れ込ませない。
+    const synthetic = [...openRef.current, ...closeRef.current].some((s) => s.synthetic);
+    const check = record(
+      {
+        rate: result.rate,
+        clarity: result.clarity,
+        reset: result.reset,
+        method: result.method,
+        alphaRiseSec: result.alphaRiseSec,
+        alphaRatio: result.alphaRatio,
+        usableSec: result.usableSec,
+        source: synthetic ? "demo" : sourceKind,
+        subjectId: subject?.id,
+        subjectName: subject?.name,
+      },
+      // ログインしている（していた）アカウントにも載せる。載せてよい実測かは
+      // ストアが判断する。
+      { cloudOwner: useCloudSyncStore.getState().account?.id }
+    );
+    setSavedId(check.id);
   };
 
   // サンプルの取り込み。store を購読して、届いた秒を「そのとき居るフェーズ」の
@@ -362,6 +373,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                   <Check size={18} strokeWidth={2.5} />
                   記録しました
                 </p>
+                {savedId && <CloudSaveStatus kind="check" id={savedId} />}
                 <div className="flex gap-3">
                   <button
                     onClick={start}

@@ -1,15 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useDesktopBridgeStore } from "@/store/useDesktopBridgeStore";
+import { useDesktopLoginStore } from "@/store/useDesktopLoginStore";
 import { supabase } from "@/lib/supabase";
-import { X, Eye, EyeOff } from "lucide-react";
+import { isDesktopRoute } from "@/lib/desktop";
+import {
+  beginDesktopGoogleLogin,
+  cancelDesktopGoogleLogin,
+  expireDesktopGoogleLogin,
+  prepareDesktopGoogleLogin,
+  DESKTOP_LOGIN_TTL_MS,
+  type PreparedGoogleLogin,
+} from "@/lib/mind/desktop-google-auth";
+import { X, Eye, EyeOff, LoaderCircle } from "lucide-react";
 
 export default function AuthModal() {
   const open = useAuthStore((s) => s.authModalOpen);
   const view = useAuthStore((s) => s.authModalView);
   const setView = useAuthStore((s) => s.setAuthModalView);
-  const closeModal = useAuthStore((s) => s.closeAuthModal);
+  const closeAuthModal = useAuthStore((s) => s.closeAuthModal);
+  const user = useAuthStore((s) => s.user);
+
+  // デスクトップ測定アプリ（/desktop）の中では、Google ログインを既定のブラウザで
+  // 行う（WebView 内のログインは Google が拒む。lib/mind/desktop-google-auth.ts）。
+  const desktop = isDesktopRoute(usePathname());
+  const callbackUrl = useDesktopBridgeStore((s) => s.state?.authCallbackUrl);
+  const googleStatus = useDesktopLoginStore((s) => s.status);
+  const googleMessage = useDesktopLoginStore((s) => s.message);
+  const googleUrl = useDesktopLoginStore((s) => s.url);
+  const googleStartedAt = useDesktopLoginStore((s) => s.startedAt);
+  const [prepared, setPrepared] = useState<PreparedGoogleLogin | null>(null);
+  const googleBusy = desktop && (googleStatus === "waiting" || googleStatus === "exchanging");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,6 +57,13 @@ export default function AuthModal() {
   const switchView = (v: "login" | "signup" | "forgot") => {
     resetForm();
     setView(v);
+  };
+
+  const closeModal = () => {
+    // 失敗の案内は閉じたら片付ける（待機中のログインはそのまま——ブラウザで
+    // 終われば、閉じていてもログインは完了する）。
+    if (googleStatus === "error") useDesktopLoginStore.getState().reset();
+    closeAuthModal();
   };
 
   const handleLogin = async () => {
@@ -77,7 +108,11 @@ export default function AuthModal() {
     if (err) {
       setError(err.message);
     } else {
-      setMessage("確認メールを送信しました。メールを確認してください。");
+      setMessage(
+        desktop
+          ? "確認メールを送信しました。メールのリンクを開いて登録を済ませたあと、このアプリに戻ってログインしてください。"
+          : "確認メールを送信しました。メールを確認してください。"
+      );
     }
   };
 
@@ -97,12 +132,48 @@ export default function AuthModal() {
     }
   };
 
+  // ボタンを押す前に PKCE を用意しておく（押した瞬間に同期で開くため）。
+  useEffect(() => {
+    if (!open || !desktop || googleBusy) return;
+    let alive = true;
+    void prepareDesktopGoogleLogin().then((p) => {
+      if (alive) setPrepared(p);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [open, desktop, googleBusy, callbackUrl]);
+
+  // ブラウザでのログインが済んで、この画面にセッションが届いたら閉じる。
+  useEffect(() => {
+    if (open && desktop && user) closeAuthModal();
+  }, [open, desktop, user, closeAuthModal]);
+
+  // Supabase 側の期限（5分）を過ぎても戻らなければ、待つのをやめて案内する。
+  useEffect(() => {
+    if (googleStatus !== "waiting" || googleStartedAt === null) return;
+    const t = setTimeout(
+      () => expireDesktopGoogleLogin(),
+      Math.max(0, googleStartedAt + DESKTOP_LOGIN_TTL_MS - Date.now())
+    );
+    return () => clearTimeout(t);
+  }, [googleStatus, googleStartedAt]);
+
   const handleGoogleLogin = async () => {
     if (!supabase) {
       setError("サービスに接続できません");
       return;
     }
     setError("");
+    if (desktop) {
+      if (!prepared) {
+        setError("測定アプリとの接続を確認して、もう一度お試しください");
+        return;
+      }
+      beginDesktopGoogleLogin(prepared);
+      setPrepared(null);
+      return;
+    }
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
     const redirectTo = typeof window !== "undefined"
       ? `${window.location.origin}${basePath}/`
@@ -154,18 +225,53 @@ export default function AuthModal() {
         </div>
 
         {/* Error / Message */}
-        {error && (
+        {(error || (desktop && googleStatus === "error" && googleMessage)) && (
           <p role="alert" className="text-sm text-danger bg-danger/10 rounded-2xl px-4 py-3">
-            {error}
+            {error || googleMessage}
           </p>
         )}
         {message && (
-          <p role="status" className="text-sm text-emerald-400 bg-emerald-400/10 rounded-2xl px-4 py-3">
+          <p role="status" className="text-sm text-success bg-success/10 rounded-2xl px-4 py-3">
             {message}
           </p>
         )}
 
-        {!message && (
+        {/* デスクトップの Google ログイン：ブラウザ側で進んでいる間の画面 */}
+        {googleBusy && (
+          <div className="flex flex-col items-center gap-4 text-center py-2">
+            <LoaderCircle size={32} className="text-primary animate-spin" />
+            {googleStatus === "exchanging" ? (
+              <p className="text-base text-text-primary">ログインしています…</p>
+            ) : (
+              <>
+                <p className="text-base text-text-primary">
+                  ブラウザで Google ログインを続けてください
+                </p>
+                <p className="text-sm text-text-secondary">
+                  終わると、この画面に自動で戻ります。
+                </p>
+                {googleUrl && (
+                  <a
+                    href={googleUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-primary underline min-h-12 flex items-center"
+                  >
+                    ブラウザが開かない場合はこちら
+                  </a>
+                )}
+                <button
+                  onClick={cancelDesktopGoogleLogin}
+                  className="w-full h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold active:scale-95 neu-raised-sm neu-press"
+                >
+                  キャンセル
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {!message && !googleBusy && (
           <>
             {/* Email input */}
             <div>

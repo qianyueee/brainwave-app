@@ -66,5 +66,9 @@ class DemoSource:
             "highGamma": round(base * (1.1 if in_burst else 0.12) * _jitter()),
             "signal": 0,
             "battery": 80,
+            # 実機の読み取りではない印（EegSample.synthetic、lib/mind/types.ts）。
+            # これが混ざった測定は Web 側でデモ扱いになり、アカウントへ保存されない。
+            # CSV は固定列（csv_logger.FIELDS）なので出力は変わらない。
+            "synthetic": True,
             "ts": int(now * 1000),
         }
