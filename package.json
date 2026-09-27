@@ -8,6 +8,7 @@
     "build": "next build",
     "build:desktop": "node scripts/build-desktop.mjs",
     "build:android": "node scripts/build-android.mjs",
+    "check:thinkgear": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-thinkgear.mjs",
     "start": "next start",
     "lint": "eslint"
   },
