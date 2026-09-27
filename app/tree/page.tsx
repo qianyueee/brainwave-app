@@ -14,18 +14,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  DAILY_MAX,
-  LISTEN_DAILY_MAX,
-  MATURE_POINTS,
-  POINTS_PER_STAGE,
-  TREE_COMPLETE_AT,
   TREE_STAGES,
-  WATER_POINTS,
+  growthLevel,
   isTreeComplete,
   stageProgress,
-  treePercent,
   treeStage,
   treeStageIndex,
+  type GrowthLevel,
+  type StageProgress,
   type TreeDayStatus,
 } from "@/lib/sync-tree";
 import { foldOf, useSyncTreeStore, useSyncTreeView } from "@/store/useSyncTreeStore";
@@ -42,9 +38,13 @@ import PageHeader from "@/components/PageHeader";
  * 5分聴くごとに +2（1日 +5 まで）、13 で次の段階、大樹からさらに 7 で完成。
  * 完成したら「新しい木を育てる」で育てた木が1本増え、苗から育て直す。
  *
+ * **画面には数値を出さない**：％・ポイント・「+1」のような加算量は内部だけで使い、
+ * 育ち具合は段階名と、目盛りの無い帯と言葉（growthLevel）でぼかして伝える。
+ * 出す数字は育てた木の本数と、「1日1回」「5分」という使い方だけ。
+ *
  * 木はログイン中だけの機能で、データはアカウントにだけある
  * （store/useSyncTreeStore）。未ログインではログインを促す。
- * 段階名・育てた木数はこの画面が受け持ち、進捗％はホームのカードと両方に出す。
+ * 育てた木の本数はこの画面が受け持ち、段階名はホームのカードと両方に出す。
  * メニュー外ページ（/settings・/player と同じ立て付け）で、戻るはホームへ。
  */
 export default function TreePage() {
@@ -87,7 +87,7 @@ export default function TreePage() {
         const grown = `「${TREE_STAGES[afterStage].name}」に育ちました`;
         say(grown, grown);
       } else {
-        say(`水やりしました。+${WATER_POINTS}`, null);
+        say("水やりしました", null);
       }
     } else if (result === "already") {
       say("今日の水やりは済みました。また明日", "今日の水やりは済みました");
@@ -140,8 +140,7 @@ export default function TreePage() {
                 <SyncTreeWaterScene
                   interactive
                   stage={stageIdx}
-                  title={`${String(stage.num).padStart(2, "0")} ${stage.name}`}
-                  percent={treePercent(points)}
+                  title={stage.name}
                   hint={hint}
                   canWater={!watered && !complete}
                   burst={burst}
@@ -202,73 +201,58 @@ export default function TreePage() {
   );
 }
 
-/** 段階の中の進み具合。1マス＝1ポイント（13マス、大樹のあとは7マス）。 */
-function SegmentBar({ filled, size, label }: { filled: number; size: number; label: string }) {
+/**
+ * 段階の中の進み具合。目盛りも数字も持たない帯——何マス中いくつ、と数えられる
+ * 形にはしない。水をやるたびに少しずつ伸びる（幅の変化はなめらかに見せる）。
+ * 読み上げは下の言葉が受け持つので、帯そのものは装飾。
+ */
+function GrowthBar({ ratio }: { ratio: number }) {
+  // 区間の始まりでも「空っぽ」に見えないよう、ほんの少しだけ色を置く
+  const width = Math.max(0.04, Math.min(1, ratio));
   return (
     <div
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={size}
-      aria-valuenow={filled}
-      aria-label={label}
-      className="flex gap-1"
+      aria-hidden="true"
+      className="h-3 rounded-full bg-navy-lighter overflow-hidden"
+      style={{ boxShadow: "inset 1px 1px 3px var(--shadow-neu-dark)" }}
     >
-      {Array.from({ length: size }, (_, i) => (
-        <span
-          key={i}
-          className={`h-3 flex-1 rounded-full ${i < filled ? "" : "bg-navy-lighter"}`}
-          style={
-            i < filled
-              ? { background: "linear-gradient(to right, var(--dyn-accent-dark), var(--dyn-accent))" }
-              : { boxShadow: "inset 1px 1px 2px var(--shadow-neu-dark)" }
-          }
-        />
-      ))}
+      <div
+        className="h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none"
+        style={{
+          width: `${width * 100}%`,
+          background: "linear-gradient(to right, var(--dyn-accent-dark), var(--dyn-accent))",
+        }}
+      />
     </div>
   );
 }
 
+/** 育ち具合をひと言で（数値の代わり）。 */
+function growthPhrase(phase: StageProgress["phase"], level: GrowthLevel, nextName: string): string {
+  if (phase === "complete") return "育ちきりました";
+  if (phase === "maturing") {
+    return level === "near"
+      ? "もうすぐ育ちきります"
+      : "大樹になりました。実りのときに向けて育っています";
+  }
+  if (level === "early") return `「${nextName}」に向けて育ちはじめました`;
+  if (level === "middle") return `「${nextName}」に向けて、すくすく育っています`;
+  return `もうすぐ「${nextName}」に育ちます`;
+}
+
 /**
- * 育ち具合。段階名と％は大きな木の上に出ているので、ここは「あといくつで
- * 何になるか」とポイントの実数（ルールがポイントで語られるので）を受け持つ。
+ * 育ち具合。段階名は大きな木の上に出ているので、ここは「次に何になるか」を
+ * 目盛りの無い帯と言葉で受け持つ（ポイントの実数は出さない）。
  */
 function NowCard({ points, grown }: { points: number; grown: number }) {
   const progress = stageProgress(points);
   const next = TREE_STAGES[Math.min(treeStageIndex(points) + 1, TREE_STAGES.length - 1)];
   return (
     <section className="bg-surface border border-surface-border rounded-3xl p-5 neu-raised flex flex-col gap-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-lg font-bold text-text-primary">育ち具合</h2>
-        <span className="text-base font-mono font-bold tabular-nums text-accent">
-          {points} / {TREE_COMPLETE_AT}
-        </span>
-      </div>
-
-      <SegmentBar
-        filled={progress.filled}
-        size={progress.size}
-        label={
-          progress.phase === "growing"
-            ? `次の段階まで ${progress.filled} / ${POINTS_PER_STAGE}`
-            : `完成まで ${progress.filled} / ${MATURE_POINTS}`
-        }
-      />
+      <h2 className="text-lg font-bold text-text-primary">育ち具合</h2>
+      <GrowthBar ratio={progress.filled / progress.size} />
       <p className="text-base text-text-secondary">
-        {progress.phase === "growing" && (
-          <>
-            「{next.name}」まで あと{" "}
-            <b className="text-text-primary tabular-nums">{progress.remaining}</b>
-          </>
-        )}
-        {progress.phase === "maturing" && (
-          <>
-            大樹になりました。完成まで あと{" "}
-            <b className="text-text-primary tabular-nums">{progress.remaining}</b>
-          </>
-        )}
-        {progress.phase === "complete" && "完成しました"}
+        {growthPhrase(progress.phase, growthLevel(points), next.name)}
       </p>
-
       <p className="flex items-center gap-1.5 text-sm text-text-secondary">
         <TreeDeciduous size={18} strokeWidth={1.5} className="text-accent" aria-hidden="true" />
         育てた木 <b className="text-text-primary tabular-nums">{grown}</b>本
@@ -281,20 +265,19 @@ function TodayRow({
   icon: Icon,
   title,
   detail,
-  gain,
-  done,
-  doneLabel,
-  todoLabel = "まだ",
+  status,
+  tone,
 }: {
   icon: LucideIcon;
   title: string;
   detail: string;
-  gain: string;
-  done: boolean;
-  doneLabel: string;
-  /** まだのときの言い方（既定「まだ」） */
-  todoLabel?: string;
+  /** 右側のひと言（「済み」「まだ」など。加算量は出さない） */
+  status: string;
+  /** done＝今日のぶんは済んだ / partial＝少し進んだ / todo＝まだ */
+  tone: "done" | "partial" | "todo";
 }) {
+  const color =
+    tone === "done" ? "text-success" : tone === "partial" ? "text-accent" : "text-text-muted";
   return (
     <div className="flex items-center gap-3">
       <span className="w-12 h-12 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
@@ -304,19 +287,10 @@ function TodayRow({
         <p className="text-base font-bold text-text-primary">{title}</p>
         <p className="text-sm text-text-secondary">{detail}</p>
       </div>
-      <div className="flex flex-col items-end shrink-0">
-        <span
-          className={`text-lg font-bold tabular-nums ${done ? "text-success" : "text-text-primary"}`}
-        >
-          {gain}
-        </span>
-        <span
-          className={`flex items-center gap-1 text-xs ${done ? "text-success" : "text-text-muted"}`}
-        >
-          {done && <Check size={14} strokeWidth={2.5} aria-hidden="true" />}
-          {done ? doneLabel : todoLabel}
-        </span>
-      </div>
+      <span className={`flex items-center gap-1 text-sm font-bold shrink-0 ${color}`}>
+        {tone === "done" && <Check size={16} strokeWidth={2.5} aria-hidden="true" />}
+        {status}
+      </span>
     </div>
   );
 }
@@ -330,31 +304,26 @@ function TodayCard({
   complete: boolean;
   unsaved: boolean;
 }) {
+  const listenTone = day.listenCapped ? "done" : day.listenCount > 0 ? "partial" : "todo";
   return (
     <section className="bg-surface border border-surface-border rounded-3xl p-5 neu-raised flex flex-col gap-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-bold text-text-primary">今日のおせわ</h2>
-        <span className="text-sm text-text-muted">1日 最大 +{DAILY_MAX}</span>
-      </div>
+      <h2 className="text-lg font-bold text-text-primary">今日のおせわ</h2>
 
       <TodayRow
         icon={Droplets}
         title="水やり"
-        detail="木をダブルタップ・1日1回"
-        gain={`+${WATER_POINTS}`}
-        done={day.watered}
-        doneLabel="済み"
+        detail="木をダブルタップ（1日1回）"
+        status={day.watered ? "済み" : "まだ"}
+        tone={day.watered ? "done" : "todo"}
       />
       <TodayRow
         icon={Headphones}
         title="プログラムを聴く"
-        detail={`5分ごとに +2・1日 +${LISTEN_DAILY_MAX} まで`}
-        gain={`+${day.listenPoints} / ${LISTEN_DAILY_MAX}`}
-        done={day.listenCapped}
-        doneLabel="今日はここまで"
-        todoLabel={
-          day.listenPoints > 0 ? `あと +${LISTEN_DAILY_MAX - day.listenPoints}` : "まだ"
+        detail="5分ほど聴くごとに育ちます"
+        status={
+          listenTone === "done" ? "今日はたっぷり" : listenTone === "partial" ? "育っています" : "まだ"
         }
+        tone={listenTone}
       />
 
       {!day.listenCapped && !complete && (
@@ -374,7 +343,7 @@ function TodayCard({
       )}
 
       <p className="text-sm text-text-muted">
-        {POINTS_PER_STAGE} で次の段階へ。16段階目の大樹からさらに {MATURE_POINTS} で完成し、新しい木を育てられます。
+        毎日の水やりとリスニングで少しずつ育ちます。大樹になって実りを迎えたら、新しい木を育てられます。
       </p>
     </section>
   );
@@ -403,10 +372,10 @@ function CompletionCard({ onReplant }: { onReplant: () => void }) {
 function TreeRules() {
   return (
     <ul className="flex flex-col gap-1.5 text-sm text-text-secondary list-disc pl-5">
-      <li>木をダブルタップして水やり（1日1回 +{WATER_POINTS}）</li>
-      <li>プログラムを5分聴くごとに +2（1日 +{LISTEN_DAILY_MAX} まで）</li>
-      <li>{POINTS_PER_STAGE} で次の段階へ。16段階目が大樹</li>
-      <li>大樹からさらに {MATURE_POINTS} で完成。新しい木を育てられます</li>
+      <li>木をダブルタップして水やり（1日1回）</li>
+      <li>プログラムを聴くと、さらに育ちます</li>
+      <li>星の種から少しずつ姿を変え、やがて大樹に</li>
+      <li>大樹が実りを迎えたら、新しい木を育てられます</li>
     </ul>
   );
 }

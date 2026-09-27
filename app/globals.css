@@ -526,15 +526,16 @@ input[type="range"]:disabled::-moz-range-thumb {
   animation: tree-drop 0.8s ease-in both;
   animation-delay: var(--drop-delay, 0s);
 }
-/* 「+1」が樹冠から浮かんで消える */
-@keyframes tree-plus-one {
-  0% { opacity: 0; transform: translateY(8px); }
-  18% { opacity: 1; }
+/* きらめきが樹冠から立ちのぼって消える（数字は出さない——育ったことは見た目で） */
+@keyframes tree-rise {
+  0% { opacity: 0; transform: translateY(8px) scale(0.6); }
+  25% { opacity: 1; transform: translateY(-4px) scale(1); }
   70% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-30px); }
+  100% { opacity: 0; transform: translateY(-34px) scale(0.9); }
 }
-.tree-plus-one {
-  animation: tree-plus-one 1.6s ease-out 0.35s both;
+.tree-rise {
+  animation: tree-rise 1.5s ease-out both;
+  animation-delay: var(--rise-delay, 0.35s);
 }
 /* 「『若木』に育ちました」などのひと言。出て、しばらく居て、消える */
 @keyframes tree-toast {
@@ -593,7 +594,7 @@ input[type="range"]:disabled::-moz-range-thumb {
     30%, 70% { opacity: 1; transform: none; }
     100% { opacity: 0; transform: none; }
   }
-  @keyframes tree-plus-one {
+  @keyframes tree-rise {
     0% { opacity: 0; transform: none; }
     20%, 70% { opacity: 1; transform: none; }
     100% { opacity: 0; transform: none; }

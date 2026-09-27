@@ -5,6 +5,7 @@ import {
   SyncTreeFigure,
   SyncTreeScene,
   TREE_SCENE_W,
+  TREE_SPARKLE_PATH,
   treeCanopy,
   treeSceneGeometry,
 } from "@/components/SyncTreeArt";
@@ -21,7 +22,8 @@ import {
  * `touch-manipulation` はダブルタップでページが拡大されるのを止める（ピンチ
  * 拡大は止めない）。
  *
- * 手応え（しずく・「+1」・揺れ）は `burst` が増えるたびに最初から再生する。
+ * 手応え（しずく・立ちのぼるきらめき・揺れ）は `burst` が増えるたびに最初から
+ * 再生する。「+1」のような数字は出さない——育ち具合は数値でなく見た目で伝える。
  * 段階が変わると新しい絵が根元から育つ（stage を key にして付け直す）。
  * 文字はすべて装飾（aria-hidden）——読み上げはボタンの aria-label と、
  * ページ側の aria-live が受け持つ。
@@ -44,6 +46,22 @@ const CHIP: CSSProperties = {
   color: "var(--tree-ink)",
   background: "color-mix(in srgb, var(--tree-ink) 14%, transparent)",
 };
+
+/** 水やりのあと樹冠から立ちのぼる、手描きの4点星のきらめき（真円は使わない）。 */
+function Glint({ size }: { size: number }) {
+  return (
+    <svg viewBox="-6 -6 12 12" width={size} height={size} aria-hidden="true">
+      <path
+        d={TREE_SPARKLE_PATH}
+        fill="#ffd766"
+        stroke="var(--tree-ink)"
+        strokeOpacity={0.35}
+        strokeWidth={0.6}
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 /** 手描きのしずく（真円は使わない——アートディレクション）。 */
 function Drop() {
@@ -72,7 +90,6 @@ export default function SyncTreeWaterScene({
   showTree = true,
   interactive = false,
   title,
-  percent,
   hint,
   canWater = false,
   burst = 0,
@@ -86,15 +103,13 @@ export default function SyncTreeWaterScene({
   showTree?: boolean;
   /** ダブルタップで水やりできる（読み込めたときだけ） */
   interactive?: boolean;
-  /** 左上（例「10 若木」） */
+  /** 左上（段階名。数字は付けない） */
   title?: string;
-  /** 右上の％ */
-  percent?: number;
   /** 下のひと言（待機中は「もう一度タップで水やり」に替わる） */
   hint?: string;
   /** 今日まだ水をやれる（false なら1回のタップで理由を返す） */
   canWater?: boolean;
-  /** 水やりが通るたびに増える。しずく・+1・揺れを最初から再生する */
+  /** 水やりが通るたびに増える。しずく・きらめき・揺れを最初から再生する */
   burst?: number;
   /** 「『若木』に育ちました」などのひと言（id が変わるたびに出し直す） */
   toast?: { id: number; text: string } | null;
@@ -137,7 +152,7 @@ export default function SyncTreeWaterScene({
     }, ARM_MS);
   };
 
-  // しずくと「+1」は樹冠の上へ——段階ごとの樹冠（ハンドオフのオーラ楕円）を
+  // しずくときらめきは樹冠の上へ——段階ごとの樹冠（ハンドオフのオーラ楕円）を
   // 風景の座標に写して、カード幅に対する％で置く（カードの実寸に依らない）。
   const { tx, ty } = treeSceneGeometry(SCENE.h, SCENE.scale);
   const canopy = treeCanopy(stage);
@@ -162,17 +177,14 @@ export default function SyncTreeWaterScene({
           {tree}
         </SyncTreeScene>
 
-        {/* 左上：段階、右上：％ */}
-        {(title || percent !== undefined) && (
+        {/* 左上：段階名（％や段階の番号は出さない） */}
+        {title && (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute top-0 left-0 right-0 p-5 flex items-baseline justify-between gap-3"
+            className="pointer-events-none absolute top-0 left-0 p-5 text-lg font-bold"
             style={INK}
           >
-            <span className="text-lg font-bold">{title}</span>
-            {percent !== undefined && (
-              <span className="text-lg font-bold tabular-nums">{percent}%</span>
-            )}
+            {title}
           </span>
         )}
 
@@ -193,7 +205,7 @@ export default function SyncTreeWaterScene({
           </span>
         )}
 
-        {/* 水やりの手応え：しずく3つ ＋ 「+1」 */}
+        {/* 水やりの手応え：しずく3つが落ち、きらめきが立ちのぼる */}
         {burst > 0 && (
           <span key={`burst-${burst}`} aria-hidden="true" className="pointer-events-none">
             {[-1, 0, 1].map((k, i) => (
@@ -211,12 +223,25 @@ export default function SyncTreeWaterScene({
                 <Drop />
               </span>
             ))}
-            <span
-              className="tree-plus-one absolute -translate-x-1/2 text-2xl font-bold"
-              style={{ ...INK, left: `${leftPct + spreadPct * 1.6}%`, top: `${topPct - 6}%` }}
-            >
-              +1
-            </span>
+            {[
+              { dx: 1.5, dy: -2, size: 20, delay: 0.35 },
+              { dx: -1.3, dy: 1, size: 15, delay: 0.5 },
+              { dx: 0.4, dy: -7, size: 12, delay: 0.65 },
+            ].map((g) => (
+              <span
+                key={g.dx}
+                className="tree-rise absolute -translate-x-1/2"
+                style={
+                  {
+                    left: `${leftPct + spreadPct * g.dx}%`,
+                    top: `${topPct + g.dy}%`,
+                    "--rise-delay": `${g.delay}s`,
+                  } as CSSProperties
+                }
+              >
+                <Glint size={g.size} />
+              </span>
+            ))}
           </span>
         )}
       </span>

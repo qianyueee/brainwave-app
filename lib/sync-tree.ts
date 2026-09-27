@@ -20,6 +20,10 @@
 // 点数は行に持たせずここで決める。定数を変えると過去の木も新しいルールで数え直され
 // （育てた木の本数まで変わりうる）ので、ルールを変えるときはそのつもりで。
 //
+// **数値は画面に出さない**（プロダクト判断）：％・ポイント・「+1」のような加算量は
+// ここの内部だけで使い、画面は段階名と、growthLevel でぼかした言葉・目盛りの無い帯で
+// 育ち具合を伝える。画面に出る数字は育てた木の本数と、「1日1回」「5分」の使い方だけ。
+//
 // このファイルは何も import しない——テストランナーが無いので、node で直接
 // 読み込んで確かめられるようにしてある。
 
@@ -40,10 +44,6 @@ export const WATER_POINTS = 1;
 export const LISTEN_BLOCK_SEC = 5 * 60;
 /** その日の n 件目のリスニングが何ポイントか。これより後は 0（1日 +5）。 */
 export const LISTEN_SLOT_POINTS: readonly number[] = [2, 2, 1];
-/** リスニングで1日に増やせる上限（5）。 */
-export const LISTEN_DAILY_MAX = LISTEN_SLOT_POINTS.reduce((a, b) => a + b, 0);
-/** 1日に増やせる上限（水やり＋リスニング＝6）。 */
-export const DAILY_MAX = WATER_POINTS + LISTEN_DAILY_MAX;
 
 export interface TreeStage {
   /** 段階番号（1始まり、01〜16） */
@@ -193,11 +193,6 @@ export function treeStage(points: number): TreeStage {
   return TREE_STAGES[treeStageIndex(points)];
 }
 
-/** 完成までの％。切り捨てなので 201 点で「100%」とは出ない。 */
-export function treePercent(points: number): number {
-  return Math.floor((clampPoints(points) * 100) / TREE_COMPLETE_AT);
-}
-
 export function isTreeComplete(points: number): boolean {
   return clampPoints(points) >= TREE_COMPLETE_AT;
 }
@@ -224,6 +219,21 @@ export function stageProgress(points: number): StageProgress {
   }
   const filled = p % POINTS_PER_STAGE;
   return { phase: "growing", filled, size: POINTS_PER_STAGE, remaining: POINTS_PER_STAGE - filled };
+}
+
+/**
+ * いまの区間（次の段階まで／大樹から完成まで）がどこまで進んだかを3つにぼかす。
+ * 画面は数値の代わりにこれで言葉を選ぶ（「育ちはじめました」「すくすく」「もうすぐ」）。
+ * 完成（植え替え待ち）は near。
+ */
+export type GrowthLevel = "early" | "middle" | "near";
+
+export function growthLevel(points: number): GrowthLevel {
+  const { filled, size } = stageProgress(points);
+  const ratio = filled / size;
+  if (ratio < 1 / 3) return "early";
+  if (ratio < 2 / 3) return "middle";
+  return "near";
 }
 
 export interface TreeDayStatus {
