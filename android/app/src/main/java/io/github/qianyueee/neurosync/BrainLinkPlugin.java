@@ -93,6 +93,10 @@ public class BrainLinkPlugin extends Plugin {
     private Thread reader;
     private ScheduledFuture<?> flushTask;
     private final ByteArrayOutputStream pending = new ByteArrayOutputStream();
+    // 取り出しと JS への送り出しを1本にする鍵。渡す係（flusher）と読み取りスレッドの両方が
+    // flush するので、鍵が無いと「先に取り出した塊が後から届く」ことがあり、バイト列の
+    // 順番が入れ替わる（Capacitor は呼ばれた順に WebView へ積む）。
+    private final Object flushLock = new Object();
 
     // ペアリング待ち（createBond の結果は放送で届く）。
     private volatile String bondingAddress;
@@ -348,7 +352,15 @@ public class BrainLinkPlugin extends Plugin {
             if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
                 emitConnection("pairing", address, null, null);
                 if (!bond(device)) {
-                    finishConnectFailure(call, address, generation, "PAIR_FAILED", "pairing failed");
+                    // 取り消し（closeConnectionLocked が待ちを解く）はペアリングの失敗ではない。
+                    boolean cancelled = generation != connectGeneration;
+                    finishConnectFailure(
+                        call,
+                        address,
+                        generation,
+                        cancelled ? "CANCELLED" : "PAIR_FAILED",
+                        cancelled ? "cancelled" : "pairing failed"
+                    );
                     return;
                 }
             }
@@ -359,8 +371,9 @@ public class BrainLinkPlugin extends Plugin {
             opened = openSocket(device);
             synchronized (lock) {
                 if (generation != connectGeneration) {
+                    // connectingAddress はもう新しい接続のもの（取り消した側が畳み、新しい側が
+                    // 入れ直している）なので触らない。
                     closeQuietly(opened);
-                    connectingAddress = null;
                     call.reject("cancelled", "CANCELLED");
                     return;
                 }
@@ -499,18 +512,25 @@ public class BrainLinkPlugin extends Plugin {
     }
 
     private void flush() {
-        byte[] bytes;
-        synchronized (pending) {
-            if (pending.size() == 0) {
-                return;
+        synchronized (flushLock) {
+            byte[] bytes;
+            synchronized (pending) {
+                if (pending.size() == 0) {
+                    return;
+                }
+                bytes = pending.toByteArray();
+                pending.reset();
             }
-            bytes = pending.toByteArray();
-            pending.reset();
+            try {
+                JSObject data = new JSObject();
+                data.put("data", Base64.encodeToString(bytes, Base64.NO_WRAP));
+                data.put("t", System.currentTimeMillis());
+                notifyListeners("data", data);
+            } catch (RuntimeException ignored) {
+                // 定期実行の中で例外が漏れると、それきり二度と呼ばれない（データが黙って
+                // 止まる）。この塊は捨てても、パーサは次の同期バイトから拾い直す。
+            }
         }
-        JSObject data = new JSObject();
-        data.put("data", Base64.encodeToString(bytes, Base64.NO_WRAP));
-        data.put("t", System.currentTimeMillis());
-        notifyListeners("data", data);
     }
 
     /** 利用者の操作で接続を畳む（進行中の接続も取り消す）。繋がっていたなら切断を知らせる（エラーなし）。 */
