@@ -201,7 +201,7 @@ export default function DesktopSourceDialog() {
                   ) : (
                     <button
                       onClick={handleConnect}
-                      disabled={!port}
+                      disabled={!effectivePort}
                       className="min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"
                     >
                       このポートに接続する
