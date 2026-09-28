@@ -18,6 +18,8 @@ NeuroSync（ニューロシンク）— 基于个人脑波数据的移动端 Web
 - Astronomy: astronomy-engine（太陽/月星座计算；仅在 `lib/zodiac.ts` 的 `getTodaySky` 内动态 import → 独立懒加载 chunk，禁止顶层静态 import）
 - Package Manager: pnpm
 - Android: Capacitor 8（同じ静的書き出しを APK に入れる。`android/`・`capacitor.config.ts`。規則は下の「Android アプリ（Capacitor）」、配布手順は android/README.md）
+- Windows: pywebview（WebView2）＋ PyInstaller（同じ静的書き出しを NeuroSync.exe に入れ、Python が 127.0.0.1 で配る。`bridge/`。規則は下の「Windows アプリ（完全版）」、配布手順は bridge/README.md）
+- 三端（Web・Android・Windows）の記録はアカウントで揃う（下の「アカウント同期」）
 
 ## Development Commands
 
@@ -29,7 +31,9 @@ pnpm start            # 本地预览
 pnpm tsc --noEmit     # 类型检查
 pnpm lint             # Lint
 pnpm build:android    # Android 版の書き出し → android-web/ → cap sync（APK は android/ で Gradle）
+pnpm build:desktop    # Windows アプリ版の書き出し → bridge/web/（exe は bridge/ で `pyinstaller NeuroSync.spec`）
 pnpm check:thinkgear  # ThinkGear パーサ（TS）と bridge/thinkgear.py の突き合わせ（python3 が要る）
+pnpm check:records    # 端末をまたぐ小さな記録（user_records）の合わせ方の自己点検（node だけ。3台の収束・時計のずれ・墓標）
 ```
 
 ## Architecture
@@ -42,7 +46,7 @@ brainwave-app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
 │   ├── page.tsx                # Home 首页（品牌行〔NeuroSync® のみ・`text-base`=16px。ページ見出し 20px を超えない範囲でいちばん大きく〕→ 「Home / 今日の星空・宇宙周波数で即座に調律」页面见出し → Sync Tree 风景卡〔左上ラベル・右上＝段階名・右下矢印だけ（**数値は出さない**）、整卡点击进 /tree。未ログインは星の種＋右上「ログインで育てる」、読み込み中は空だけ〕→ 脳コンディションカード → 星座卡；右上角設定入口。桌面端左列＝Tree＋コンディション、右列＝星座卡）
 │   ├── session/page.tsx        # Sync Session（上段＝Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕｜所属グループへの配信プログラム／未ログイン CTA。下段＝幅いっぱいの `CatalogSection`：デフォルト・Target・Energy・Astro の4タブ＋全カテゴリ横断の検索。一覧を上段2列グリッドの片側に入れないのは、169 件を半分の幅に押し込むとカードが縦に続く筒になるから。※音源制作・公開などの管理操作は置かない——管理面板「音源」タブへ移設済み）
-│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 誘導周波数の入力 → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕。Android アプリでは源が BluetoothSource、「接続する」が BluetoothSourceDialog〔Bluetooth で BrainLink に直結〕）
+│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 誘導周波数の入力 → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕。Android アプリでは源が BluetoothSource、「接続する」が BluetoothSourceDialog〔Bluetooth で BrainLink に直結〕。Windows アプリでは源が LocalSource、「接続する」が DesktopSourceDialog〔同じ PC の Python が COM ポートを読む〕。どちらも測り終えたら Web と同じく「取り込む」）
 │   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝1件で6指標＆スペクトル表示・2〜3件で重ねて比較。既定は脳特性チャート）
 │   ├── history/page.tsx        # Sync History（日历〔日付タップで当日の明細＋**その日の振り返り**を書く〕/ セッション統計 / 脳波の記録〔ログイン必須〕/ 10秒チェックの記録〔認証ゲートの外＝未ログインでも見える〕；レポートで見る→/report）
 │   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
@@ -50,13 +54,15 @@ brainwave-app/
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
 │   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
-│   ├── desktop/page.tsx        # デスクトップ測定アプリ（bridge/desktop_app.py の WebView2）が開く**単体画面**。中身は /brain と同構成、違いは3点：源が LocalSource（ローカルWS）／接続ダイアログが DesktopSourceDialog（配对码→COMポート選択）／取り込みを尋ねず**自動保存**（MindRecorder mode="autoSave"＋右上 DesktopAccountButton でログイン、下の「アカウント同期」参照）。ナビ・MiniPlayer 等の chrome は isDesktopRoute（lib/desktop.ts）守卫で全消し。导航に載せない（Pages 版にも無リンクで存在するが無害）
+│   ├── desktop/page.tsx        # **旧い**デスクトップ測定アプリ（NeuroSyncMeasure.exe）が開いていた**単体画面**。Windows アプリ（完全版、NeuroSync.exe）はもう開かない（`/` から始まり、測定は /brain）——旧路由として残してあるだけ。中身は /brain と同構成、違いは3点：源が LocalSource（ローカルWS）／接続ダイアログが DesktopSourceDialog（配对码→COMポート選択）／取り込みを尋ねず**自動保存**（MindRecorder mode="autoSave"＋右上 DesktopAccountButton でログイン、下の「アカウント同期」参照）。ナビ・MiniPlayer 等の chrome は isDesktopRoute（lib/desktop.ts）守卫で全消し。导航に載せない（Pages 版にも無リンクで存在するが無害）
 │   └── mind|profile|log|compare/ # 旧路由跳转桩（客户端 redirect → session/brain/history/report）
 ├── components/                 # UI 组件（AudioProvider, Mixer, Visualizer, Synth*, mind/* 等）
 │   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。**帯は横いっぱい**（`<main>` の幅そのまま＝画面端まで／デスクトップはレールの右端から右端まで）、中身だけ `usePageColumnClass()` に入れて下のカードと左端を揃える。地は**すりガラス**（`bg-navy/70` ＋ `backdrop-blur-2xl`＝40px）。不透明な `bg-navy` は不可——WaveBackground は `fixed` で `--dyn-navy` の上に明るい波を重ねているので、見えている地色は場所によって違い、波が横切る位置では不透明な帯だけが暗い矩形として浮く（デスクトップで露骨に出た）。blur なら背後の波の色を拾って周囲と同じ色みになる。blur は 12px では下を流れるグラフの目盛りが読めてしまうので 40px、tint は明るいアート（ブレインアート等）の滲み出しを抑えるのに 70% 必要。文字は `text-xl`/`text-xs`＝20px/12px（ページ内見出し `text-lg`=18px を下回らない範囲で最小）。帯の上下は pt-4/pb-2——文字の縮小に合わせて詰めてある（高さを据え置くと小さくなった見出しが広い帯の中で浮く）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
 │   ├── PageColumn.tsx          # 内容カラム（最大幅＋左右パディング）の**唯一の持ち主**＝`usePageColumnClass()`。`PageHeader` の帯と本文が同じ値を使う（ズレると見出しがカードから外れて浮く）。`PageColumn`＝カラム＋`flex flex-col gap-6 pt-6`（見出しページ用）、`BareColumn`＝カラムだけ（gap/padding が違う /player・/synth・/admin・旧路由スタブ用——Tailwind は同プロパティのクラスを並べても「後に書いたほう」が勝つとは限らないので上書きに頼らない）
 │   ├── AppMain.tsx             # `<main>`。**横幅は制限しない**（カラムは PageColumn 側）——ここで `mx-auto max-w-5xl` を掛けると sticky な見出しがカラム幅どまりで「浮いた棒」になり、`mx-auto` の余白は画面幅×レール開閉で変わるので負マージンでも逃がせない。持つのはミニプレイヤー分の下パディングだけ
 │   ├── AndroidAppShell.tsx     # Android アプリだけの常駐処理の入口（何も描かない。本体は lib/native/android-shell.ts：システムバーを theme-color に合わせる・戻るキー・Google ログインの戻り）。Web 版では空
+│   ├── DesktopAppShell.tsx     # Windows アプリだけの常駐処理（何も描かない）：測定アプリとのローカル WS をアプリ全体で保つ（接続ダイアログのポート一覧も Google ログインの戻り先もこれで届く）・Google ログインの戻りをどの画面でも引き換える・完全版で初めて開いた時刻を覚える（モジュール評価時＝最初の描画より前）。Web 版では空
+│   ├── AccountSaveBanner.tsx   # 「この端末に、まだアカウントに保存していない記録があります」（ホームとヒストリーの上、三端共通）。対象＝anon の振り返り・再生の記録（KIND_RULES の adopt "ask"）＋宛先未定の実測10秒チェック＋（Windows アプリだけ）完全版より前に旧い測定アプリが溜めた宛先未定の測定。保存する＝claimAnon＋assign／保存しない＝skipAnon＋localOnly、どちらも以後は尋ねない。旧 /desktop の CloudSaveBanner はそのページだけに残る
 │   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
 ├── lib/
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
@@ -81,26 +87,28 @@ brainwave-app/
 │   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，数据不足为 null）。**セッション由来**＝computeBrainConditionMetrics（入定速度×共鳴率）／**非セッション由来**＝computeBaselineConditionMetrics（下の baseline.ts が算出済みの値を変換するだけ）。共鳴率を見る周波数は**その測定の誘導周波数**（`BrainProfile.targetHz`）、未入力なら既定の 40Hz＝`DEFAULT_TARGET_HZ`（従来と同じ判定）
 │   ├── mind/baseline.ts        # 10秒ベースラインチェック（非セッション時の3指標）。ターゲット周波数が無い平常時は引き込み速度が測れないので別ロジックへ：パターン1 Berger効果（開眼5秒⇄閉眼5秒のα波立ち上がり速度＋メリハリ比）を既定、成立しなければパターン2 静止時可塑性（スペクトル・エントロピー×帯域間移動度）へフォールバック。Clarity=(40Hzγ+高α)/高β、Reset=(δ+θ)比×ゆらぎ。係数は BASELINE_CONFIG に集約（**暫定値**、実測が貯まったら再標定）。⚠ サンプルは1Hzなので T_α-rise の分解能は1秒
 │   ├── mind/resonance.ts       # 「その周波数だけ周りより立っているか」＝局所突出比（目標Hzの値 ÷ ±5Hz近傍〔±1Hzは山なので除外〕の平均）＋誘導周波数の入力ルール（`TARGET_HZ_MIN/MAX/STEP`＝1〜45Hz・0.01Hz刻み、`DEFAULT_TARGET_HZ`=40、normalize/format）。ビンは1Hz刻みなので 0.01Hz 指定は前後を線形補間する
-│   ├── mind/desktop-bridge.ts  # デスクトップ測定アプリのローカル WS クライアント（シングルトン・参照カウント・?ws= でポート受取・0.5→5s バックオフ再接続）＋プロトコル型（DesktopBridgeState / DesktopCommand / DesktopAuthCallback）。`auth_callback` は subscribeDesktopAuthCallbacks へ。**プロトコルの正は bridge/local_server.py のコメント**
+│   ├── mind/desktop-bridge.ts  # Windows アプリ（と旧 /desktop）のローカル WS クライアント（シングルトン・参照カウント・?ws= でポート受取＝最初のページにしか付かないので sessionStorage `desktop-ws-port` に控える・0.5→5s バックオフ再接続）＋プロトコル型（DesktopBridgeState / DesktopCommand / DesktopAuthCallback）。`auth_callback` は subscribeDesktopAuthCallbacks へ。**プロトコルの正は bridge/local_server.py のコメント**
 │   ├── mind/desktop-google-auth.ts # デスクトップの Google ログイン（既定のブラウザ＋ループバック＋PKCE、RFC 8252）。WebView 内のログインは Google が拒むので window.open（pywebview が既定のブラウザへ回す）→ Supabase → `state.authCallbackUrl`（Python の /auth/callback）→ WS `auth_callback` → verifier と引き換え（`/auth/v1/token?grant_type=pkce`）→ setSession。**全体の supabase クライアントは implicit のまま**（Web の Google ログイン・確認メールを変えない）。verifier は1回きり・待っていない code は捨てる。flow state は /authorize から5分
 │   ├── mind/session-record.ts  # 測定セッション → 脳特性記録（BrainProfile）の唯一の写像（measurementFromSession / sessionLabel / measurementKey）。/brain の取り込みとデスクトップの自動保存が同じ1本を通る
-│   ├── mind/local-source.ts    # LocalSource＝MindDataSource 第三の実装（/desktop 用）。WS 接続→onStatus("connected")、装置パイプライン稼働→onBridgeOnline——canReceiveData が /brain と同義で機能する写像
+│   ├── mind/local-source.ts    # LocalSource＝MindDataSource 第三の実装（Windows アプリの /brain と旧 /desktop 用）。WS 接続→onStatus("connected")、装置パイプライン稼働→onBridgeOnline——canReceiveData が /brain と同義で機能する写像
 │   ├── mind/thinkgear.ts       # ThinkGear（BrainLink）のバイト列 → EegSample。**bridge/thinkgear.py の1行ずつの移植**（分帧・payload を読み切ってから組む・実測率・去趨勢＋Hann＋整数 Hz の DFT・Python の round まで同じ）。**片方を直したら必ずもう片方も**——`pnpm check:thinkgear` が乱れた列を含む同じバイト列を両方に通して一致を確かめる。型以外 import しない（node で直接動く）
 │   ├── mind/thinkgear-synth.ts # 決定的な ThinkGear の列（512/481Hz の個体・装着なし）。突き合わせと、ブラウザ開発用の脳波計の替え玉が使う
 │   ├── mind/bluetooth-link.ts  # Android アプリ：BrainLink との Bluetooth 接続の単一の係（ネイティブから受けたバイトを ThinkGearParser に通して配る・意図せず切れたら Sync Brain を開いている間5秒ごとに再接続〔ブリッジと同じ〕・ページを離れても接続は保つ・繋がっている間は画面を消さない・ts は必ず前より大きく）。状態は useBluetoothStore。許可/Bluetooth オンのダイアログは画面のボタンからだけ
 │   ├── mind/bluetooth-source.ts # BluetoothSource＝MindDataSource 第四の実装（Android の /brain 用）。繋がっている→onStatus("connected")、6秒以内にサンプル→onBridgeOnline——LocalSource と同じ写し方
-│   ├── desktop.ts              # isDesktopRoute()：/desktop で BottomNav・SideNav・MiniPlayer・ランチャー溝（PageColumn）を消す**唯一の判定**。ビルドフラグでなく pathname なので dev/Pages/同梱ビルドで挙動が同じ。WEB_APP_URL（「Web版で記録を見る」の先、NEXT_PUBLIC_WEB_APP_URL で上書き可）
-│   ├── platform.ts             # IS_ANDROID_APP：Android アプリのビルドか（**ビルド時の定数**、NEXT_PUBLIC_APP_PLATFORM=android を build-android.mjs だけが焼き込む）。静的 HTML もこれで描かれるのでハイドレーションが一致する
-│   ├── sounds.ts               # `/sounds/*` の置き場所（soundUrl）。Web 版は同じ origin、Android は NEXT_PUBLIC_SOUNDS_BASE＝Web 版（GitHub Pages）から取る（APK に 300MB を入れない）
+│   ├── desktop.ts              # isDesktopRoute()：/desktop で BottomNav・SideNav・MiniPlayer・ランチャー溝（PageColumn）を消す**唯一の判定**。ビルドフラグでなく pathname なので dev/Pages/同梱ビルドで挙動が同じ。WEB_APP_URL（「Web版で記録を見る」の先、NEXT_PUBLIC_WEB_APP_URL で上書き可）。desktopFullAppSince（Windows アプリが完全版として初めて開いた時刻、素の localStorage `desktop-full-app-since`。これより前の宛先未定の測定＝旧い測定アプリの自動保存の約束で溜まった分だけを AccountSaveBanner が尋ねる）
+│   ├── platform.ts             # IS_ANDROID_APP / IS_DESKTOP_APP：Android アプリ／Windows アプリのビルドか（**ビルド時の定数**、NEXT_PUBLIC_APP_PLATFORM=android|desktop を build-android.mjs / build-desktop.mjs だけが焼き込む）。静的 HTML もこれで描かれるのでハイドレーションが一致する
+│   ├── sounds.ts               # `/sounds/*` の置き場所（soundUrl）。Web 版は同じ origin、Android と Windows は NEXT_PUBLIC_SOUNDS_BASE＝Web 版（GitHub Pages）から取る（APK・exe に 300MB を入れない）
 │   ├── native/                 # Android アプリの Capacitor 側（**ここ以外で @capacitor/* と lib/native/ を静的 import しない**、ESLint が禁止。外からは IS_ANDROID_APP の中で動的 import()）：android-shell（バー色・戻る・ログインの戻り）/ app-chrome（バー色・画面常時点灯）/ now-playing（後台再生・ロック画面）/ downloads（「ダウンロード」へ保存）/ android-google-auth（Custom Tab＋appUrlOpen）/ brainlink（Bluetooth のバイトの管）＋ brainlink-web（ブラウザ開発用の替え玉）
-│   ├── sync/                   # アカウント同期（下の「アカウント同期」）：brain-profile.ts / baseline-checks.ts＝1記録1行の API（keyset ページング・必ず user_id で絞る）／cloud-mark.ts＝記録に付ける宛先・保存済みの印（純関数）／outbox.ts＝送信箱（全体で1つ、AuthProvider が起動）／account-views.ts＝Web の読み直し（木も）／tree-events.ts＝Sync Tree の出来事の API（1件1行・追記のみ・ignoreDuplicates）／tree-runtime.ts＝木の常駐処理（リスニング積算＋送信のやり直し、AuthProvider が起動・/desktop では起動しない）／per-user-storage.ts・migrate.ts・presets.ts・programs.ts・custom-audios.ts は従来どおり
+│   ├── sync/                   # アカウント同期（下の「アカウント同期」）：brain-profile.ts / baseline-checks.ts＝1記録1行の API（keyset ページング・必ず user_id で絞る）／cloud-mark.ts＝記録に付ける宛先・保存済みの印（純関数）／outbox.ts＝送信箱（全体で1つ、AuthProvider が起動）／account-views.ts＝Web の読み直し（木も）／tree-events.ts＝Sync Tree の出来事の API（1件1行・追記のみ・ignoreDuplicates）／tree-runtime.ts＝木の常駐処理（リスニング積算＋送信のやり直し、AuthProvider が起動・/desktop では起動しない）／**record-merge.ts**＝端末をまたぐ小さな記録（振り返り・再生の記録・感コンディション・測定者・マイ星座）の合わせ方（純関数・型以外 import しない＝`pnpm check:records` が node で直接確かめる）／**records.ts**＝`user_records` の API（keyset・chunk upsert）／**record-sender.ts**＝その送信係と読み直し（共通の送信箱には乗せない、AuthProvider が起動・/desktop では起動しない）／per-user-storage.ts・migrate.ts・presets.ts・programs.ts・custom-audios.ts は従来どおり
 │   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
 ├── store/
-│   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志）
+│   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志）。`sessionLogs` は**この起動のあいだだけの流れ**（Sync Tree のリスニングを締める用）——残る再生の記録は usePlaybackHistoryStore
 │   ├── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
-│   ├── useJournalStore.ts      # その日の振り返り + persist（素の localStorage＝未ログインでも習慣が続く。key `sync-journal`）。**1日1件**で書き直すと上書き——「その日どうだったか」の評価なので。時刻を持つ出来事の記録は day-records.ts 側の担当で、そちらは1日に何件でも並ぶ。文章も調子も空なら保存せず削除する（中身の無い印だけがカレンダーに残るのを防ぐ）
+│   ├── useUserRecordsStore.ts  # 端末をまたぐ小さな記録の端末側（persist key `user-records`、素の localStorage＝未ログインでも続く）。**スコープ**で分けて持つ：`anon`＝ログインしていない間に書いたもの／`<userId>`＝そのアカウントのもの（書くと送信待ち）。いまのスコープ＝useCloudSyncStore.account（オフライン起動でも自分の宛て）。画面は `useRecordView()`＝ログイン中はアカウント∪anon（種類ごとのきまり）、ログアウト中は anon だけ。結びつきが外れたアカウントのスコープは送信待ちだけ残して捨てる（共用の端末で次の人に見えない）。旧キー（sync-journal / self-rating〔v1 だけ〕/ zodiac-sign / mind-subjects）は anon へ移して消す（フラグ無し・何度走っても同じ）
+│   ├── usePlaybackHistoryStore.ts # 再生の記録（1回1件 `playback:<UUID>`、ヒストリーのカレンダーと統計）。以前は useAppStore.sessionLogs（メモリだけ）で再読み込みのたびに消えていた。AudioProvider が addSessionLog の直後に recordPlayback。**アカウントの記録を useAppStore.sessionLogs に混ぜない**（聴いていない分まで Sync Tree が数える）
+│   ├── useJournalStore.ts      # その日の振り返り（useUserRecordsStore の `journal:YYYY-MM-DD`＝暦日の ISO。端末の dayKeyOf の0始まり月はキーにしない。形は以前の zustand ストアと同じ `useJournalStore((s) => s.entries)`、旧 key `sync-journal` は初回に移す）。**1日1件**で書き直すと上書き——「その日どうだったか」の評価なので。時刻を持つ出来事の記録は day-records.ts 側の担当で、そちらは1日に何件でも並ぶ。文章も調子も空なら保存せず削除する（中身の無い印だけがカレンダーに残るのを防ぐ）
 │   ├── useBaselineStore.ts     # 10秒ベースラインチェックの履歴 + persist（素の localStorage＝未ログインでも習慣が続く。最大60件〔未送信は消さない〕。demo/realtime を必ず区別し、ホームの3指標は latestRealCheck＝実測のみを読む）。ログイン中に取った実測はアカウントにも載る（`cloud` の印→outbox）。Web はアカウント分を `cloudChecks`（メモリ）に読み、**表示は必ず `useAllBaselineChecks()`**（端末∪アカウントを id で重ね、削除予約 `tombstones`〔永続〕と別端末で消された分を隠す）
 │   ├── useCloudSyncStore.ts    # この端末が結びついているアカウント `account`（persist key `cloud-account`、**SIGNED_OUT でだけ消す**＝オフライン起動でトークン更新できない間も記録の宛先が決まる）＋送信箱の状態（phase / lastError）＋「ログインして保存」の予約
 │   ├── useDesktopLoginStore.ts # デスクトップの Google ログインの進み具合（waiting / exchanging / error、不 persist）
@@ -108,14 +116,16 @@ brainwave-app/
 │   ├── useDesktopBridgeStore.ts # デスクトップ測定アプリのローカル WS 状態ミラー（wsConnected / state 全量快照 / lastLog、**不 persist**——正は Python 側）。deviceOnline セレクタ＝「装置パイプライン稼働」
 │   ├── useSyncTreeStore.ts     # Sync Tree の出来事（ログイン中のアカウントのぶん）。**persist しない**——木はログイン中だけの機能でデータはアカウントにだけ置く（AuthProvider がログインで読み込み・ログアウトで捨てる）。読み直しは手元∪サーバ（行は追記のみなので和集合が常に正しい）。水やり等は pending 付きで先に足し、**木専用の送信係**が1件ずつ送る（共通の送信箱は1件失敗で止まり phase も共用なので乗せない）。画面は `useSyncTreeView()`（view＝unavailable/loading/logged-out/error/ready）と `useTreeToday()`（日付が変わると自分で切り替わる）
 │   ├── useBluetoothStore.ts    # Android アプリの BrainLink 接続の状態（phase：idle/connecting/pairing/connected/reconnecting/error・許可・アダプタ・一覧、**不 persist**）。最後に繋いだ機器だけ useBluetoothDeviceStore（persist key `bt-device`、mind-map の形は変えない）
-│   └── useZodiacStore.ts       # マイ星座偏好 + persist（普通 localStorage，未登录也生效）
-├── bridge/                     # PC 側プログラム群（Python）。①従来ブリッジ：BrainLink(SPP串口)→ThinkGear 解析→Supabase Realtime（main.py CLI / gui.py Tkinter / bridge_core.py / publisher.py / thinkgear.py / csv_logger.py / demo_source.py）②デスクトップ測定アプリ：desktop_app.py（入口・pywebview）+ desktop_bridge.py（管线编排）+ local_server.py（WS 协议正本）+ static_server.py + desktop_config.py。詳細は下の「デスクトップ測定アプリ与 PC 桥接」与 bridge/README.md
-├── scripts/build-desktop.mjs   # `pnpm build:desktop`：basePath 空＋**Web 版と同じ Supabase env を焼き込む**（ログイン・自動保存用。CI で env が無ければ失敗、焼き込み確認あり）→ bridge/web/（剔除 sounds/ ~300MB）→ 校验无 /brainwave-app 残留
+│   ├── useSelfRatingStore.ts / useSubjectStore.ts # 感コンディション（`self_rating:latest`）・測定者（**名前で1件** `subject:<NFKC 名>`＝どの端末の「自分」も同じ1件、最初からある「自分」は EPOCH 時刻の種で本当の書き換え・削除に必ず負ける。「いま誰を測っているか」だけは端末ごと `mind-subject-active`）。どちらも useUserRecordsStore の上、形は以前と同じ
+│   └── useZodiacStore.ts       # マイ星座（useUserRecordsStore の `setting:zodiac`。未登录也生效，ログイン中はどの端末でも同じ星座）
+├── bridge/                     # PC 側プログラム群（Python）。①従来ブリッジ：BrainLink(SPP串口)→ThinkGear 解析→Supabase Realtime（main.py CLI / gui.py Tkinter / bridge_core.py / publisher.py / thinkgear.py / csv_logger.py / demo_source.py）②Windows アプリ（完全版、NeuroSync.exe＝NeuroSync.spec）：desktop_app.py（入口・pywebview）+ desktop_bridge.py（管线编排）+ local_server.py（WS 协议正本）+ static_server.py（画面の配信・/auth/callback）+ desktop_config.py + smoke_desktop.py（`--no-window --demo` の起動確認、CI が exe に対して走らせる）。詳細は下の「Windows アプリ与 PC 桥接」「Windows アプリ（完全版）」与 bridge/README.md
+├── scripts/build-desktop.mjs   # `pnpm build:desktop`：basePath 空＋NEXT_PUBLIC_APP_PLATFORM=desktop＋音源の取り先（Web 版）＋**Web 版と同じ Supabase env**（CI で無ければ失敗）→ bridge/web/（剔除 sounds/ ~300MB）→ `data-app-platform="desktop"`・音源 URL・Supabase の焼き込みと /brainwave-app の残留を確認
 ├── scripts/build-android.mjs   # `pnpm build:android`：basePath 空＋NEXT_PUBLIC_APP_PLATFORM=android＋音源の取り先＋Web 版と同じ Supabase env（CI で無ければ失敗）→ android-web/（剔除 sounds/）＋ WebView 更新案内ページ → 残留・焼き込みを確認 → cap sync
 ├── scripts/check-thinkgear.mjs # `pnpm check:thinkgear`：lib/mind/thinkgear.ts と bridge/thinkgear.py の突き合わせ
+├── scripts/check-records.mjs   # `pnpm check:records`：lib/sync/record-merge.ts の自己点検（005 のトリガを真似たメモリ内サーバで3台の収束まで）
 ├── capacitor.config.ts         # Android アプリの設定（appId・origin は配布後に変えない。ピンチズーム有効・最低 WebView 111・SystemBars native）
 ├── android/                    # Capacitor の Android プロジェクト（Java、コミットする）。自前のプラグイン：AppChrome / NowPlaying（＋前面サービス）/ Downloads / BrainLink、WebView の補い：ExportRouteWebViewClient（/brain → brain.html）/ LocalizedChromeClient。配布・署名鍵・確認リストは android/README.md
-├── supabase/migrations/        # 手で SQL Editor に流す（CLI 設定なし）。001 管理者・グループ／002 ユーザー同期（旧 user_brain_profile＝1ユーザー1 JSONB）／**003 account_sync＝1記録1行の user_brain_measurements・user_baseline_checks＋旧表から移行＋旧表を読み取り・削除専用に**／**004 sync_tree＝Sync Tree の出来事 user_tree_events（1件1行・追記のみ。キーの形で1日の上限を守る）**
+├── supabase/migrations/        # 手で SQL Editor に流す（CLI 設定なし）。001 管理者・グループ／002 ユーザー同期（旧 user_brain_profile＝1ユーザー1 JSONB）／**003 account_sync＝1記録1行の user_brain_measurements・user_baseline_checks＋旧表から移行＋旧表を読み取り・削除専用に**／**004 sync_tree＝Sync Tree の出来事 user_tree_events（1件1行・追記のみ。キーの形で1日の上限を守る）**／**005 user_records＝端末をまたぐ小さな記録（振り返り・再生の記録・感コンディション・測定者・マイ星座）の汎用表（新しい方が勝つトリガ・墓標・本人の行だけ）**
 ├── scripts/import-program-xlsx.mjs # 一覧 xlsx → `lib/catalog/params.generated.ts`。**必ず `--inspect <file>` を先に**走らせて見出しの対応を確かめ、必要なら HEADER_SYNONYMS に足してから `--in <file>`。出力するのは周波数と尺だけ——名前・よみ・アイコン・並びは人が決めたものなので取り込みで消さない。突き合わせは名前（id は xlsx に無く、しかも localStorage に残る利用者の選択そのものなので機械に振り直させない）
 ├── public/sounds/              # 自然音素材
 │   └── zodiac/                 # 96 首星座音乐（12星座×8差频，128kbps 立体声，已去封面图，共 284MB）
@@ -125,7 +135,7 @@ brainwave-app/
 ### 菜单与页面命名（Sync 体系）
 
 - 导航 5 项（`components/nav-tabs.ts`，BottomNav / SideNav 共用）：Home `/`、Sync Session `/session`、Sync Brain `/brain`、Sync Report `/report`、Sync History `/history`
-- Sync Session 的节目一覧は `components/CatalogSection.tsx`：**検索がタブより優先**（169 件から探すとき、先にタブを当てさせるのは「どのタブにあるか知っている人」にしか通じない）。検索中はタブを隠し、カテゴリ見出し付きで平らに出す。Astro タブは12星座の段組みで、自星座の節目は常に出しつつモジュール版は畳む——初期描画12枚・開いても20枚ほどなので仮想リストは要らない。マイ星座の段だけ最初から開くのに `useZodiacStore`（persist）を初回描画で読んでよいのは、既定タブが「デフォルト」でこの成分がタブ操作まで描画されない＝必ず hydration の後だから
+- Sync Session 的节目一覧は `components/CatalogSection.tsx`：**検索がタブより優先**（169 件から探すとき、先にタブを当てさせるのは「どのタブにあるか知っている人」にしか通じない）。検索中はタブを隠し、カテゴリ見出し付きで平らに出す。Astro タブは12星座の段組みで、自星座の節目は常に出しつつモジュール版は畳む——初期描画12枚・開いても20枚ほどなので仮想リストは要らない。マイ星座の段だけ最初から開くのに `useZodiacStore`（useUserRecordsStore の persist）を初回描画で読んでよいのは、既定タブが「デフォルト」でこの成分がタブ操作まで描画されない＝必ず hydration の後だから
 - Settings `/settings` 与播放页 `/player` 均不在导航中：設定从首页右上角齿轮进入，播放页从节目卡 / 心情选择进入
 - 桌面左栏（SideNav）可收起，**默认收起**（`useSidebarStore`，故意不 persist——每次加载都从收起开始，SSR/首屏一致无 hydration mismatch，客户端路由期间保持）。收起时只留左上角 `fixed` 的悬浮圆角按钮（56px，`aria-label="メニューを開く"`），点击后外框宽度 0→15rem 动画展开把内容推向右侧（不是浮层覆盖）；内侧面板是 `absolute right-0 w-60` 固定宽度，所以看起来是从左边滑入。关闭走面板头部右侧的按钮或 Esc。收起期间面板挂 `inert`，不进 Tab 序与读屏。**240px / 15rem 这个数值在 SideNav（`md:w-60`）与 MiniPlayer（`md:left-60`）两处要一致**；AppMain 在收起时改用 `md:pl-20` 给悬浮按钮让出左侧沟槽，避免压住页面标题
 - 节目卡入口统一走 `usePlayProgram`：点击＝**选择并进入 `/player`，不自动播放**（播放由用户在播放页按下再生钮；自动播放会在进入播放页前先冒出 MiniPlayer，属被否掉的方案）；正在播放（含一時停止）的节目再次点击只跳转、不重置（播放中保护，按 `playingProgramId` 真源判断）；**别的节目在响时点新卡＝停掉在响的（不记日志）再选中新节目**——播放页永远显示"刚点的那个"。全局 MiniPlayer 播放条见「播放入口与全局播放条」
@@ -186,7 +196,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 - "用户主动暂停"标志 `isUserPaused` 放在 `lib/audio-context.ts`——因为 `getAudioContext()` 每次调用都会自动 resume 挂起的 context，keep-alive 的 `visibilitychange` 也会。两处都要过这道闸，否则任何音频调用/回前台都会破坏暂停。所有 start 路径先清标志。
 - 暂停时 keep-alive `<audio>` 流**必须一起暂停**（`setKeepAliveOutputPaused`）：suspend 后 MediaStream 不再产出采样，仍在播放的 `<audio>` 在部分移动端浏览器会循环残留缓冲发出"嘟嘟"杂音。MediaSession 元数据/handler 保持注册（锁屏控件仍在），锁屏状态由 `setMediaSessionPlaybackState("playing"|"paused"|"none")` 同步；play/pause handler 接 `resumeSession`/`pauseSession`（恢复在手势上下文内，`play()` 合法；纯合成器仍是停止语义）。`visibilitychange` 的 `<audio>` 重启同样要过 `isUserPaused` 闸。
 - store 语义：`isPlaying` = 会话活跃（**含暂停**，既有消费者如 Timer 禁用/播放中保护依赖此义），`isPaused` 是其内訳。
-- 日志：手动停止也记录（部分时长），自然结束记满时长；切换节目**不**记录被打断的会话（start 路径直接调 engine stop，不走 stopSession）。
+- 日志：手动停止也记录（部分时长），自然结束记满时长；切换节目**不**记录被打断的会话（start 路径直接调 engine stop，不走 stopSession）。1回の記録は `useAppStore.addSessionLog`（この起動の流れ、Sync Tree 用）と `recordPlayback`（残る再生の記録、アカウント同期）の両方へ。id は UUID（端末をまたいで見分けるので `Date.now()` は使わない）。
 
 ### 播放入口与全局播放条
 
@@ -218,20 +228,22 @@ AudioContext（全局单例，getAudioContext() 管理）
 - OscillatorNode 不可重用（stop 后必须重建），两个引擎都需处理节点生命周期
 - programs.ts 中的所有参数（载波频率、差频、时间轴）严格对照设计文档
 - timeScale = userDuration / defaultDuration，用于缩放所有 phase 时间点
-- `useAppStore` 启用 persist（普通 localStorage，key `app-playback`，未登录也生效）+ partialize：仅持久化 `selectedProgramId / timerDuration / beatVolume / musicVolume / natureVolume / natureSoundId`（默认音量：ビート 0.2・星座音乐 0.6）；sessionLogs 与运行态（isPlaying/elapsed/playingProgramId）仍只存内存。播放页整页挂 hydrated 守卫防 hydration mismatch
+- `useAppStore` 启用 persist（普通 localStorage，key `app-playback`，未登录也生效）+ partialize：仅持久化 `selectedProgramId / timerDuration / beatVolume / musicVolume / natureVolume / natureSoundId`（默认音量：ビート 0.2・星座音乐 0.6）；sessionLogs 与运行态（isPlaying/elapsed/playingProgramId）仍只存内存（残る再生の記録は usePlaybackHistoryStore）。播放页整页挂 hydrated 守卫防 hydration mismatch
 - `playingProgramId` = 实际在响的节目 id（音频真源），仅由 AudioProvider 的 start/stop 写入；显示端（/player 及其子组件、ExportDialog）一律用 `useDisplayProgramId()`（在响→真源，否则→选择），MiniPlayer 直接用真源——保证"听到的"和"看到的"永远一致
 - `useSynthStore` 启用 persist + partialize，仅持久化 `savedPresets`
 - `crypto.randomUUID` 在 HTTP 环境下不可用，需降级为 `Date.now().toString(36) + Math.random()`
 
-### デスクトップ測定アプリ与 PC 桥接（bridge/）
+### Windows アプリ与 PC 桥接（bridge/）
 
-实时脑波链路有两条，共用同一套串口读取＋ThinkGear 解析＋CSV 存档（Python）：
+PC 側の实时脑波链路有两条，共用同一套串口读取＋ThinkGear 解析＋CSV 存档（Python）：
 
 ```
 经典桥接:  BrainLink ──蓝牙SPP串口──> BrainLinkBridge.exe/main.py ──Supabase Realtime──> /brain（RealtimeSource）
-桌面单体:  BrainLink ──蓝牙SPP串口──> NeuroSyncMeasure.exe（desktop_app.py）──本地WS──> /desktop（LocalSource）
-                                        └─（可选开关，默认关）──Supabase Realtime──> /brain 照常观看
+Windows:   BrainLink ──蓝牙SPP串口──> NeuroSync.exe（desktop_app.py）──本地WS──> /brain（LocalSource，完全版の画面）
+                                        └─（可选开关，默认关）──Supabase Realtime──> 別の端末の /brain 照常观看
 ```
+
+（旧い NeuroSyncMeasure.exe は同じ管線で `/desktop`＝測定だけの単体画面を開いていた。）
 
 - **wire contract 四方共通**（Android アプリは TS に移植したパーサ `lib/mind/thinkgear.ts` で自分で組み立てる）：`EegSample`（`lib/mind/types.ts`）＝ `bridge/publisher.py` 的
   broadcast payload ＝ 本地 WS `{"type":"sample","sample":{…}}` 的 sample，逐键相同，改任何
@@ -248,10 +260,24 @@ AudioContext（全局单例，getAudioContext() 管理）
   （no-store / no-referrer，查询串不记日志）。target=_blank・window.open 由 pywebview
   （`OPEN_EXTERNAL_LINKS_IN_BROWSER`，desktop_app 里显式置 True）交给系统浏览器。
 - **端口**：HTTP=17860 **必须固定**（localStorage 按 origin〔含端口〕隔离，端口漂移＝
-  测定记录全部"消失"）；WS=17861 可漂（实端口经页面 URL `?ws=` 传入，缺省回落 17861）。
-  HTTP 绑定失败＝已有实例在跑 → 弹窗退出（也避免抢串口）。
+  本机记录与登录全部"消失"）；WS=17861 可漂（实端口经最初页面 URL `?ws=` 传入——画面は
+  sessionStorage `desktop-ws-port` に控えて、画面遷移・読み込み直しの後も同じポートへ繋ぐ；缺省回落 17861）。
+  HTTP 绑定失败＝已有实例在跑 → 弹窗退出（也避免抢串口）。Windows 的 SO_REUSEADDR 允许重叠 bind
+  使用中的端口，所以 static_server 在 Windows 上关掉 `allow_reuse_address`（否则第二个实例不会失败）。
 - **pywebview 必须 `private_mode=False` + `storage_path`**（默认隐私模式每次退出清空
-  localStorage）；WebView2 缺失时弹 Evergreen Runtime 下载指引。
+  localStorage）。storage_path＝exe 同目录的 `profile/`——exe 改名（NeuroSyncMeasure→NeuroSync）后，
+  新 exe 必须放在旧 exe 同一文件夹才能沿用本机记录。**WebView2 缺失时 pywebview 不报错、而是静默
+  退回 MSHTML（IE）＝白屏**（`gui="edgechromium"` 也挡不住），所以 desktop_app 先查注册表的
+  EdgeUpdate `pv`，没有就弹 Evergreen Runtime 下载指引再退出。
+- **WebView2 起動オプション**は环境变量 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`（setdefault＝开发时可覆盖）：
+  它可能取代 pywebview 自己放进 CreationProperties 的 `--disable-features=ElasticOverscroll`，所以那一项也写进去；
+  另外 autoplay 放开（10秒チェックのチャイム）、关掉后台节流（最小化・被遮挡时测定与播放的计时不停）、
+  `HardwareMediaKeyHandling`（媒体键，无保证）。`create_window` 须 `text_select=True`・`zoomable=True`
+  （pywebview 默认禁止选中文字与缩放，违反 UI 约束）；`ALLOW_DOWNLOADS=True`（导出时弹「名前を付けて保存」）。
+- **static_server 的缓存与 MIME**：`/_next/static/`（文件名含内容哈希）＝`immutable`，只对 200；页面 `.html`
+  与 RSC `.txt` ＝`no-cache`（exe 更新后旧页面指向已不存在的 chunk 会白屏）。主要扩展名的 MIME 自己定
+  （Windows 的 mimetypes 读注册表，环境不同 .js/.css 可能变成 text/plain；RSC 的 `.txt` 静态导出的 Next
+  认 text/plain）。
 - 云端同送**默认关、不持久化开关**（只记配对码）：起動しただけで脳波が外に流れない。
   码是**手机侧**的码（/brain「接続する」显示），桌面端只做输入。
 - `bridge_core.run_bridge()` 是 CLI/GUI 的一本道生命周期，桌面端不用它——复用其部件
@@ -264,25 +290,30 @@ AudioContext（全局单例，getAudioContext() 管理）
   helper 或 `process_request`。
 - **构建**：`next.config.ts` 的 basePath 读 `NEXT_PUBLIC_BASE_PATH`（`??` 保留显式空串；
   未设时按 NODE_ENV 回落 `/brainwave-app`＝Pages 部署不变）。`pnpm build:desktop` 出
-  无前缀包到 `bridge/web/`（剔除 sounds/）；CI lane：`build-desktop.yml`
-  （workflow_dispatch / `desktop-v*` tag → `NeuroSyncMeasure.exe`），与经典桥的
-  `build-bridge.yml`（`bridge-v*`）并行独立。Next 静态导出对 `/desktop` 会同时产出
-  `desktop.html` 与 `desktop/`（RSC payload 目录）——static_server 对无扩展名路径
+  无前缀、`NEXT_PUBLIC_APP_PLATFORM=desktop` 的包到 `bridge/web/`（剔除 sounds/，音源从 Pages 取）；
+  CI lane：`build-desktop.yml`（Windows アプリまわりの push＝exe まで作り、`NeuroSync.exe --no-window --demo`
+  を bridge/smoke_desktop.py で確かめる〔ページの型・キャッシュ、WS の state と合成 sample、よその Origin の拒否〕／
+  workflow_dispatch／`desktop-v*` tag＝Release に `NeuroSync.exe` を添付），与经典桥的
+  `build-bridge.yml`（`bridge-v*`）并行独立。Next 静态导出对每个路由会同时产出
+  `<route>.html` 与 `<route>/`（RSC payload 目录）——static_server 对无扩展名路径
   优先 `.html` 同名文件，正是为了这个双胞胎结构。
-- 开发流：`python bridge/desktop_app.py --no-window [--demo]` ＋ `pnpm dev` →
-  `http://localhost:3000/desktop`；打包同源验证走 `http://127.0.0.1:17860/desktop`。
+- 开发流：`python bridge/desktop_app.py --no-window [--demo]` ＋ `NEXT_PUBLIC_APP_PLATFORM=desktop pnpm dev` →
+  `http://localhost:3000/`；打包同源验证走 `pnpm build:desktop` 后 `http://127.0.0.1:17860/?ws=17861`
+  （ソース実行の desktop_app は `out/` を配る）。起動確認は `python bridge/smoke_desktop.py [--platform desktop]`。
 
-### アカウント同期（デスクトップの自動保存 ↔ Web の Report / History）
+### アカウント同期（三端：Web・Android・Windows）
 
 ```
-/desktop: 測り終えた測定・保存した10秒チェック ─記録に cloud={owner} の印─┐
-Web:      ログイン中に保存した10秒チェック ────────────────────────┤
-                                           lib/sync/outbox.ts（1本の順番で逐条 upsert）
-                                                        ↓
-                          user_brain_measurements / user_baseline_checks（1記録1行）
-                                                        ↓
-Web /report・/history・ホーム：ログイン時＋タブに戻ったとき＋ページを開いたとき読み直す
+取り込んだ測定（/brain の「取り込む」）─────── useBrainProfileStore ──→ user_brain_measurements
+ログイン中に保存した10秒チェック／旧 /desktop の測定 ─cloud={owner} の印→ lib/sync/outbox.ts ─→ user_baseline_checks ／ user_brain_measurements
+振り返り・再生の記録・感コンディション・測定者・マイ星座 ─ useUserRecordsStore → lib/sync/record-sender.ts ─→ user_records
+Sync Tree の出来事 ─────────────────────── useSyncTreeStore の送信係 ──→ user_tree_events
+                                                        ↓（どれも1記録1行）
+各端末：ログイン時＋タブ／アプリに戻ったとき＋ホーム・レポート・ヒストリーを開いたとき読み直す（15秒間引き）
 ```
+
+三端とも同じ Web のコード（静的書き出し）なので、同期の仕組みは1つ。端末に残すだけのもの：
+生の測定セッション（`mind-map`、取り込むと測定としてアカウントへ）・音量などの再生の設定・いま誰を測っているか。
 
 - **1記録1行**（`supabase/migrations/003_account_sync.sql`）。旧 `user_brain_profile`（1ユーザー
   1 JSONB を丸ごと上書き）は書き手が2つになると互いの追加を消すので使わない。003 で行へ移し、
@@ -292,8 +323,8 @@ Web /report・/history・ホーム：ログイン時＋タブに戻ったとき�
   測った回・機能より前の回・/brain の回）／`{owner, savedRev}`＝そのアカウント宛て、`savedRev===rev`
   で保存済み（メモを書くと `rev+1` で送り直し）／`{localOnly}`＝「保存しない」。宛先は**測り終えた
   時点の `useCloudSyncStore.account`**（共用 PC で後から別の人がログインしても、前の人の記録は
-  その人の宛てのまま）。未分配の記録はログイン後に CloudSaveBanner で「保存する／保存しない」を
-  尋ねる（黙って今のアカウントへ送らない）。載せるのは実測だけ（`isSessionUploadable` /
+  その人の宛てのまま）。未分配の記録はログイン後に AccountSaveBanner（ホーム・ヒストリー。旧 /desktop は
+  CloudSaveBanner）で「保存する／保存しない」を尋ねる（黙って今のアカウントへ送らない）。載せるのは実測だけ（`isSessionUploadable` /
   `isCheckUploadable`：source realtime・読めた秒あり）。
 - **送信箱**は全体で1つ（AuthProvider が ensure、StrictMode 二重でも1つ）。削除予約→チェック→
   測定の順、古い順・直列。失敗は 5s→15s→30s→60s→以後5分で再試行、`online`・ログイン・記録の
@@ -302,9 +333,33 @@ Web /report・/history・ホーム：ログイン時＋タブに戻ったとき�
   `measurements` は uploadedAt 昇順、読み直しは鎖の後ろに並び「読んでいる間に画面側が変わったら
   捨てる」版番号付き。**読み直しの入口**は AuthProvider（focus / visibilitychange）と
   `useRefreshAccountViewsOnMount()`（ホーム・レポート・ヒストリー）、どちらも 15 秒間引き。
-- **桌面端の AuthProvider は user の追跡だけ**（合成器・カスタム音源・脳特性の一覧・管理者権限・
-  首登迁移は読まない）。ログアウトは `scope:"local"`（既定の global だとスマホでのログアウトが
-  デスクトップのログインまで切る）。
+- **旧 /desktop の AuthProvider は user の追跡だけ**（合成器・カスタム音源・脳特性の一覧・管理者権限・
+  首登迁移・Sync Tree・user_records は読まない。判定は pathname の isDesktopRoute）。Windows アプリ（完全版）は
+  `/` 以下の普通の画面なので Web と同じく全部読む。ログアウトは `scope:"local"`（既定の global だと
+  別の端末でのログアウトがこの端末のログインまで切る）。
+- **端末をまたぐ小さな記録**（`supabase/migrations/005_user_records.sql`、1件1行の汎用表 `user_records`）：
+  - キーは種類が頭に付く：`journal:YYYY-MM-DD`（暦日の ISO。端末の dayKeyOf の0始まり月はキーにしない）／
+    `playback:<UUID>`／`self_rating:latest`／`subject:<NFKC 名>`／`setting:zodiac`。CHECK で kind・id の形・
+    data（object・16KB 以下）を守る。
+  - **新しい方が勝つ**：比べるのは端末が書いた `updated_at`。BEFORE INSERT OR UPDATE トリガが未来の時刻を
+    now()+5分に丸め、今の行より古い書き込みは捨てる（`RETURN NULL`）＝どの端末も普通に upsert するだけ。
+    時計の遅れた端末は、書くときに手元の版（最後に見た版）の 1ms 後にずらす（nextStamp）。
+  - **削除は墓標**（deleted=true・data 空の upsert、DELETE ポリシー無し）——離れていた端末にも届き、古い記録を
+    持った端末が送り直しても復活しない。
+  - 合わせ方は `lib/sync/record-merge.ts`（純関数、`pnpm check:records`）。読んだ一覧を重ねるとき、送信待ちの
+    手元は**アカウントの方が新しいときだけ**置き換え、送信済みの手元は違っていればアカウントに揃える（丸められた
+    時刻もこれで揃う）。種類ごとのきまり KIND_RULES：振り返り・再生の記録＝画面はアカウント∪端末、ログイン前の
+    分は尋ねる（AccountSaveBanner）／感コンディション・マイ星座＝ログイン中はアカウントの値、アカウントに無ければ
+    端末の値を黙って引き継ぐ（fillGaps、**アカウントを読み終えてから**でないと「無い」と取り違える）／測定者＝
+    ∪で、無い名前は引き継ぐ。
+  - 端末側は useUserRecordsStore（スコープ `anon`／`<userId>`）。共用の端末で別の人がログインしても前の人の記録は
+    見えず、ログアウトしたアカウントの分は送信待ちだけ残して端末から捨てる。
+  - 送信係 `lib/sync/record-sender.ts`：共通の送信箱には乗せない（1件の失敗で止めない・phase を共有しない、
+    005 より先に Web が出ても測定の保存を巻き込まない）。まとめて upsert、失敗は 5s→15s→30s→60s→以後5分、
+    書き換え・online・画面復帰・ログインで即やり直す。CHECK 等で弾かれたら1件ずつ送り直してその1件だけ諦める
+    （端末には残る）。送っている間に別の人に切り替わって RLS で弾かれたら、前の人の分は送信待ちのまま残す。
+    **auth-js はタブ／アプリに戻るたびに SIGNED_IN を出し直す**ので、同じ人の読み込みは 15 秒に1回に間引く
+    （同時の読み込みは1本にまとめる）。読んでいる間に送れた記録があれば1回だけ読み直す（pushEpoch）。
 - **Sync Tree は別立て**（`supabase/migrations/004_sync_tree.sql`）：端末には持たず `user_tree_events` にだけ
   置く（ログイン中だけの機能）。キーの形で1日の上限を守る——`water:YYYY-MM-DD`（1日1行）・
   `replant:YYYY-MM-DD`・`listen:YYYY-MM-DD:<乱数>`（端末ごとに聴いた分がどれも残るよう乱数入り、1日 +5 の
@@ -319,6 +374,8 @@ Web /report・/history・ホーム：ログイン時＋タブに戻ったとき�
   ログインには Supabase の Redirect URLs に `http://127.0.0.1:17860/auth/callback` を足しておく
   （最近の GoTrue はループバック IP を許可済みだが保険）。Sync Tree は **004 を SQL Editor で流してから Web を
   デプロイ**（先に Web が出ても /tree が「読み込めませんでした」になるだけ。デスクトップ exe の作り直しは不要）。
+  端末をまたぐ小さな記録は **005 を SQL Editor で流してから Web をデプロイ** → Android の APK と Windows の exe を
+  作り直す（先に Web が出ても送信が失敗して端末に溜まり、退避つきで送り直すだけで、記録は失われない）。
 
 ### Android アプリ（Capacitor）
 
@@ -375,6 +432,38 @@ BrainLink ─RFCOMM(SPP)─> BrainLinkPlugin（Java：バイトを約50msごと�
 - **CI**：`.github/workflows/build-android.yml`（Android まわりの push＝debug ビルドに加えて、release の
   経路〔lintVital・署名〕も使い捨ての鍵で通す〔配らない〕。`android-v*` タグ＝Secrets の鍵で署名した
   release APK を Release に添付）。
+
+### Windows アプリ（完全版）
+
+Web 版の静的書き出しを NeuroSync.exe（pywebview＝WebView2、PyInstaller の onefile）に入れたもの。
+exe の中の Python が 127.0.0.1:17860 で画面を配り、同じ PC の BrainLink（COM ポート）を読んでローカル WS
+（17861〜）で流す（上の「Windows アプリ与 PC 桥接」）。配布・更新の手順は bridge/README.md。
+
+```
+BrainLink ─SPP(COM)─> desktop_bridge（Python：ThinkGear 解析・CSV）─本地WS─> lib/mind/desktop-bridge.ts
+   ─> LocalSource（MindDataSource 第三）─> useMindStore.pushSample（不変）   ※画面は `/` から全部、Web と同じ
+```
+
+- **画面と操作は Web 版と同じコード**。違いは Sync Brain の出どころ（LocalSource＋DesktopSourceDialog）と、
+  Google ログインを既定のブラウザ＋ループバックで行うこと（lib/mind/desktop-google-auth.ts、旧 /desktop と同じ）
+  だけ。測り終えたら Web・Android と同じく「取り込む」（旧い測定アプリの自動保存はしない——取り込まなかった
+  測定を黙って送らない）。
+- **分岐はビルド時の定数 `IS_DESKTOP_APP`（lib/platform.ts）だけ**：`pnpm build:desktop` が
+  NEXT_PUBLIC_APP_PLATFORM=desktop を焼き込む（IS_ANDROID_APP と同じ理由）。Web ビルドでは false。
+- **DesktopAppShell** がローカル WS をアプリ全体で保つ（参照カウントの1本）——接続ダイアログのポート一覧も、
+  Google ログインの戻り先 `state.authCallbackUrl` と戻り `auth_callback` もこの WS なので、Sync Brain 以外の
+  画面でも繋がっている必要がある。戻りを引き換えるのもここ1か所（旧 /desktop のページ側の購読は
+  IS_DESKTOP_APP では止める＝二重に引き換えない）。
+- **配布後に変えないもの**：HTTP 17860（origin）・exe と同じフォルダの `profile/`（WebView2 の保存先）。
+  exe の名前を変えたので（NeuroSyncMeasure.exe → NeuroSync.exe）、新しい exe は古い exe と同じフォルダに置く。
+  置き場所を変えても、アカウントにある記録はログインすれば戻る（端末にだけある記録が見えなくなる）。
+- **旧い測定アプリからの引き継ぎ**：同じ profile なので端末の記録はそのまま見える。旧アプリが「測り終えたら自動で
+  保存」の約束で溜めた宛先未定の測定だけは、完全版で初めて開いた時刻（desktopFullAppSince）より前の分に限って、
+  ログイン後の AccountSaveBanner で一度だけ尋ねる。
+- **音源は exe に入れない**：lib/sounds.ts の SOUNDS_BASE で Web 版（GitHub Pages、ACAO:*）から取る。
+- **既知の違い**：書き出しは「名前を付けて保存」が開く（Chrome はダウンロードバー）／キーボードのメディアキー・
+  Windows のメディア操作は効かないことがある／ブラウザのショートカット（F5・Ctrl+F・Ctrl+プラスなど）は効かない
+  （pywebview が WebView2 の AreBrowserAcceleratorKeysEnabled を切る）——拡大は Ctrl＋ホイールかピンチで。
 
 ## Notes & Prompts
 
