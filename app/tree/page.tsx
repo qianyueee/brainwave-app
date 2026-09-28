@@ -27,6 +27,7 @@ import {
 import { foldOf, useSyncTreeStore, useSyncTreeView } from "@/store/useSyncTreeStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import SyncTreeWaterScene from "@/components/SyncTreeWaterScene";
+import { CARE_TONE_CLASS, listenCare, waterCare, type CareStatus } from "@/components/tree-care";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
@@ -265,19 +266,14 @@ function TodayRow({
   icon: Icon,
   title,
   detail,
-  status,
-  tone,
+  care,
 }: {
   icon: LucideIcon;
   title: string;
   detail: string;
-  /** 右側のひと言（「済み」「まだ」など。加算量は出さない） */
-  status: string;
-  /** done＝今日のぶんは済んだ / partial＝少し進んだ / todo＝まだ */
-  tone: "done" | "partial" | "todo";
+  /** 右側のひと言と具合（components/tree-care.ts。加算量は出さない） */
+  care: CareStatus;
 }) {
-  const color =
-    tone === "done" ? "text-success" : tone === "partial" ? "text-accent" : "text-text-muted";
   return (
     <div className="flex items-center gap-3">
       <span className="w-12 h-12 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
@@ -287,9 +283,9 @@ function TodayRow({
         <p className="text-base font-bold text-text-primary">{title}</p>
         <p className="text-sm text-text-secondary">{detail}</p>
       </div>
-      <span className={`flex items-center gap-1 text-sm font-bold shrink-0 ${color}`}>
-        {tone === "done" && <Check size={16} strokeWidth={2.5} aria-hidden="true" />}
-        {status}
+      <span className={`flex items-center gap-1 text-sm font-bold shrink-0 ${CARE_TONE_CLASS[care.tone]}`}>
+        {care.tone === "done" && <Check size={16} strokeWidth={2.5} aria-hidden="true" />}
+        {care.label}
       </span>
     </div>
   );
@@ -304,7 +300,6 @@ function TodayCard({
   complete: boolean;
   unsaved: boolean;
 }) {
-  const listenTone = day.listenCapped ? "done" : day.listenCount > 0 ? "partial" : "todo";
   return (
     <section className="bg-surface border border-surface-border rounded-3xl p-5 neu-raised flex flex-col gap-4">
       <h2 className="text-lg font-bold text-text-primary">今日のおせわ</h2>
@@ -313,17 +308,13 @@ function TodayCard({
         icon={Droplets}
         title="水やり"
         detail="木をダブルタップ（1日1回）"
-        status={day.watered ? "済み" : "まだ"}
-        tone={day.watered ? "done" : "todo"}
+        care={waterCare(day)}
       />
       <TodayRow
         icon={Headphones}
         title="プログラムを聴く"
         detail="5分ほど聴くごとに育ちます"
-        status={
-          listenTone === "done" ? "今日はたっぷり" : listenTone === "partial" ? "育っています" : "まだ"
-        }
-        tone={listenTone}
+        care={listenCare(day)}
       />
 
       {!day.listenCapped && !complete && (

@@ -1,97 +1,103 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { treeStage, treeStageIndex } from "@/lib/sync-tree";
-import { SyncTreeFigure, SyncTreeScene } from "@/components/SyncTreeArt";
-import { useSyncTreeView } from "@/store/useSyncTreeStore";
+import {
+  Check,
+  ChevronRight,
+  Droplets,
+  Headphones,
+  Sparkles,
+  TreeDeciduous,
+  type LucideIcon,
+} from "lucide-react";
+import { isTreeComplete, treeStage } from "@/lib/sync-tree";
+import { useSyncTreeView, type SyncTreeView } from "@/store/useSyncTreeStore";
+import { CARE_TONE_CLASS, listenCare, waterCare, type CareStatus } from "@/components/tree-care";
 
 /**
- * Sync Tree — ホームのシーンカード。
+ * Sync Tree — ホームの状態バー。
  *
- * 昼夜の空に現在段階の樹が立つ静かな風景で、成長は絵柄が段階替わりすることで
- * 伝える。文字は四隅の3点だけ——左上のラベル、右上の段階名、右下の矢印。
- * **数値は出さない**（進捗％・ポイントは内部だけ。lib/sync-tree.ts）——育ち具合は
- * 絵と段階名で伝え、細かい読みもの（育てた木数・今日の水やり）は遷移先の
- * /tree が受け持つ。カード全体がタップ領域。
+ * 木の絵はここには出さない（大きな木は /tree）。ホームを開いて読みたいのは
+ * 「いまの段階」と「今日のおせわが済んだか」の2つなので、1行目＝ラベルと段階名、
+ * 2行目＝今日の水やり・リスニングの具合、だけの小さなカードにしてある。
+ * カード全体が /tree へのリンクで、水やりはそこでする。
  *
- * 木はログイン中だけの機能（データはアカウントにだけある。store/useSyncTreeStore）：
- * - 読み込めた … いまの段階の樹＋段階名（ふわっと出す——空だけの状態から現れるので）
- * - 未ログイン … 星の種＋右上に「ログインで育てる」
- * - 読み込み中・読めなかった … 空だけ（種を出すと「木がリセットされた」に見える）
+ * **数値は出さない**（lib/sync-tree.ts）——段階名と、/tree の「今日のおせわ」と
+ * 同じ言葉（components/tree-care.ts）だけ。育ちきった木には水をやれないので、
+ * そのときは水やり・リスニングの代わりに「育ちきりました」を出す。
  *
- * 背景は時間帯ごとの --tree-* 変数（lib/theme.ts）：朝・昼・宵はページ
- * （淡桃・ミント・淡紫）の延長の空、真夜中だけが星空。樹のアート自体は
- * テーマで変わらない。
- *
- * カード縦寸と樹スケールはハンドオフ原案（170/150・1.42/1.26）からフィード
- * バックで調整済み——「カードはより大きく、樹の見た目はハンドオフ準拠のまま」
- * の分担（h がカードのページ内占有を、scale が樹のカード内占有を決める）。
+ * 木はログイン中だけの機能（store/useSyncTreeStore）。表示できないあいだは
+ * 2行目を状況のひと言に置き換え、段階名は出さない（読み込み中に「星の種」を
+ * 出すと、木がリセットされたように見える）。どの状態でも2行のままにして、
+ * 読み込みが終わったときに下のカードが押し下げられないようにしてある。
  */
-const SCENE = {
-  mobile: { h: 232, scale: 1.5 },
-  desktop: { h: 212, scale: 1.35 },
-} as const;
+
+/** 表示できないあいだ、2行目に出すひと言。 */
+const WAITING_TEXT: Record<Exclude<SyncTreeView, "ready">, string> = {
+  "logged-out": "ログインすると、木を育てられます",
+  loading: "読み込み中…",
+  error: "木を読み込めませんでした",
+  unavailable: "水やりとリスニングで育つ、あなたの木",
+};
+
+function CareItem({ icon: Icon, label, care }: { icon: LucideIcon; label: string; care: CareStatus }) {
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      <Icon size={18} strokeWidth={1.5} className="shrink-0 text-accent" aria-hidden="true" />
+      <span className="text-text-secondary">{label}</span>
+      <span className={`inline-flex items-center gap-0.5 font-bold ${CARE_TONE_CLASS[care.tone]}`}>
+        {care.tone === "done" && <Check size={14} strokeWidth={2.5} aria-hidden="true" />}
+        {care.label}
+      </span>
+    </span>
+  );
+}
 
 export default function SyncTreeCard() {
-  const { view, fold } = useSyncTreeView();
+  const { view, fold, day } = useSyncTreeView();
   const ready = view === "ready";
-  const stage = ready ? treeStageIndex(fold.points) : 0;
-  const showTree = ready || view === "logged-out";
-  const stageName = treeStage(fold.points).name;
 
-  const label = ready
-    ? `Sync Tree：いまは「${stageName}」。水やりとリスニングで育てる木を見る`
-    : view === "logged-out"
-      ? "Sync Tree：ログインすると、水やりとリスニングで木を育てられます"
-      : "Sync Tree：育てている木を見る";
-
-  const tree = showTree ? (
-    // 読み込めて初めて現れる樹なので、空だけの状態からふわっと出す。
-    <g className="tree-fade-in">
-      <SyncTreeFigure stage={stage} />
-    </g>
-  ) : null;
+  let status: ReactNode = null;
+  if (view !== "ready") {
+    status = <span className="text-text-secondary">{WAITING_TEXT[view]}</span>;
+  } else if (isTreeComplete(fold.points)) {
+    status = (
+      <>
+        <span className="inline-flex items-center gap-1 font-bold text-accent">
+          <Sparkles size={18} strokeWidth={1.5} aria-hidden="true" />
+          育ちきりました
+        </span>
+        <span className="text-text-secondary">新しい木を育てられます</span>
+      </>
+    );
+  } else if (day) {
+    status = (
+      <>
+        <CareItem icon={Droplets} label="水やり" care={waterCare(day)} />
+        {/* 「リスニング」だと「今日はたっぷり」の日に幅 360〜390 の画面で折り返す。
+            /tree の行見出し「プログラムを聴く」を縮めた「聴く」で1行に収める。 */}
+        <CareItem icon={Headphones} label="聴く" care={listenCare(day)} />
+      </>
+    );
+  }
 
   return (
     <Link
       href="/tree"
-      aria-label={label}
-      className="relative block rounded-3xl overflow-hidden border active:scale-[0.99] transition-transform"
-      style={{
-        background:
-          "radial-gradient(130% 130% at 30% 15%, var(--tree-a) 0%, var(--tree-b) 45%, var(--tree-c) 100%)",
-        borderColor: "var(--tree-border)",
-        boxShadow: "0 10px 30px var(--tree-shadow)",
-      }}
+      className="block bg-surface border border-surface-border rounded-3xl p-4 neu-raised active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
-      <SyncTreeScene {...SCENE.mobile} className="block w-full md:hidden">
-        {tree}
-      </SyncTreeScene>
-      <SyncTreeScene {...SCENE.desktop} className="hidden w-full md:block">
-        {tree}
-      </SyncTreeScene>
-
-      {/* 文字は空の上に重ねる（樹の位置とカード高さを動かさないため）。色は
-          地面線・きらめきと同じ --tree-ink で、昼夜どちらの空でもコントラスト
-          が確保される。 */}
-      <span
-        className="absolute top-0 left-0 right-0 p-5 flex items-baseline justify-between gap-2 text-sm font-medium"
-        style={{ color: "var(--tree-ink)" }}
-      >
-        Sync Tree
-        {ready && <span className="text-base font-bold">{stageName}</span>}
-        {view === "logged-out" && <span className="text-sm font-bold">ログインで育てる</span>}
+      <span className="flex items-center gap-2 min-h-7">
+        <TreeDeciduous size={18} strokeWidth={1.5} className="shrink-0 text-accent" aria-hidden="true" />
+        <span className="flex-1 text-sm text-text-secondary">Sync Tree</span>
+        {ready && (
+          <span className="text-lg font-bold text-text-primary">{treeStage(fold.points).name}</span>
+        )}
+        <ChevronRight size={20} className="shrink-0 text-text-muted" aria-hidden="true" />
       </span>
-
-      {/* 押せることの合図。カード内に文字を増やさずに済む向き記号ひとつ。 */}
-      <ArrowRight
-        size={20}
-        strokeWidth={2}
-        aria-hidden="true"
-        className="absolute bottom-4 right-4 opacity-70"
-        style={{ color: "var(--tree-ink)" }}
-      />
+      <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 min-h-6 text-sm">
+        {status}
+      </span>
     </Link>
   );
 }

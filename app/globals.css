@@ -487,13 +487,6 @@ input[type="range"]:disabled::-moz-range-thumb {
    変えて付け直すと最初から再生される（ループさせない＝常駐の負荷にならない）。
    樹に掛けるものは SVG の内側の <g> に付ける：transform-box: fill-box で
    その <g> 自身の外接矩形を基準にし、根元（下辺の中央）を支点にする。 */
-@keyframes tree-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.tree-fade-in {
-  animation: tree-fade-in 0.6s ease-out both;
-}
 /* 段階が上がった（植え替えた）ときに、新しい絵が根元から育つ */
 @keyframes tree-grow {
   from { opacity: 0.3; transform: scale(0.86); }

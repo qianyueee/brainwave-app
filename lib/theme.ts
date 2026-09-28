@@ -326,8 +326,8 @@ export function interpolateSky(a: SkyPalette, b: SkyPalette, t: number): SkyPale
 }
 
 /**
- * Backdrop for the Sync Tree scene card (Home, and the big tree on /tree). One
- * set per period, like `sky`. The three light periods — sunrise (day, 06-12),
+ * Backdrop for the Sync Tree scene card (the big tree on /tree). One set per
+ * period, like `sky`. The three light periods — sunrise (day, 06-12),
  * noon (afternoon, 12-18) and dusk (evening, 18-24) — carry the page into the
  * card: each takes its hue from the page palette (blush / mint / pale violet)
  * and keeps its middle stop close to the page ground's lightness, so the card
@@ -416,7 +416,7 @@ export const TREE_SKY_SUNRISE: TreeSky = {
  *
  * 以前は真夜中と同じ深い星空（TREE_SKY_NIGHT）を共用していた。星空は2時でも
  * 20時でも同じに読めるという理由だったが、この時間帯のページは明るい淡紫で、
- * ホームで暗い板になっているのはこのカードだけだった（同じ時間帯の星座カードは
+ * 暗い板になっていたのはこのカードだけだった（同じ時間帯の星座カードは
  * すでにページの延長）。朝・昼の樹と同じ扱いに揃える。
  *
  * 作りは昼と同じ：3つの stop はページと同じ色相、中間の b は地の navy とほぼ
