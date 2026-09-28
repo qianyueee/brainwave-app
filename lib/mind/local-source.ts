@@ -5,6 +5,7 @@ import {
   subscribeDesktopSamples,
 } from "./desktop-bridge";
 import { deviceOnline, useDesktopBridgeStore } from "@/store/useDesktopBridgeStore";
+import { getLocale, translator } from "@/lib/i18n";
 
 /**
  * デスクトップ測定アプリのローカル WS を MindDataSource に写す薄いアダプタ
@@ -28,10 +29,18 @@ export class LocalSource implements MindDataSource {
     this.unsubSamples = subscribeDesktopSamples((s) => this.handlers.onSample(s));
     const push = () => {
       const st = useDesktopBridgeStore.getState();
+      // 状態の一言は、届いた時点の表示言語で作る。
+      const t = translator(getLocale());
       if (st.wsConnected) {
-        this.handlers.onStatus("connected", "測定アプリに接続しました");
+        this.handlers.onStatus(
+          "connected",
+          t("測定アプリに接続しました", "Connected to the measuring app")
+        );
       } else {
-        this.handlers.onStatus("connecting", "測定アプリと接続中…");
+        this.handlers.onStatus(
+          "connecting",
+          t("測定アプリと接続中…", "Connecting to the measuring app…")
+        );
       }
       this.handlers.onBridgeOnline?.(deviceOnline(st));
     };

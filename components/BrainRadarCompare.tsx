@@ -13,6 +13,7 @@ import { INDICATOR_META } from "@/lib/brain-profile";
 import { compareSeriesColors } from "@/lib/compare-colors";
 import { useDocumentScheme } from "@/components/useDocumentScheme";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
+import { useLocale } from "@/lib/i18n";
 
 export interface RadarSeries {
   indicators: BrainIndicators;
@@ -45,13 +46,16 @@ function subscribeTheme(cb: () => void): () => void {
  * readable; a legend maps each color to its measurement.
  */
 export default function BrainRadarCompare({ series }: { series: RadarSeries[] }) {
+  const locale = useLocale();
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
   const [grid, text, , primary] = colorStr.split("|");
 
   const lineColors = compareSeriesColors(series.length, useDocumentScheme());
 
   const data = INDICATOR_META.map((meta) => {
-    const row: Record<string, string | number> = { label: meta.shortLabel };
+    const row: Record<string, string | number> = {
+      label: locale === "en" ? meta.shortLabelEn : meta.shortLabel,
+    };
     series.forEach((s, i) => {
       row[`s${i}`] = s.indicators[meta.key];
     });
@@ -63,7 +67,18 @@ export default function BrainRadarCompare({ series }: { series: RadarSeries[] })
       <ResponsiveContainer width="100%" height={280}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="66%">
           <PolarGrid stroke={grid} />
-          <PolarAngleAxis dataKey="label" tick={{ fill: text, fontSize: 12 }} />
+          <PolarAngleAxis
+            dataKey="label"
+            tick={{
+              fill: text,
+              fontSize: 12,
+              // The English names are two words and about twice as wide as the
+              // Japanese; on one line the side vertices spill out of the chart,
+              // so a narrow width makes recharts' Text put each word on its own
+              // line (stacked away from the polygon by the axis' vertical anchor).
+              ...(locale === "en" ? { width: 60 } : {}),
+            }}
+          />
           {series.map((s, i) => (
             <Radar
               key={i}

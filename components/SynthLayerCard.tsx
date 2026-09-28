@@ -6,6 +6,7 @@ import { useSynthStore, StereoChannel } from "@/store/useSynthStore";
 import { useAudio } from "@/components/AudioProvider";
 import { X } from "lucide-react";
 import RangeSlider from "@/components/RangeSlider";
+import { useT } from "@/lib/i18n";
 
 const FREQ_MIN = 20;
 const FREQ_MAX = 10000;
@@ -31,6 +32,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
   const removeStereoLayer = useSynthStore((s) => s.removeStereoLayer);
   const isSynthPlaying = useSynthStore((s) => s.isSynthPlaying);
   const { updateSynthLayer, updateSynthLayerTremolo, getSynth } = useAudio();
+  const t = useT();
   const [freqInput, setFreqInput] = useState(layer.frequency.toString());
   const [tremRateInput, setTremRateInput] = useState(layer.tremolo.rate.toString());
   const [depthInput, setDepthInput] = useState(Math.round(layer.tremolo.depth * 100).toString());
@@ -166,14 +168,14 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-text-primary">
           {harmonicLabel
-            ? `${harmonicLabel} (${harmonicLabel === "1x" ? "基音" : "倍音"})`
-            : `レイヤー ${index + 1}`}
+            ? `${harmonicLabel} (${harmonicLabel === "1x" ? t("基音", "Fundamental") : t("倍音", "Harmonic")})`
+            : t(`レイヤー ${index + 1}`, `Layer ${index + 1}`)}
         </p>
         <button
           onClick={handleRemove}
           disabled={!canDelete}
           className="w-12 h-12 rounded-full bg-navy neu-raised-sm flex items-center justify-center text-text-muted disabled:opacity-30 transition-opacity active:scale-95"
-          aria-label="削除"
+          aria-label={t("削除", "Delete")}
         >
           <X size={16} strokeWidth={2} />
         </button>
@@ -182,7 +184,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
       {/* Frequency */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <label className="text-xs text-text-secondary">周波数</label>
+          <label className="text-xs text-text-secondary">{t("周波数", "Frequency")}</label>
           <div className="flex items-center gap-1">
             <input
               type="number"
@@ -215,7 +217,7 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
       {/* Volume */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <label className="text-xs text-text-secondary">音量</label>
+          <label className="text-xs text-text-secondary">{t("音量", "Volume")}</label>
           <span className="text-xs text-text-muted tabular-nums">{Math.round(layer.volume * 100)}%</span>
         </div>
         <RangeSlider
@@ -230,19 +232,19 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
 
       {/* Tone */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-text-secondary">音色</label>
+        <label className="text-xs text-text-secondary">{t("音色", "Tone")}</label>
         <div className="flex gap-2">
-          {(["soft", "bright"] as const).map((t) => (
+          {(["soft", "bright"] as const).map((tone) => (
             <button
-              key={t}
-              onClick={() => handleToneChange(t)}
+              key={tone}
+              onClick={() => handleToneChange(tone)}
               className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all active:scale-95 ${
-                layer.tone === t
+                layer.tone === tone
                   ? "bg-navy-light text-primary font-bold neu-inset"
                   : "bg-navy text-text-secondary neu-raised-sm"
               }`}
             >
-              {t === "soft" ? "Soft" : "Bright"}
+              {tone === "soft" ? "Soft" : "Bright"}
             </button>
           ))}
         </div>
@@ -251,13 +253,13 @@ export default function SynthLayerCard({ layer, index, canDelete, harmonicLabel,
       {/* Tremolo */}
       <div className="flex flex-col gap-2 border-t border-navy-lighter pt-3">
         <div className="flex items-center justify-between">
-          <label className="text-xs text-text-secondary">トレモロ</label>
+          <label className="text-xs text-text-secondary">{t("トレモロ", "Tremolo")}</label>
           <button
             onClick={handleTremoloToggle}
             className={`w-11 h-6 rounded-full transition-colors relative neu-toggle-track ${
               layer.tremolo.enabled ? "bg-primary" : "bg-navy-lighter"
             }`}
-            aria-label="トレモロ切替"
+            aria-label={t("トレモロ切替", "Toggle tremolo")}
           >
             <span
               className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform neu-raised-sm ${

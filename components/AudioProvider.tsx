@@ -12,7 +12,8 @@ import { SynthSession, SynthLayer, TimelineSegment, TremoloConfig, VibratoConfig
 import { TimelineSession } from "@/lib/timeline-engine";
 import { ProgramConfig } from "@/lib/programs";
 import type { CustomProgram } from "@/lib/programs";
-import { isTimelineProgram } from "@/lib/programs";
+import { isTimelineProgram, programName } from "@/lib/programs";
+import { getLocale, translator } from "@/lib/i18n";
 import { NaturePlayer } from "@/lib/nature-player";
 import { musicBedUrl } from "@/lib/zodiac-audio";
 import { getAudioBlob } from "@/lib/custom-audio-db";
@@ -341,7 +342,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setElapsed(0);
 
       cancelStopKeepAlive();
-      startKeepAlive(program.name);
+      // Lock-screen title in the current display language (the play log above
+      // keeps program.name — history translates it by id).
+      startKeepAlive(programName(program, getLocale()));
       setMediaSessionPlaybackState("playing");
       setMediaSessionHandlers(resumeSession, pauseSession);
 
@@ -397,7 +400,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       useSynthStore.getState().setIsSynthPlaying(true);
 
       cancelStopKeepAlive();
-      startKeepAlive("カスタム合成");
+      startKeepAlive(translator(getLocale())("カスタム合成", "Custom synth"));
       setMediaSessionPlaybackState("playing");
       setMediaSessionHandlers(resumeSession, pauseSession);
     },
@@ -467,7 +470,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   const startTimelinePreview = useCallback(
     (segments: TimelineSegment[]) => {
-      runTimeline(segments, "タイムライン プレビュー", null);
+      runTimeline(segments, translator(getLocale())("タイムライン プレビュー", "Timeline preview"), null);
     },
     [runTimeline]
   );

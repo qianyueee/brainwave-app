@@ -6,8 +6,9 @@ import { Maximize2 } from "lucide-react";
 import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
-import { getProgramById, isCustomProgramId, type CustomProgram } from "@/lib/programs";
+import { getProgramById, isCustomProgramId, phaseLabel, type CustomProgram } from "@/lib/programs";
 import { getCurrentPhaseInfo } from "@/lib/utils";
+import { useLocale, useT } from "@/lib/i18n";
 import CymaticsCanvas from "@/components/CymaticsCanvas";
 
 // ── Frequency → cymatics parameter mappings ──
@@ -70,6 +71,8 @@ export default function Visualizer() {
   const timerDuration = useAppStore((s) => s.timerDuration);
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
+  const t = useT();
+  const locale = useLocale();
 
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -95,7 +98,8 @@ export default function Visualizer() {
     targetSym = symmetryForFreq(sig);
     targetRing = radialModeForFreq(sig);
     displayFreq = sig;
-    label = customProgram?.name ?? "カスタム";
+    // A custom program's name is the user's own — shown as-is.
+    label = customProgram?.name ?? t("カスタム", "Custom");
   } else {
     const timeScale = program ? timerDuration / program.defaultDuration : 1;
     const scaledElapsed = elapsed / timeScale;
@@ -107,7 +111,9 @@ export default function Visualizer() {
     targetRing = radialModeForFreq(sig);
     displayFreq =
       info.phase?.name === "導入" && program ? program.targetBeatFreq : info.beatFreq;
-    label = info.phase ? info.phase.name : "待機中";
+    // The phase name doubles as an identifier (the "導入" check above) —
+    // only the displayed label is translated.
+    label = info.phase ? phaseLabel(info.phase.name, locale) : t("待機中", "Standby");
   }
 
   // While paused the mandala settles to its idle state, matching the frozen audio.
@@ -134,7 +140,7 @@ export default function Visualizer() {
       <button
         type="button"
         onClick={() => setFullscreen(true)}
-        aria-label="全画面で表示"
+        aria-label={t("全画面で表示", "Show full screen")}
         className="relative w-56 h-56 rounded-full active:scale-[0.98] transition-transform"
       >
         {/* Unmount the inline canvas while fullscreen so only one WebGL
@@ -160,7 +166,7 @@ export default function Visualizer() {
           <div
             onClick={() => setFullscreen(false)}
             role="button"
-            aria-label="閉じる"
+            aria-label={t("閉じる", "Close")}
             className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-8"
             style={{ backgroundColor: "#04060d", animation: "fade-in 0.25s ease-out" }}
           >
@@ -177,7 +183,7 @@ export default function Visualizer() {
               <p className="text-xl font-medium text-white">{displayFreq.toFixed(1)} Hz</p>
               <p className="text-base text-white/60 mt-1">{label}</p>
             </div>
-            <p className="absolute bottom-10 text-sm text-white/40">タップで戻る</p>
+            <p className="absolute bottom-10 text-sm text-white/40">{t("タップで戻る", "Tap to go back")}</p>
           </div>,
           document.body
         )}

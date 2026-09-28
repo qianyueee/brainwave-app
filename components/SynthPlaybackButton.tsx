@@ -3,11 +3,13 @@
 import { useAudio } from "@/components/AudioProvider";
 import { useSynthStore } from "@/store/useSynthStore";
 import { Play, Square } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export default function SynthPlaybackButton() {
   const { startSynth, stopSynth } = useAudio();
   const layers = useSynthStore((s) => s.layers);
   const isSynthPlaying = useSynthStore((s) => s.isSynthPlaying);
+  const t = useT();
 
   const handleToggle = () => {
     if (isSynthPlaying) {
@@ -25,7 +27,7 @@ export default function SynthPlaybackButton() {
           ? "bg-accent text-on-accent"
           : "bg-primary text-on-primary"
       }`}
-      aria-label={isSynthPlaying ? "停止" : "再生"}
+      aria-label={isSynthPlaying ? t("停止", "Stop") : t("再生", "Play")}
     >
       {isSynthPlaying ? (
         <Square size={28} fill="white" strokeWidth={0} />

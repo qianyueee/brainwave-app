@@ -1,5 +1,6 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { getLocale, translator } from "@/lib/i18n";
 import type { MindDataSource, MindSourceHandlers } from "./data-source";
 import {
   isValidSample,
@@ -10,6 +11,11 @@ import {
 
 /** Bridge counts as online if a sample arrived within this window. */
 const SAMPLE_FRESH_MS = 6000;
+
+/** Status lines are written in the display language at the time they're sent. */
+function tr(ja: string, en: string): string {
+  return translator(getLocale())(ja, en);
+}
 
 /**
  * Subscribes to the pairing-code channel the PC bridge publishes to
@@ -32,15 +38,15 @@ export class RealtimeSource implements MindDataSource {
 
   start(): void {
     if (!supabase) {
-      this.handlers.onStatus("error", "クラウド接続が未設定です");
+      this.handlers.onStatus("error", tr("クラウド接続が未設定です", "Cloud connection isn't set up"));
       return;
     }
     const code = normalizePairingCode(this.pairingCode);
     if (!code) {
-      this.handlers.onStatus("error", "ペアリングコードがありません");
+      this.handlers.onStatus("error", tr("ペアリングコードがありません", "No pairing code"));
       return;
     }
-    this.handlers.onStatus("connecting", "接続中…");
+    this.handlers.onStatus("connecting", tr("接続中…", "Connecting…"));
 
     this.channel = supabase
       .channel(`${MIND_CHANNEL_PREFIX}${code}`, {
@@ -61,9 +67,9 @@ export class RealtimeSource implements MindDataSource {
       })
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
-          this.handlers.onStatus("connected", "クラウドに接続しました");
+          this.handlers.onStatus("connected", tr("クラウドに接続しました", "Connected to the cloud"));
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          this.handlers.onStatus("error", "接続に失敗しました。再試行してください");
+          this.handlers.onStatus("error", tr("接続に失敗しました。再試行してください", "Connection failed. Please try again."));
         } else if (status === "CLOSED") {
           this.handlers.onStatus("idle");
         }

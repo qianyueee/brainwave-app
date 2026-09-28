@@ -18,6 +18,7 @@ import SubjectSelector from "@/components/mind/SubjectSelector";
 import TargetHzInput from "@/components/mind/TargetHzInput";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
+import { useT } from "@/lib/i18n";
 
 /**
  * Sync Brain — the live EEG measurement page: mind map, brain art, band meters
@@ -26,6 +27,7 @@ import PageHeader from "@/components/PageHeader";
  * (/report), the per-record list on Sync History (/history).
  */
 export default function BrainPage() {
+  const t = useT();
   const sourceKind = useMindStore((s) => s.sourceKind);
   const latestSample = useMindStore((s) => s.latestSample);
   const history = useMindStore((s) => s.history);
@@ -66,7 +68,10 @@ export default function BrainPage() {
 
   return (
     <div style={{ animation: "fade-in 0.3s ease-out" }}>
-      <PageHeader title="Sync Brain" subtitle="脳波同期・測定" />
+      <PageHeader
+        title="Sync Brain"
+        subtitle={t("脳波同期・測定", "Brainwave sync & measurement")}
+      />
 
       <PageColumn>
       {/* 測定の前にやることを、やる順に3段で置く：
@@ -116,7 +121,7 @@ export default function BrainPage() {
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:grid-rows-[auto_auto] md:gap-6 md:items-start">
         {/* マインドマップ（四象限マップ + 状態）— ブレインアートと左右対称 */}
         <section className="flex flex-col gap-3 md:col-start-1 md:row-start-1">
-          <h2 className="text-lg font-bold text-text-primary">マインドマップ</h2>
+          <h2 className="text-lg font-bold text-text-primary">{t("マインドマップ", "Mind map")}</h2>
           <MindMapCanvas sample={latestSample} boost={zoneBoost} isRecording={isRecording} />
           <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
         </section>
@@ -128,10 +133,13 @@ export default function BrainPage() {
         {/* リアルタイム脳波アート（ニューロフィードバック）— マインドマップと左右対称：
             見出し → 正方形キャンバス → 下に説明文 */}
         <section className="flex flex-col gap-3 md:col-start-2 md:row-start-1">
-          <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
+          <h2 className="text-lg font-bold text-text-primary">{t("ブレインアート", "Brain art")}</h2>
           <MindArtCanvas sample={latestSample} boost={zoneBoost} />
           <p className="text-sm text-text-secondary text-center">
-            脳波がリアルタイムに幾何学模様として紡ぎ出されます
+            {t(
+              "脳波がリアルタイムに幾何学模様として紡ぎ出されます",
+              "Your brainwaves are woven into geometric patterns in real time"
+            )}
           </p>
         </section>
 

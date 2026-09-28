@@ -11,6 +11,7 @@ import {
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import type { CustomProgram } from "@/lib/programs";
 import { Waves, Plus, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export default function ProgramAssigner() {
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
@@ -19,6 +20,7 @@ export default function ProgramAssigner() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [assignments, setAssignments] = useState<{ group_id: string; program_id: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const t = useT();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,14 +61,17 @@ export default function ProgramAssigner() {
   };
 
   if (loading) {
-    return <p className="text-sm text-text-muted text-center py-8">読み込み中...</p>;
+    return <p className="text-sm text-text-muted text-center py-8">{t("読み込み中...", "Loading...")}</p>;
   }
 
   if (publishedPrograms.length === 0) {
     return (
       <p className="text-sm text-text-muted text-center py-8">
-        公開済みプログラムがありません。<br />
-        「音源」タブでカスタムプログラムを公開してください。
+        {t("公開済みプログラムがありません。", "No published programs yet.")}<br />
+        {t(
+          "「音源」タブでカスタムプログラムを公開してください。",
+          "Publish a custom program in the “Audio” tab.",
+        )}
       </p>
     );
   }
@@ -90,9 +95,9 @@ export default function ProgramAssigner() {
             </div>
 
             <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-text-muted">グループ:</span>
+              <span className="text-xs text-text-muted">{t("グループ:", "Groups:")}</span>
               {assignedGroups.length === 0 && (
-                <span className="text-xs text-text-muted">未割当</span>
+                <span className="text-xs text-text-muted">{t("未割当", "Not assigned")}</span>
               )}
               {assignedGroups.map((g) => (
                 <button
@@ -112,7 +117,7 @@ export default function ProgramAssigner() {
                     if (e.target.value) handleAssign(program.id, e.target.value);
                   }}
                 >
-                  <option value="">+ 追加</option>
+                  <option value="">{t("+ 追加", "+ Add")}</option>
                   {availableGroups.map((g) => (
                     <option key={g.id} value={g.id}>{g.name}</option>
                   ))}

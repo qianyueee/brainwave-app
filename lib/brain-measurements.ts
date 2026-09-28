@@ -1,11 +1,13 @@
 import type { BrainIndicators, BrainProfile } from "./brain-profile";
+import type { Locale } from "./i18n";
+import { subjectDisplayName } from "./subject-groups";
 
 /**
  * Dependency-free helpers for the brain-measurement history.
  *
- * Kept import-free (only `import type`, which is erased at runtime) so the
- * cloud-blob migration logic can be unit-tested headlessly without pulling in
- * Supabase / Next.js.
+ * Kept free of heavy imports (types, plus the pure subject-groups helpers) so
+ * the cloud-blob migration logic can be unit-tested headlessly without pulling
+ * in Supabase / Next.js.
  */
 
 /** Type guard: a value that looks like a stored BrainProfile. */
@@ -47,9 +49,9 @@ export function scoreColor(score: number): string {
       : "var(--dyn-danger)";
 }
 
-/** Short date-time label for a measurement, e.g. "7月13日 17:50". */
-export function measurementLabel(m: BrainProfile): string {
-  return new Date(m.uploadedAt).toLocaleString("ja-JP", {
+/** Short date-time label for a measurement, e.g. "7月13日 17:50" / "July 13, 05:50 PM". */
+export function measurementLabel(m: BrainProfile, locale: Locale = "ja"): string {
+  return new Date(m.uploadedAt).toLocaleString(locale === "en" ? "en-US" : "ja-JP", {
     month: "long",
     day: "numeric",
     hour: "2-digit",
@@ -58,12 +60,30 @@ export function measurementLabel(m: BrainProfile): string {
 }
 
 /**
+ * 測定セッションから取り込んだ記録の sessionTag は、開始時刻を日本語で書いた
+ * 文字列（＝measurementLabel(m, "ja")。lib/mind/session-record.ts の sessionLabel）。
+ * アップロードしたファイルの Tag 列・ファイル名は本人の文字列。
+ */
+export function isGeneratedSessionTag(m: BrainProfile): boolean {
+  return m.sessionTag === measurementLabel(m, "ja");
+}
+
+/**
+ * sessionTag を表示言語で。取り込みで焼いた日本語の日時だけは英語の画面で
+ * 英語の日時に置き換え、本人の文字列（ファイル名など）はそのまま。記録は
+ * 書き換えない。
+ */
+export function sessionTagLabel(m: BrainProfile, locale: Locale = "ja"): string {
+  return locale === "en" && isGeneratedSessionTag(m) ? measurementLabel(m, "en") : m.sessionTag;
+}
+
+/**
  * 見出しに立てる名前：取り込みのときに書いたメモがあればそれ、無ければ日時。
  * 日時だけの一覧では「どれがどの回か」を思い出せないので、本人の言葉があれば
  * そちらを先に見せ、日時は小さく下の行へ回す（過去の測定・記録の並びと同じ扱い）。
  */
-export function measurementTitle(m: BrainProfile): string {
-  return m.note?.trim() || measurementLabel(m);
+export function measurementTitle(m: BrainProfile, locale: Locale = "ja"): string {
+  return m.note?.trim() || measurementLabel(m, locale);
 }
 
 /**
@@ -71,9 +91,15 @@ export function measurementTitle(m: BrainProfile): string {
  * 12px・折り返しありの狭い場所なので、メモは頭だけ取って省略する。一覧の
  * 見出しと同じ語が出るので、どの行がどの線かを目で追える。
  */
-export function measurementSeriesLabel(m: BrainProfile, maxNoteChars = 12): string {
-  const title = measurementTitle(m);
+export function measurementSeriesLabel(
+  m: BrainProfile,
+  locale: Locale = "ja",
+  maxNoteChars = 12
+): string {
+  const title = measurementTitle(m, locale);
   const clipped =
     title.length > maxNoteChars ? `${title.slice(0, maxNoteChars)}…` : title;
-  return m.subject ? `${m.subject}・${clipped}` : clipped;
+  if (!m.subject) return clipped;
+  const who = subjectDisplayName(m.subject, locale);
+  return locale === "en" ? `${who} · ${clipped}` : `${who}・${clipped}`;
 }

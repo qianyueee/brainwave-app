@@ -1,21 +1,22 @@
-import { ProgramConfig } from "./programs";
+import { ProgramConfig, programName } from "./programs";
 import { scheduleRamps } from "./ramp-scheduler";
 import type { SynthLayer, VibratoConfig, TremoloConfig } from "./synth-engine";
 import { NATURE_SOUNDS } from "./nature-player";
 import { getAudioBlob } from "./custom-audio-db";
 import { ensureBlobCached } from "./sync/custom-audios";
 import { useCustomAudioStore } from "@/store/useCustomAudioStore";
+import { getLocale, translator } from "./i18n";
 
 // --- Types ---
 
 export type ExportFormat = "wav" | "mp3";
 export type ExportDuration = 30 | 60 | 300 | 600;
 
-export const EXPORT_DURATIONS: { value: ExportDuration; label: string }[] = [
-  { value: 30, label: "30秒" },
-  { value: 60, label: "1分" },
-  { value: 300, label: "5分" },
-  { value: 600, label: "10分" },
+export const EXPORT_DURATIONS: { value: ExportDuration; label: string; labelEn: string }[] = [
+  { value: 30, label: "30秒", labelEn: "30 sec" },
+  { value: 60, label: "1分", labelEn: "1 min" },
+  { value: 300, label: "5分", labelEn: "5 min" },
+  { value: 600, label: "10分", labelEn: "10 min" },
 ];
 
 export type ExportStatus = "idle" | "rendering" | "encoding" | "done" | "error";
@@ -524,14 +525,18 @@ export async function exportBinaural(options: {
       : await encodeMp3(buffer);
 
     const ext = format === "wav" ? "wav" : "mp3";
-    const safeName = program.name.replace(/[^\w\u3000-\u9fff\u30a0-\u30ff\u3040-\u309f]/g, "_");
+    // ファイル名もいまの表示言語の名前で（英語の画面なら Reset & Deep → Reset___Deep）。
+    const safeName = programName(program, getLocale()).replace(
+      /[^\w\u3000-\u9fff\u30a0-\u30ff\u3040-\u309f]/g,
+      "_"
+    );
     downloadBlob(blob, `${safeName}_${duration}s.${ext}`);
 
     onProgress({ status: "done" });
   } catch (err) {
     onProgress({
       status: "error",
-      error: err instanceof Error ? err.message : "エクスポートに失敗しました",
+      error: err instanceof Error ? err.message : translator(getLocale())("エクスポートに失敗しました", "Export failed"),
     });
   }
 }
@@ -569,7 +574,7 @@ export async function exportSynth(options: {
   } catch (err) {
     onProgress({
       status: "error",
-      error: err instanceof Error ? err.message : "エクスポートに失敗しました",
+      error: err instanceof Error ? err.message : translator(getLocale())("エクスポートに失敗しました", "Export failed"),
     });
   }
 }

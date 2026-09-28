@@ -13,6 +13,7 @@ import {
   exportBinaural,
   exportSynth,
 } from "@/lib/audio-export";
+import { useT, type LocalizedText } from "@/lib/i18n";
 
 interface ExportDialogProps {
   open: boolean;
@@ -21,16 +22,17 @@ interface ExportDialogProps {
   customPreset?: SynthPreset;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  rendering: "レンダリング中...",
-  encoding: "エンコード中...",
-  done: "完了！",
+const STATUS_LABELS: Record<string, LocalizedText> = {
+  rendering: { ja: "レンダリング中...", en: "Rendering..." },
+  encoding: { ja: "エンコード中...", en: "Encoding..." },
+  done: { ja: "完了！", en: "Done!" },
 };
 
 export default function ExportDialog({ open, onClose, mode, customPreset }: ExportDialogProps) {
   const [duration, setDuration] = useState<ExportDuration>(60);
   const [format, setFormat] = useState<ExportFormat>("mp3");
   const [progress, setProgress] = useState<ExportProgress>({ status: "idle" });
+  const t = useT();
 
   // Binaural data
   const selectedProgramId = useDisplayProgramId();
@@ -112,6 +114,8 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
 
   if (!open) return null;
 
+  const statusLabel = STATUS_LABELS[progress.status];
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
@@ -122,12 +126,12 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-bold text-text-primary text-center">
-          音声エクスポート
+          {t("音声エクスポート", "Export audio")}
         </h2>
 
         {/* Duration selector - 2x2 grid */}
         <div>
-          <p className="text-sm text-text-secondary mb-2">再生時間</p>
+          <p className="text-sm text-text-secondary mb-2">{t("再生時間", "Length")}</p>
           <div className="grid grid-cols-2 gap-2">
             {EXPORT_DURATIONS.map((d) => (
               <button
@@ -140,7 +144,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
                     : "bg-navy text-text-secondary neu-raised-sm"
                 }`}
               >
-                {d.label}
+                {t(d.label, d.labelEn)}
               </button>
             ))}
           </div>
@@ -148,7 +152,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
 
         {/* Format selector */}
         <div>
-          <p className="text-sm text-text-secondary mb-2">ファイル形式</p>
+          <p className="text-sm text-text-secondary mb-2">{t("ファイル形式", "File format")}</p>
           <div className="flex gap-2">
             {(["wav", "mp3"] as const).map((f) => (
               <button
@@ -167,7 +171,10 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
           </div>
           {format === "wav" && duration >= 300 && (
             <p className="text-xs text-accent mt-1">
-              WAV形式は容量が大きくなります。MP3がおすすめです。
+              {t(
+                "WAV形式は容量が大きくなります。MP3がおすすめです。",
+                "WAV files are large. We recommend MP3."
+              )}
             </p>
           )}
         </div>
@@ -180,7 +187,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
               onClick={handleRetry}
               className="w-full py-3 rounded-2xl bg-accent text-on-accent text-base font-bold active:scale-95 neu-raised-sm"
             >
-              リトライ
+              {t("リトライ", "Try again")}
             </button>
           </div>
         ) : isExporting || progress.status === "done" ? (
@@ -189,7 +196,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
               <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             )}
             <span className="text-base text-text-primary font-medium">
-              {STATUS_LABELS[progress.status] ?? ""}
+              {statusLabel ? t(statusLabel) : ""}
             </span>
           </div>
         ) : (
@@ -197,7 +204,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
             onClick={handleExport}
             className="w-full py-3 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-opacity neu-raised neu-press"
           >
-            エクスポート開始
+            {t("エクスポート開始", "Start export")}
           </button>
         )}
 
@@ -207,7 +214,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
             onClick={onClose}
             className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-base font-bold active:scale-95 neu-raised-sm neu-press"
           >
-            キャンセル
+            {t("キャンセル", "Cancel")}
           </button>
         )}
       </div>

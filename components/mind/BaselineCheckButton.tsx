@@ -6,6 +6,7 @@ import { useMindStore, canReceiveData } from "@/store/useMindStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import BaselineCheck from "./BaselineCheck";
 import { BASELINE_MEASURE_SEC } from "@/lib/mind/baseline";
+import { useT } from "@/lib/i18n";
 
 /**
  * 10秒クイックチェックの入口。「測定を開始」（腰を据えた計測）と並べて置く
@@ -16,6 +17,7 @@ import { BASELINE_MEASURE_SEC } from "@/lib/mind/baseline";
  * 録音中の脳波を混ぜたら前提が崩れる。
  */
 export default function BaselineCheckButton() {
+  const t = useT();
   const canReceive = useMindStore(canReceiveData);
   const isRecording = useMindStore((s) => s.isRecording);
   const consumeCheckRequest = useBaselineStore((s) => s.consumeCheckRequest);
@@ -44,7 +46,8 @@ export default function BaselineCheckButton() {
         }`}
       >
         <Timer size={20} strokeWidth={2} />
-        {BASELINE_MEASURE_SEC}秒チェック
+        {/* 英語は「10-sec」：幅 42% の枠に 360px 幅の画面でも1行で収まる長さ */}
+        {t(`${BASELINE_MEASURE_SEC}秒チェック`, `${BASELINE_MEASURE_SEC}-sec check`)}
       </button>
 
       {open && <BaselineCheck onClose={() => setOpen(false)} />}

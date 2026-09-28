@@ -15,10 +15,17 @@ import { useMindStore } from "@/store/useMindStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useCloudSyncStore } from "@/store/useCloudSyncStore";
+import { useT, type LocalizedText } from "@/lib/i18n";
 
 type Kind = "session" | "check";
 
-const NOUN: Record<Kind, string> = { session: "この測定", check: "この記録" };
+const NOUN: Record<Kind, LocalizedText> = {
+  session: { ja: "この測定", en: "this measurement" },
+  check: { ja: "この記録", en: "this record" },
+};
+
+/** 英語で文頭に置くとき（"this measurement" → "This measurement"）。 */
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
  * 1件の記録（測定セッション／10秒チェック）がアカウントに保存されたかを示す1〜2行。
@@ -32,6 +39,8 @@ const NOUN: Record<Kind, string> = { session: "この測定", check: "この記�
  * 10秒チェックは未ログインでも端末に残す習慣の機能で、そこは変えない。
  */
 export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }) {
+  const t = useT();
+  const noun = NOUN[kind];
   const session = useMindStore((s) =>
     kind === "session" ? s.sessions.find((x) => x.id === id) : undefined
   );
@@ -61,7 +70,15 @@ export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }
     if (record.source !== "demo") return null;
     return (
       <p className="text-sm text-text-muted">
-        デモ・合成データの{kind === "session" ? "測定" : "記録"}はアカウントに保存されません
+        {kind === "session"
+          ? t(
+              "デモ・合成データの測定はアカウントに保存されません",
+              "Measurements from demo or synthetic data aren't saved to your account"
+            )
+          : t(
+              "デモ・合成データの記録はアカウントに保存されません",
+              "Records from demo or synthetic data aren't saved to your account"
+            )}
       </p>
     );
   }
@@ -71,7 +88,14 @@ export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }
   const owner = markOwner(mark);
 
   if (mark && "localOnly" in mark) {
-    return <p className="text-sm text-text-muted">{NOUN[kind]}はこの端末だけに保存しています</p>;
+    return (
+      <p className="text-sm text-text-muted">
+        {t(
+          `${noun.ja}はこの端末だけに保存しています`,
+          `${capitalize(noun.en)} is saved only on this device`
+        )}
+      </p>
+    );
   }
 
   if (!owner) {
@@ -79,7 +103,10 @@ export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }
     if (claimed) {
       return (
         <p className="text-sm text-text-secondary">
-          ログインすると、{NOUN[kind]}をアカウントに保存します
+          {t(
+            `ログインすると、${noun.ja}をアカウントに保存します`,
+            `When you log in, ${noun.en} will be saved to your account`
+          )}
         </p>
       );
     }
@@ -93,14 +120,17 @@ export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }
           className="flex items-center justify-center gap-2 min-h-12 px-4 rounded-2xl bg-navy text-primary text-base font-bold neu-raised-sm neu-press"
         >
           <CloudUpload size={18} />
-          {NOUN[kind]}をアカウントに保存する
+          {t(`${noun.ja}をアカウントに保存する`, `Save ${noun.en} to your account`)}
         </button>
       );
     }
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-text-secondary">
-          ログインすると、{NOUN[kind]}をアカウントに保存して Web版で見られます
+          {t(
+            `ログインすると、${noun.ja}をアカウントに保存して Web版で見られます`,
+            `Log in to save ${noun.en} to your account and view it in the web app`
+          )}
         </p>
         <button
           onClick={() => {
@@ -110,7 +140,7 @@ export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }
           className="flex items-center justify-center gap-2 min-h-12 px-4 rounded-2xl bg-navy text-primary text-base font-bold neu-raised-sm neu-press"
         >
           <LogIn size={18} />
-          ログインして保存
+          {t("ログインして保存", "Log in to save")}
         </button>
       </div>
     );
@@ -119,7 +149,10 @@ export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }
   if (account && owner !== account.id) {
     return (
       <p className="text-sm text-text-muted">
-        {NOUN[kind]}は、測ったときにログインしていたアカウントに保存されます
+        {t(
+          `${noun.ja}は、測ったときにログインしていたアカウントに保存されます`,
+          `${capitalize(noun.en)} will be saved to the account that was logged in when it was measured`
+        )}
       </p>
     );
   }
@@ -129,10 +162,13 @@ export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }
       <p className="flex items-start gap-1.5 text-sm text-success">
         <Check size={18} strokeWidth={2.5} className="shrink-0 mt-px" />
         <span>
-          アカウントに保存しました
+          {t("アカウントに保存しました", "Saved to your account")}
           {desktop && (
             <span className="block text-text-secondary">
-              Web版の Sync Report・Sync History で見られます
+              {t(
+                "Web版の Sync Report・Sync History で見られます",
+                "You can view it in Sync Report and Sync History in the web app"
+              )}
             </span>
           )}
         </span>
@@ -145,7 +181,10 @@ export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }
     return (
       <p className="flex items-start gap-1.5 text-sm text-warning">
         <CloudOff size={18} className="shrink-0 mt-px" />
-        インターネットにつながると、自動でアカウントに保存します
+        {t(
+          "インターネットにつながると、自動でアカウントに保存します",
+          "It will be saved to your account automatically once you're online"
+        )}
       </p>
     );
   }
@@ -153,14 +192,17 @@ export default function CloudSaveStatus({ kind, id }: { kind: Kind; id: string }
     return (
       <p className="flex items-start gap-1.5 text-sm text-warning">
         <CloudOff size={18} className="shrink-0 mt-px" />
-        まだ保存できていません。通信が戻ると自動で保存します
+        {t(
+          "まだ保存できていません。通信が戻ると自動で保存します",
+          "Not saved yet. It will be saved automatically when the connection is back."
+        )}
       </p>
     );
   }
   return (
     <p className="flex items-center gap-1.5 text-sm text-text-secondary">
       <LoaderCircle size={18} className="shrink-0 animate-spin" />
-      アカウントに保存しています…
+      {t("アカウントに保存しています…", "Saving to your account…")}
     </p>
   );
 }

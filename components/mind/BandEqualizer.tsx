@@ -3,6 +3,7 @@
 import type { BandPowers } from "@/lib/mind/types";
 import BandBars from "./BandBars";
 import Fullscreenable from "@/components/Fullscreenable";
+import { useT } from "@/lib/i18n";
 
 /**
  * 脳波バランス card. Presentational: the parent decides what `powers` to show —
@@ -18,13 +19,16 @@ export default function BandEqualizer({
   powers: BandPowers;
   note?: string;
 }) {
+  const t = useT();
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
       <div className="flex items-baseline justify-between gap-2 mb-3">
-        <p className="text-base font-bold text-text-primary">脳波バランス</p>
+        <p className="text-base font-bold text-text-primary">
+          {t("脳波バランス", "Brainwave balance")}
+        </p>
         {note && <p className="text-xs text-text-muted shrink-0">{note}</p>}
       </div>
-      <Fullscreenable title="脳波バランス">
+      <Fullscreenable title={t("脳波バランス", "Brainwave balance")}>
         <BandBars powers={powers} />
       </Fullscreenable>
     </div>

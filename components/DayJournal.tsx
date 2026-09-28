@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil, Trash2, NotebookPen } from "lucide-react";
 import { JOURNAL_TEXT_MAX, MOOD_SCALE, moodColor, moodStep } from "@/lib/journal";
+import { useT } from "@/lib/i18n";
 import { useJournalStore } from "@/store/useJournalStore";
 
 /**
@@ -16,6 +17,7 @@ import { useJournalStore } from "@/store/useJournalStore";
  * 日付をタップしないと描画されない＝必ず hydration の後なので、そのまま読める。
  */
 export default function DayJournal({ dayKey }: { dayKey: string }) {
+  const t = useT();
   const entry = useJournalStore((s) => s.entries[dayKey]);
   const saveEntry = useJournalStore((s) => s.saveEntry);
   const removeEntry = useJournalStore((s) => s.removeEntry);
@@ -43,20 +45,20 @@ export default function DayJournal({ dayKey }: { dayKey: string }) {
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm text-text-secondary flex items-center gap-1.5">
             <NotebookPen size={16} strokeWidth={1.5} />
-            この日の振り返り
+            {t("この日の振り返り", "Reflection for this day")}
           </p>
           {entry && (
             <div className="flex items-center">
               <button
                 onClick={startEditing}
-                aria-label="振り返りを編集"
+                aria-label={t("振り返りを編集", "Edit reflection")}
                 className="w-12 h-12 -my-2 flex items-center justify-center text-text-muted active:scale-95"
               >
                 <Pencil size={18} strokeWidth={1.5} />
               </button>
               <button
                 onClick={() => removeEntry(dayKey)}
-                aria-label="振り返りを削除"
+                aria-label={t("振り返りを削除", "Delete reflection")}
                 className="w-12 h-12 -my-2 flex items-center justify-center text-danger active:scale-95"
               >
                 <Trash2 size={18} strokeWidth={1.5} />
@@ -70,7 +72,7 @@ export default function DayJournal({ dayKey }: { dayKey: string }) {
             {step && (
               <p className="text-base font-bold flex items-center gap-2" style={{ color: moodColor(step.value) }}>
                 <span aria-hidden>{step.emoji}</span>
-                {step.label}
+                {t(step.label)}
               </p>
             )}
             {/* 改行を保つ（箇条書きで書く人がいる）。長文は折り返す。 */}
@@ -86,7 +88,7 @@ export default function DayJournal({ dayKey }: { dayKey: string }) {
             className="w-full min-h-12 px-4 rounded-2xl bg-navy text-base text-text-secondary neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
           >
             <Pencil size={18} strokeWidth={1.5} />
-            この日の振り返りを書く
+            {t("この日の振り返りを書く", "Write a reflection for this day")}
           </button>
         )}
       </div>
@@ -97,11 +99,15 @@ export default function DayJournal({ dayKey }: { dayKey: string }) {
     <div className="pt-3 border-t border-surface-border flex flex-col gap-3">
       <p className="text-sm text-text-secondary flex items-center gap-1.5">
         <NotebookPen size={16} strokeWidth={1.5} />
-        この日の振り返り
+        {t("この日の振り返り", "Reflection for this day")}
       </p>
 
       {/* 調子。押すと選択、もう一度押すと解除（調子は必須ではない）。 */}
-      <div role="group" aria-label="この日の調子" className="grid grid-cols-5 gap-1.5">
+      <div
+        role="group"
+        aria-label={t("この日の調子", "Mood for this day")}
+        className="grid grid-cols-5 gap-1.5"
+      >
         {MOOD_SCALE.map((m) => {
           const isOn = mood === m.value;
           return (
@@ -116,7 +122,7 @@ export default function DayJournal({ dayKey }: { dayKey: string }) {
               <span className="text-xl leading-none" aria-hidden>
                 {m.emoji}
               </span>
-              <span className="text-xs leading-tight">{m.label}</span>
+              <span className="text-xs leading-tight">{t(m.label)}</span>
             </button>
           );
         })}
@@ -126,8 +132,11 @@ export default function DayJournal({ dayKey }: { dayKey: string }) {
         value={text}
         onChange={(e) => setText(e.target.value.slice(0, JOURNAL_TEXT_MAX))}
         rows={4}
-        aria-label="この日の振り返り"
-        placeholder="今日はどうでしたか。気づいたこと、体の感じ、聴いた音の効きなど"
+        aria-label={t("この日の振り返り", "Reflection for this day")}
+        placeholder={t(
+          "今日はどうでしたか。気づいたこと、体の感じ、聴いた音の効きなど",
+          "How was your day? Anything you noticed, how your body felt, how the sounds you listened to worked for you…"
+        )}
         className="w-full px-4 py-3 rounded-2xl bg-navy text-text-primary text-base border border-surface-border focus:outline-none focus:border-primary resize-y"
       />
       <p className="text-xs text-text-muted text-right tabular-nums">
@@ -139,13 +148,13 @@ export default function DayJournal({ dayKey }: { dayKey: string }) {
           onClick={() => setEditing(false)}
           className="flex-1 min-h-12 rounded-2xl bg-navy text-base text-text-secondary neu-raised-sm neu-press transition-transform"
         >
-          キャンセル
+          {t("キャンセル", "Cancel")}
         </button>
         <button
           onClick={commit}
           className="flex-1 min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-press transition-transform"
         >
-          保存
+          {t("保存", "Save")}
         </button>
       </div>
     </div>

@@ -22,6 +22,7 @@ import {
   upsertProgram,
   deleteProgram as deleteProgramCloud,
 } from "@/lib/sync/programs";
+import { getLocale, translator } from "@/lib/i18n";
 
 export type EditorMode = "free" | "harmonic";
 export type StereoChannel = "left" | "right";
@@ -29,6 +30,15 @@ export type MonitorChannel = "both" | "left" | "right";
 
 const MAX_LAYERS = 8;
 const HARMONIC_COUNT = 9;
+
+/**
+ * Default names/descriptions become saved user data, so they are written in the
+ * display language at the moment the item is created (and never renamed later).
+ * Only called from actions (event handlers), never during render.
+ */
+function tr(ja: string, en: string): string {
+  return translator(getLocale())(ja, en);
+}
 
 function generateId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -557,7 +567,9 @@ export const useSynthStore = create<SynthState>()(
         const program: CustomProgram = {
           id: "custom-" + generateId(),
           name,
-          description: description?.trim() || `カスタム・${layerCount}レイヤー合成`,
+          description:
+            description?.trim() ||
+            tr(`カスタム・${layerCount}レイヤー合成`, `Custom ${layerCount}-layer synth`),
           icon: "\uD83C\uDFB9",
           defaultDuration: 15 * 60,
           preset,
@@ -589,7 +601,9 @@ export const useSynthStore = create<SynthState>()(
               ? {
                   ...p,
                   defaultDuration: total,
-                  description: description?.trim() || `タイムライン・${segments.length}区間`,
+                  description:
+                    description?.trim() ||
+                    tr(`タイムライン・${segments.length}区間`, `${segments.length}-segment timeline`),
                   preset: buildTimelinePreset(p.name, segments),
                 }
               : p
@@ -626,7 +640,9 @@ export const useSynthStore = create<SynthState>()(
             ? {
                 ...p,
                 preset: { ...preset, name: p.name },
-                description: description?.trim() || `カスタム・${layerCount}レイヤー合成`,
+                description:
+                  description?.trim() ||
+                  tr(`カスタム・${layerCount}レイヤー合成`, `Custom ${layerCount}-layer synth`),
               }
             : p
         );
@@ -699,7 +715,7 @@ export const useSynthStore = create<SynthState>()(
           // Seed segment 0 from the current editor buffer.
           const seg: TimelineSegment = {
             id: generateId(),
-            name: "セグメント 1",
+            name: tr("セグメント 1", "Segment 1"),
             durationSec: 60,
             crossfadeSec: 0,
             preset: bufferToPreset(get()),
@@ -747,7 +763,7 @@ export const useSynthStore = create<SynthState>()(
             : timelineSegments;
         const newSeg: TimelineSegment = {
           id: generateId(),
-          name: `セグメント ${flushed.length + 1}`,
+          name: tr(`セグメント ${flushed.length + 1}`, `Segment ${flushed.length + 1}`),
           durationSec: 60,
           crossfadeSec: 2,
           preset: defaultSegmentPreset(),
@@ -847,7 +863,9 @@ export const useSynthStore = create<SynthState>()(
         const program: CustomProgram = {
           id: "custom-" + generateId(),
           name,
-          description: description?.trim() || `タイムライン・${segments.length}区間`,
+          description:
+            description?.trim() ||
+            tr(`タイムライン・${segments.length}区間`, `${segments.length}-segment timeline`),
           icon: "⏱️", // ⏱️
           defaultDuration: total,
           preset: buildTimelinePreset(name, segments),

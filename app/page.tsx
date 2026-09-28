@@ -7,6 +7,7 @@ import SyncTreeCard from "@/components/SyncTreeCard";
 import { User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRefreshAccountViewsOnMount } from "@/lib/sync/account-views";
+import { useT } from "@/lib/i18n";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
@@ -30,6 +31,7 @@ export default function HomePage() {
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
   const isLoggedIn = !!user;
+  const t = useT();
   // 脳コンディションカードはデスクトップ測定アプリで測った記録も読む。
   useRefreshAccountViewsOnMount();
 
@@ -41,7 +43,10 @@ export default function HomePage() {
           ——常に上に残っているので、戻らなくても押せる。 */}
       <PageHeader
         title="Home"
-        subtitle="今日の星空・宇宙周波数で即座に調律"
+        subtitle={t(
+          "今日の星空・宇宙周波数で即座に調律",
+          "Tune in with today's stars and cosmic frequencies"
+        )}
         eyebrow={
           /* ブランド名は本文と同じ 16px（`text-base`）。ヘッダーの中でいちばん
              小さい注記だった頃は、下の「Home」に埋もれて商標に見えなかった
@@ -67,7 +72,7 @@ export default function HomePage() {
                   className="flex items-center gap-2 h-12 px-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium whitespace-nowrap neu-raised-sm neu-press active:scale-95"
                 >
                   <User size={18} strokeWidth={1.5} />
-                  ログイン
+                  {t("ログイン", "Log in")}
                 </button>
               )}
               {/* Settings entry — the corner gear (the admin gear that used to
@@ -75,7 +80,7 @@ export default function HomePage() {
               <button
                 onClick={() => router.push("/settings")}
                 className="w-12 h-12 flex items-center justify-center rounded-xl text-text-muted active:scale-95"
-                title="設定"
+                title={t("設定", "Settings")}
               >
                 <Settings size={20} strokeWidth={1.5} />
               </button>

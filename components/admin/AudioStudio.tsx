@@ -8,6 +8,7 @@ import CustomProgramCard from "@/components/CustomProgramCard";
 import PublishedProgramCard from "@/components/PublishedProgramCard";
 import SynthPresetCard from "@/components/SynthPresetCard";
 import { Plus } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 /**
  * 管理パネル「音源」タブ — 音源の制作と配信。
@@ -28,6 +29,7 @@ export default function AudioStudio() {
   const setTimelineMode = useSynthStore((s) => s.setTimelineMode);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
   const fetchPrograms = usePublishedProgramsStore((s) => s.fetchPrograms);
+  const t = useT();
 
   // 他ページのような hydrated ガードは要らない：管理パネルは authLoading /
   // roleLoaded が解けるまで「読み込み中」を返すので、このタブが載るのは
@@ -51,35 +53,38 @@ export default function AudioStudio() {
     <div className="flex flex-col gap-6">
       {/* 作る — 合成器エディタ（/synth）への入口 */}
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-text-secondary">新しい音源をつくる</p>
+        <p className="text-sm text-text-secondary">{t("新しい音源をつくる", "Create new audio")}</p>
         <div className="flex gap-2">
           <button
             onClick={handleNewSynth}
             className="flex-1 min-h-12 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
           >
             <Plus size={18} strokeWidth={2} />
-            新規作成
+            {t("新規作成", "New synth")}
           </button>
           <button
             onClick={handleNewTimeline}
             className="flex-1 min-h-12 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
           >
             <Plus size={18} strokeWidth={2} />
-            タイムライン
+            {t("タイムライン", "Timeline")}
           </button>
         </div>
       </div>
 
       {/* カスタムプログラム — 再生・編集・削除と、ここからの公開 */}
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-text-secondary">カスタムプログラム</p>
+        <p className="text-sm text-text-secondary">{t("カスタムプログラム", "Custom programs")}</p>
         {savedPrograms.length > 0 ? (
           savedPrograms.map((program) => (
             <CustomProgramCard key={program.id} program={program} />
           ))
         ) : (
           <p className="text-sm text-text-muted">
-            まだありません。「新規作成」から音源をつくって保存すると、ここに並びます。
+            {t(
+              "まだありません。「新規作成」から音源をつくって保存すると、ここに並びます。",
+              "None yet. Make audio with “New synth” and save it — it will appear here.",
+            )}
           </p>
         )}
       </div>
@@ -87,7 +92,7 @@ export default function AudioStudio() {
       {/* シンセプリセット — 合成器の音づくりの保存分 */}
       {savedPresets.length > 0 && (
         <div className="flex flex-col gap-3">
-          <p className="text-sm text-text-secondary">シンセプリセット</p>
+          <p className="text-sm text-text-secondary">{t("シンセプリセット", "Synth presets")}</p>
           {savedPresets.map((preset) => (
             <SynthPresetCard key={preset.id} preset={preset} />
           ))}
@@ -96,19 +101,25 @@ export default function AudioStudio() {
 
       {/* 配信中 — 取り下げはこの画面だけ（manage） */}
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-text-secondary">配信中のプログラム</p>
+        <p className="text-sm text-text-secondary">{t("配信中のプログラム", "Published programs")}</p>
         {publishedPrograms.length > 0 ? (
           <>
             {publishedPrograms.map((program) => (
               <PublishedProgramCard key={program.id} program={program} manage />
             ))}
             <p className="text-xs text-text-muted">
-              どのグループに配信するかは「配信」タブで割り当てます。
+              {t(
+                "どのグループに配信するかは「配信」タブで割り当てます。",
+                "Choose which groups receive them in the “Assign” tab.",
+              )}
             </p>
           </>
         ) : (
           <p className="text-sm text-text-muted">
-            まだありません。カスタムプログラムの公開ボタン（↑）で配信できます。
+            {t(
+              "まだありません。カスタムプログラムの公開ボタン（↑）で配信できます。",
+              "None yet. Publish a custom program with its publish button (↑).",
+            )}
           </p>
         )}
       </div>

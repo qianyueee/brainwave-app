@@ -10,6 +10,7 @@ import {
 } from "@/lib/admin";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export default function GroupManager() {
   const user = useAuthStore((s) => s.user);
@@ -20,6 +21,7 @@ export default function GroupManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const t = useT();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,19 +64,19 @@ export default function GroupManager() {
     <div className="flex flex-col gap-4">
       {/* Create new group */}
       <div className="bg-surface border border-surface-border rounded-2xl p-4 neu-raised flex flex-col gap-3">
-        <p className="text-sm font-bold text-text-primary">新規グループ作成</p>
+        <p className="text-sm font-bold text-text-primary">{t("新規グループ作成", "Create a group")}</p>
         <input
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="グループ名"
+          placeholder={t("グループ名", "Group name")}
           className="w-full px-4 py-2.5 rounded-xl bg-navy text-text-primary text-sm border border-surface-border focus:outline-none focus:border-primary"
         />
         <input
           type="text"
           value={newDesc}
           onChange={(e) => setNewDesc(e.target.value)}
-          placeholder="説明（任意）"
+          placeholder={t("説明（任意）", "Description (optional)")}
           className="w-full px-4 py-2.5 rounded-xl bg-navy text-text-primary text-sm border border-surface-border focus:outline-none focus:border-primary"
         />
         <button
@@ -83,15 +85,15 @@ export default function GroupManager() {
           className="w-full py-2.5 rounded-xl bg-primary text-on-primary text-sm font-bold neu-raised-sm disabled:opacity-40 flex items-center justify-center gap-2"
         >
           <Plus size={16} />
-          作成
+          {t("作成", "Create")}
         </button>
       </div>
 
       {/* Group list */}
       {loading ? (
-        <p className="text-sm text-text-muted text-center py-8">読み込み中...</p>
+        <p className="text-sm text-text-muted text-center py-8">{t("読み込み中...", "Loading...")}</p>
       ) : groups.length === 0 ? (
-        <p className="text-sm text-text-muted text-center py-8">グループがありません</p>
+        <p className="text-sm text-text-muted text-center py-8">{t("グループがありません", "No groups yet")}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {groups.map((g) => (
@@ -108,7 +110,7 @@ export default function GroupManager() {
                     type="text"
                     value={editDesc}
                     onChange={(e) => setEditDesc(e.target.value)}
-                    placeholder="説明"
+                    placeholder={t("説明", "Description")}
                     className="w-full px-3 py-2 rounded-xl bg-navy text-text-primary text-sm border border-surface-border focus:outline-none focus:border-primary"
                   />
                   <div className="flex gap-2 justify-end">

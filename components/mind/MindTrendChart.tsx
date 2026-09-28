@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { EegSample } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
+import { intlLocale, useLocale, useT } from "@/lib/i18n";
 import Fullscreenable from "@/components/Fullscreenable";
 
 function getThemeColor(varName: string, fallback: string): string {
@@ -26,6 +27,8 @@ const ATTENTION_COLOR = "#fb923c"; // 集中（暖）
 const MEDITATION_COLOR = "#38bdf8"; // リラックス（冷）
 
 export default function MindTrendChart({ history }: { history: EegSample[] }) {
+  const t = useT();
+  const locale = useLocale();
   const [colors, setColors] = useState({
     grid: "#162440",
     text: "#8890a8",
@@ -45,7 +48,7 @@ export default function MindTrendChart({ history }: { history: EegSample[] }) {
   }, [readColors]);
 
   const data = history.map((s) => ({
-    time: new Date(s.ts).toLocaleTimeString("ja-JP", {
+    time: new Date(s.ts).toLocaleTimeString(intlLocale(locale), {
       minute: "2-digit",
       second: "2-digit",
     }),
@@ -56,31 +59,33 @@ export default function MindTrendChart({ history }: { history: EegSample[] }) {
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-base font-bold text-text-primary">推移（直近5分）</p>
+        <p className="text-base font-bold text-text-primary">
+          {t("推移（直近5分）", "Trend (last 5 min)")}
+        </p>
         <div className="flex items-center gap-3 text-sm">
           <span className="flex items-center gap-1.5 text-text-secondary">
             <span
               className="inline-block w-3 h-3 rounded-full"
               style={{ backgroundColor: ATTENTION_COLOR }}
             />
-            集中
+            {t("集中", "Focus")}
           </span>
           <span className="flex items-center gap-1.5 text-text-secondary">
             <span
               className="inline-block w-3 h-3 rounded-full"
               style={{ backgroundColor: MEDITATION_COLOR }}
             />
-            リラックス
+            {t("リラックス", "Relaxation")}
           </span>
         </div>
       </div>
 
       {data.length < 2 ? (
         <p className="text-base text-text-secondary text-center py-8">
-          データを集めています…
+          {t("データを集めています…", "Collecting data…")}
         </p>
       ) : (
-        <Fullscreenable title="推移（直近5分）">
+        <Fullscreenable title={t("推移（直近5分）", "Trend (last 5 min)")}>
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={data} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />

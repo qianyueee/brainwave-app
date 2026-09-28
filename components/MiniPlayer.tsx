@@ -6,9 +6,10 @@ import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { useAudio } from "@/components/AudioProvider";
-import { getProgramById, isCustomProgramId } from "@/lib/programs";
+import { getProgramById, isCustomProgramId, programName } from "@/lib/programs";
 import { isDesktopRoute } from "@/lib/desktop";
 import { formatTime } from "@/lib/utils";
+import { useLocale, useT } from "@/lib/i18n";
 import { Play, Pause } from "lucide-react";
 
 /**
@@ -55,30 +56,37 @@ export default function MiniPlayer() {
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
   // デスクトップの左端はレールの開閉に追従する（収納中は画面端から）
   const sidebarOpen = useSidebarStore((s) => s.open);
+  const t = useT();
+  const locale = useLocale();
 
   if (!visible) return null;
 
   // Synth flows (editor playback / timeline preview) have no program id;
   // their home screen is the synth editor, not the player page.
   const synthOnly = playingProgramId === null;
-  const program = !synthOnly
-    ? isCustomProgramId(playingProgramId)
+  // Custom (synth) program names are the user's own words — shown as-is;
+  // built-in / catalog / zodiac programs follow the display language.
+  const customProgram =
+    !synthOnly && isCustomProgramId(playingProgramId)
       ? savedPrograms.find((p) => p.id === playingProgramId) ??
         publishedPrograms.find((p) => p.id === playingProgramId)
-      : getProgramById(playingProgramId)
-    : undefined;
+      : undefined;
+  const builtinProgram =
+    !synthOnly && !isCustomProgramId(playingProgramId) ? getProgramById(playingProgramId) : undefined;
   const name = synthOnly
     ? isPlaying
-      ? "タイムライン プレビュー"
-      : "カスタム合成"
-    : program?.name ?? "再生中";
+      ? t("タイムライン プレビュー", "Timeline preview")
+      : t("カスタム合成", "Custom synth")
+    : customProgram?.name ??
+      (builtinProgram ? programName(builtinProgram, locale) : t("再生中", "Now playing"));
+  const remaining = formatTime(Math.max(0, timerDuration - elapsed));
   const status = isPaused
-    ? "一時停止中"
+    ? t("一時停止中", "Paused")
     : synthOnly
       ? isPlaying
-        ? `経過 ${formatTime(elapsed)}`
-        : "再生中"
-      : `残り ${formatTime(Math.max(0, timerDuration - elapsed))}`;
+        ? t(`経過 ${formatTime(elapsed)}`, `${formatTime(elapsed)} elapsed`)
+        : t("再生中", "Playing")
+      : t(`残り ${remaining}`, `${remaining} left`);
   const openTarget = synthOnly ? "/synth" : "/player";
   const openPlayer = () => router.push(openTarget);
 
@@ -97,7 +105,7 @@ export default function MiniPlayer() {
         <div
           role="button"
           tabIndex={0}
-          aria-label={synthOnly ? "合成器を開く" : "プレーヤーを開く"}
+          aria-label={synthOnly ? t("合成器を開く", "Open the synth") : t("プレーヤーを開く", "Open the player")}
           onClick={openPlayer}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") openPlayer();
@@ -119,7 +127,7 @@ export default function MiniPlayer() {
               }
             }}
             className="min-w-12 min-h-12 rounded-xl bg-primary text-on-primary flex items-center justify-center neu-raised-sm active:scale-95 shrink-0"
-            aria-label={isPaused ? "再開" : "一時停止"}
+            aria-label={isPaused ? t("再開", "Resume") : t("一時停止", "Pause")}
           >
             {isPaused ? (
               <Play size={22} fill="currentColor" strokeWidth={0} className="ml-0.5" />

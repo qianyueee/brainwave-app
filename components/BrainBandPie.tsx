@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import type { BandKey, BandPowers } from "@/lib/mind/types";
 import { BAND_META, getBandColors } from "@/lib/mind/types";
 import { useDocumentScheme } from "@/components/useDocumentScheme";
+import { useLocale, useT } from "@/lib/i18n";
 
 /**
  * 8-band brainwave balance: a colored pie (Delta at 12 o'clock, clockwise) with
@@ -32,8 +33,14 @@ export default function BrainBandPie({
   /** Omit to render a plain, non-interactive legend. */
   onChangeHidden?: (next: BandKey[]) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const bandColors = getBandColors(useDocumentScheme());
-  const data = BAND_META.map((b) => ({ key: b.key, name: b.ja, value: powers[b.key] }));
+  const data = BAND_META.map((b) => ({
+    key: b.key,
+    name: locale === "en" ? b.en : b.ja,
+    value: powers[b.key],
+  }));
   const shown = data.filter((d) => !hiddenKeys.includes(d.key));
   // Share of the shown bands, so every printed number matches its slice. With
   // nothing hidden this total is 100, leaving the measured values untouched.
@@ -65,7 +72,7 @@ export default function BrainBandPie({
       ) : (
         <div className="h-[220px] flex items-center justify-center px-4">
           <p className="text-base text-text-secondary text-center">
-            表示する波を選んでください
+            {t("表示する波を選んでください", "Choose which waves to show")}
           </p>
         </div>
       )}
@@ -74,13 +81,15 @@ export default function BrainBandPie({
           whole measurement, and tapping rows back on one by one is tedious. */}
       {onChangeHidden && hiddenKeys.length > 0 && (
         <div className="flex items-center justify-between gap-3 mt-2 px-1">
-          <p className="text-xs text-text-muted">割合は表示中の波で再計算</p>
+          <p className="text-xs text-text-muted">
+            {t("割合は表示中の波で再計算", "Shares are recalculated for the shown waves")}
+          </p>
           <button
             type="button"
             onClick={() => onChangeHidden([])}
             className="shrink-0 px-3 py-1.5 rounded-xl bg-navy text-text-secondary text-sm font-bold neu-raised-sm neu-press transition-transform"
           >
-            すべて表示
+            {t("すべて表示", "Show all")}
           </button>
         </div>
       )}
@@ -94,7 +103,18 @@ export default function BrainBandPie({
                 className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
                 style={{ backgroundColor: bandColors[d.key] }}
               />
-              <span className="flex-1 min-w-0 truncate text-text-secondary">{d.name}</span>
+              {/* English band names (Low-Gamma…) are about twice as wide and would be
+                  cut off on a phone, so they may wrap after the hyphen instead —
+                  two lines still fit inside the 44px row. */}
+              <span
+                className={
+                  locale === "en"
+                    ? "flex-1 min-w-0 leading-tight text-text-secondary"
+                    : "flex-1 min-w-0 truncate text-text-secondary"
+                }
+              >
+                {d.name}
+              </span>
               <span className="font-mono tabular-nums font-bold text-text-primary">
                 {hidden || shownTotal <= 0
                   ? "—"
@@ -123,7 +143,10 @@ export default function BrainBandPie({
                 )
               }
               aria-pressed={!hidden}
-              aria-label={`${d.name}を${hidden ? "表示する" : "非表示にする"}`}
+              aria-label={t(
+                `${d.name}を${hidden ? "表示する" : "非表示にする"}`,
+                `${hidden ? "Show" : "Hide"} ${d.name}`
+              )}
               // Rows stay tappable (they toggle a band), so the height only comes
               // down to 44px — the practical floor — rather than shrinking with
               // the type.

@@ -11,6 +11,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useMindStore } from "@/store/useMindStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import { useCloudSyncStore } from "@/store/useCloudSyncStore";
+import { useT } from "@/lib/i18n";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 const subscribeNoop = () => () => {};
@@ -28,6 +29,7 @@ const subscribeNoop = () => () => {};
  * （Supabase 未設定）では何も出さない。
  */
 export default function DesktopAccountButton() {
+  const t = useT();
   const user = useAuthStore((s) => s.user);
   const loading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
@@ -86,7 +88,7 @@ export default function DesktopAccountButton() {
         className="flex items-center gap-2 h-12 px-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium whitespace-nowrap neu-raised-sm neu-press active:scale-95"
       >
         <User size={18} strokeWidth={1.5} />
-        ログイン
+        {t("ログイン", "Log in")}
       </button>
     );
   }
@@ -100,10 +102,10 @@ export default function DesktopAccountButton() {
         ? "bg-warning"
         : "bg-success";
   const shortStatus = offline
-    ? "接続待ち"
+    ? t("接続待ち", "Waiting to connect")
     : pending > 0
-      ? `未保存 ${pending}件`
-      : "保存済み";
+      ? t(`未保存 ${pending}件`, `${pending} unsaved`)
+      : t("保存済み", "Saved");
 
   const doLogout = async () => {
     setBusy(true);
@@ -111,7 +113,12 @@ export default function DesktopAccountButton() {
     const { error } = await signOut();
     setBusy(false);
     if (error) {
-      setLogoutError("ログアウトできませんでした。インターネットの接続を確認して、もう一度お試しください");
+      setLogoutError(
+        t(
+          "ログアウトできませんでした。インターネットの接続を確認して、もう一度お試しください",
+          "Couldn't log out. Please check your internet connection and try again."
+        )
+      );
       return;
     }
     setOpen(false);
@@ -124,7 +131,7 @@ export default function DesktopAccountButton() {
           setLogoutError(null);
           setOpen(true);
         }}
-        aria-label={`アカウント（${shortStatus}）`}
+        aria-label={t(`アカウント（${shortStatus}）`, `Account (${shortStatus})`)}
         className="flex items-center gap-2 h-12 pl-2 pr-4 rounded-2xl bg-navy text-text-secondary text-sm font-medium whitespace-nowrap neu-raised-sm neu-press active:scale-95"
       >
         <span className="relative w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
@@ -144,20 +151,20 @@ export default function DesktopAccountButton() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={() => setOpen(false)}
           role="button"
-          aria-label="閉じる"
+          aria-label={t("閉じる", "Close")}
         >
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="アカウント"
+            aria-label={t("アカウント", "Account")}
             className="w-full max-w-[420px] mx-4 max-h-[85vh] overflow-y-auto bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-text-primary">アカウント</h2>
+              <h2 className="text-lg font-bold text-text-primary">{t("アカウント", "Account")}</h2>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="閉じる"
+                aria-label={t("閉じる", "Close")}
                 className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
                 <X size={20} />
@@ -172,18 +179,33 @@ export default function DesktopAccountButton() {
                 <p className="flex items-start gap-2 text-base text-warning">
                   <CloudOff size={20} className="shrink-0 mt-0.5" />
                   <span>
-                    インターネットに接続できていません。
+                    {t("インターネットに接続できていません。", "You're not connected to the internet. ")}
                     {pending > 0
-                      ? `未保存の記録（${pending}件）は、つながると自動で保存します`
-                      : "つながると、この後の記録も自動で保存します"}
+                      ? t(
+                          `未保存の記録（${pending}件）は、つながると自動で保存します`,
+                          pending === 1
+                            ? "Your unsaved record will be saved automatically once you're connected."
+                            : `Your ${pending} unsaved records will be saved automatically once you're connected.`
+                        )
+                      : t(
+                          "つながると、この後の記録も自動で保存します",
+                          "Once you're connected, new records will also be saved automatically."
+                        )}
                   </span>
                 </p>
               ) : pending === 0 ? (
-                <p className="text-base text-success">すべての記録をアカウントに保存しました</p>
+                <p className="text-base text-success">
+                  {t("すべての記録をアカウントに保存しました", "All records are saved to your account")}
+                </p>
               ) : phase === "error" ? (
                 <>
                   <p className="text-base text-warning">
-                    まだ保存できていない記録が {pending}件 あります。通信が戻ると自動で保存します
+                    {t(
+                      `まだ保存できていない記録が ${pending}件 あります。通信が戻ると自動で保存します`,
+                      pending === 1
+                        ? "1 record hasn't been saved yet. It will be saved automatically when the connection is back."
+                        : `${pending} records haven't been saved yet. They'll be saved automatically when the connection is back.`
+                    )}
                   </p>
                   {lastError && <p className="text-xs text-text-muted break-all">{lastError}</p>}
                   <button
@@ -191,25 +213,35 @@ export default function DesktopAccountButton() {
                     className="flex items-center justify-center gap-2 min-h-12 rounded-2xl bg-surface text-primary text-base font-bold neu-raised-sm neu-press"
                   >
                     <RefreshCw size={18} />
-                    今すぐ保存する
+                    {t("今すぐ保存する", "Save now")}
                   </button>
                 </>
               ) : (
                 <p className="text-base text-text-secondary">
-                  アカウントに保存しています…（残り {pending}件）
+                  {t(
+                    `アカウントに保存しています…（残り ${pending}件）`,
+                    `Saving to your account… (${pending} left)`
+                  )}
                 </p>
               )}
               {othersPending > 0 && (
                 <p className="text-sm text-text-muted">
-                  別のアカウントで測った未保存の記録が {othersPending}件
-                  あります（そのアカウントでログインすると保存されます）
+                  {t(
+                    `別のアカウントで測った未保存の記録が ${othersPending}件 あります（そのアカウントでログインすると保存されます）`,
+                    othersPending === 1
+                      ? "1 unsaved record was measured under another account (it will be saved when you log in with that account)."
+                      : `${othersPending} unsaved records were measured under another account (they'll be saved when you log in with that account).`
+                  )}
                 </p>
               )}
             </div>
 
             <div className="flex flex-col gap-2">
               <p className="text-base text-text-secondary">
-                保存した記録は、Web版の Sync Report・Sync History で見られます。
+                {t(
+                  "保存した記録は、Web版の Sync Report・Sync History で見られます。",
+                  "You can view saved records in Sync Report and Sync History in the web app."
+                )}
               </p>
               {/* target=_blank は pywebview が既定のブラウザで開く。 */}
               <a
@@ -219,10 +251,13 @@ export default function DesktopAccountButton() {
                 className="flex items-center justify-center gap-2 min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press"
               >
                 <ExternalLink size={18} />
-                Web版で記録を見る
+                {t("Web版で記録を見る", "View records in the web app")}
               </a>
               <p className="text-sm text-text-muted">
-                測定者の名前を Web版と同じにすると、ヒストリーで同じ人の記録としてまとまります
+                {t(
+                  "測定者の名前を Web版と同じにすると、ヒストリーで同じ人の記録としてまとまります",
+                  "If you use the same person name as in the web app, History will show their records together."
+                )}
               </p>
             </div>
 
@@ -237,7 +272,7 @@ export default function DesktopAccountButton() {
               className="flex items-center justify-center gap-2 min-h-12 rounded-2xl bg-navy text-danger text-base font-medium neu-raised-sm neu-press disabled:opacity-60"
             >
               <LogOut size={18} strokeWidth={1.5} />
-              ログアウト
+              {t("ログアウト", "Log out")}
             </button>
           </div>
         </div>,
@@ -248,9 +283,14 @@ export default function DesktopAccountButton() {
         createPortal(
           <ConfirmDialog
             open
-            title="ログアウトしますか？"
-            message={`まだアカウントに保存していない記録が ${pending}件 あります。消えはしません——このアカウントでもう一度ログインすると保存されます。`}
-            confirmLabel="ログアウト"
+            title={t("ログアウトしますか？", "Log out?")}
+            message={t(
+              `まだアカウントに保存していない記録が ${pending}件 あります。消えはしません——このアカウントでもう一度ログインすると保存されます。`,
+              pending === 1
+                ? "1 record isn't saved to your account yet. It won't be lost — it will be saved when you log in to this account again."
+                : `${pending} records aren't saved to your account yet. They won't be lost — they'll be saved when you log in to this account again.`
+            )}
+            confirmLabel={t("ログアウト", "Log out")}
             onConfirm={() => {
               setConfirmLogout(false);
               void doLogout();

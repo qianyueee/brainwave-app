@@ -56,12 +56,14 @@ def set_auth_callback_sink(fn: Optional[Callable[[dict], bool]]) -> None:
     _auth_sink = fn
 
 
-def _page(title: str, body: str, detail: str = "") -> bytes:
+def _page(title: str, body: str, title_en: str, body_en: str, detail: str = "") -> bytes:
+    """ログインの戻りに答える1枚。ここは既定のブラウザで開くページで、アプリの
+    表示言語は分からないので、日本語と英語を上下に並べる。"""
     extra = f'<p class="detail">{html.escape(detail)}</p>' if detail else ""
     return f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{html.escape(title)} — NeuroSync 測定</title>
+<title>{html.escape(title)} / {html.escape(title_en)} — NeuroSync</title>
 <style>
   body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
          background:#1E1B4B; color:#e8e4f8; font-family:"Hiragino Sans","Meiryo",sans-serif; }}
@@ -69,8 +71,10 @@ def _page(title: str, body: str, detail: str = "") -> bytes:
   h1 {{ font-size:22px; margin:0 0 16px; }}
   p {{ font-size:16px; line-height:1.8; margin:0 0 12px; color:#d0caef; }}
   .detail {{ font-size:13px; color:#a8a0d0; word-break:break-all; }}
+  hr {{ border:0; border-top:1px solid #383468; margin:24px 0; }}
 </style></head>
-<body><main><h1>{html.escape(title)}</h1><p>{html.escape(body)}</p>{extra}</main></body></html>
+<body><main><h1>{html.escape(title)}</h1><p>{html.escape(body)}</p>
+<hr><div lang="en"><h1>{html.escape(title_en)}</h1><p>{html.escape(body_en)}</p></div>{extra}</main></body></html>
 """.encode("utf-8")
 
 
@@ -108,6 +112,8 @@ class _Handler(SimpleHTTPRequestHandler):
             body = _page(
                 "ログインが完了しました",
                 "このタブを閉じて、NeuroSync 測定アプリの画面に戻ってください。",
+                "You're logged in",
+                "Close this tab and go back to the NeuroSync measuring app.",
             )
         elif code:
             # 画面が再接続すれば 2 分以内は届く（local_server.AUTH_RETAIN_SEC）ので、
@@ -116,11 +122,16 @@ class _Handler(SimpleHTTPRequestHandler):
                 "アプリの画面に戻ってください",
                 "測定アプリの画面とまだつながっていません。アプリに戻ってログインできていなければ、"
                 "「Googleでログイン」からもう一度お試しください。",
+                "Please go back to the app",
+                "The measuring app isn't connected yet. Go back to the app, and if you aren't logged in, "
+                "try “Log in with Google” again.",
             )
         else:
             body = _page(
                 "ログインできませんでした",
                 "NeuroSync 測定アプリの画面に戻って、もう一度お試しください。",
+                "Couldn't log in",
+                "Go back to the NeuroSync measuring app and try again.",
                 event.get("description", ""),
             )
         self.send_response(200)

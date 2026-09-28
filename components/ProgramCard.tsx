@@ -1,8 +1,9 @@
 "use client";
 
-import { ProgramConfig, ProgramCategory } from "@/lib/programs";
+import { ProgramConfig, ProgramCategory, programName } from "@/lib/programs";
 import { getAdjustedProgram } from "@/lib/brain-profile";
 import { hasMusicBed } from "@/lib/zodiac-audio";
+import { useLocale, useT } from "@/lib/i18n";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { usePlayProgram } from "@/components/usePlayProgram";
 import { Waves, Zap, Moon, Target, Sparkles, Stars, ChevronRight } from "lucide-react";
@@ -35,6 +36,8 @@ interface ProgramCardProps {
 export default function ProgramCard({ program, breathe = true }: ProgramCardProps) {
   const playProgram = usePlayProgram();
   const profile = useBrainProfileStore((s) => s.profile);
+  const t = useT();
+  const locale = useLocale();
 
   const adjusted = getAdjustedProgram(program.id, profile?.indicators ?? null);
   const isPersonalized = adjusted && adjusted.defaultDuration !== program.defaultDuration;
@@ -45,6 +48,7 @@ export default function ProgramCard({ program, breathe = true }: ProgramCardProp
   const handleClick = () => playProgram(program);
 
   const displayMinutes = Math.round((adjusted?.defaultDuration ?? program.defaultDuration) / 60);
+  const carrier = adjusted?.carrierFreq ?? program.carrierFreq;
 
   // アイコンは4段の受け皿：内蔵3つは従来どおりの lucide、それ以外は節目自身の
   // 絵文字（星座グリフ ♈ など、118件ぶんが既に入っている）、無ければカテゴリの
@@ -76,21 +80,23 @@ export default function ProgramCard({ program, breathe = true }: ProgramCardProp
           薄くなったぶん、3節目＋配信ぶんが折り返さず一望できる（説明は
           プレイヤー側に残る）。 */}
       <div className="flex-1 min-w-0">
-        <p className="text-base font-bold text-text-primary truncate">{program.name}</p>
+        <p className="text-base font-bold text-text-primary truncate">
+          {programName(program, locale)}
+        </p>
         <div className="mt-0.5 flex items-center gap-2 flex-wrap">
           <p className="text-xs text-text-muted">
-            {adjusted?.carrierFreq ?? program.carrierFreq}Hz・{displayMinutes}分
+            {t(`${carrier}Hz・${displayMinutes}分`, `${carrier}Hz · ${displayMinutes} min`)}
           </p>
           {isPersonalized && (
             <span className="text-xs font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-              パーソナライズ済み
+              {t("パーソナライズ済み", "Personalized")}
             </span>
           )}
           {/* 「準備中」とは書かない——誘導ビートは鳴るので、この節目は完成品と
               して使える。足りないのは伴奏だけ、というのを言葉どおりに書く。 */}
           {beatOnly && (
             <span className="text-xs font-bold text-text-muted bg-navy-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
-              ビートのみ
+              {t("ビートのみ", "Beats only")}
             </span>
           )}
         </div>

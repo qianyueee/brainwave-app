@@ -10,17 +10,26 @@ import { useJournalStore, type JournalEntry } from "@/store/useJournalStore";
 import { scoreColor } from "@/lib/brain-measurements";
 import { moodColor } from "@/lib/journal";
 import { buildDayRecords, recordedDayKeys, type DayRecordKind } from "@/lib/day-records";
+import { intlLocale, useLocale, useT, type Locale, type LocalizedText } from "@/lib/i18n";
 import DayJournal from "@/components/DayJournal";
 
-const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const WEEKDAYS: readonly LocalizedText[] = [
+  { ja: "日", en: "Sun" },
+  { ja: "月", en: "Mon" },
+  { ja: "火", en: "Tue" },
+  { ja: "水", en: "Wed" },
+  { ja: "木", en: "Thu" },
+  { ja: "金", en: "Fri" },
+  { ja: "土", en: "Sat" },
+];
 
 const cellKey = (y: number, m: number, d: number) => `${y}-${m}-${d}`;
 
 /** 初回描画用の空。毎回 {} を作ると参照が毎回変わる。 */
 const EMPTY_JOURNAL: Record<string, JournalEntry> = {};
 
-const hhmm = (at: number) =>
-  new Date(at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+const hhmm = (at: number, locale: Locale) =>
+  new Date(at).toLocaleTimeString(intlLocale(locale), { hour: "2-digit", minute: "2-digit" });
 
 const KIND_META: Record<DayRecordKind, { icon: typeof Music; color: string }> = {
   session: { icon: Music, color: "var(--dyn-accent)" },
@@ -47,6 +56,8 @@ const KIND_META: Record<DayRecordKind, { icon: typeof Music; color: string }> = 
  */
 export default function SimpleCalendar() {
   const router = useRouter();
+  const t = useT();
+  const locale = useLocale();
   const sessionLogs = useAppStore((s) => s.sessionLogs);
   const measurements = useBrainProfileStore((s) => s.measurements);
   const setViewingMeasurement = useBrainProfileStore((s) => s.setViewingMeasurement);
@@ -88,9 +99,9 @@ export default function SimpleCalendar() {
   const entries = useMemo(
     () =>
       selectedKey
-        ? buildDayRecords({ sessionLogs, measurements, checks }, selectedKey)
+        ? buildDayRecords({ sessionLogs, measurements, checks }, selectedKey, locale)
         : [],
-    [selectedKey, sessionLogs, measurements, checks]
+    [selectedKey, sessionLogs, measurements, checks, locale]
   );
 
   const openOnReport = (uploadedAt: string) => {
@@ -110,7 +121,7 @@ export default function SimpleCalendar() {
   const selectedLabel = selectedKey
     ? (() => {
         const [y, m, d] = selectedKey.split("-").map(Number);
-        return new Date(y, m, d).toLocaleDateString("ja-JP", {
+        return new Date(y, m, d).toLocaleDateString(intlLocale(locale), {
           month: "long",
           day: "numeric",
           weekday: "short",
@@ -128,19 +139,21 @@ export default function SimpleCalendar() {
       <div className="flex items-center justify-between gap-2 mb-3">
         <button
           onClick={() => goMonth(-1)}
-          aria-label="前の月"
+          aria-label={t("前の月", "Previous month")}
           className="w-12 h-12 -my-2 shrink-0 rounded-xl flex items-center justify-center text-text-secondary active:scale-95"
         >
           <ChevronLeft size={20} />
         </button>
         <p className="text-base font-bold text-text-primary">
-          {year}年{month + 1}月
+          {locale === "en"
+            ? viewing.toLocaleDateString(intlLocale(locale), { year: "numeric", month: "long" })
+            : `${year}年${month + 1}月`}
         </p>
         {/* 未来の月には記録が存在し得ないので、今月から先へは進めない。 */}
         <button
           onClick={() => goMonth(1)}
           disabled={isCurrentMonth}
-          aria-label="次の月"
+          aria-label={t("次の月", "Next month")}
           className="w-12 h-12 -my-2 shrink-0 rounded-xl flex items-center justify-center text-text-secondary active:scale-95 disabled:opacity-30 disabled:active:scale-100"
         >
           <ChevronRight size={20} />
@@ -149,8 +162,8 @@ export default function SimpleCalendar() {
 
       <div className="grid grid-cols-7 gap-1 text-center">
         {WEEKDAYS.map((w) => (
-          <div key={w} className="text-xs text-text-muted py-1">
-            {w}
+          <div key={w.ja} className="text-xs text-text-muted py-1">
+            {t(w)}
           </div>
         ))}
         {cells.map((day, i) => {
@@ -166,7 +179,11 @@ export default function SimpleCalendar() {
               key={i}
               onClick={() => setSelectedKey(isSelected ? null : key)}
               aria-pressed={isSelected}
-              aria-label={`${month + 1}月${day}日の記録`}
+              aria-label={
+                locale === "en"
+                  ? `Records for ${new Date(year, month, day).toLocaleDateString(intlLocale(locale), { month: "long", day: "numeric" })}`
+                  : `${month + 1}月${day}日の記録`
+              }
               className={`relative min-h-11 text-sm rounded-lg transition-colors ${
                 isSelected
                   ? "bg-primary text-on-primary font-bold"
@@ -217,18 +234,18 @@ export default function SimpleCalendar() {
       <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-text-muted">
         <span className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-          セッション
+          {t("セッション", "Session")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-          脳波測定
+          {t("脳波測定", "Brainwave measurement")}
         </span>
         <span className="flex items-center gap-1.5">
           <span
             className="w-1.5 h-1.5 rounded-full"
             style={{ background: "var(--dyn-text-secondary)" }}
           />
-          振り返り（右上）
+          {t("振り返り（右上）", "Reflection (top right)")}
         </span>
       </div>
 
@@ -239,7 +256,9 @@ export default function SimpleCalendar() {
 
           {entries.length === 0 ? (
             // 記録が無い日でも振り返りは書ける（下に続く）ので、言い切らない。
-            <p className="text-sm text-text-secondary">この日の記録はありません</p>
+            <p className="text-sm text-text-secondary">
+              {t("この日の記録はありません", "No records for this day")}
+            </p>
           ) : (
             <ul className="flex flex-col gap-2">
               {entries.map((e) => {
@@ -256,7 +275,7 @@ export default function SimpleCalendar() {
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-2">
                         <span className="text-xs font-mono tabular-nums text-text-muted shrink-0">
-                          {hhmm(e.at)}
+                          {hhmm(e.at, locale)}
                         </span>
                         <span className="min-w-0 truncate text-base font-bold text-text-primary">
                           {e.title}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Copy, Check, Link2, Settings2, X } from "lucide-react";
 import { useMindStore } from "@/store/useMindStore";
 import { supabase } from "@/lib/supabase";
+import { useT } from "@/lib/i18n";
 
 /**
  * 接続設定（PCブリッジとのペアリング）。マインドマップの画面が設定パネルでは
@@ -15,6 +16,7 @@ import { supabase } from "@/lib/supabase";
  * 流れているかはボタンではなく <SourceStatusLine /> の一行が受け持つ。
  */
 export default function SourceDialog() {
+  const t = useT();
   const sourceKind = useMindStore((s) => s.sourceKind);
   const setSourceKind = useMindStore((s) => s.setSourceKind);
   const statusDetail = useMindStore((s) => s.statusDetail);
@@ -80,7 +82,7 @@ export default function SourceDialog() {
       >
         {realtime ? (
           <>
-            接続中
+            {t("接続中", "Connected")}
             <span
               className={`inline-block w-2.5 h-2.5 rounded-full ${
                 bridgeOnline ? "bg-success" : "bg-text-muted"
@@ -89,7 +91,7 @@ export default function SourceDialog() {
           </>
         ) : (
           <>
-            接続する
+            {t("接続する", "Connect")}
             <Link2 size={18} strokeWidth={2} />
           </>
         )}
@@ -100,17 +102,19 @@ export default function SourceDialog() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={() => setOpen(false)}
           role="button"
-          aria-label="閉じる"
+          aria-label={t("閉じる", "Close")}
         >
           <div
             className="w-full max-w-[420px] mx-4 bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-text-primary">接続設定</h2>
+              <h2 className="text-lg font-bold text-text-primary">
+                {t("接続設定", "Connection settings")}
+              </h2>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="閉じる"
+                aria-label={t("閉じる", "Close")}
                 className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
                 <X size={20} />
@@ -118,26 +122,31 @@ export default function SourceDialog() {
             </div>
 
             {!cloudConfigured ? (
-              <p className="text-base text-text-secondary">クラウド接続が未設定です</p>
+              <p className="text-base text-text-secondary">
+                {t("クラウド接続が未設定です", "Cloud connection isn't set up")}
+              </p>
             ) : (
               <div className="flex flex-col gap-3">
                 {/* Pairing code */}
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-sm text-text-secondary">ペアリングコード</p>
+                  <p className="text-sm text-text-secondary">{t("ペアリングコード", "Pairing code")}</p>
                   <div className="flex items-center gap-2">
                     <span className="flex-1 text-2xl font-bold font-mono tracking-widest text-text-primary tabular-nums">
                       {pairingCode || "————————"}
                     </span>
                     <button
                       onClick={copyCode}
-                      aria-label="コードをコピー"
+                      aria-label={t("コードをコピー", "Copy code")}
                       className="shrink-0 w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
                     >
                       {copied ? <Check size={20} className="text-success" /> : <Copy size={20} />}
                     </button>
                   </div>
                   <p className="text-sm text-text-secondary">
-                    PCのブリッジに同じコードを入力してください
+                    {t(
+                      "PCのブリッジに同じコードを入力してください",
+                      "Enter the same code in the bridge app on your PC"
+                    )}
                   </p>
                 </div>
 
@@ -149,7 +158,9 @@ export default function SourceDialog() {
                     }`}
                   />
                   <p className="text-base text-text-primary">
-                    ブリッジ：{bridgeOnline ? "オンライン" : "オフライン"}
+                    {bridgeOnline
+                      ? t("ブリッジ：オンライン", "Bridge: Online")
+                      : t("ブリッジ：オフライン", "Bridge: Offline")}
                   </p>
                 </div>
                 {statusDetail && <p className="text-sm text-text-secondary">{statusDetail}</p>}
@@ -165,7 +176,7 @@ export default function SourceDialog() {
                 onClick={() => setSourceKind("demo")}
                 className="min-h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
               >
-                デモデータに戻す
+                {t("デモデータに戻す", "Back to demo data")}
               </button>
             )}
           </div>
@@ -184,6 +195,7 @@ export default function SourceDialog() {
  * 色でも分かるようにしている。
  */
 export function SourceStatusLine() {
+  const t = useT();
   const sourceKind = useMindStore((s) => s.sourceKind);
   const realtime = sourceKind === "realtime";
 
@@ -194,7 +206,9 @@ export function SourceStatusLine() {
       }`}
     >
       <Settings2 size={16} strokeWidth={1.5} className="shrink-0" />
-      {realtime ? "リアルタイムデータを表示しています" : "デモデータを表示しています"}
+      {realtime
+        ? t("リアルタイムデータを表示しています", "Showing real-time data")
+        : t("デモデータを表示しています", "Showing demo data")}
     </p>
   );
 }

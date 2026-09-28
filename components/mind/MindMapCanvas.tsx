@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { EegSample, Quadrant } from "@/lib/mind/types";
 import { getQuadrant, gammaRatio, boostedPosition, QUADRANT_INFO } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
+import { translator, useLocale, type Locale } from "@/lib/i18n";
 
 interface MapParams {
   targetX: number; // 0-1, right = relaxed
@@ -119,6 +120,18 @@ export default function MindMapCanvas({
   // Signals the loop to wipe and rebuild the persistent trail layer.
   const trailLayerDirtyRef = useRef(false);
 
+  // Canvas text follows the display language without restarting the loop
+  // (a restart would re-center the dot). Labels are drawn per frame and read
+  // the ref; the axis captions are baked into the background layer, so a
+  // language switch flags that layer for a repaint.
+  const locale = useLocale();
+  const localeRef = useRef<Locale>(locale);
+  const backgroundDirtyRef = useRef(false);
+  useEffect(() => {
+    localeRef.current = locale;
+    backgroundDirtyRef.current = true;
+  }, [locale]);
+
   // Feed the latest sample into the animation loop without restarting it.
   // Position uses the gamma-boosted attention/meditation so a 40Hz-driven
   // gamma rise pulls the dot toward the Zone; the glow still tracks raw gamma.
@@ -209,13 +222,14 @@ export default function MindMapCanvas({
       bgCtx.stroke();
 
       // Axis captions along the center cross.
+      const tr = translator(localeRef.current);
       bgCtx.fillStyle = rgba(colors.textSecondary, 0.7);
       bgCtx.font = "12px sans-serif";
       bgCtx.textAlign = "right";
       bgCtx.textBaseline = "top";
-      bgCtx.fillText("リラックス →", cssW - 12, cssH / 2 + 6);
+      bgCtx.fillText(tr("リラックス →", "Relaxation →"), cssW - 12, cssH / 2 + 6);
       bgCtx.textAlign = "left";
-      bgCtx.fillText("↑ 集中", cssW / 2 + 6, 28);
+      bgCtx.fillText(tr("↑ 集中", "↑ Focus"), cssW / 2 + 6, 28);
     };
 
     /** One retained-trail segment, painted onto the persistent layer. Constant
@@ -308,7 +322,8 @@ export default function MindMapCanvas({
         ctx.textBaseline = c.alignY;
         const lx = c.x === 0 ? 12 : cssW - 12;
         const ly = c.y === 0 ? 12 : cssH - 12;
-        ctx.fillText(QUADRANT_INFO[c.quadrant].label, lx, ly);
+        const info = QUADRANT_INFO[c.quadrant];
+        ctx.fillText(localeRef.current === "en" ? info.labelEn : info.label, lx, ly);
 
         // Time share per quadrant while measuring / after 測定終了 — the
         // biggest share is highlighted so the dominant state reads at a glance.
@@ -343,6 +358,10 @@ export default function MindMapCanvas({
       if (trailLayerDirtyRef.current) {
         trailLayerDirtyRef.current = false;
         repaintTrailLayer();
+      }
+      if (backgroundDirtyRef.current) {
+        backgroundDirtyRef.current = false;
+        paintBackground();
       }
 
       const mode = modeRef.current;
@@ -383,7 +402,11 @@ export default function MindMapCanvas({
         ctx.font = "16px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.fillText("データ待機中…", cssW / 2, cssH / 2 + 18);
+        ctx.fillText(
+          translator(localeRef.current)("データ待機中…", "Waiting for data…"),
+          cssW / 2,
+          cssH / 2 + 18
+        );
         rafRef.current = requestAnimationFrame(frame);
         return;
       }

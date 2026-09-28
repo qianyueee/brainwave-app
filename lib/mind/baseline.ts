@@ -1,3 +1,4 @@
+import type { Locale } from "../i18n";
 import type { EegSample } from "./types";
 import { BAND_KEYS, POOR_SIGNAL_LIMIT, totalPower } from "./types";
 
@@ -358,7 +359,12 @@ export function computeBaselineScores(
 }
 
 /** 「開眼⇄閉眼テスト」/「静止時脳波の可塑性」— レコードと UI の表示名。 */
-export function rateMethodLabel(method: BaselineRateMethod): string {
+export function rateMethodLabel(method: BaselineRateMethod, locale: Locale = "ja"): string {
+  if (locale === "en") {
+    return method === "berger"
+      ? "Eyes open ⇄ closed test (Berger response)"
+      : "Resting brainwave flexibility (fluctuation)";
+  }
   return method === "berger"
     ? "開眼⇄閉眼テスト（Berger応答）"
     : "静止時脳波の可塑性（ゆらぎ）";

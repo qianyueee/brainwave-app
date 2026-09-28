@@ -9,6 +9,7 @@ import { getAdjustedProgram } from "@/lib/brain-profile";
 import { isCustomProgramId } from "@/lib/programs";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { formatTime } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { Play, Pause, Square, ListMusic } from "lucide-react";
 
 export default function PlaybackControls() {
@@ -22,6 +23,7 @@ export default function PlaybackControls() {
   const savedPrograms = useSynthStore((s) => s.savedPrograms);
   const publishedPrograms = usePublishedProgramsStore((s) => s.programs);
   const publishedLoading = usePublishedProgramsStore((s) => s.loading);
+  const t = useT();
 
   const isCustom = isCustomProgramId(programId);
   const program = isCustom ? undefined : getAdjustedProgram(programId, indicators);
@@ -67,13 +69,13 @@ export default function PlaybackControls() {
           <p className="text-4xl font-mono text-text-primary tabular-nums">
             {formatTime(timerDuration)}
           </p>
-          <p className="text-sm text-text-secondary mt-1">セッション時間</p>
+          <p className="text-sm text-text-secondary mt-1">{t("セッション時間", "Session length")}</p>
         </div>
         {isCustom && publishedLoading ? (
           // The published list is being fetched (player page triggers it) —
           // don't flash the dead-end link while the id may still resolve.
           <div className="min-h-14 flex items-center justify-center text-base text-text-secondary">
-            読み込み中…
+            {t("読み込み中…", "Loading…")}
           </div>
         ) : (
           <Link
@@ -81,7 +83,7 @@ export default function PlaybackControls() {
             className="min-h-14 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-raised neu-press transition-transform active:scale-95"
           >
             <ListMusic size={22} />
-            プログラムを選択
+            {t("プログラムを選択", "Choose a program")}
           </Link>
         )}
       </div>
@@ -96,7 +98,11 @@ export default function PlaybackControls() {
           {formatTime(remaining)}
         </p>
         <p className="text-sm text-text-secondary mt-1">
-          {isPlaying ? (isPaused ? "一時停止中" : "残り時間") : "セッション時間"}
+          {isPlaying
+            ? isPaused
+              ? t("一時停止中", "Paused")
+              : t("残り時間", "Time left")
+            : t("セッション時間", "Session length")}
         </p>
       </div>
 
@@ -106,7 +112,7 @@ export default function PlaybackControls() {
           onClick={handleStop}
           disabled={!isPlaying}
           className="w-14 h-14 rounded-full bg-navy flex items-center justify-center text-text-secondary disabled:opacity-30 transition-opacity active:scale-95 neu-raised-sm"
-          aria-label="停止"
+          aria-label={t("停止", "Stop")}
         >
           <Square size={20} fill="currentColor" />
         </button>
@@ -119,7 +125,9 @@ export default function PlaybackControls() {
               : "bg-primary text-on-primary"
           }`}
           style={{ "--breathe-delay": "0s" } as React.CSSProperties}
-          aria-label={isPlaying ? (isPaused ? "再開" : "一時停止") : "再生"}
+          aria-label={
+            isPlaying ? (isPaused ? t("再開", "Resume") : t("一時停止", "Pause")) : t("再生", "Play")
+          }
         >
           {isPlaying && !isPaused ? (
             <Pause size={32} fill="currentColor" strokeWidth={0} />

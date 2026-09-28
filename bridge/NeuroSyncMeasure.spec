@@ -59,6 +59,7 @@ hiddenimports += [
     "thinkgear",
     "desktop_config",
     "desktop_bridge",
+    "desktop_i18n",
     "local_server",
     "static_server",
     "serial.tools.list_ports",

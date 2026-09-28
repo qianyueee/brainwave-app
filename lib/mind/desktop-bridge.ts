@@ -28,6 +28,8 @@ export interface DesktopBridgeState {
     port: string;
     /** シリアル再試行ループの直近の理由（日本語1行）。UI にそのまま出す。 */
     detail: string;
+    /** detail の英語版（英語の画面用。知らない文言は日本語のまま届く。古い測定アプリは送らない）。 */
+    detailEn?: string;
   };
   ports: DesktopPortInfo[];
   cloud: { enabled: boolean; connected: boolean; code: string };
@@ -99,6 +101,8 @@ function connect(): void {
       state?: DesktopBridgeState;
       sample?: unknown;
       msg?: string;
+      /** log の英語版（古い測定アプリは送らない）。 */
+      msgEn?: string;
     } & DesktopAuthCallback;
     if (m.type === "state" && m.state) {
       useDesktopBridgeStore.getState().setBridgeState(m.state);
@@ -106,7 +110,9 @@ function connect(): void {
       for (const fn of sampleListeners) fn(m.sample);
     } else if (m.type === "log" && typeof m.msg === "string") {
       console.info("[desktop-bridge]", m.msg);
-      useDesktopBridgeStore.getState().setLastLog(m.msg);
+      // 英語が無ければ日本語のまま出す（情報は落とさない）。空のログは行を消す（従来どおり）。
+      const en = typeof m.msgEn === "string" && m.msgEn ? m.msgEn : m.msg;
+      useDesktopBridgeStore.getState().setLastLog(m.msg ? { ja: m.msg, en } : null);
     } else if (m.type === "auth_callback") {
       const ev: DesktopAuthCallback = {
         code: typeof m.code === "string" ? m.code : undefined,

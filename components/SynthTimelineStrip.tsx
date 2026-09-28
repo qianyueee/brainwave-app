@@ -4,6 +4,7 @@ import { useSynthStore } from "@/store/useSynthStore";
 import { useAudio } from "@/components/AudioProvider";
 import { formatTime } from "@/lib/utils";
 import { Plus, ChevronUp, ChevronDown, Trash2 } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 function Stepper({
   label,
@@ -22,6 +23,7 @@ function Stepper({
   decimals?: number;
   onChange: (v: number) => void;
 }) {
+  const t = useT();
   const factor = 10 ** decimals;
   const round = (v: number) => (decimals > 0 ? Math.round(v * factor) / factor : Math.round(v));
   return (
@@ -30,7 +32,7 @@ function Stepper({
       <button
         onClick={() => onChange(round(value - step))}
         className="w-11 h-11 shrink-0 rounded-xl bg-navy text-text-primary text-xl font-bold active:scale-95 neu-raised-sm"
-        aria-label="減らす"
+        aria-label={t("減らす", "Decrease")}
       >
         −
       </button>
@@ -48,7 +50,7 @@ function Stepper({
       <button
         onClick={() => onChange(round(value + step))}
         className="w-11 h-11 shrink-0 rounded-xl bg-navy text-text-primary text-xl font-bold active:scale-95 neu-raised-sm"
-        aria-label="増やす"
+        aria-label={t("増やす", "Increase")}
       >
         ＋
       </button>
@@ -74,6 +76,7 @@ export default function SynthTimelineStrip() {
   const setSegmentCrossfade = useSynthStore((s) => s.setSegmentCrossfade);
   const setSegmentName = useSynthStore((s) => s.setSegmentName);
   const { stopSynth, stopCustomProgram } = useAudio();
+  const t = useT();
 
   const total = segments.reduce((sum, s) => sum + Math.max(1, s.durationSec), 0);
 
@@ -91,9 +94,12 @@ export default function SynthTimelineStrip() {
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-3 neu-raised">
       <div className="flex items-center justify-between">
-        <p className="text-base text-text-primary font-bold">タイムライン</p>
+        <p className="text-base text-text-primary font-bold">{t("タイムライン", "Timeline")}</p>
         <p className="text-xs text-text-muted tabular-nums">
-          合計 {formatTime(total)}（{segments.length}区間）
+          {t(
+            `合計 ${formatTime(total)}（${segments.length}区間）`,
+            `Total ${formatTime(total)} (${segments.length} ${segments.length === 1 ? "segment" : "segments"})`,
+          )}
         </p>
       </div>
 
@@ -121,7 +127,7 @@ export default function SynthTimelineStrip() {
                   {i + 1}
                 </span>
                 <span className="flex-1 text-base text-text-primary font-medium truncate">
-                  {seg.name || `セグメント ${i + 1}`}
+                  {seg.name || t(`セグメント ${i + 1}`, `Segment ${i + 1}`)}
                 </span>
                 <span className="text-sm text-text-secondary tabular-nums shrink-0">
                   {formatTime(Math.max(1, seg.durationSec))}
@@ -134,24 +140,27 @@ export default function SynthTimelineStrip() {
                     type="text"
                     value={seg.name ?? ""}
                     onChange={(e) => setSegmentName(i, e.target.value)}
-                    placeholder={`セグメント ${i + 1}`}
+                    placeholder={t(`セグメント ${i + 1}`, `Segment ${i + 1}`)}
                     maxLength={20}
                     className="w-full bg-navy rounded-xl px-3 py-2.5 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-primary"
                   />
 
                   <Stepper
-                    label="長さ"
+                    label={t("長さ", "Length")}
                     value={seg.durationSec}
-                    suffix={`秒 / ${formatTime(Math.max(1, seg.durationSec))}`}
+                    suffix={t(
+                      `秒 / ${formatTime(Math.max(1, seg.durationSec))}`,
+                      `sec / ${formatTime(Math.max(1, seg.durationSec))}`,
+                    )}
                     step={5}
                     min={1}
                     onChange={(v) => setSegmentDuration(i, v)}
                   />
 
                   <Stepper
-                    label={i === 0 ? "フェードイン" : "クロスフェード"}
+                    label={i === 0 ? t("フェードイン", "Fade in") : t("クロスフェード", "Crossfade")}
                     value={seg.crossfadeSec}
-                    suffix="秒"
+                    suffix={t("秒", "sec")}
                     step={0.5}
                     min={0}
                     decimals={1}
@@ -166,7 +175,7 @@ export default function SynthTimelineStrip() {
                       }}
                       disabled={i === 0}
                       className="flex-1 min-h-[48px] rounded-xl bg-navy text-text-secondary disabled:opacity-30 active:scale-95 neu-raised-sm flex items-center justify-center"
-                      aria-label="上へ移動"
+                      aria-label={t("上へ移動", "Move up")}
                     >
                       <ChevronUp size={20} />
                     </button>
@@ -177,7 +186,7 @@ export default function SynthTimelineStrip() {
                       }}
                       disabled={i === segments.length - 1}
                       className="flex-1 min-h-[48px] rounded-xl bg-navy text-text-secondary disabled:opacity-30 active:scale-95 neu-raised-sm flex items-center justify-center"
-                      aria-label="下へ移動"
+                      aria-label={t("下へ移動", "Move down")}
                     >
                       <ChevronDown size={20} />
                     </button>
@@ -188,7 +197,7 @@ export default function SynthTimelineStrip() {
                       }}
                       disabled={segments.length <= 1}
                       className="flex-1 min-h-[48px] rounded-xl bg-navy text-danger disabled:opacity-30 active:scale-95 neu-raised-sm flex items-center justify-center"
-                      aria-label="削除"
+                      aria-label={t("削除", "Delete")}
                     >
                       <Trash2 size={20} />
                     </button>
@@ -205,7 +214,7 @@ export default function SynthTimelineStrip() {
         className="w-full min-h-[48px] rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
       >
         <Plus size={18} strokeWidth={2} />
-        セグメントを追加
+        {t("セグメントを追加", "Add segment")}
       </button>
     </div>
   );

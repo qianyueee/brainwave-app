@@ -6,6 +6,8 @@
  * 求めた星座 index（0 = 牡羊座）がそのまま添字になる。
  */
 
+import type { Locale } from "./i18n";
+
 export const ZODIAC_KEYS = [
   "aries",
   "taurus",
@@ -37,26 +39,38 @@ export interface ZodiacSign {
   programName: string;
   /** 主な期待効果 */
   description: string;
+  /** 主な期待効果（英語の画面） */
+  descriptionEn: string;
 }
 
 export const ZODIAC_SIGNS: readonly ZodiacSign[] = [
-  { key: "aries", nameJa: "牡羊座", glyph: "♈", carrierFreq: 285, targetBeatFreq: 40, programName: "285Hz × 40Hz Gamma Activation", description: "勇気・行動力の活性化、ひらめき・直感の可視化" },
-  { key: "taurus", nameJa: "牡牛座", glyph: "♉", carrierFreq: 432, targetBeatFreq: 7.83, programName: "432Hz × 7.83Hz Earth Grounding", description: "五感の充足、地球共鳴によるディープリラックス" },
-  { key: "gemini", nameJa: "双子座", glyph: "♊", carrierFreq: 528, targetBeatFreq: 12, programName: "528Hz × 12Hz Clear Mind Flow", description: "思考の柔軟性向上、変容、情報過多脳のリフレッシュ" },
-  { key: "cancer", nameJa: "蟹座", glyph: "♋", carrierFreq: 417, targetBeatFreq: 6, programName: "417Hz × 6Hz Emotion & Inner Calm", description: "感情の解放、深い安心感と入定誘導" },
-  { key: "leo", nameJa: "獅子座", glyph: "♌", carrierFreq: 639, targetBeatFreq: 15, programName: "639Hz × 15Hz Solar Confidence", description: "人間関係の調和、自信・モチベーションの向上" },
-  { key: "virgo", nameJa: "乙女座", glyph: "♍", carrierFreq: 741, targetBeatFreq: 10, programName: "741Hz × 10Hz Pure Balance", description: "脳内デトックス、自律神経の精密調整" },
-  { key: "libra", nameJa: "天秤座", glyph: "♎", carrierFreq: 852, targetBeatFreq: 8, programName: "852Hz × 8Hz Harmony Shift", description: "直感力の覚醒、左右脳バランスの整律" },
-  { key: "scorpio", nameJa: "蠍座", glyph: "♏", carrierFreq: 211.44, targetBeatFreq: 4, programName: "211Hz × 4Hz Deep Rebirth", description: "深層心理の変容、潜在意識レベルの疲労リセット" },
-  { key: "sagittarius", nameJa: "射手座", glyph: "♐", carrierFreq: 396, targetBeatFreq: 20, programName: "396Hz × 20Hz Vision & Freedom", description: "恐怖やブロックからの解放、探求心・インスピレーション" },
-  { key: "capricorn", nameJa: "山羊座", glyph: "♑", carrierFreq: 141.27, targetBeatFreq: 14, programName: "141Hz × 14Hz Calm Focus", description: "構造的思考、ゾーン状態をつくる静かな集中力" },
-  { key: "aquarius", nameJa: "水瓶座", glyph: "♒", carrierFreq: 963, targetBeatFreq: 40, programName: "963Hz × 40Hz Breakthrough Gamma", description: "宇宙意識・独創性、アハ体験（ひらめき）の誘発" },
-  { key: "pisces", nameJa: "魚座", glyph: "♓", carrierFreq: 174, targetBeatFreq: 2, programName: "174Hz × 2Hz Ultimate Healing", description: "精神的統合・ノイズ遮断、極上の休眠・リカバリー" },
+  { key: "aries", nameJa: "牡羊座", glyph: "♈", carrierFreq: 285, targetBeatFreq: 40, programName: "285Hz × 40Hz Gamma Activation", description: "勇気・行動力の活性化、ひらめき・直感の可視化", descriptionEn: "Sparks courage and drive, and brings flashes of intuition into view" },
+  { key: "taurus", nameJa: "牡牛座", glyph: "♉", carrierFreq: 432, targetBeatFreq: 7.83, programName: "432Hz × 7.83Hz Earth Grounding", description: "五感の充足、地球共鳴によるディープリラックス", descriptionEn: "Satisfies the five senses; deep relaxation in tune with the Earth" },
+  { key: "gemini", nameJa: "双子座", glyph: "♊", carrierFreq: 528, targetBeatFreq: 12, programName: "528Hz × 12Hz Clear Mind Flow", description: "思考の柔軟性向上、変容、情報過多脳のリフレッシュ", descriptionEn: "More flexible thinking and change; refreshes a mind overloaded with information" },
+  { key: "cancer", nameJa: "蟹座", glyph: "♋", carrierFreq: 417, targetBeatFreq: 6, programName: "417Hz × 6Hz Emotion & Inner Calm", description: "感情の解放、深い安心感と入定誘導", descriptionEn: "Releases emotions and guides you into deep calm and stillness" },
+  { key: "leo", nameJa: "獅子座", glyph: "♌", carrierFreq: 639, targetBeatFreq: 15, programName: "639Hz × 15Hz Solar Confidence", description: "人間関係の調和、自信・モチベーションの向上", descriptionEn: "Harmony with others; lifts confidence and motivation" },
+  { key: "virgo", nameJa: "乙女座", glyph: "♍", carrierFreq: 741, targetBeatFreq: 10, programName: "741Hz × 10Hz Pure Balance", description: "脳内デトックス、自律神経の精密調整", descriptionEn: "A mental detox that fine-tunes the autonomic nervous system" },
+  { key: "libra", nameJa: "天秤座", glyph: "♎", carrierFreq: 852, targetBeatFreq: 8, programName: "852Hz × 8Hz Harmony Shift", description: "直感力の覚醒、左右脳バランスの整律", descriptionEn: "Awakens intuition and balances the left and right brain" },
+  { key: "scorpio", nameJa: "蠍座", glyph: "♏", carrierFreq: 211.44, targetBeatFreq: 4, programName: "211Hz × 4Hz Deep Rebirth", description: "深層心理の変容、潜在意識レベルの疲労リセット", descriptionEn: "Transformation deep within; resets fatigue at the subconscious level" },
+  { key: "sagittarius", nameJa: "射手座", glyph: "♐", carrierFreq: 396, targetBeatFreq: 20, programName: "396Hz × 20Hz Vision & Freedom", description: "恐怖やブロックからの解放、探求心・インスピレーション", descriptionEn: "Freedom from fears and blocks; curiosity and inspiration" },
+  { key: "capricorn", nameJa: "山羊座", glyph: "♑", carrierFreq: 141.27, targetBeatFreq: 14, programName: "141Hz × 14Hz Calm Focus", description: "構造的思考、ゾーン状態をつくる静かな集中力", descriptionEn: "Structured thinking; the quiet focus that gets you into the zone" },
+  { key: "aquarius", nameJa: "水瓶座", glyph: "♒", carrierFreq: 963, targetBeatFreq: 40, programName: "963Hz × 40Hz Breakthrough Gamma", description: "宇宙意識・独創性、アハ体験（ひらめき）の誘発", descriptionEn: "Cosmic awareness and originality; invites “aha” moments" },
+  { key: "pisces", nameJa: "魚座", glyph: "♓", carrierFreq: 174, targetBeatFreq: 2, programName: "174Hz × 2Hz Ultimate Healing", description: "精神的統合・ノイズ遮断、極上の休眠・リカバリー", descriptionEn: "Inner integration and quiet from the noise; the deepest rest and recovery" },
 ];
 
 /** 英語名（Pisces など）— key の頭文字を大文字化したもの。 */
 export function zodiacNameEn(key: ZodiacKey): string {
   return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+/** 画面に出す星座名（牡羊座 / Aries）。 */
+export function zodiacName(sign: ZodiacSign, locale: Locale): string {
+  return locale === "en" ? zodiacNameEn(sign.key) : sign.nameJa;
+}
+
+/** 星座の主な期待効果。 */
+export function zodiacDescription(sign: ZodiacSign, locale: Locale): string {
+  return locale === "en" ? sign.descriptionEn : sign.description;
 }
 
 // ── モジュール合成型の毎日判定（仕様 §3〜§6） ──
@@ -79,6 +93,9 @@ const ELEMENT_JA = [
   { name: "水", verb: "深まる" },
 ] as const;
 
+/** エレメントの英語名（ELEMENT_JA と同じ並び：火→地→風→水）。 */
+const ELEMENT_EN = ["Fire", "Earth", "Air", "Water"] as const;
+
 const elementOf = (signIndex: number) => signIndex % 4;
 
 type ElementRelation = "same" | "harmony" | "tension";
@@ -95,6 +112,17 @@ export const TAG_LABEL: Record<CosmicTag, string> = {
   healing: "深層回復",
 };
 
+export const TAG_LABEL_EN: Record<CosmicTag, string> = {
+  activation: "Energize & Awaken",
+  flow: "Thinking & Flow",
+  balance: "Rebalance & Center",
+  healing: "Deep Recovery",
+};
+
+export function tagLabel(tag: CosmicTag, locale: Locale): string {
+  return (locale === "en" ? TAG_LABEL_EN : TAG_LABEL)[tag];
+}
+
 /** ビート周波数ごとの表示名（既存12プログラムの命名体系を踏襲）と狙い。 */
 export const BEAT_TITLE: Record<string, string> = {
   "40": "Gamma Activation",
@@ -107,6 +135,23 @@ export const BEAT_TITLE: Record<string, string> = {
   "4": "Deep Rebirth",
   "2": "Ultimate Healing",
 };
+
+export const BEAT_EFFECT_EN: Record<string, string> = {
+  "40": "Being in the zone, “aha” moments, intuition coming together",
+  "20": "Switches on motivation and positive focus",
+  "12": "Multitasking, sorting information, faster thinking",
+  "10": "Relaxed focus and a steady nervous system",
+  "14": "Resists distraction: a steady center and quiet focus",
+  "7.83": "Grounding; resets your sense of the body",
+  "6": "Emotional release, drowsiness, deep stillness",
+  "4": "Cleanses fatigue from the subconscious",
+  "2": "Full recovery at the unconscious level; ultra-deep rest",
+};
+
+/** ビートの狙い（BEAT_EFFECT / BEAT_EFFECT_EN）。 */
+export function beatEffect(beatKey: string, locale: Locale): string | undefined {
+  return (locale === "en" ? BEAT_EFFECT_EN : BEAT_EFFECT)[beatKey];
+}
 
 export const BEAT_EFFECT: Record<string, string> = {
   "40": "ゾーン状態、アハ体験、直感統合",
@@ -199,6 +244,82 @@ const MESSAGES: Record<ZodiacKey, Record<CosmicTag, string>> = {
   },
 };
 
+/** MESSAGES の英語版（英語の画面の「今日の一言」）。 */
+const MESSAGES_EN: Record<ZodiacKey, Record<CosmicTag, string>> = {
+  aries: {
+    activation: "Fire energy is at its peak. Your intuition and decisiveness are sharp, and you're ready to slip into the zone in an instant.",
+    flow: "A pleasant breeze is fanning your passion. Your mind is clear enough to turn ideas into reality quickly.",
+    balance: "Outside stimulation is overheating your brain a little. Quietly settle the passion inside and find your center again.",
+    healing: "Today is for calming the waves of emotion and letting rest reach deep into body and mind. Quietly recharge your drive for tomorrow.",
+  },
+  taurus: {
+    activation: "A steady day, deeply in tune with the Earth's heartbeat. Your senses are sharpened, bringing calm and unwavering decisions.",
+    flow: "A rich, gentle wave of feeling wraps around your heart. In that sense of safety, tiredness in body and mind naturally unwinds.",
+    balance: "The world around you may feel fast today. Keep to your own comfortable rhythm and stay firmly centered.",
+    healing: "It's time to reconnect with your body and do a deep reset. Let your senses rest in soothing sound.",
+  },
+  gemini: {
+    activation: "Your ability to process information and your flashes of insight are at their peak. You can sort out even complex tasks with ease and start a fresh flow.",
+    flow: "Passionate energy and a nimble mind are working together. Ideas take shape one after another and lead straight to action.",
+    balance: "Too much information can scatter your mind today. Use the power of sound to fully reset your thoughts.",
+    healing: "A healing day for pausing all the messages and resting in quiet. Switch off your thoughts and give your mind a clean sweep.",
+  },
+  cancer: {
+    activation: "A sense of inner safety fills you, and body and mind brim with energy. Trust your intuition: today you can change your surroundings for the better.",
+    flow: "Inner reassurance connects with real action. A day to move forward steadily while warmly supporting those around you.",
+    balance: "Sudden changes around you may unsettle your heart today. Use deep beats to bring your attention back inside.",
+    healing: "A gentle stillness spreads deep in your heart. An ideal day to release pent-up feelings and fill yourself with a sense of safety.",
+  },
+  leo: {
+    activation: "You're full of bright, sunny energy. Your self-belief grows and you can perform at your very best.",
+    flow: "A day of pleasant resonance with those around you. Confident self-expression and a flexible mind blend beautifully.",
+    balance: "It's time to step back a little from the noise around you. Regain your pride through a quiet talk with yourself.",
+    healing: "Ease the built-up tension and fill your mind with warm reassurance. Take time to be kind to yourself.",
+  },
+  virgo: {
+    activation: "Your powers of analysis and organization are crisp and clear. You can completely clear out the small noise in your mind.",
+    flow: "Thoughts and feelings are working together gently. Your nervous system is in balance, so your care for detail and your focus last.",
+    balance: "Overthinking can tire your brain today. Make time on purpose to let your nervous system rest.",
+    healing: "A day to let go of the details for a while and reset your mind to a clean slate. Care for your nerves with deep rest.",
+  },
+  libra: {
+    activation: "A day when your left and right brainwaves are in beautiful harmony. A refined sense of beauty and fair, reliable intuition awaken.",
+    flow: "A pleasant tailwind supports your relationships and self-expression. Extra tension falls away, and your own brightness shines through.",
+    balance: "Other people's feelings and the discord around you may affect you easily today. Quietly restore your inner boundaries.",
+    healing: "A session to reset the balance between inside and out and recover your natural harmony. Rest, wrapped in gentle sound.",
+  },
+  scorpio: {
+    activation: "A day of remarkable insight and focus. You'll see to the heart of things and find the power to break through challenges.",
+    flow: "Inner focus and practical follow-through come together. With steady resolve, you can push straight toward your goals.",
+    balance: "Emotions run strong, and you may tend to keep things to yourself. Let deep, rich low tones settle your heart and help you recover.",
+    healing: "A day of renewal when you can reach deep into the subconscious. Burn away deep-rooted mental fatigue and stress, and start afresh.",
+  },
+  sagittarius: {
+    activation: "Your curiosity and sense of freedom stretch out without limit. Powerful inspiration arrives to break through mental blocks.",
+    flow: "A light, easy flow of information speeds up your thinking. You're in good shape for sharp insight into new subjects.",
+    balance: "Your thoughts may scatter easily today. Narrow your focus to one thing and ground yourself.",
+    healing: "A day to free nerves worn out from constant running. Rest your mind in stillness and rebalance body and mind.",
+  },
+  capricorn: {
+    activation: "A day when it's easy to enter a solid, steady zone of focus. You can build results on long-term goals without wavering.",
+    flow: "Quiet passion and practical thinking are in harmony. You can move ahead steadily while deepening trust with those around you.",
+    balance: "Tension may have kept your body tight for a while. Drop your shoulders and breathe deeply.",
+    healing: "Time to put down the weight on your shoulders and rest deeply, right to your core. Recharge your steady energy.",
+  },
+  aquarius: {
+    activation: "Your higher intuition is rising. Original ideas and “aha” moments beyond the usual limits will come to you.",
+    flow: "A day when future-minded passion wells up. You can share your ideas with others confidently.",
+    balance: "Your nerves may be on edge today. Let vast, spacious sound calm your brainwaves and re-center your thinking.",
+    healing: "Time to cut out all the noise in your mind and clear the subconscious. Deep rest restores your creative sensitivity.",
+  },
+  pisces: {
+    activation: "A day overflowing with intuition and rich imagery. You can turn that flood of passion into creative expression and inspiration.",
+    flow: "Rich images and intuition take firm root as a real sense of security. A time to feel fulfilled in body and mind.",
+    balance: "There's a lot of outside stimulation, and you may feel mentally tired today. Switch everything off and sink into stillness.",
+    healing: "Outside noise and boundaries gently melt away. A supreme healing state that brings deep rest and inner harmony.",
+  },
+};
+
 export interface DailyRecommendation {
   /** null = 天体未計算（フォールバック中） */
   tag: CosmicTag | null;
@@ -217,13 +338,17 @@ export interface DailyRecommendation {
  * その日の天体配置 × ユーザーの星座 × 時刻コンテキスト → タグ・誘導ビート・
  * モジュール版プログラム（§5 マトリクス）。キャリアは常に自星座なので、
  * どの星座を選んでも音色は変わり、ビートだけが天体と時間帯で日替わりする。
+ * 文言（tagLabel・reason・advice）は locale の言語で返す。選ぶ節目は言語に
+ * よらず同じ。
  */
 export function dailyRecommendation(
   sky: TodaySky | null,
   sign: ZodiacSign,
-  now: Date = new Date()
+  now: Date = new Date(),
+  locale: Locale = "ja"
 ): DailyRecommendation {
   const userIndex = ZODIAC_KEYS.indexOf(sign.key);
+  const en = locale === "en";
 
   if (!sky) {
     return {
@@ -232,7 +357,9 @@ export function dailyRecommendation(
       programId: zodiacProgramId(sign.key),
       beatFreq: sign.targetBeatFreq,
       reason: null,
-      advice: `${sign.nameJa}のあなたには星と脳波を共鳴させるサウンドが適します。`,
+      advice: en
+        ? `${zodiacNameEn(sign.key)}: sounds that bring your brainwaves into tune with the stars suit you well.`
+        : `${sign.nameJa}のあなたには星と脳波を共鳴させるサウンドが適します。`,
     };
   }
 
@@ -254,21 +381,31 @@ export function dailyRecommendation(
     tag = "healing";
     if (sky.moonIndex === 11) {
       beat = 2; // 月が魚座 → デルタ波・超休眠
-      reason = "月が魚座に滞在する、無意識領域まで届く超回復日のため";
+      reason = en
+        ? "The Moon is in Pisces: a day of deep recovery that reaches the unconscious"
+        : "月が魚座に滞在する、無意識領域まで届く超回復日のため";
     } else if (isLateNight) {
       beat = 4; // 深夜 → ローシータ
-      reason = "月が「水」のエレメントに滞在する深夜、潜在意識のクレンジングに";
+      reason = en
+        ? "Late at night with the Moon in a Water sign: a good time to cleanse the subconscious"
+        : "月が「水」のエレメントに滞在する深夜、潜在意識のクレンジングに";
     } else {
       beat = 6; // 夕方〜夜（および日中の既定）→ シータ
-      reason = "月が「水」のエレメントに滞在し、感情をほどくのに良い時間のため";
+      reason = en
+        ? "The Moon is in a Water sign: a good time to let your feelings loosen"
+        : "月が「水」のエレメントに滞在し、感情をほどくのに良い時間のため";
     }
   } else if (relationOf(userEl, sunEl) === "same" || relationOf(userEl, moonEl) === "same") {
     tag = "activation";
     const sunTrigger = relationOf(userEl, sunEl) === "same";
     beat = sunTrigger ? 40 : 20; // 太陽起因=ガンマ / 月起因=ハイベータ
-    reason = sunTrigger
-      ? `今日の太陽があなたと同じ「${ELEMENT_JA[userEl].name}」の属性にあるため（意識的活力）`
-      : `今日の月があなたと同じ「${ELEMENT_JA[userEl].name}」の属性にあるため（内面的モチベーション）`;
+    reason = en
+      ? sunTrigger
+        ? `Today's Sun shares your ${ELEMENT_EN[userEl]} element (conscious energy)`
+        : `Today's Moon shares your ${ELEMENT_EN[userEl]} element (inner motivation)`
+      : sunTrigger
+        ? `今日の太陽があなたと同じ「${ELEMENT_JA[userEl].name}」の属性にあるため（意識的活力）`
+        : `今日の月があなたと同じ「${ELEMENT_JA[userEl].name}」の属性にあるため（内面的モチベーション）`;
   } else if (
     relationOf(userEl, sunEl) === "harmony" ||
     relationOf(userEl, moonEl) === "harmony"
@@ -276,28 +413,37 @@ export function dailyRecommendation(
     tag = "flow";
     const sunTrigger = relationOf(userEl, sunEl) === "harmony";
     beat = sunTrigger ? 12 : 10; // 太陽起因=ハイアルファ / 月起因=ミッドアルファ
-    const el = ELEMENT_JA[sunTrigger ? sunEl : moonEl].name;
-    reason = sunTrigger
-      ? `今日の太陽があなたと調和する「${el}」のエレメントにあるため（思考加速）`
-      : `今日の月があなたと調和する「${el}」のエレメントにあるため（感情安定）`;
+    const elIndex = sunTrigger ? sunEl : moonEl;
+    const el = ELEMENT_JA[elIndex].name;
+    reason = en
+      ? sunTrigger
+        ? `Today's Sun is in ${ELEMENT_EN[elIndex]}, an element in harmony with yours (faster thinking)`
+        : `Today's Moon is in ${ELEMENT_EN[elIndex]}, an element in harmony with yours (emotional calm)`
+      : sunTrigger
+        ? `今日の太陽があなたと調和する「${el}」のエレメントにあるため（思考加速）`
+        : `今日の月があなたと調和する「${el}」のエレメントにあるため（感情安定）`;
   } else {
     tag = "balance";
     if (isWeekend || isNight) {
       beat = 7.83; // 休日・夜間 → シューマン共振
-      reason = "緊張関係の星回り。休日・夜間はグラウンディングで身体感覚をリセット";
+      reason = en
+        ? "A tense alignment. On days off and at night, ground yourself and reset your body"
+        : "緊張関係の星回り。休日・夜間はグラウンディングで身体感覚をリセット";
     } else {
       beat = 14; // 平日の仕事モード → SMR
-      reason = "緊張関係の星回り。平日の仕事モードには雑音に負けない静かな集中を";
+      reason = en
+        ? "A tense alignment. For weekday work, a quiet focus that holds up against distraction"
+        : "緊張関係の星回り。平日の仕事モードには雑音に負けない静かな集中を";
     }
   }
 
   return {
     tag,
-    tagLabel: TAG_LABEL[tag],
+    tagLabel: tagLabel(tag, locale),
     programId: modularProgramId(sign.key, beat),
     beatFreq: beat,
     reason,
-    advice: MESSAGES[sign.key][tag],
+    advice: (en ? MESSAGES_EN : MESSAGES)[sign.key][tag],
   };
 }
 

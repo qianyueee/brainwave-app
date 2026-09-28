@@ -8,6 +8,8 @@
  * ——調子はカレンダー上で一目で追える印になり、文章がその理由を持つ。
  */
 
+import type { LocalizedText } from "./i18n";
+
 /** 自由記述の上限。カレンダーの明細に収まる長さ。 */
 export const JOURNAL_TEXT_MAX = 500;
 
@@ -15,7 +17,8 @@ export interface MoodStep {
   /** 1（わるい）〜5（よい）。 */
   value: number;
   emoji: string;
-  label: string;
+  /** 描画時に t(label) で選ぶ。 */
+  label: LocalizedText;
 }
 
 /**
@@ -24,11 +27,11 @@ export interface MoodStep {
  * 描き分けが読み取りにくいことがあるので、必ず言葉を添える。
  */
 export const MOOD_SCALE: readonly MoodStep[] = [
-  { value: 1, emoji: "😞", label: "つらい" },
-  { value: 2, emoji: "😐", label: "いまひとつ" },
-  { value: 3, emoji: "🙂", label: "ふつう" },
-  { value: 4, emoji: "😊", label: "よい" },
-  { value: 5, emoji: "🤩", label: "とても良い" },
+  { value: 1, emoji: "😞", label: { ja: "つらい", en: "Hard" } },
+  { value: 2, emoji: "😐", label: { ja: "いまひとつ", en: "Not great" } },
+  { value: 3, emoji: "🙂", label: { ja: "ふつう", en: "Okay" } },
+  { value: 4, emoji: "😊", label: { ja: "よい", en: "Good" } },
+  { value: 5, emoji: "🤩", label: { ja: "とても良い", en: "Very good" } },
 ] as const;
 
 export function moodStep(value: number | null | undefined): MoodStep | null {

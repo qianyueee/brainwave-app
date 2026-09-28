@@ -4,6 +4,7 @@ import type { CustomProgram } from "@/lib/programs";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { usePlayProgram } from "@/components/usePlayProgram";
+import { useT } from "@/lib/i18n";
 import { Waves, X } from "lucide-react";
 
 interface PublishedProgramCardProps {
@@ -23,6 +24,7 @@ export default function PublishedProgramCard({
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const unpublishProgram = usePublishedProgramsStore((s) => s.unpublishProgram);
   const loading = usePublishedProgramsStore((s) => s.loading);
+  const t = useT();
 
   const handleClick = () => playProgram(program);
 
@@ -53,9 +55,11 @@ export default function PublishedProgramCard({
           {program.description}
         </p>
         <div className="mt-1 flex items-center gap-2 flex-wrap">
-          <p className="text-xs text-text-muted">{displayMinutes}分</p>
+          <p className="text-xs text-text-muted">
+            {t(`${displayMinutes}分`, `${displayMinutes} min`)}
+          </p>
           <span className="text-xs font-bold text-success bg-success/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-            公開済み
+            {t("公開済み", "Published")}
           </span>
         </div>
       </div>
@@ -64,7 +68,7 @@ export default function PublishedProgramCard({
           onClick={handleUnpublish}
           disabled={loading}
           className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-danger active:scale-95 shrink-0 disabled:opacity-50"
-          aria-label="取り下げ"
+          aria-label={t("取り下げ", "Unpublish")}
         >
           <X size={16} strokeWidth={2} />
         </button>

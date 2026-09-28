@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { LocalizedText } from "@/lib/i18n";
 
 /**
  * デスクトップ測定アプリの Google ログインの進み具合（永続しない）。
@@ -15,10 +16,11 @@ interface DesktopLoginState {
   /** 開いたログインページ（ブラウザが開かなかったとき手で開くリンク用）。 */
   url: string | null;
   startedAt: number | null;
-  message: string | null;
+  /** 失敗の案内。両方の言語で持ち、表示言語は AuthModal が描画時に選ぶ。 */
+  message: LocalizedText | null;
   setWaiting: (url: string) => void;
   setExchanging: () => void;
-  setError: (message: string) => void;
+  setError: (message: LocalizedText) => void;
   reset: () => void;
 }
 

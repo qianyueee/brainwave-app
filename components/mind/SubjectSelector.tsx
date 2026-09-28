@@ -8,6 +8,8 @@ import {
   SUBJECT_NAME_MAX,
 } from "@/store/useSubjectStore";
 import { useMindStore } from "@/store/useMindStore";
+import { subjectDisplayName } from "@/lib/subject-groups";
+import { useLocale, useT } from "@/lib/i18n";
 
 const subscribeNoop = () => () => {};
 
@@ -20,6 +22,8 @@ const subscribeNoop = () => () => {};
  * is already underway would silently attribute someone else's data.
  */
 export default function SubjectSelector() {
+  const t = useT();
+  const locale = useLocale();
   const subjects = useSubjectStore((s) => s.subjects);
   const current = useSubjectStore(activeSubject);
   const ensureDefaultSubject = useSubjectStore((s) => s.ensureDefaultSubject);
@@ -58,6 +62,11 @@ export default function SubjectSelector() {
     };
   }, [open]);
 
+  // 保存されている名前（既定の「自分」など）は書き換えず、表示だけ訳す。
+  const currentName = current
+    ? subjectDisplayName(current.name, locale)
+    : t("未選択", "Not selected");
+
   const handleAdd = () => {
     const created = addSubject(draft);
     // null also comes back when the name already exists — that one is selected
@@ -71,15 +80,18 @@ export default function SubjectSelector() {
           ぶん、マインドマップが最初の画面に入る。ラベルは外に出し、押せる
           のは名前のチップだけ——タップ範囲と表示が一致する。 */}
       <div className="flex items-center gap-2 min-w-0">
-        <span className="shrink-0 text-sm text-text-secondary">測定者：</span>
+        <span className="shrink-0 text-sm text-text-secondary">{t("測定者：", "Person:")}</span>
         <button
           onClick={() => setOpen(true)}
           disabled={isRecording}
-          aria-label={`測定者：${hydrated ? (current?.name ?? "未選択") : ""}／変更する`}
+          aria-label={t(
+            `測定者：${hydrated ? currentName : ""}／変更する`,
+            `Person: ${hydrated ? currentName : ""} — change`
+          )}
           className="min-w-0 flex items-center gap-2 min-h-12 px-4 rounded-2xl bg-surface border border-surface-border neu-raised-sm neu-press transition-transform disabled:opacity-60 disabled:active:scale-100"
         >
           <span className="min-w-0 truncate text-base font-bold text-text-primary">
-            {hydrated ? (current?.name ?? "未選択") : "…"}
+            {hydrated ? currentName : "…"}
           </span>
           <ArrowLeftRight size={16} strokeWidth={2} className="shrink-0 text-primary" />
         </button>
@@ -93,15 +105,17 @@ export default function SubjectSelector() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="測定者を選択"
+            aria-label={t("測定者を選択", "Choose who to measure")}
             className="w-full max-w-[420px] mx-4 max-h-[80vh] overflow-y-auto bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-text-primary">測定者を選択</h2>
+              <h2 className="text-lg font-bold text-text-primary">
+                {t("測定者を選択", "Choose who to measure")}
+              </h2>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="閉じる"
+                aria-label={t("閉じる", "Close")}
                 className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
                 <X size={20} />
@@ -111,6 +125,7 @@ export default function SubjectSelector() {
             <div className="flex flex-col gap-2">
               {subjects.map((s) => {
                 const selected = s.id === current?.id;
+                const shownName = subjectDisplayName(s.name, locale);
                 return (
                   <div key={s.id} className="flex items-center gap-2">
                     <button
@@ -125,13 +140,13 @@ export default function SubjectSelector() {
                           : "bg-navy text-text-primary neu-raised-sm"
                       }`}
                     >
-                      <span className="flex-1 min-w-0 truncate text-base">{s.name}</span>
+                      <span className="flex-1 min-w-0 truncate text-base">{shownName}</span>
                       {selected && <Check size={18} className="shrink-0" />}
                     </button>
                     {subjects.length > 1 && (
                       <button
                         onClick={() => deleteSubject(s.id)}
-                        aria-label={`${s.name}を削除`}
+                        aria-label={t(`${shownName}を削除`, `Delete ${shownName}`)}
                         className="shrink-0 w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-muted active:text-danger"
                       >
                         <Trash2 size={18} />
@@ -143,7 +158,9 @@ export default function SubjectSelector() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <p className="text-sm text-text-secondary">新しい測定者を追加</p>
+              <p className="text-sm text-text-secondary">
+                {t("新しい測定者を追加", "Add a new person")}
+              </p>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -152,7 +169,7 @@ export default function SubjectSelector() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleAdd();
                   }}
-                  placeholder="お名前を入力"
+                  placeholder={t("お名前を入力", "Enter a name")}
                   maxLength={SUBJECT_NAME_MAX}
                   className="flex-1 min-w-0 bg-navy rounded-2xl px-4 min-h-[52px] text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-primary"
                 />
@@ -162,13 +179,16 @@ export default function SubjectSelector() {
                   className="shrink-0 flex items-center gap-1 px-4 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold disabled:opacity-40 active:scale-95 neu-raised-sm"
                 >
                   <Plus size={18} strokeWidth={2.5} />
-                  追加
+                  {t("追加", "Add")}
                 </button>
               </div>
             </div>
 
             <p className="text-xs text-text-muted">
-              削除しても、その方の過去の測定記録は残ります
+              {t(
+                "削除しても、その方の過去の測定記録は残ります",
+                "Deleting a person keeps their past measurement records"
+              )}
             </p>
           </div>
         </div>

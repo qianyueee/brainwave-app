@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { EegSample } from "@/lib/mind/types";
 import { boostedPosition, gammaRatio } from "@/lib/mind/types";
+import { translator, useLocale, type Locale } from "@/lib/i18n";
 
 /**
  * MindArtCanvas — リアルタイム脳波ジェネレーティブ・アート。
@@ -67,6 +68,13 @@ export default function MindArtCanvas({
   const lastRef = useRef<{ attention: number; meditation: number; gamma: number } | null>(null);
   // Particles to emit on the next frame (consumed by the RAF loop).
   const burstRef = useRef(0);
+  // The waiting hint is drawn every frame, so a ref lets it follow the display
+  // language without restarting the loop.
+  const locale = useLocale();
+  const localeRef = useRef<Locale>(locale);
+  useEffect(() => {
+    localeRef.current = locale;
+  }, [locale]);
 
   // Feed each sample into the animation loop without restarting it. A large
   // jump between consecutive samples (雑念・ビクッ) schedules a particle burst.
@@ -232,7 +240,11 @@ export default function MindArtCanvas({
         ctx.font = "16px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText("データ待機中…", cx, cssH - 24);
+        ctx.fillText(
+          translator(localeRef.current)("データ待機中…", "Waiting for data…"),
+          cx,
+          cssH - 24
+        );
         rafRef.current = requestAnimationFrame(frame);
         return;
       }

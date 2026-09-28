@@ -5,6 +5,7 @@ import { useAudio } from "@/components/AudioProvider";
 import { NATURE_SOUNDS } from "@/lib/audio-engine";
 import { isCustomProgramId } from "@/lib/programs";
 import { hasMusicBed } from "@/lib/zodiac-audio";
+import { useT } from "@/lib/i18n";
 import CustomAudioSection from "@/components/CustomAudioSection";
 import RangeSlider from "@/components/RangeSlider";
 
@@ -20,6 +21,7 @@ export default function Mixer() {
   const isPlaying = useAppStore((s) => s.isPlaying);
   const programId = useDisplayProgramId();
   const { getSession, playNatureSound, stopNatureSound, setNatureVolume, setMusicVolume, setSynthVolume } = useAudio();
+  const t = useT();
 
   const isCustom = isCustomProgramId(programId);
   // Only the zodiac programs ship a music bed; the built-ins stay pure tone.
@@ -65,7 +67,7 @@ export default function Mixer() {
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
           <span className="text-sm text-text-secondary">
-            {isCustom ? "合成音量" : "バイノーラルビート"}
+            {isCustom ? t("合成音量", "Synth volume") : t("バイノーラルビート", "Binaural beats")}
           </span>
           <span className="text-sm text-text-muted tabular-nums">
             {Math.round(beatVolume * 100)}%
@@ -86,7 +88,9 @@ export default function Mixer() {
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center">
             <span className="text-sm text-text-secondary">
-              {programId.startsWith("zodiac-") ? "星座ミュージック" : "ミュージック"}
+              {programId.startsWith("zodiac-")
+                ? t("星座ミュージック", "Zodiac music")
+                : t("ミュージック", "Music")}
             </span>
             <span className="text-sm text-text-muted tabular-nums">
               {Math.round(musicVolume * 100)}%
@@ -105,7 +109,7 @@ export default function Mixer() {
 
       {/* Nature sound selector */}
       <div className="flex flex-col gap-2">
-        <span className="text-sm text-text-secondary">自然音</span>
+        <span className="text-sm text-text-secondary">{t("自然音", "Nature sounds")}</span>
         <div className="flex gap-2">
           {NATURE_SOUNDS.map((sound) => (
             <button
@@ -117,7 +121,7 @@ export default function Mixer() {
                   : "bg-navy text-text-secondary neu-raised-sm neu-press"
               } ${!isPlaying && natureSoundId !== sound.id ? "opacity-50" : ""}`}
             >
-              {sound.name}
+              {t(sound.name, sound.nameEn)}
             </button>
           ))}
         </div>
@@ -129,7 +133,7 @@ export default function Mixer() {
       {/* Nature volume */}
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-text-secondary">自然音ボリューム</span>
+          <span className="text-sm text-text-secondary">{t("自然音ボリューム", "Nature sound volume")}</span>
           <span className="text-sm text-text-muted tabular-nums">
             {Math.round(natureVolume * 100)}%
           </span>

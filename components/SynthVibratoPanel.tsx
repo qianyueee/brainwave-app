@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSynthStore } from "@/store/useSynthStore";
 import { useAudio } from "@/components/AudioProvider";
 import RangeSlider from "@/components/RangeSlider";
+import { useT } from "@/lib/i18n";
 
 const RATE_MIN = 0.01;
 const RATE_MAX = 20;
@@ -15,6 +16,7 @@ export default function SynthVibratoPanel() {
   const updateVibrato = useSynthStore((s) => s.updateVibrato);
   const isSynthPlaying = useSynthStore((s) => s.isSynthPlaying);
   const { updateSynthVibrato } = useAudio();
+  const t = useT();
 
   const [rateInput, setRateInput] = useState(vibrato.rate.toString());
   const [depthInput, setDepthInput] = useState(Math.round(vibrato.depth * 100).toString());
@@ -74,13 +76,13 @@ export default function SynthVibratoPanel() {
     <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-2 neu-raised">
       {/* Header + toggle */}
       <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-text-primary">ビブラート</p>
+        <p className="text-sm font-bold text-text-primary">{t("ビブラート", "Vibrato")}</p>
         <button
           onClick={handleToggle}
           className={`w-11 h-6 rounded-full transition-colors relative neu-toggle-track ${
             vibrato.enabled ? "bg-primary" : "bg-navy-lighter"
           }`}
-          aria-label="ビブラート切替"
+          aria-label={t("ビブラート切替", "Toggle vibrato")}
         >
           <span
             className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform neu-raised-sm ${

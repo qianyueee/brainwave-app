@@ -10,6 +10,7 @@ import {
   formatTargetHz,
   normalizeTargetHz,
 } from "@/lib/mind/resonance";
+import { useT } from "@/lib/i18n";
 
 /**
  * 誘導周波数の入力。測定を始める前に、いま鳴らしている音が狙う Hz を受け取る。
@@ -23,6 +24,7 @@ import {
  * 測定中は編集させない——走っている測定の条件が途中で変わったように見える。
  */
 export default function TargetHzInput() {
+  const t = useT();
   const targetHz = useMindStore((s) => s.targetHz);
   const setTargetHz = useMindStore((s) => s.setTargetHz);
   const isRecording = useMindStore((s) => s.isRecording);
@@ -49,7 +51,7 @@ export default function TargetHzInput() {
           htmlFor="target-hz"
           className="text-sm text-text-secondary shrink-0"
         >
-          誘導周波数
+          {t("誘導周波数", "Target frequency")}
         </label>
         <input
           id="target-hz"
@@ -72,8 +74,14 @@ export default function TargetHzInput() {
       </div>
       <p id="target-hz-hint" className="text-xs text-text-muted">
         {targetHz != null
-          ? `Rate は ${formatTargetHz(targetHz)}Hz への共鳴で判定します`
-          : `未入力のときは ${formatTargetHz(DEFAULT_TARGET_HZ)}Hz を基準に判定します（${TARGET_HZ_MIN}〜${TARGET_HZ_MAX}Hz・0.01Hz 刻み）`}
+          ? t(
+              `Rate は ${formatTargetHz(targetHz)}Hz への共鳴で判定します`,
+              `Rate is scored by resonance at ${formatTargetHz(targetHz)} Hz`
+            )
+          : t(
+              `未入力のときは ${formatTargetHz(DEFAULT_TARGET_HZ)}Hz を基準に判定します（${TARGET_HZ_MIN}〜${TARGET_HZ_MAX}Hz・0.01Hz 刻み）`,
+              `If left blank, ${formatTargetHz(DEFAULT_TARGET_HZ)} Hz is used as the reference (${TARGET_HZ_MIN}–${TARGET_HZ_MAX} Hz, in 0.01 Hz steps)`
+            )}
       </p>
     </div>
   );

@@ -9,6 +9,7 @@ import GroupManager from "@/components/admin/GroupManager";
 import ProgramAssigner from "@/components/admin/ProgramAssigner";
 import AudioStudio from "@/components/admin/AudioStudio";
 import { BareColumn } from "@/components/PageColumn";
+import { useT, type LocalizedText } from "@/lib/i18n";
 import { ArrowLeft, Users, FolderTree, Music2, Waves } from "lucide-react";
 
 type AdminTab = "users" | "groups" | "audio" | "programs";
@@ -18,11 +19,11 @@ type AdminTab = "users" | "groups" | "audio" | "programs";
  * 「配信」＝公開済みをグループへ割り当てる。もとの「プログラム」という名前は
  * 音源タブができると指す先が曖昧なので、役割どおり配信に改めた。
  */
-const TABS: { key: AdminTab; label: string; icon: typeof Users }[] = [
-  { key: "users", label: "ユーザー", icon: Users },
-  { key: "groups", label: "グループ", icon: FolderTree },
-  { key: "audio", label: "音源", icon: Waves },
-  { key: "programs", label: "配信", icon: Music2 },
+const TABS: { key: AdminTab; label: LocalizedText; icon: typeof Users }[] = [
+  { key: "users", label: { ja: "ユーザー", en: "Users" }, icon: Users },
+  { key: "groups", label: { ja: "グループ", en: "Groups" }, icon: FolderTree },
+  { key: "audio", label: { ja: "音源", en: "Audio" }, icon: Waves },
+  { key: "programs", label: { ja: "配信", en: "Assign" }, icon: Music2 },
 ];
 
 export default function AdminPage() {
@@ -32,6 +33,7 @@ export default function AdminPage() {
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
   const [tab, setTab] = useState<AdminTab>("users");
+  const t = useT();
 
   // Redirect non-admins
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function AdminPage() {
     return (
       <BareColumn>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <p className="text-sm text-text-muted">読み込み中...</p>
+          <p className="text-sm text-text-muted">{t("読み込み中...", "Loading...")}</p>
         </div>
       </BareColumn>
     );
@@ -66,20 +68,20 @@ export default function AdminPage() {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-text-primary">管理パネル</h1>
+          <h1 className="text-xl font-bold text-text-primary">{t("管理パネル", "Admin panel")}</h1>
           <p className="text-xs text-text-muted">{user.email}</p>
         </div>
       </div>
 
       {/* Tab navigation — 4枚は横1列だと狭い端末で潰れるので、モバイルは2×2 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const isActive = tab === t.key;
+        {TABS.map((item) => {
+          const Icon = item.icon;
+          const isActive = tab === item.key;
           return (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={item.key}
+              onClick={() => setTab(item.key)}
               className={`min-h-12 flex items-center justify-center gap-1.5 px-2 rounded-xl text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-primary text-on-primary"
@@ -87,7 +89,7 @@ export default function AdminPage() {
               }`}
             >
               <Icon size={16} className="shrink-0" />
-              {t.label}
+              {t(item.label)}
             </button>
           );
         })}

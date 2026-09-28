@@ -5,6 +5,7 @@ import { Bluetooth, RefreshCw, X } from "lucide-react";
 import { useMindStore } from "@/store/useMindStore";
 import { deviceOnline, useDesktopBridgeStore } from "@/store/useDesktopBridgeStore";
 import { sendDesktopCommand } from "@/lib/mind/desktop-bridge";
+import { useT } from "@/lib/i18n";
 
 /**
  * 接続設定（デスクトップ測定アプリ /desktop 用）— SourceDialog の置き換え。
@@ -21,6 +22,7 @@ import { sendDesktopCommand } from "@/lib/mind/desktop-bridge";
  *   クラウド配信まで実機と同じ経路を通る。
  */
 export default function DesktopSourceDialog() {
+  const t = useT();
   const sourceKind = useMindStore((s) => s.sourceKind);
   const setSourceKind = useMindStore((s) => s.setSourceKind);
   const isRecording = useMindStore((s) => s.isRecording);
@@ -100,12 +102,12 @@ export default function DesktopSourceDialog() {
   };
 
   const serialLabel = !serial
-    ? "未接続"
+    ? t("未接続", "Not connected")
     : serial.status === "connected"
-      ? "接続"
+      ? t("接続", "Connected")
       : serial.status === "connecting"
-        ? "接続中…"
-        : "未接続";
+        ? t("接続中…", "Connecting…")
+        : t("未接続", "Not connected");
 
   return (
     <>
@@ -119,7 +121,7 @@ export default function DesktopSourceDialog() {
       >
         {realtime ? (
           <>
-            接続中
+            {t("接続中", "Connected")}
             <span
               className={`inline-block w-2.5 h-2.5 rounded-full ${
                 online ? "bg-success" : "bg-text-muted"
@@ -128,7 +130,7 @@ export default function DesktopSourceDialog() {
           </>
         ) : (
           <>
-            接続する
+            {t("接続する", "Connect")}
             <Bluetooth size={18} strokeWidth={2} />
           </>
         )}
@@ -139,17 +141,19 @@ export default function DesktopSourceDialog() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={() => setOpen(false)}
           role="button"
-          aria-label="閉じる"
+          aria-label={t("閉じる", "Close")}
         >
           <div
             className="w-full max-w-[420px] mx-4 max-h-[85vh] overflow-y-auto bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-text-primary">接続設定</h2>
+              <h2 className="text-lg font-bold text-text-primary">
+                {t("接続設定", "Connection settings")}
+              </h2>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="閉じる"
+                aria-label={t("閉じる", "Close")}
                 className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
                 <X size={20} />
@@ -158,15 +162,22 @@ export default function DesktopSourceDialog() {
 
             {!wsConnected ? (
               <p className="text-base text-text-secondary">
-                測定アプリのサーバに接続できません。アプリを起動し直してください
-                （開発時は <code className="font-mono">python bridge/desktop_app.py --no-window</code>）。
+                {t(
+                  "測定アプリのサーバに接続できません。アプリを起動し直してください （開発時は ",
+                  "Can't connect to the measuring app's server. Please restart the app (for development: "
+                )}
+                <code className="font-mono">python bridge/desktop_app.py --no-window</code>
+                {t("）。", ").")}
               </p>
             ) : (
               <div className="flex flex-col gap-4">
                 {/* ── BrainLink（シリアル）───────────────────────── */}
                 <div className="flex flex-col gap-1.5">
                   <p className="text-sm text-text-secondary">
-                    BrainLink ポート（Bluetooth ペアリング済みの機器）
+                    {t(
+                      "BrainLink ポート（Bluetooth ペアリング済みの機器）",
+                      "BrainLink port (a device already paired via Bluetooth)"
+                    )}
                   </p>
                   <div className="flex items-center gap-2">
                     <select
@@ -175,7 +186,7 @@ export default function DesktopSourceDialog() {
                       disabled={serialRunning}
                       className="flex-1 min-w-0 bg-navy rounded-2xl px-4 min-h-12 text-base text-text-primary neu-inset outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
                     >
-                      {ports.length === 0 && <option value="">ポートが見つかりません</option>}
+                      {ports.length === 0 && <option value="">{t("ポートが見つかりません", "No ports found")}</option>}
                       {ports.map((p) => (
                         <option key={p.device} value={p.device}>
                           {p.description ? `${p.device} — ${p.description}` : p.device}
@@ -184,8 +195,8 @@ export default function DesktopSourceDialog() {
                     </select>
                     <button
                       onClick={() => sendDesktopCommand({ type: "scan" })}
-                      aria-label="ポートを再取得"
-                      title="ポートを再取得"
+                      aria-label={t("ポートを再取得", "Refresh ports")}
+                      title={t("ポートを再取得", "Refresh ports")}
                       className="shrink-0 w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
                     >
                       <RefreshCw size={20} />
@@ -196,7 +207,7 @@ export default function DesktopSourceDialog() {
                       onClick={() => sendDesktopCommand({ type: "disconnect" })}
                       className="min-h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
                     >
-                      切断する
+                      {t("切断する", "Disconnect")}
                     </button>
                   ) : (
                     <button
@@ -204,7 +215,7 @@ export default function DesktopSourceDialog() {
                       disabled={!effectivePort}
                       className="min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"
                     >
-                      このポートに接続する
+                      {t("このポートに接続する", "Connect to this port")}
                     </button>
                   )}
                 </div>
@@ -218,16 +229,19 @@ export default function DesktopSourceDialog() {
                       }`}
                     />
                     <p className="text-base text-text-primary">
-                      シリアル：{serialLabel}
-                      {serial?.port ? `（${serial.port}）` : ""}
+                      {t(`シリアル：${serialLabel}`, `Serial: ${serialLabel}`)}
+                      {serial?.port ? t(`（${serial.port}）`, ` (${serial.port})`) : ""}
                     </p>
                   </div>
                   {serial?.detail && (
-                    <p className="text-sm text-text-secondary whitespace-pre-line">{serial.detail}</p>
+                    <p className="text-sm text-text-secondary whitespace-pre-line">
+                      {t({ ja: serial.detail, en: serial.detailEn || serial.detail })}
+                    </p>
                   )}
                   {running && bridgeState?.csvPath && (
                     <p className="text-xs text-text-muted truncate" title={bridgeState.csvPath}>
-                      記録先: {bridgeState.csvPath}
+                      {t("記録先: ", "Saving to: ")}
+                      {bridgeState.csvPath}
                     </p>
                   )}
                   {/* パイプラインは動いているのに画面はデモ表示、という状態
@@ -239,7 +253,7 @@ export default function DesktopSourceDialog() {
                       onClick={() => setSourceKind("realtime")}
                       className="min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
                     >
-                      受信データを表示する
+                      {t("受信データを表示する", "Show incoming data")}
                     </button>
                   )}
                 </div>
@@ -247,7 +261,10 @@ export default function DesktopSourceDialog() {
                 {/* ── 実機なしテスト（Python 側の合成データ）───────── */}
                 <div className="flex flex-col gap-1.5 border-t border-surface-border pt-3">
                   <p className="text-sm text-text-secondary">
-                    実機なしテスト — 測定アプリが合成データを送出します（CSV 記録・クラウド配信も実機と同じ経路）
+                    {t(
+                      "実機なしテスト — 測定アプリが合成データを送出します（CSV 記録・クラウド配信も実機と同じ経路）",
+                      "Test without a device — the measuring app sends synthetic data (CSV recording and cloud streaming work just as with a real device)"
+                    )}
                   </p>
                   <button
                     onClick={handleToggleDemoPipeline}
@@ -257,15 +274,19 @@ export default function DesktopSourceDialog() {
                         : "bg-surface border border-primary text-primary"
                     }`}
                   >
-                    {demoRunning ? "合成データを停止する" : "合成データでテストする"}
+                    {demoRunning
+                      ? t("合成データを停止する", "Stop synthetic data")
+                      : t("合成データでテストする", "Test with synthetic data")}
                   </button>
                 </div>
 
                 {/* ── クラウド同時配信（既定 OFF）──────────────── */}
                 <div className="flex flex-col gap-1.5 border-t border-surface-border pt-3">
                   <p className="text-sm text-text-secondary">
-                    クラウド同時配信 — スマホの Sync Brain「接続する」に表示されるペアリングコードを入力すると、
-                    スマホでも同じ測定をリアルタイムに見られます
+                    {t(
+                      "クラウド同時配信 — スマホの Sync Brain「接続する」に表示されるペアリングコードを入力すると、 スマホでも同じ測定をリアルタイムに見られます",
+                      "Cloud streaming — to watch this measurement live on your phone too, enter the pairing code shown when you tap “Connect” in Sync Brain on your phone"
+                    )}
                   </p>
                   <input
                     type="text"
@@ -275,7 +296,7 @@ export default function DesktopSourceDialog() {
                       setCode(e.target.value);
                     }}
                     disabled={cloud?.enabled ?? false}
-                    placeholder="例：AB23-CD45"
+                    placeholder={t("例：AB23-CD45", "e.g. AB23-CD45")}
                     className="w-full bg-navy rounded-2xl px-4 min-h-12 text-base font-mono tracking-widest text-text-primary placeholder:text-text-muted placeholder:font-sans placeholder:tracking-normal outline-none neu-inset focus:ring-1 focus:ring-primary disabled:opacity-60"
                   />
                   <button
@@ -287,7 +308,9 @@ export default function DesktopSourceDialog() {
                         : "bg-surface border border-primary text-primary"
                     }`}
                   >
-                    {cloud?.enabled ? "配信を停止する" : "配信を開始する"}
+                    {cloud?.enabled
+                      ? t("配信を停止する", "Stop streaming")
+                      : t("配信を開始する", "Start streaming")}
                   </button>
                   {cloud?.enabled && (
                     <div className="flex items-center gap-2">
@@ -297,13 +320,15 @@ export default function DesktopSourceDialog() {
                         }`}
                       />
                       <p className="text-base text-text-primary">
-                        クラウド：{cloud.connected ? "配信中" : "接続中…"}
+                        {cloud.connected
+                          ? t("クラウド：配信中", "Cloud: Streaming")
+                          : t("クラウド：接続中…", "Cloud: Connecting…")}
                       </p>
                     </div>
                   )}
                 </div>
 
-                {lastLog && <p className="text-xs text-text-muted">{lastLog}</p>}
+                {lastLog && <p className="text-xs text-text-muted">{t(lastLog)}</p>}
               </div>
             )}
 
@@ -315,7 +340,7 @@ export default function DesktopSourceDialog() {
                 onClick={() => setSourceKind("demo")}
                 className="min-h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
               >
-                デモデータに戻す（画面内で生成）
+                {t("デモデータに戻す（画面内で生成）", "Back to demo data (generated on screen)")}
               </button>
             )}
           </div>

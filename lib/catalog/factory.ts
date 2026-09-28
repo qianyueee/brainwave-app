@@ -18,9 +18,13 @@ export interface CatalogEntry {
   id: string;
   /** 表示名（日本語）。カードでは truncate されるので特徴のある語を先頭に。 */
   name: string;
-  /** 英語原題。素材ファイル名の英語部分をそのまま。 */
+  /** 英語原題。素材ファイル名の英語部分をそのまま。英語の画面ではこれが名前。 */
   titleEn: string;
   description: string;
+  /** 英語の画面の名前。titleEn と違う呼び名にしたいときだけ（Energy）。 */
+  nameEn?: string;
+  /** 英語の画面の説明（プレイヤーで名前の下に出る）。 */
+  descriptionEn?: string;
   icon: string;
   carrierFreq: number;
   targetBeatFreq: number;
@@ -31,6 +35,7 @@ export interface CatalogEntry {
   outro?: number;
   category: ProgramCategory;
   subGenre?: string;
+  subGenreEn?: string;
   /**
    * 検索用の追加語。名前や説明から導けない読みだけを足す
    * （漢字→かなは辞書が要るので機械では出せない）。カタカナは
@@ -59,9 +64,12 @@ export function createCatalogProgram(e: CatalogEntry): ProgramConfig {
     id: e.id,
     category: e.category,
     subGenre: e.subGenre,
+    subGenreEn: e.subGenreEn,
     name: e.name,
     titleEn: e.titleEn,
+    nameEn: e.nameEn,
     description: e.description,
+    descriptionEn: e.descriptionEn,
     icon: e.icon,
     carrierFreq,
     // duration は phases と同じ計算から取る（ズレると嘘のバッジが出る。phases.ts 参照）

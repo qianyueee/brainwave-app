@@ -7,6 +7,7 @@ import { useSynthStore } from "@/store/useSynthStore";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { usePlayProgram } from "@/components/usePlayProgram";
+import { useT } from "@/lib/i18n";
 import { Waves, Pencil, Trash2, Upload } from "lucide-react";
 
 interface CustomProgramCardProps {
@@ -22,6 +23,7 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
   const publishProgram = usePublishedProgramsStore((s) => s.publishProgram);
   const publishLoading = usePublishedProgramsStore((s) => s.loading);
   const [publishing, setPublishing] = useState(false);
+  const t = useT();
 
   const handleClick = () => playProgram(program);
 
@@ -61,13 +63,15 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
         <div className="flex items-center gap-2">
           <p className="text-base font-bold text-text-primary truncate">{program.name}</p>
           <span className="text-xs font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
-            カスタム
+            {t("カスタム", "Custom")}
           </span>
         </div>
         <p className="text-sm text-text-secondary mt-0.5">
           {program.description}
         </p>
-        <p className="text-xs text-text-muted mt-1">{displayMinutes}分</p>
+        <p className="text-xs text-text-muted mt-1">
+          {t(`${displayMinutes}分`, `${displayMinutes} min`)}
+        </p>
       </div>
       <div className="flex flex-col gap-1 shrink-0">
         {isAdmin && (
@@ -75,7 +79,7 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
             onClick={handlePublish}
             disabled={publishing || publishLoading}
             className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-success active:scale-95 disabled:opacity-50"
-            aria-label="公開する"
+            aria-label={t("公開する", "Publish")}
           >
             <Upload size={16} strokeWidth={1.5} />
           </button>
@@ -83,14 +87,14 @@ export default function CustomProgramCard({ program }: CustomProgramCardProps) {
         <button
           onClick={handleEdit}
           className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95"
-          aria-label="編集"
+          aria-label={t("編集", "Edit")}
         >
           <Pencil size={16} strokeWidth={1.5} />
         </button>
         <button
           onClick={handleDelete}
           className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-danger active:scale-95"
-          aria-label="削除"
+          aria-label={t("削除", "Delete")}
         >
           <Trash2 size={16} strokeWidth={1.5} />
         </button>

@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { DesktopBridgeState } from "@/lib/mind/desktop-bridge";
+import type { LocalizedText } from "@/lib/i18n";
 
 /**
  * デスクトップ測定アプリ（ローカル WS）の状態ミラー。persist しない——正は
@@ -13,17 +14,18 @@ interface DesktopBridgeStore {
   /** ローカル WS が繋がっているか（≠ 装置が繋がっているか）。 */
   wsConnected: boolean;
   state: DesktopBridgeState | null;
-  /** 直近の log メッセージ（ダイアログの補助行に出す）。 */
-  lastLog: string;
+  /** 直近の log メッセージ（ダイアログの補助行に出す）。日本語と英語（msgEn）を
+   *  両方持ち、表示言語はダイアログが描画時に選ぶ。 */
+  lastLog: LocalizedText | null;
   setWsConnected: (v: boolean) => void;
   setBridgeState: (s: DesktopBridgeState) => void;
-  setLastLog: (m: string) => void;
+  setLastLog: (m: LocalizedText | null) => void;
 }
 
 export const useDesktopBridgeStore = create<DesktopBridgeStore>()((set) => ({
   wsConnected: false,
   state: null,
-  lastLog: "",
+  lastLog: null,
   // 切断時は state も捨てる：古いポート一覧や「接続中」を映し続けない。
   setWsConnected: (v) => set(v ? { wsConnected: true } : { wsConnected: false, state: null }),
   setBridgeState: (s) => set({ state: s }),

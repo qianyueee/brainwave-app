@@ -14,7 +14,14 @@ import { TARGET_PROGRAMS } from "./target";
 export const CATALOG_PROGRAMS: ProgramConfig[] = [...TARGET_PROGRAMS, ...ENERGY_PROGRAMS];
 
 export { ENERGY_PROGRAMS } from "./energy";
-export { TARGET_PROGRAMS, TARGET_SUB_GENRES, type TargetSubGenre } from "./target";
-export { CATEGORIES, CATEGORY_LABEL, type CategoryMeta } from "./categories";
+export { TARGET_PROGRAMS, TARGET_SUB_GENRES, TARGET_SUB_GENRE_EN, type TargetSubGenre } from "./target";
+export {
+  CATEGORIES,
+  CATEGORY_LABEL,
+  CATEGORY_LABEL_EN,
+  categoryLabel,
+  categoryDescription,
+  type CategoryMeta,
+} from "./categories";
 export { matchesQuery, normalizeSearchText, buildSearchText } from "./search";
 export { catalogPhases, type CatalogTimeline } from "./phases";

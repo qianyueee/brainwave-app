@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Info } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 /**
  * Indicator name that reveals its description in a popup instead of showing it
@@ -15,6 +16,7 @@ export default function IndicatorInfoTooltip({
   label: string;
   description: string;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -43,7 +45,7 @@ export default function IndicatorInfoTooltip({
         onClick={() => setOpen((o) => !o)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        aria-label={`${label}の説明`}
+        aria-label={t(`${label}の説明`, `About ${label}`)}
         aria-expanded={open}
         className="inline-flex items-center gap-1 py-1 text-base font-bold text-text-primary cursor-help text-left"
       >

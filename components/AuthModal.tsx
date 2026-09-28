@@ -7,6 +7,7 @@ import { useDesktopBridgeStore } from "@/store/useDesktopBridgeStore";
 import { useDesktopLoginStore } from "@/store/useDesktopLoginStore";
 import { supabase } from "@/lib/supabase";
 import { isDesktopRoute } from "@/lib/desktop";
+import { useT } from "@/lib/i18n";
 import {
   beginDesktopGoogleLogin,
   cancelDesktopGoogleLogin,
@@ -18,6 +19,7 @@ import {
 import { X, Eye, EyeOff, LoaderCircle } from "lucide-react";
 
 export default function AuthModal() {
+  const t = useT();
   const open = useAuthStore((s) => s.authModalOpen);
   const view = useAuthStore((s) => s.authModalView);
   const setView = useAuthStore((s) => s.setAuthModalView);
@@ -68,7 +70,7 @@ export default function AuthModal() {
 
   const handleLogin = async () => {
     if (!supabase) {
-      setError("サービスに接続できません");
+      setError(t("サービスに接続できません", "Can't connect to the service"));
       return;
     }
     setError("");
@@ -80,7 +82,7 @@ export default function AuthModal() {
     setLoading(false);
     if (err) {
       setError(err.message === "Invalid login credentials"
-        ? "メールアドレスまたはパスワードが正しくありません"
+        ? t("メールアドレスまたはパスワードが正しくありません", "Incorrect email address or password")
         : err.message);
     } else {
       resetForm();
@@ -90,15 +92,15 @@ export default function AuthModal() {
 
   const handleSignup = async () => {
     if (!supabase) {
-      setError("サービスに接続できません");
+      setError(t("サービスに接続できません", "Can't connect to the service"));
       return;
     }
     if (password !== confirmPassword) {
-      setError("パスワードが一致しません");
+      setError(t("パスワードが一致しません", "The passwords don't match"));
       return;
     }
     if (password.length < 6) {
-      setError("パスワードは6文字以上にしてください");
+      setError(t("パスワードは6文字以上にしてください", "Your password must be at least 6 characters"));
       return;
     }
     setError("");
@@ -110,15 +112,21 @@ export default function AuthModal() {
     } else {
       setMessage(
         desktop
-          ? "確認メールを送信しました。メールのリンクを開いて登録を済ませたあと、このアプリに戻ってログインしてください。"
-          : "確認メールを送信しました。メールを確認してください。"
+          ? t(
+              "確認メールを送信しました。メールのリンクを開いて登録を済ませたあと、このアプリに戻ってログインしてください。",
+              "We've sent you a confirmation email. Open the link in it to finish signing up, then come back to this app and log in."
+            )
+          : t(
+              "確認メールを送信しました。メールを確認してください。",
+              "We've sent you a confirmation email. Please check your inbox."
+            )
       );
     }
   };
 
   const handleForgotPassword = async () => {
     if (!supabase) {
-      setError("サービスに接続できません");
+      setError(t("サービスに接続できません", "Can't connect to the service"));
       return;
     }
     setError("");
@@ -128,7 +136,7 @@ export default function AuthModal() {
     if (err) {
       setError(err.message);
     } else {
-      setMessage("パスワードリセットメールを送信しました。");
+      setMessage(t("パスワードリセットメールを送信しました。", "We've sent you a password reset email."));
     }
   };
 
@@ -161,13 +169,18 @@ export default function AuthModal() {
 
   const handleGoogleLogin = async () => {
     if (!supabase) {
-      setError("サービスに接続できません");
+      setError(t("サービスに接続できません", "Can't connect to the service"));
       return;
     }
     setError("");
     if (desktop) {
       if (!prepared) {
-        setError("測定アプリとの接続を確認して、もう一度お試しください");
+        setError(
+          t(
+            "測定アプリとの接続を確認して、もう一度お試しください",
+            "Please check the connection to the measuring app and try again."
+          )
+        );
         return;
       }
       beginDesktopGoogleLogin(prepared);
@@ -211,13 +224,13 @@ export default function AuthModal() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-text-primary">
-            {view === "login" && "ログイン"}
-            {view === "signup" && "アカウント作成"}
-            {view === "forgot" && "パスワードリセット"}
+            {view === "login" && t("ログイン", "Log in")}
+            {view === "signup" && t("アカウント作成", "Create account")}
+            {view === "forgot" && t("パスワードリセット", "Reset password")}
           </h2>
           <button
             onClick={closeModal}
-            aria-label="閉じる"
+            aria-label={t("閉じる", "Close")}
             className="w-12 h-12 flex items-center justify-center rounded-xl text-text-muted active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           >
             <X size={22} />
@@ -227,7 +240,7 @@ export default function AuthModal() {
         {/* Error / Message */}
         {(error || (desktop && googleStatus === "error" && googleMessage)) && (
           <p role="alert" className="text-sm text-danger bg-danger/10 rounded-2xl px-4 py-3">
-            {error || googleMessage}
+            {error || (googleMessage && t(googleMessage))}
           </p>
         )}
         {message && (
@@ -241,14 +254,20 @@ export default function AuthModal() {
           <div className="flex flex-col items-center gap-4 text-center py-2">
             <LoaderCircle size={32} className="text-primary animate-spin" />
             {googleStatus === "exchanging" ? (
-              <p className="text-base text-text-primary">ログインしています…</p>
+              <p className="text-base text-text-primary">{t("ログインしています…", "Logging in…")}</p>
             ) : (
               <>
                 <p className="text-base text-text-primary">
-                  ブラウザで Google ログインを続けてください
+                  {t(
+                    "ブラウザで Google ログインを続けてください",
+                    "Please continue logging in with Google in your browser"
+                  )}
                 </p>
                 <p className="text-sm text-text-secondary">
-                  終わると、この画面に自動で戻ります。
+                  {t(
+                    "終わると、この画面に自動で戻ります。",
+                    "When you're done, you'll come back to this screen automatically."
+                  )}
                 </p>
                 {googleUrl && (
                   <a
@@ -257,14 +276,14 @@ export default function AuthModal() {
                     rel="noreferrer"
                     className="text-sm text-primary underline min-h-12 flex items-center"
                   >
-                    ブラウザが開かない場合はこちら
+                    {t("ブラウザが開かない場合はこちら", "If your browser didn't open, click here")}
                   </a>
                 )}
                 <button
                   onClick={cancelDesktopGoogleLogin}
                   className="w-full h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold active:scale-95 neu-raised-sm neu-press"
                 >
-                  キャンセル
+                  {t("キャンセル", "Cancel")}
                 </button>
               </>
             )}
@@ -276,7 +295,7 @@ export default function AuthModal() {
             {/* Email input */}
             <div>
               <label htmlFor="auth-email" className="text-sm text-text-secondary mb-1 block">
-                メールアドレス
+                {t("メールアドレス", "Email address")}
               </label>
               <input
                 id="auth-email"
@@ -294,7 +313,7 @@ export default function AuthModal() {
             {view !== "forgot" && (
               <div>
                 <label htmlFor="auth-password" className="text-sm text-text-secondary mb-1 block">
-                  パスワード
+                  {t("パスワード", "Password")}
                 </label>
                 <div className="relative">
                   <input
@@ -303,14 +322,18 @@ export default function AuthModal() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="6文字以上"
+                    placeholder={t("6文字以上", "At least 6 characters")}
                     className="w-full h-12 px-4 pr-12 rounded-2xl bg-navy text-base text-text-primary placeholder:text-text-muted border border-surface-border focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary neu-inset"
                     autoComplete={view === "login" ? "current-password" : "new-password"}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示"}
+                    aria-label={
+                      showPassword
+                        ? t("パスワードを隠す", "Hide password")
+                        : t("パスワードを表示", "Show password")
+                    }
                     className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-text-muted active:opacity-70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded-lg"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -323,13 +346,13 @@ export default function AuthModal() {
             {view === "signup" && (
               <div>
                 <label className="text-sm text-text-secondary mb-1 block">
-                  パスワード確認
+                  {t("パスワード確認", "Confirm password")}
                 </label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="もう一度入力"
+                  placeholder={t("もう一度入力", "Enter it again")}
                   className="w-full h-12 px-4 rounded-2xl bg-navy text-base text-text-primary placeholder:text-text-muted border border-surface-border focus:border-primary focus:outline-none neu-inset"
                   autoComplete="new-password"
                 />
@@ -345,13 +368,13 @@ export default function AuthModal() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  処理中...
+                  {t("処理中...", "Please wait...")}
                 </span>
               ) : (
                 <>
-                  {view === "login" && "ログイン"}
-                  {view === "signup" && "アカウント作成"}
-                  {view === "forgot" && "リセットメール送信"}
+                  {view === "login" && t("ログイン", "Log in")}
+                  {view === "signup" && t("アカウント作成", "Create account")}
+                  {view === "forgot" && t("リセットメール送信", "Send reset email")}
                 </>
               )}
             </button>
@@ -360,7 +383,7 @@ export default function AuthModal() {
             {view !== "forgot" && (
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-surface-border" />
-                <span className="text-xs text-text-muted">または</span>
+                <span className="text-xs text-text-muted">{t("または", "or")}</span>
                 <div className="flex-1 h-px bg-surface-border" />
               </div>
             )}
@@ -390,7 +413,7 @@ export default function AuthModal() {
                     fill="#EA4335"
                   />
                 </svg>
-                Googleでログイン
+                {t("Googleでログイン", "Log in with Google")}
               </button>
             )}
 
@@ -402,13 +425,13 @@ export default function AuthModal() {
                     onClick={() => switchView("forgot")}
                     className="text-sm text-text-muted underline active:opacity-70"
                   >
-                    パスワードを忘れた方
+                    {t("パスワードを忘れた方", "Forgot your password?")}
                   </button>
                   <button
                     onClick={() => switchView("signup")}
                     className="text-sm text-primary font-medium active:opacity-70"
                   >
-                    アカウントを作成する
+                    {t("アカウントを作成する", "Create an account")}
                   </button>
                 </>
               )}
@@ -417,7 +440,7 @@ export default function AuthModal() {
                   onClick={() => switchView("login")}
                   className="text-sm text-primary font-medium active:opacity-70"
                 >
-                  すでにアカウントをお持ちの方
+                  {t("すでにアカウントをお持ちの方", "Already have an account?")}
                 </button>
               )}
               {view === "forgot" && (
@@ -425,7 +448,7 @@ export default function AuthModal() {
                   onClick={() => switchView("login")}
                   className="text-sm text-primary font-medium active:opacity-70"
                 >
-                  ログインに戻る
+                  {t("ログインに戻る", "Back to log in")}
                 </button>
               )}
             </div>
@@ -441,7 +464,7 @@ export default function AuthModal() {
             }}
             className="w-full h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold active:scale-95 neu-raised-sm neu-press"
           >
-            ログインに戻る
+            {t("ログインに戻る", "Back to log in")}
           </button>
         )}
       </div>

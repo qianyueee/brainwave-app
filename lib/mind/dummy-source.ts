@@ -1,6 +1,7 @@
 import type { MindDataSource, MindSourceHandlers } from "./data-source";
 import type { EegSample, Quadrant } from "./types";
 import { SPECTRUM_MAX_HZ } from "./types";
+import { getLocale, translator } from "../i18n";
 
 /** Quadrant centers the hidden target wanders between (attention, meditation). */
 const QUADRANT_CENTERS: Record<Quadrant, [number, number]> = {
@@ -49,7 +50,7 @@ export class DummySource implements MindDataSource {
     const now = Date.now();
     this.nextRetarget = now + 8000;
     this.nextGammaBurst = now + 12000;
-    this.handlers.onStatus("connected", "デモモード");
+    this.handlers.onStatus("connected", translator(getLocale())("デモモード", "Demo mode"));
     this.tick(); // emit immediately so the UI doesn't wait a second
     this.timer = setInterval(() => this.tick(), 1000);
   }

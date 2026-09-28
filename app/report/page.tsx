@@ -12,8 +12,12 @@ import {
   measurementLabel,
   measurementTitle,
   measurementSeriesLabel,
+  isGeneratedSessionTag,
+  sessionTagLabel,
 } from "@/lib/brain-measurements";
 import { formatTargetHz } from "@/lib/mind/resonance";
+import { subjectDisplayName } from "@/lib/subject-groups";
+import { intlLocale, useLocale, useT, type LocalizedText } from "@/lib/i18n";
 import BrainConditionMetrics from "@/components/BrainConditionMetrics";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainBandPie from "@/components/BrainBandPie";
@@ -35,22 +39,28 @@ type ReportTab = "profile" | "compare";
 
 const REPORT_TABS: {
   key: ReportTab;
-  label: string;
+  label: LocalizedText;
   icon: typeof BrainCircuit;
   /** タブ直下に出す説明（旧 h2 のリード文をそのまま使う） */
-  lead: string;
+  lead: LocalizedText;
 }[] = [
   {
     key: "profile",
-    label: "脳特性チャート",
+    label: { ja: "脳特性チャート", en: "Brain profile" },
     icon: BrainCircuit,
-    lead: "脳波データから6つの指標を分析",
+    lead: {
+      ja: "脳波データから6つの指標を分析",
+      en: "Your brainwave data analyzed as 6 indicators",
+    },
   },
   {
     key: "compare",
-    label: "測定の比較",
+    label: { ja: "測定の比較", en: "Compare" },
     icon: GitCompare,
-    lead: "周波数スペクトルのある測定を選ぶと6指標とスペクトルを表示します。2〜3件選ぶと重ねて比較できます",
+    lead: {
+      ja: "周波数スペクトルのある測定を選ぶと6指標とスペクトルを表示します。2〜3件選ぶと重ねて比較できます",
+      en: "Pick a measurement that has a frequency spectrum to see its 6 indicators and spectrum. Pick 2–3 to overlay and compare them.",
+    },
   },
 ];
 
@@ -63,6 +73,8 @@ function CompareCandidateRow({
   selected: boolean;
   onToggle: (uploadedAt: string) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   // Only measurements with a per-Hz spectrum can be compared.
   const selectable = Boolean(m.spectrum?.length);
   const total = compositeScore(m.indicators);
@@ -70,19 +82,19 @@ function CompareCandidateRow({
   // 無ければ見出し自体が日時なので、同じ文字列を2度書かない。sessionTag も
   // 取り込んだ測定では同じ日時の文字列になるため、違うとき（アップロードした
   // ファイルの Tag 列）だけ添える。
-  const when = measurementLabel(m);
+  const when = measurementLabel(m, locale);
   const meta = [
     m.note?.trim() ? when : null,
-    m.sessionTag && m.sessionTag !== when ? m.sessionTag : null,
+    m.sessionTag && !isGeneratedSessionTag(m) ? m.sessionTag : null,
   ]
     .filter(Boolean)
-    .join("・");
+    .join(t("・", " · "));
 
   return (
     <button
       onClick={() => onToggle(m.uploadedAt)}
       disabled={!selectable}
-      aria-label={selected ? "選択を解除" : "比較に選択"}
+      aria-label={selected ? t("選択を解除", "Deselect") : t("比較に選択", "Select to compare")}
       className={`w-full bg-surface border rounded-3xl p-4 flex items-center gap-3 text-left neu-raised transition-colors ${
         selected ? "border-primary" : "border-surface-border"
       } ${selectable ? "neu-press" : "opacity-50"}`}
@@ -97,15 +109,18 @@ function CompareCandidateRow({
             同じ人の似た回が並ぶ一覧なので、まず本人の言葉と名前で拾えるように——
             日時は小さく最後の行へ回す（無くさない、順位を下げるだけ）。 */}
         <p className="text-base font-bold text-text-primary break-words">
-          {measurementTitle(m)}
+          {measurementTitle(m, locale)}
         </p>
         <p className="text-sm font-bold text-primary truncate">
-          測定者: {m.subject ?? "未設定"}
+          {t("測定者", "Person")}:{" "}
+          {m.subject != null ? subjectDisplayName(m.subject, locale) : t("未設定", "Not set")}
         </p>
         {meta && <p className="text-xs text-text-muted truncate">{meta}</p>}
         <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
         {!selectable && (
-          <p className="text-xs text-text-muted mt-1">比較対象外（スペクトルなし）</p>
+          <p className="text-xs text-text-muted mt-1">
+            {t("比較対象外（スペクトルなし）", "Can't be compared (no spectrum)")}
+          </p>
         )}
       </div>
       <div className="text-right shrink-0">
@@ -115,7 +130,7 @@ function CompareCandidateRow({
         >
           {total}
         </p>
-        <p className="text-xs text-text-muted">総合</p>
+        <p className="text-xs text-text-muted">{t("総合", "Overall")}</p>
       </div>
     </button>
   );
@@ -131,6 +146,8 @@ function CompareCandidateRow({
  * so the numbers always agree.
  */
 export default function ReportPage() {
+  const t = useT();
+  const locale = useLocale();
   const profile = useBrainProfileStore((s) => s.profile);
   const measurements = useBrainProfileStore((s) => s.measurements);
   const clearProfile = useBrainProfileStore((s) => s.clearProfile);
@@ -194,15 +211,19 @@ export default function ReportPage() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-base font-bold text-text-primary truncate">
-            {canCompare ? "測定の比較" : measurementTitle(picked[0])}
+            {canCompare
+              ? t("測定の比較", "Compare measurements")
+              : measurementTitle(picked[0], locale)}
           </p>
           {!canCompare && (
-            <p className="text-xs text-text-muted">もう1件選ぶと重ねて比較できます</p>
+            <p className="text-xs text-text-muted">
+              {t("もう1件選ぶと重ねて比較できます", "Pick one more to overlay and compare")}
+            </p>
           )}
         </div>
         <button
           onClick={() => setSelectedIds([])}
-          aria-label="選択を解除"
+          aria-label={t("選択を解除", "Clear selection")}
           className="shrink-0 w-12 h-12 rounded-lg bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
         >
           <X size={18} />
@@ -210,12 +231,20 @@ export default function ReportPage() {
       </div>
 
       <div>
-        <p className="text-sm font-medium text-text-secondary mb-1 text-center">6指標</p>
-        <Fullscreenable title={canCompare ? "6指標の比較" : "6指標"}>
+        <p className="text-sm font-medium text-text-secondary mb-1 text-center">
+          {t("6指標", "6 indicators")}
+        </p>
+        <Fullscreenable
+          title={
+            canCompare
+              ? t("6指標の比較", "Comparing the 6 indicators")
+              : t("6指標", "6 indicators")
+          }
+        >
           <BrainRadarCompare
             series={picked.map((m) => ({
               indicators: m.indicators,
-              label: measurementSeriesLabel(m),
+              label: measurementSeriesLabel(m, locale),
             }))}
           />
         </Fullscreenable>
@@ -223,13 +252,19 @@ export default function ReportPage() {
 
       <div>
         <p className="text-sm font-medium text-text-secondary mb-1 text-center">
-          周波数スペクトル
+          {t("周波数スペクトル", "Frequency spectrum")}
         </p>
-        <Fullscreenable title={canCompare ? "周波数スペクトル比較" : "周波数スペクトル"}>
+        <Fullscreenable
+          title={
+            canCompare
+              ? t("周波数スペクトル比較", "Comparing frequency spectra")
+              : t("周波数スペクトル", "Frequency spectrum")
+          }
+        >
           <BrainSpectrumCompare
             series={picked.map((m) => ({
               spectrum: m.spectrum!,
-              label: measurementSeriesLabel(m),
+              label: measurementSeriesLabel(m, locale),
             }))}
           />
         </Fullscreenable>
@@ -239,7 +274,10 @@ export default function ReportPage() {
 
   return (
     <div style={{ animation: "fade-in 0.3s ease-out" }}>
-      <PageHeader title="Sync Report" subtitle="脳特性分析・効果比較" />
+      <PageHeader
+        title="Sync Report"
+        subtitle={t("脳特性分析・効果比較", "Brain profile analysis & comparison")}
+      />
 
       <PageColumn>
       {!hydrated ? null : !authLoading && !user ? (
@@ -248,13 +286,16 @@ export default function ReportPage() {
             <Lock size={28} className="text-text-muted" strokeWidth={1.5} />
           </div>
           <p className="text-sm text-text-secondary">
-            ログインすると脳特性データをアカウントに保存・分析できます
+            {t(
+              "ログインすると脳特性データをアカウントに保存・分析できます",
+              "Log in to save your brain profile data to your account and analyze it"
+            )}
           </p>
           <button
             onClick={() => openAuthModal("login")}
             className="h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
           >
-            ログイン
+            {t("ログイン", "Log in")}
           </button>
         </div>
       ) : (
@@ -263,12 +304,12 @@ export default function ReportPage() {
               tablist の作法どおりに組む（ボタン自体は48px確保）。 */}
           <div
             role="tablist"
-            aria-label="レポートの表示切り替え"
+            aria-label={t("レポートの表示切り替え", "Report views")}
             className="flex gap-2"
             onKeyDown={(e) => {
               if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
               e.preventDefault();
-              const i = REPORT_TABS.findIndex((t) => t.key === tab);
+              const i = REPORT_TABS.findIndex((rt) => rt.key === tab);
               const next =
                 REPORT_TABS[
                   (i + (e.key === "ArrowRight" ? 1 : REPORT_TABS.length - 1)) %
@@ -278,18 +319,18 @@ export default function ReportPage() {
               document.getElementById(`report-tab-${next.key}`)?.focus();
             }}
           >
-            {REPORT_TABS.map((t) => {
-              const Icon = t.icon;
-              const isActive = tab === t.key;
+            {REPORT_TABS.map((rt) => {
+              const Icon = rt.icon;
+              const isActive = tab === rt.key;
               return (
                 <button
-                  key={t.key}
-                  id={`report-tab-${t.key}`}
+                  key={rt.key}
+                  id={`report-tab-${rt.key}`}
                   role="tab"
                   aria-selected={isActive}
-                  aria-controls={`report-panel-${t.key}`}
+                  aria-controls={`report-panel-${rt.key}`}
                   tabIndex={isActive ? 0 : -1}
-                  onClick={() => setTab(t.key)}
+                  onClick={() => setTab(rt.key)}
                   className={`flex-1 min-h-12 flex items-center justify-center gap-2 px-3 rounded-2xl text-sm font-bold transition-colors ${
                     isActive
                       ? "bg-primary text-on-primary"
@@ -297,14 +338,14 @@ export default function ReportPage() {
                   }`}
                 >
                   <Icon size={18} strokeWidth={1.5} className="shrink-0" />
-                  {t.label}
+                  {t(rt.label)}
                 </button>
               );
             })}
           </div>
 
           <p className="text-sm text-text-secondary -mt-2">
-            {REPORT_TABS.find((t) => t.key === tab)!.lead}
+            {t(REPORT_TABS.find((rt) => rt.key === tab)!.lead)}
           </p>
         </>
       )}
@@ -323,9 +364,9 @@ export default function ReportPage() {
               {isViewingPast && (
                 <div className="flex items-center justify-between gap-3 bg-surface border border-primary rounded-2xl px-4 py-3 neu-raised">
                   <p className="text-sm text-text-secondary">
-                    過去の測定を表示中：
+                    {t("過去の測定を表示中：", "Viewing a past measurement: ")}
                     <span className="font-bold text-text-primary">
-                      {new Date(displayed.uploadedAt).toLocaleString("ja-JP", {
+                      {new Date(displayed.uploadedAt).toLocaleString(intlLocale(locale), {
                         month: "long",
                         day: "numeric",
                         hour: "2-digit",
@@ -337,7 +378,7 @@ export default function ReportPage() {
                     onClick={() => setViewingMeasurement(null)}
                     className="shrink-0 min-h-12 px-4 rounded-xl bg-primary text-on-primary text-sm font-bold neu-raised-sm neu-press transition-transform"
                   >
-                    最新に戻る
+                    {t("最新に戻る", "Back to latest")}
                   </button>
                 </div>
               )}
@@ -353,26 +394,29 @@ export default function ReportPage() {
               {/* Radar chart — scores shown directly on each vertex */}
               <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
                 <div className="flex items-center justify-center gap-2 mb-1">
-                  <h3 className="text-base font-bold text-text-primary">大脳特性</h3>
+                  <h3 className="text-base font-bold text-text-primary">
+                    {t("大脳特性", "Brain profile")}
+                  </h3>
                   <IndicatorHelp />
                 </div>
-                <Fullscreenable title="大脳特性">
+                <Fullscreenable title={t("大脳特性", "Brain profile")}>
                   <BrainRadarChart indicators={displayed.indicators} size="large" showScores />
                 </Fullscreenable>
                 {displayed.subject && (
                   <p className="text-sm font-bold text-primary text-center mt-2">
-                    測定者: {displayed.subject}
+                    {t("測定者", "Person")}: {subjectDisplayName(displayed.subject, locale)}
                   </p>
                 )}
                 <p className="text-xs text-text-muted text-center mt-2">
-                  セッション: {displayed.sessionTag} ・ 測定日:{" "}
-                  {new Date(displayed.uploadedAt).toLocaleDateString("ja-JP")}
+                  {t("セッション", "Session")}: {sessionTagLabel(displayed, locale)}
+                  {t(" ・ 測定日:", " · Measured:")}{" "}
+                  {new Date(displayed.uploadedAt).toLocaleDateString(intlLocale(locale))}
                 </p>
                 {/* Rate の共鳴率をどの Hz で見たか。入力があった回だけ出す
                     （無い回は既定の 40Hz で、これまでと同じ判定）。 */}
                 {displayed.targetHz != null && (
                   <p className="text-xs text-text-muted text-center">
-                    誘導周波数: {formatTargetHz(displayed.targetHz)}Hz
+                    {t("誘導周波数", "Target frequency")}: {formatTargetHz(displayed.targetHz)}Hz
                   </p>
                 )}
                 {displayed.qualityPct !== undefined && (
@@ -380,7 +424,10 @@ export default function ReportPage() {
                     <SignalQualityBadge qualityPct={displayed.qualityPct} />
                     {isLowQuality(displayed.qualityPct) && (
                       <p className="text-xs text-warning text-center">
-                        装着が不安定だったため、スコアは目安としてご覧ください
+                        {t(
+                          "装着が不安定だったため、スコアは目安としてご覧ください",
+                          "The headset fit was unstable, so treat these scores as a rough guide."
+                        )}
                       </p>
                     )}
                   </div>
@@ -392,7 +439,12 @@ export default function ReportPage() {
                   href="/history"
                   className="block text-sm text-primary text-center underline underline-offset-4 active:opacity-70"
                 >
-                  全 {measurements.length} 件の測定記録を見る →
+                  {t(
+                    `全 ${measurements.length} 件の測定記録を見る →`,
+                    measurements.length === 1
+                      ? "See your 1 measurement record →"
+                      : `See all ${measurements.length} measurement records →`
+                  )}
                 </Link>
               )}
               </div>
@@ -402,10 +454,10 @@ export default function ReportPage() {
                   measurement predates band data (legacy records omit it) */}
               <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
                 <p className="text-base font-bold text-text-primary mb-2 text-center">
-                  8種類の脳波バランス
+                  {t("8種類の脳波バランス", "Brainwave balance (8 types)")}
                 </p>
                 {displayed.bands ? (
-                  <Fullscreenable title="8種類の脳波バランス">
+                  <Fullscreenable title={t("8種類の脳波バランス", "Brainwave balance (8 types)")}>
                     <BrainBandPie
                       powers={displayed.bands}
                       hiddenKeys={hiddenBands}
@@ -414,9 +466,15 @@ export default function ReportPage() {
                   </Fullscreenable>
                 ) : (
                   <p className="text-sm text-text-secondary text-center py-8">
-                    この測定には脳波バランスのデータが含まれていません。
+                    {t(
+                      "この測定には脳波バランスのデータが含まれていません。",
+                      "This measurement has no brainwave balance data."
+                    )}
                     <br />
-                    マインドマップで再測定するか、脳波ファイルを再アップロードすると表示されます。
+                    {t(
+                      "マインドマップで再測定するか、脳波ファイルを再アップロードすると表示されます。",
+                      "Measure again with the mind map, or upload the brainwave file again, to see it."
+                    )}
                   </p>
                 )}
               </div>
@@ -425,12 +483,15 @@ export default function ReportPage() {
               {displayed.spectrum && displayed.spectrum.length > 0 && (
                 <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
                   <p className="text-base font-bold text-text-primary mb-1 text-center">
-                    周波数スペクトル
+                    {t("周波数スペクトル", "Frequency spectrum")}
                   </p>
                   <p className="text-xs text-text-muted text-center mb-2">
-                    1〜{displayed.spectrum.length}Hz の相対振幅
+                    {t(
+                      `1〜${displayed.spectrum.length}Hz の相対振幅`,
+                      `Relative amplitude, 1–${displayed.spectrum.length} Hz`
+                    )}
                   </p>
-                  <Fullscreenable title="周波数スペクトル">
+                  <Fullscreenable title={t("周波数スペクトル", "Frequency spectrum")}>
                     <BrainSpectrumChart spectrum={displayed.spectrum} />
                   </Fullscreenable>
                 </div>
@@ -441,13 +502,13 @@ export default function ReportPage() {
                 <EegUploader />
                 <button
                   onClick={() => {
-                    if (window.confirm("すべての脳波記録を削除しますか？")) {
+                    if (window.confirm(t("すべての脳波記録を削除しますか？", "Delete all brainwave records?"))) {
                       clearProfile().catch((err) => console.error(err));
                     }
                   }}
                   className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-base font-medium neu-raised-sm neu-press transition-transform"
                 >
-                  すべての記録を削除
+                  {t("すべての記録を削除", "Delete all records")}
                 </button>
               </div>
               </div>
@@ -460,10 +521,13 @@ export default function ReportPage() {
                 <BrainCircuit size={48} className="text-primary" strokeWidth={1.5} />
               </div>
               <p className="text-lg font-bold text-text-primary mb-2">
-                脳波データを分析しましょう
+                {t("脳波データを分析しましょう", "Let's analyze your brainwave data")}
               </p>
               <p className="text-sm text-text-secondary mb-6">
-                シンク・ブレインや PC の測定アプリ（ログインして測定）で測るか、BrainLinkデバイスで測定したExcelまたはCSVファイルをアップロードすると、あなたの脳特性を6つの指標で可視化します。
+                {t(
+                  "シンク・ブレインや PC の測定アプリ（ログインして測定）で測るか、BrainLinkデバイスで測定したExcelまたはCSVファイルをアップロードすると、あなたの脳特性を6つの指標で可視化します。",
+                  "Measure with Sync Brain or the PC measurement app (log in to measure), or upload an Excel or CSV file recorded with a BrainLink device, and your brain profile will be shown as 6 indicators."
+                )}
               </p>
               <EegUploader />
             </div>
@@ -502,16 +566,19 @@ export default function ReportPage() {
                 <GitCompare size={48} className="text-primary" strokeWidth={1.5} />
               </div>
               <p className="text-lg font-bold text-text-primary mb-2">
-                比較できる測定がまだありません
+                {t("比較できる測定がまだありません", "No measurements to compare yet")}
               </p>
               <p className="text-sm text-text-secondary mb-6">
-                測定を2件以上ためると、6指標と周波数スペクトルを重ねて見比べられます。
+                {t(
+                  "測定を2件以上ためると、6指標と周波数スペクトルを重ねて見比べられます。",
+                  "Once you have 2 or more measurements, you can overlay their 6 indicators and frequency spectra to compare them."
+                )}
               </p>
               <Link
                 href="/brain"
                 className="inline-flex items-center justify-center min-h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
               >
-                測定へ
+                {t("測定へ", "Take a measurement")}
               </Link>
             </div>
           )}

@@ -21,6 +21,7 @@ import {
   useSelfRatingStore,
   formatRecordedAt,
 } from "@/store/useSelfRatingStore";
+import { useLocale, useT } from "@/lib/i18n";
 
 interface SelfRatingValues {
   switching: number;
@@ -47,6 +48,10 @@ const SELF_AXES = [
     sub: "脳のメリハリ感",
     low: "ガチガチ",
     high: "スムーズ",
+    labelEn: "Switching",
+    subEn: "shifting gears",
+    lowEn: "Stiff",
+    highEn: "Smooth",
   },
   {
     key: "clarity",
@@ -55,6 +60,10 @@ const SELF_AXES = [
     sub: "頭の透明感",
     low: "モヤモヤ",
     high: "クリア",
+    labelEn: "Insight",
+    subEn: "clear-headedness",
+    lowEn: "Foggy",
+    highEn: "Clear",
   },
   {
     key: "rest",
@@ -63,6 +72,10 @@ const SELF_AXES = [
     sub: "脳のゆとり感",
     low: "疲れ",
     high: "リフレッシュ",
+    labelEn: "Rest",
+    subEn: "mental ease",
+    lowEn: "Tired",
+    highEn: "Refreshed",
   },
 ] as const;
 
@@ -88,6 +101,8 @@ const DEFAULT_VALUES: SelfRatingValues = { switching: 60, clarity: 50, rest: 55 
  * どちらの画面で見ても常に一致する。
  */
 export default function BrainConditionCard() {
+  const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const storeProfile = useBrainProfileStore((s) => s.profile);
   // この端末の記録＋アカウントの記録（デスクトップ測定アプリで取った分も）。
@@ -113,7 +128,9 @@ export default function BrainConditionCard() {
   const metrics = useBaseline
     ? computeBaselineConditionMetrics(check)
     : computeBrainConditionMetrics(profile);
-  const sourceLabel = useBaseline ? "10秒クイックチェック" : "直近脳波測定データ";
+  const sourceLabel = useBaseline
+    ? t("10秒クイックチェック", "10-second check")
+    : t("直近脳波測定データ", "Latest brainwave measurement");
 
   // つまみを動かすまでは draft = null で、表示は保存値（無ければ初期値）を
   // そのまま見せる。effect で store → state を写すのではなく描画時に解決する
@@ -141,7 +158,7 @@ export default function BrainConditionCard() {
         <div className="flex items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-sm text-text-secondary">
             <BrainCircuit size={18} strokeWidth={1.5} className="shrink-0 text-primary" />
-            脳コンディション
+            {t("脳コンディション", "Brain condition")}
           </p>
           {/* 分析は Sync Report、測定は下の「今すぐ測定へ」で /brain —
               読む先と入力する先を別の導線に分けている */}
@@ -149,7 +166,7 @@ export default function BrainConditionCard() {
             href="/report"
             className="inline-flex items-center min-h-12 -my-2 px-1 -mx-1 text-xs text-primary font-medium"
           >
-            詳細へ →
+            {t("詳細へ →", "Details →")}
           </Link>
         </div>
 
@@ -158,7 +175,7 @@ export default function BrainConditionCard() {
           {metrics.map((m, i) => (
             <div
               key={m.key}
-              title={m.fullName}
+              title={t(m.fullName, m.fullNameEn)}
               className={
                 "flex flex-col items-center gap-0.5 px-1" +
                 (i < metrics.length - 1 ? " border-r border-surface-border" : "")
@@ -185,7 +202,7 @@ export default function BrainConditionCard() {
             href="/brain"
             className="inline-flex items-center min-h-12 -my-2 px-1 -mx-1 text-xs text-primary font-medium"
           >
-            今すぐ測定へ →
+            {t("今すぐ測定へ →", "Measure now →")}
           </Link>
         </div>
       </div>
@@ -194,7 +211,7 @@ export default function BrainConditionCard() {
       <div className="flex flex-col gap-3">
         <p className="flex items-center gap-2 text-sm text-text-secondary">
           <HeartPulse size={18} strokeWidth={1.5} className="shrink-0 text-accent" />
-          今の「感コンディション」をチェック
+          {t("今の「感コンディション」をチェック", "Check how you feel right now")}
         </p>
         {SELF_AXES.map((axis) => {
           const Icon = axis.icon;
@@ -210,8 +227,10 @@ export default function BrainConditionCard() {
                     strokeWidth={2}
                     className="shrink-0 self-center text-primary"
                   />
-                  {axis.label}
-                  <span className="text-xs font-normal text-text-muted">（{axis.sub}）</span>
+                  {t(axis.label, axis.labelEn)}
+                  <span className="text-xs font-normal text-text-muted">
+                    {t(`（${axis.sub}）`, `(${axis.subEn})`)}
+                  </span>
                 </label>
                 {/* いま何％かを見出し行の右端に。両端の言葉だけだと、つまみが
                     真ん中寄りのときに「前回より上げたつもり」が確かめられず、
@@ -242,7 +261,9 @@ export default function BrainConditionCard() {
                   56/96px から詰めてある——文字が縮んでも枠を据え置くと、
                   余った 24px がそのままスライダーの可動域から削られる。 */}
               <div className="flex items-center gap-2">
-                <span className="w-13 shrink-0 text-xs text-text-muted">{axis.low}</span>
+                <span className="w-13 shrink-0 text-xs text-text-muted">
+                  {t(axis.low, axis.lowEn)}
+                </span>
                 <RangeSlider
                   id={`self-${axis.key}`}
                   min={0}
@@ -254,7 +275,7 @@ export default function BrainConditionCard() {
                   className="flex-1 min-w-0"
                 />
                 <span className="w-20 shrink-0 text-right text-xs text-text-muted whitespace-nowrap">
-                  {axis.high}
+                  {t(axis.high, axis.highEn)}
                 </span>
               </div>
             </div>
@@ -271,11 +292,15 @@ export default function BrainConditionCard() {
           className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl bg-navy text-primary text-base font-bold neu-raised-sm neu-press active:scale-95 transition-transform"
         >
           <Timer size={20} strokeWidth={2} />
-          {BASELINE_MEASURE_SEC}秒 脳波測定をはじめる
+          {t(
+            `${BASELINE_MEASURE_SEC}秒 脳波測定をはじめる`,
+            `Start the ${BASELINE_MEASURE_SEC}-second check`
+          )}
         </button>
         {hydrated && latest && (
           <span className="text-xs text-text-muted text-center">
-            前回：{formatRecordedAt(latest.recordedAt, now)}
+            {t("前回：", "Last: ")}
+            {formatRecordedAt(latest.recordedAt, now, locale)}
           </span>
         )}
       </div>

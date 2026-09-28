@@ -42,7 +42,7 @@ brainwave-app/
 │   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 誘導周波数の入力 → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕）
 │   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル ／「測定の比較」＝1件で6指標＆スペクトル表示・2〜3件で重ねて比較。既定は脳特性チャート）
 │   ├── history/page.tsx        # Sync History（日历〔日付タップで当日の明細＋**その日の振り返り**を書く〕/ セッション統計 / 脳波の記録〔ログイン必須〕/ 10秒チェックの記録〔認証ゲートの外＝未ログインでも見える〕；レポートで見る→/report）
-│   ├── settings/page.tsx       # Settings（账号 / 管理入口 / 应用信息；菜单外，从首页齿轮进入）
+│   ├── settings/page.tsx       # Settings（账号〔下部に**表示言語**＝LanguageSwitch、未ログインでも切替可〕/ 管理入口 / 应用信息；菜单外，从首页齿轮进入）
 │   ├── tree/page.tsx           # Sync Tree：いまの木が**1本だけ大きく**立つ毎日のチェックイン画面（16段階ギャラリーは廃止）。大きな木＝components/SyncTreeWaterScene（**ダブルタップで水やり**：1回目で「もう一度タップで水やり」を出して 1.5 秒待ち、その間の2回目で水やり——350ms の厳密判定は 50〜60代の指に速すぎ、iOS は dblclick を安定して出さず VoiceOver の実行も1クリックで届くため。Enter/Space は1回で水やり。しずく・立ちのぼるきらめき・揺れ・段階替わりの「育つ」は CSS の1回きりアニメ）→ 育ち具合（目盛りの無い帯＋growthLevel で選ぶ言葉「育ちはじめました／すくすく／もうすぐ」・育てた木）→ 今日のおせわ（水やり 済み／まだ・リスニング まだ／育っています／今日はたっぷり。言葉と色は components/tree-care.ts でホームの状態バーと共有）→ 完成したら「新しい木を育てる」（ConfirmDialog）。**画面に数値を出さない**（プロダクト判断：％・ポイント・「+1」のような加算量・段階の番号は内部だけ。出す数字は育てた木の本数と「1日1回」「5分」という使い方だけ）。**ログイン中だけ**使える（未ログインはログイン誘導）。育てた木数はここだけ、段階名はホーム树卡と両方；菜单外，从首页树卡进入
 │   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
@@ -53,8 +53,11 @@ brainwave-app/
 │   ├── PageHeader.tsx          # 全ページ共通の見出し。**sticky top-0** でスクロールしても上に残る（長いページでも「いまどの画面か」が消えない）。**帯は横いっぱい**（`<main>` の幅そのまま＝画面端まで／デスクトップはレールの右端から右端まで）、中身だけ `usePageColumnClass()` に入れて下のカードと左端を揃える。地は**すりガラス**（`bg-navy/70` ＋ `backdrop-blur-2xl`＝40px）。不透明な `bg-navy` は不可——WaveBackground は `fixed` で `--dyn-navy` の上に明るい波を重ねているので、見えている地色は場所によって違い、波が横切る位置では不透明な帯だけが暗い矩形として浮く（デスクトップで露骨に出た）。blur なら背後の波の色を拾って周囲と同じ色みになる。blur は 12px では下を流れるグラフの目盛りが読めてしまうので 40px、tint は明るいアート（ブレインアート等）の滲み出しを抑えるのに 70% 必要。文字は `text-xl`/`text-xs`＝20px/12px（ページ内見出し `text-lg`=18px を下回らない範囲で最小）。帯の上下は pt-4/pb-2——文字の縮小に合わせて詰めてある（高さを据え置くと小さくなった見出しが広い帯の中で浮く）。リードは操作ボタンの**下の行**に置く（同じ行だとホームでログイン＋設定に幅を取られて切れる）。スロット：`eyebrow`（ホームのブランド名）/ `actions`（ログイン・設定）/ `leading`（/tree の戻る）
 │   ├── PageColumn.tsx          # 内容カラム（最大幅＋左右パディング）の**唯一の持ち主**＝`usePageColumnClass()`。`PageHeader` の帯と本文が同じ値を使う（ズレると見出しがカードから外れて浮く）。`PageColumn`＝カラム＋`flex flex-col gap-6 pt-6`（見出しページ用）、`BareColumn`＝カラムだけ（gap/padding が違う /player・/synth・/admin・旧路由スタブ用——Tailwind は同プロパティのクラスを並べても「後に書いたほう」が勝つとは限らないので上書きに頼らない）
 │   ├── AppMain.tsx             # `<main>`。**横幅は制限しない**（カラムは PageColumn 側）——ここで `mx-auto max-w-5xl` を掛けると sticky な見出しがカラム幅どまりで「浮いた棒」になり、`mx-auto` の余白は画面幅×レール開閉で変わるので負マージンでも逃がせない。持つのはミニプレイヤー分の下パディングだけ
-│   └── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
+│   ├── nav-tabs.ts             # 双导航（BottomNav / SideNav）唯一的标签配置来源（5 项）
+│   ├── LanguageSwitch.tsx      # 表示言語の切替：`LanguageSwitch`（設定のアカウント欄、2択）／`LanguageToggleButton`（/desktop の見出し帯、押すともう一方へ）。見出しは言語に関係なく「表示言語 / Language」
+│   └── LocaleSync.tsx          # `<html lang>` と document.title を表示言語に合わせる（layout に1つ）
 ├── lib/
+│   ├── i18n.ts                 # 表示言語（ja/en、既定 ja、端末ごとに localStorage `app-locale`）。`useT()`→`t("日本語", "English")`／`useLocale()`／`translator(locale)`／`getLocale()`（描画外専用）／`intlLocale()`。下の「表示言語」参照
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
 │   ├── synth-engine.ts         # SynthSession class（多层振荡器合成 + 颤音 / 颤振）
 │   ├── programs.ts             # 基础程序频率参数（从设计文档映射）+ ZODIAC_PROGRAMS（12星座节目，工厂生成，id 前缀 `zodiac-`，不并入 PROGRAMS）+ 跨分类的 ALL_PROGRAMS / programsByCategory / searchPrograms。`getProgramById` 是**全链路唯一收口**（player/Timer/Visualizer/MiniPlayer/ExportDialog/英雄卡全走它），已改为 Map 查表——总数 169，卡片每张都经 getAdjustedProgram 叫它一次，线性扫描会让搜索框每敲一个字产生数万次比较；优先顺 PROGRAMS→ZODIAC→CATALOG 以先勝ち保持
@@ -128,6 +131,17 @@ brainwave-app/
 - 音量独立于自然音：`useAppStore.musicVolume`（默认 0.6）→ `BinauralSession.playMusicBed / setMusicVolume`（内部第二个 `NaturePlayer` 实例，与自然音互不干扰，可同时开）；Mixer 在有音乐床垫的节目（星座＋三大基础）显示音乐滑块
 - 缺失差频就近取用（只换伴奏，合成的诱导差频不变）：4Hz 未交付 → 2Hz（2/6 等距，取更深的）；獅子座自星座 15Hz → 14Hz；天秤座 8Hz → 7.83Hz
 - 若日后补齐 4Hz，把文件放进 `public/sounds/zodiac/` 并在 `AVAILABLE_BEATS` 加上 4 即可，其余逻辑无需改动
+
+### 表示言語（日本語／英語）
+
+- **既定は日本語**、設定 → アカウント欄の「表示言語 / Language」で英語へ（`components/LanguageSwitch.tsx`）。**端末ごと**に localStorage `app-locale` へ保存（アカウントには載せない——未ログインでも、日本語が読めない人がログインより先に変えられる必要がある）。デスクトップ測定アプリ（/desktop）は設定画面が無いので見出し帯の `LanguageToggleButton` で切り替える（WebView の localStorage は別なので、Web とは別々に保存される）
+- **文言は辞書キーではなく書いた場所に日英を並べる**：`const t = useT(); t("水やり", "Watering")`。モジュールの定数は `LocalizedText`（`{ ja, en }`）で持って `t(obj)`。**他のファイルからも読まれるデータは型を変えずに兄弟フィールド**（`label`＋`labelEn`、`description`＋`descriptionEn`、`nameEn` …）を足す。日本語の出力は従来とバイト単位で同じに保つ
+- **hydration の規則**：静的 HTML は日本語で焼かれる。描画中は必ず `useLocale()`/`useT()` で読む（zustand v5 の useStore はサーバースナップショットに初期状態＝日本語を使うので、hydration は日本語のまま通り、直後に保存済みの言語で描き直す）。**描画中に `getLocale()` を呼ぶと食い違う**——`getLocale()`/`translator(getLocale())` はイベント処理・effect・throw・store・lib の中だけ。canvas に文字を描くものは locale を effect の依存に入れる
+- **訳してはいけないもの**（識別子・保存されるデータ）：相位名（Visualizer は `"導入"`、getAdjustedProgram は `"加速"` を名前で探す → 表示は `phaseLabel()`）、`subGenre`（段組みの鍵 → 表示は `programSubGenre()`）、CSV 見出しの別名（注意力・放松度…）、既定の測定者名「自分」（記録に写されて分類の鍵になる → 表示は `subjectDisplayName()` で "Me"）、再生ログに残る節目名（→ `programNameById()`）、人が付けた名前（カスタム節目・メモ・日誌・グループ名）、製品名（NeuroSync・Sync ○○・Rate/Clarity/Reset）
+- **共有の訳し分け**：`programName / programDescription / programSubtitle`（英語では副題を出さない）/ `programSubGenre / programNameById / phaseLabel`（lib/programs.ts）、`zodiacName / zodiacDescription / tagLabel / beatEffect / dailyRecommendation(sky, sign, now, locale)`（lib/zodiac.ts、48 通の今日の一言の英語版つき）、`categoryLabel / categoryDescription`（lib/catalog）、`treeStageName`（lib/sync-tree.ts）、`rateMethodLabel(method, locale)`、`measurementLabel / measurementTitle / measurementSeriesLabel(m, locale)`、`subjectDisplayName`。Target の英語名は `titleEn`（素材の英題）、説明は日本語名の言い換え（`descriptionEn`）
+- **英語は 1.5〜2 倍長い**：ボタン・チップ・タブ・ナビは最短の自然な語（下ナビは Home / Session / Brain / Report / History）。ホームの Sync Tree 状態バーの2行目は幅 360 でちょうど1行（英語も Water / Listen の動詞1語）
+- **デスクトップの Python 側**：画面へ送るログは `{"type":"log","msg":…,"msgEn":…}`、`state.serial.detailEn` も付ける（`bridge/desktop_i18n.py` が bridge_core・publisher の既知の日本語を英語へ写す——従来ブリッジと共用の文言は変えない。知らない文言は日本語のまま）。起動失敗のダイアログ・ウィンドウ名・Google ログインの戻りページ（既定のブラウザで開く＝画面の言語が分からない）は日英併記
+- 新しい画面文言は**必ず日英の両方**で書く。`<html lang>` とタイトルは `LocaleSync` が合わせる
 
 ### 两个音频引擎
 

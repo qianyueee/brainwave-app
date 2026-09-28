@@ -25,6 +25,7 @@ from config import (
     default_csv_dir,
 )
 from csv_logger import CsvLogger
+from desktop_i18n import log_en
 
 log = logging.getLogger("neurosync.bridge")
 
@@ -91,6 +92,8 @@ class DesktopBridge:
                 "status": self.serial_status,
                 "port": self.serial_port,
                 "detail": self.serial_detail,
+                # 英語の画面用（desktop_i18n.log_en。知らない文言は日本語のまま）
+                "detailEn": log_en(self.serial_detail),
             },
             "ports": self.ports,
             "cloud": {
@@ -113,9 +116,10 @@ class DesktopBridge:
     async def emit_state(self) -> None:
         await self._emit({"type": "state", "state": self.state()})
 
-    async def emit_log(self, msg: str) -> None:
+    async def emit_log(self, msg: str, en: Optional[str] = None) -> None:
+        """画面へのログ。英語（msgEn）は en、無ければ既知の文言から写す（desktop_i18n）。"""
         log.info(msg)
-        await self._emit({"type": "log", "msg": msg})
+        await self._emit({"type": "log", "msg": msg, "msgEn": en if en is not None else log_en(msg)})
 
     # ── パイプライン（シリアル／デモ、排他） ────────────────────────────
     async def start_serial(self, port: str) -> None:
@@ -149,7 +153,10 @@ class DesktopBridge:
         self.mode = "demo"
         self._start_common()
         self._demo_task = asyncio.create_task(_demo_producer(self._queue, self._stop))
-        await self.emit_log("デモモード: 合成データを流します（実機不要）")
+        await self.emit_log(
+            "デモモード: 合成データを流します（実機不要）",
+            "Demo mode: streaming synthetic data (no device needed)",
+        )
         await self.emit_state()
 
     def _start_common(self) -> None:
@@ -240,7 +247,8 @@ class DesktopBridge:
         if not self.cloud_code:
             self.cloud_enabled = False
             await self.emit_log(
-                "クラウド配信にはペアリングコードが必要です（スマホの Sync Brain「接続する」に表示されます）"
+                "クラウド配信にはペアリングコードが必要です（スマホの Sync Brain「接続する」に表示されます）",
+                "Cloud streaming needs a pairing code (shown under “Connect” in Sync Brain on your phone)",
             )
             await self.emit_state()
             return
@@ -272,7 +280,10 @@ class DesktopBridge:
             return
         self._publisher = pub
         self.cloud_connected = True
-        await self.emit_log(f"クラウド配信を開始しました（コード: {self.cloud_code}）")
+        await self.emit_log(
+            f"クラウド配信を開始しました（コード: {self.cloud_code}）",
+            f"Cloud streaming started (code: {self.cloud_code})",
+        )
         await self.emit_state()
 
     async def _close_publisher(self) -> None:

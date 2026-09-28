@@ -35,6 +35,9 @@ export interface BrainConditionMetric {
   subtitle: string;
   /** 正式名称（見出し＋カッコ説明の全文） */
   fullName: string;
+  /** 英語の画面の説明と正式名称（title は英語のまま共通） */
+  subtitleEn: string;
+  fullNameEn: string;
   /** 0-100。データ不足（未測定・レガシー記録）は null。 */
   score: number | null;
 }
@@ -116,8 +119,32 @@ function metricTiles(
   reset: number | null
 ): BrainConditionMetric[] {
   return [
-    { key: "youth", title: "Rate", subtitle: "切り替え力・脳の適応同調度", fullName: "Rate（切り替え力・脳の適応同調度）", score: youth },
-    { key: "clarity", title: "Clarity", subtitle: "脳の明晰度・ひらめき・集中度", fullName: "Clarity（脳の明晰度・ひらめき・集中度）", score: clarity },
-    { key: "reset", title: "Reset", subtitle: "脳のリフレッシュ度・ディープ休息率", fullName: "Reset（脳のリフレッシュ度・ディープ休息率）", score: reset },
+    {
+      key: "youth",
+      title: "Rate",
+      subtitle: "切り替え力・脳の適応同調度",
+      fullName: "Rate（切り替え力・脳の適応同調度）",
+      subtitleEn: "switching & adaptability",
+      fullNameEn: "Rate (switching & adaptability)",
+      score: youth,
+    },
+    {
+      key: "clarity",
+      title: "Clarity",
+      subtitle: "脳の明晰度・ひらめき・集中度",
+      fullName: "Clarity（脳の明晰度・ひらめき・集中度）",
+      subtitleEn: "sharpness, insight & focus",
+      fullNameEn: "Clarity (sharpness, insight & focus)",
+      score: clarity,
+    },
+    {
+      key: "reset",
+      title: "Reset",
+      subtitle: "脳のリフレッシュ度・ディープ休息率",
+      fullName: "Reset（脳のリフレッシュ度・ディープ休息率）",
+      subtitleEn: "refresh & deep rest",
+      fullNameEn: "Reset (refresh & deep rest)",
+      score: reset,
+    },
   ];
 }

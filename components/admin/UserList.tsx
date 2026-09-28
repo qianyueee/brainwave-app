@@ -13,6 +13,7 @@ import {
 } from "@/lib/admin";
 import { useAdminStore } from "@/store/useAdminStore";
 import { Search, Shield, ShieldCheck, User, Plus, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export default function UserList() {
   const isSuperAdmin = useAdminStore((s) => s.isSuperAdmin);
@@ -21,6 +22,7 @@ export default function UserList() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const t = useT();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,11 +71,11 @@ export default function UserList() {
   const roleLabel = (role: UserRole) => {
     switch (role) {
       case "super_admin":
-        return "スーパー管理者";
+        return t("スーパー管理者", "Super admin");
       case "admin":
-        return "管理者";
+        return t("管理者", "Admin");
       default:
-        return "一般ユーザー";
+        return t("一般ユーザー", "Standard user");
     }
   };
 
@@ -86,15 +88,15 @@ export default function UserList() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="メールで検索..."
+          placeholder={t("メールで検索...", "Search by email...")}
           className="w-full pl-10 pr-4 py-3 rounded-2xl bg-navy text-text-primary text-base border border-surface-border focus:outline-none focus:border-primary"
         />
       </div>
 
       {loading ? (
-        <p className="text-sm text-text-muted text-center py-8">読み込み中...</p>
+        <p className="text-sm text-text-muted text-center py-8">{t("読み込み中...", "Loading...")}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-text-muted text-center py-8">ユーザーが見つかりません</p>
+        <p className="text-sm text-text-muted text-center py-8">{t("ユーザーが見つかりません", "No users found")}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map((user) => {
@@ -136,7 +138,7 @@ export default function UserList() {
                     {/* Role management (super_admin only) */}
                     {isSuperAdmin && user.role !== "super_admin" && (
                       <div>
-                        <p className="text-xs text-text-muted mb-2">ロール変更</p>
+                        <p className="text-xs text-text-muted mb-2">{t("ロール変更", "Change role")}</p>
                         <div className="flex gap-2">
                           {(["user", "admin"] as UserRole[]).map((r) => (
                             <button
@@ -157,7 +159,7 @@ export default function UserList() {
 
                     {/* Group management */}
                     <div>
-                      <p className="text-xs text-text-muted mb-2">グループ</p>
+                      <p className="text-xs text-text-muted mb-2">{t("グループ", "Groups")}</p>
                       <div className="flex flex-wrap gap-2">
                         {user.groups.map((g) => (
                           <button
@@ -178,7 +180,7 @@ export default function UserList() {
                             }}
                           >
                             <option value="">
-                              <Plus size={12} /> 追加...
+                              <Plus size={12} /> {t("追加...", "Add...")}
                             </option>
                             {availableGroups.map((g) => (
                               <option key={g.id} value={g.id}>{g.name}</option>

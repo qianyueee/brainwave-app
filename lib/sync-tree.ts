@@ -50,29 +50,36 @@ export interface TreeStage {
   num: number;
   /** 段階名（星の種 → 大樹） */
   name: string;
+  /** 段階名の英語（Star Seed → Great Tree） */
+  nameEn: string;
   /** 属する成長期 */
   phase: string;
 }
 
 /** 6つの成長期 × 16段階。並びはデザインハンドオフの表のまま。 */
 export const TREE_STAGES: TreeStage[] = [
-  { num: 1, name: "星の種", phase: "種期" },
-  { num: 2, name: "発芽", phase: "種期" },
-  { num: 3, name: "双葉", phase: "種期" },
-  { num: 4, name: "本葉", phase: "苗期" },
-  { num: 5, name: "苗立ち", phase: "苗期" },
-  { num: 6, name: "若苗", phase: "苗期" },
-  { num: 7, name: "幼木", phase: "幼木期" },
-  { num: 8, name: "枝分かれ", phase: "幼木期" },
-  { num: 9, name: "葉茂り", phase: "幼木期" },
-  { num: 10, name: "若木", phase: "若木期" },
-  { num: 11, name: "枝張り", phase: "若木期" },
-  { num: 12, name: "樹冠形成", phase: "若木期" },
-  { num: 13, name: "成木", phase: "成木期" },
-  { num: 14, name: "開花", phase: "成木期" },
-  { num: 15, name: "結実", phase: "成木期" },
-  { num: 16, name: "大樹", phase: "大樹" },
+  { num: 1, name: "星の種", nameEn: "Star Seed", phase: "種期" },
+  { num: 2, name: "発芽", nameEn: "Sprout", phase: "種期" },
+  { num: 3, name: "双葉", nameEn: "First Leaves", phase: "種期" },
+  { num: 4, name: "本葉", nameEn: "True Leaves", phase: "苗期" },
+  { num: 5, name: "苗立ち", nameEn: "Seedling", phase: "苗期" },
+  { num: 6, name: "若苗", nameEn: "Young Seedling", phase: "苗期" },
+  { num: 7, name: "幼木", nameEn: "Sapling", phase: "幼木期" },
+  { num: 8, name: "枝分かれ", nameEn: "Branching Out", phase: "幼木期" },
+  { num: 9, name: "葉茂り", nameEn: "Leafing Out", phase: "幼木期" },
+  { num: 10, name: "若木", nameEn: "Young Tree", phase: "若木期" },
+  { num: 11, name: "枝張り", nameEn: "Spreading Branches", phase: "若木期" },
+  { num: 12, name: "樹冠形成", nameEn: "Crown Forming", phase: "若木期" },
+  { num: 13, name: "成木", nameEn: "Mature Tree", phase: "成木期" },
+  { num: 14, name: "開花", nameEn: "Blossoming", phase: "成木期" },
+  { num: 15, name: "結実", nameEn: "Bearing Fruit", phase: "成木期" },
+  { num: 16, name: "大樹", nameEn: "Great Tree", phase: "大樹" },
 ];
+
+/** 画面に出す段階名（lib/i18n.ts の Locale と同じ値。ここは import を持たない）。 */
+export function treeStageName(stage: TreeStage, locale: "ja" | "en"): string {
+  return locale === "en" ? stage.nameEn : stage.name;
+}
 
 // ── 出来事 ──
 

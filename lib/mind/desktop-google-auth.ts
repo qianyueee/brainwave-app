@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase";
+import type { LocalizedText } from "@/lib/i18n";
 import { useDesktopBridgeStore } from "@/store/useDesktopBridgeStore";
 import { useDesktopLoginStore } from "@/store/useDesktopLoginStore";
 import type { DesktopAuthCallback } from "./desktop-bridge";
@@ -26,8 +27,17 @@ const PENDING_KEY = "desktop-google-login";
 /** GoTrue の flow state の寿命（/authorize から）。 */
 export const DESKTOP_LOGIN_TTL_MS = 5 * 60_000;
 
-const TIMEOUT_MESSAGE =
-  "時間がかかりすぎたため、ログインを完了できませんでした。もう一度「Googleでログイン」からお試しください";
+// 失敗の案内は両方の言語で持ち、表示言語は AuthModal が描画時に選ぶ（ダイアログを
+// 閉じている間に届いた失敗も、あとで開いたときの言語で出る）。
+const TIMEOUT_MESSAGE: LocalizedText = {
+  ja: "時間がかかりすぎたため、ログインを完了できませんでした。もう一度「Googleでログイン」からお試しください",
+  en: "It took too long, so the login couldn't be completed. Please try “Log in with Google” again.",
+};
+
+const INCOMPLETE_MESSAGE: LocalizedText = {
+  ja: "ログインを完了できませんでした。もう一度お試しください",
+  en: "Couldn't finish logging in. Please try again.",
+};
 
 export interface PreparedGoogleLogin {
   url: string;
@@ -108,10 +118,15 @@ function takePending(): Pending | null {
   return pending && typeof pending.verifier === "string" ? pending : null;
 }
 
-function describeError(ev: DesktopAuthCallback): string {
-  if (ev.error === "access_denied") return "Google ログインがキャンセルされました";
+function describeError(ev: DesktopAuthCallback): LocalizedText {
+  if (ev.error === "access_denied") {
+    return { ja: "Google ログインがキャンセルされました", en: "Google login was canceled" };
+  }
   if (ev.errorCode === "flow_state_expired") return TIMEOUT_MESSAGE;
-  return "Google ログインに失敗しました。もう一度お試しください";
+  return {
+    ja: "Google ログインに失敗しました。もう一度お試しください",
+    en: "Google login failed. Please try again.",
+  };
 }
 
 /**
@@ -132,7 +147,10 @@ export async function completeDesktopGoogleLogin(ev: DesktopAuthCallback): Promi
     return;
   }
   if (!supabase || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    store.setError("このアプリはログインに対応していません");
+    store.setError({
+      ja: "このアプリはログインに対応していません",
+      en: "This app doesn't support logging in",
+    });
     return;
   }
   store.setExchanging();
@@ -152,11 +170,7 @@ export async function completeDesktopGoogleLogin(ev: DesktopAuthCallback): Promi
       error_code?: string;
     };
     if (!res.ok || !body.access_token || !body.refresh_token) {
-      store.setError(
-        body.error_code === "flow_state_expired"
-          ? TIMEOUT_MESSAGE
-          : "ログインを完了できませんでした。もう一度お試しください"
-      );
+      store.setError(body.error_code === "flow_state_expired" ? TIMEOUT_MESSAGE : INCOMPLETE_MESSAGE);
       return;
     }
     // 以降は通常のログインと同じ：SIGNED_IN を AuthProvider が受け取る。
@@ -165,21 +179,23 @@ export async function completeDesktopGoogleLogin(ev: DesktopAuthCallback): Promi
       refresh_token: body.refresh_token,
     });
     if (error) {
-      store.setError("ログインを完了できませんでした。もう一度お試しください");
+      store.setError(INCOMPLETE_MESSAGE);
       return;
     }
     store.reset();
   } catch {
-    store.setError("インターネットに接続できませんでした。接続を確認して、もう一度お試しください");
+    store.setError({
+      ja: "インターネットに接続できませんでした。接続を確認して、もう一度お試しください",
+      en: "Couldn't connect to the internet. Please check your connection and try again.",
+    });
   }
 }
 
 /** 期限切れ（AuthModal のタイマー）：待つのをやめる。後から戻りが届いても使わない。 */
 export function expireDesktopGoogleLogin(): void {
   clearPending();
-  useDesktopLoginStore
-    .getState()
-    .setError(
-      `${TIMEOUT_MESSAGE}。ブラウザでログインしたあと Web版の画面が開いてしまう場合は、管理者に Supabase のリダイレクト URL 設定を確認してもらってください`
-    );
+  useDesktopLoginStore.getState().setError({
+    ja: `${TIMEOUT_MESSAGE.ja}。ブラウザでログインしたあと Web版の画面が開いてしまう場合は、管理者に Supabase のリダイレクト URL 設定を確認してもらってください`,
+    en: `${TIMEOUT_MESSAGE.en} If the web app opens in your browser after you log in, ask your administrator to check the redirect URL settings in Supabase.`,
+  });
 }

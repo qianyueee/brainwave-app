@@ -6,6 +6,7 @@ import { useCustomAudioStore } from "@/store/useCustomAudioStore";
 import { useAppStore } from "@/store/useAppStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useAudio } from "@/components/AudioProvider";
+import { useT, type LocalizedText } from "@/lib/i18n";
 
 const MAX_COUNT = 3;
 
@@ -33,14 +34,16 @@ export default function CustomAudioSection() {
   const { playNatureSound, stopNatureSound } = useAudio();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState("");
+  // Both languages are kept so the message follows a language switch.
+  const [error, setError] = useState<LocalizedText | null>(null);
+  const t = useT();
 
   // Hydration guard for persisted store
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    setError("");
+    setError(null);
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -48,7 +51,7 @@ export default function CustomAudioSection() {
     e.target.value = "";
 
     if (audios.length >= MAX_COUNT) {
-      setError(`最大${MAX_COUNT}個までです`);
+      setError({ ja: `最大${MAX_COUNT}個までです`, en: `You can add up to ${MAX_COUNT} files` });
       return;
     }
 
@@ -58,7 +61,7 @@ export default function CustomAudioSection() {
     try {
       await addAudio(id, name, file.type, file);
     } catch {
-      setError("保存に失敗しました");
+      setError({ ja: "保存に失敗しました", en: "Couldn't save the file" });
     }
   };
 
@@ -72,7 +75,7 @@ export default function CustomAudioSection() {
     try {
       await removeAudio(id);
     } catch {
-      setError("削除に失敗しました");
+      setError({ ja: "削除に失敗しました", en: "Couldn't delete the file" });
     }
   };
 
@@ -97,13 +100,13 @@ export default function CustomAudioSection() {
     <div className="flex flex-col gap-2">
       <div className="flex justify-between items-center">
         <span className="text-sm text-text-secondary">
-          マイ音声 ({audios.length}/{MAX_COUNT})
+          {t(`マイ音声 (${audios.length}/${MAX_COUNT})`, `My audio (${audios.length}/${MAX_COUNT})`)}
         </span>
         {audios.length < MAX_COUNT && (
           <button
             onClick={() => fileInputRef.current?.click()}
             className="w-12 h-12 flex items-center justify-center rounded-lg bg-navy text-text-secondary neu-raised-sm neu-press"
-            aria-label="音声ファイルを追加"
+            aria-label={t("音声ファイルを追加", "Add an audio file")}
           >
             <Plus size={16} />
           </button>
@@ -118,7 +121,7 @@ export default function CustomAudioSection() {
       </div>
 
       {error && (
-        <p className="text-xs text-danger">{error}</p>
+        <p className="text-xs text-danger">{t(error)}</p>
       )}
 
       {audios.length > 0 && (
@@ -143,7 +146,7 @@ export default function CustomAudioSection() {
                 <button
                   onClick={() => handleDelete(audio.id)}
                   className="ml-1 min-w-12 min-h-12 flex items-center justify-center rounded-lg text-text-muted hover:text-danger transition-colors flex-shrink-0"
-                  aria-label={`${audio.name}を削除`}
+                  aria-label={t(`${audio.name}を削除`, `Delete ${audio.name}`)}
                 >
                   <X size={14} />
                 </button>

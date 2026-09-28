@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Maximize2, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 /**
  * Wraps a chart with a small expand button; tapping it opens the chart in a
@@ -16,6 +17,7 @@ export default function Fullscreenable({
   children: React.ReactNode;
   title?: string;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [scale, setScale] = useState(1);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ export default function Fullscreenable({
           setScale(1); // start un-scaled so the effect can measure natural size
           setOpen(true);
         }}
-        aria-label="全画面表示"
+        aria-label={t("全画面表示", "Show full screen")}
         className="absolute top-2 right-2 z-10 w-12 h-12 rounded-lg bg-navy/70 backdrop-blur-sm flex items-center justify-center text-text-secondary neu-raised-sm active:opacity-70"
       >
         <Maximize2 size={16} />
@@ -64,13 +66,13 @@ export default function Fullscreenable({
           className="fixed inset-0 z-[70] bg-black/85 flex flex-col"
           onClick={() => setOpen(false)}
           role="button"
-          aria-label="閉じる"
+          aria-label={t("閉じる", "Close")}
         >
           <div className="flex items-center justify-between p-3 shrink-0">
             <p className="text-base font-bold text-white truncate">{title ?? ""}</p>
             <button
               onClick={() => setOpen(false)}
-              aria-label="閉じる"
+              aria-label={t("閉じる", "Close")}
               className="shrink-0 w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-white"
             >
               <X size={20} />

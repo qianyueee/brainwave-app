@@ -4,8 +4,16 @@ import { useState, useEffect } from "react";
 import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
-import { getProgramById, isCustomProgramId, isTimelineProgram, timelineTotalDuration } from "@/lib/programs";
+import {
+  getProgramById,
+  isCustomProgramId,
+  isTimelineProgram,
+  programDescription,
+  programName,
+  timelineTotalDuration,
+} from "@/lib/programs";
 import { formatTime, getCurrentSegmentInfo } from "@/lib/utils";
+import { useLocale, useT } from "@/lib/i18n";
 import Visualizer from "@/components/Visualizer";
 import PlaybackControls from "@/components/PlaybackControls";
 import Timer from "@/components/Timer";
@@ -25,6 +33,8 @@ export default function PlayerPage() {
   const setTimerDuration = useAppStore((s) => s.setTimerDuration);
   const isPlaying = useAppStore((s) => s.isPlaying);
   const [exportOpen, setExportOpen] = useState(false);
+  const t = useT();
+  const locale = useLocale();
 
   // Guard hydration mismatch: selectedProgramId/timerDuration are persisted
   // (and savedPrograms already was) — the prerendered HTML carries the
@@ -62,8 +72,12 @@ export default function PlayerPage() {
     }
   }, [isCustom, customProgram, fetchPrograms]);
 
-  const displayName = isCustom ? customProgram?.name : program?.name;
-  const displayDesc = isCustom ? customProgram?.description : program?.description;
+  // Custom (synth) programs carry the user's own name/description — shown
+  // as-is; built-in / catalog / zodiac programs follow the display language.
+  const displayName = isCustom ? customProgram?.name : program && programName(program, locale);
+  const displayDesc = isCustom
+    ? customProgram?.description
+    : program && programDescription(program, locale);
 
   // Timeline export is not supported yet (single-config export only).
   const canExport = isTimeline ? false : isCustom ? !!customProgram : !!program;
@@ -89,7 +103,10 @@ export default function PlayerPage() {
       <div className="text-center">
         <p className="text-xs font-bold text-primary tracking-wider">Sync Sound</p>
         <h1 className="text-xl font-bold text-text-primary">
-          {displayName ?? (publishedLoading ? "読み込み中…" : "プログラムを選択")}
+          {displayName ??
+            (publishedLoading
+              ? t("読み込み中…", "Loading…")
+              : t("プログラムを選択", "Choose a program"))}
         </h1>
         <p className="text-sm text-text-secondary mt-1">
           {displayDesc}
@@ -108,12 +125,20 @@ export default function PlayerPage() {
             {isTimeline ? (
               <div className="flex flex-col gap-1">
                 <p className="text-sm text-text-secondary">
-                  タイムライン（合計 {formatTime(timelineTotal)}・{timelineSegments.length}区間）
+                  {t(
+                    `タイムライン（合計 ${formatTime(timelineTotal)}・${timelineSegments.length}区間）`,
+                    `Timeline (${formatTime(timelineTotal)} total · ${timelineSegments.length} ${
+                      timelineSegments.length === 1 ? "segment" : "segments"
+                    })`
+                  )}
                 </p>
                 <p className="text-base text-text-primary font-bold">
                   {isPlaying && currentSeg?.segment
-                    ? `再生中: ${currentSeg.segment.name || `セグメント ${currentSeg.index + 1}`}（${currentSeg.index + 1}/${timelineSegments.length}）`
-                    : "再生で時間ごとに音が切り替わります"}
+                    ? t(
+                        `再生中: ${currentSeg.segment.name || `セグメント ${currentSeg.index + 1}`}（${currentSeg.index + 1}/${timelineSegments.length}）`,
+                        `Playing: ${currentSeg.segment.name || `Segment ${currentSeg.index + 1}`} (${currentSeg.index + 1}/${timelineSegments.length})`
+                      )
+                    : t("再生で時間ごとに音が切り替わります", "The sound changes over time as it plays")}
                 </p>
               </div>
             ) : (
@@ -129,7 +154,7 @@ export default function PlayerPage() {
               className="w-full py-3 rounded-2xl bg-navy text-text-primary text-base font-bold flex items-center justify-center gap-2 neu-raised-sm neu-press transition-transform"
             >
               <Download size={20} strokeWidth={2} />
-              音声をエクスポート
+              {t("音声をエクスポート", "Export audio")}
             </button>
           )}
         </div>

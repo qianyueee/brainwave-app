@@ -17,6 +17,24 @@ export const NO_SUBJECT = "__none__";
 
 export const NO_SUBJECT_NAME = "測定者未設定";
 
+/**
+ * 最初の測定者の名前（store/useSubjectStore が作る）。記録にもこの文字列が
+ * 写されて測定者ごとのまとまりの鍵になるので、英語の画面でも**データは
+ * 書き換えない**——表示のときだけ subjectDisplayName() で訳す。
+ */
+export const DEFAULT_SUBJECT_NAME = "自分";
+
+/**
+ * 測定者名の表示。人が付けた名前はそのまま、既定の「自分」と「測定者未設定」
+ * だけを英語の画面で訳す。
+ */
+export function subjectDisplayName(name: string, locale: "ja" | "en"): string {
+  if (locale !== "en") return name;
+  if (name === DEFAULT_SUBJECT_NAME) return "Me";
+  if (name === NO_SUBJECT_NAME) return "No person set";
+  return name;
+}
+
 export interface SubjectGroup {
   /** Dropdown option value: the subject's id (sessions) or name (measurements). */
   key: string;

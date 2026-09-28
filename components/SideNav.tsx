@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, PanelLeftClose } from "lucide-react";
 import { NAV_TABS, isTabActive } from "@/components/nav-tabs";
 import { isDesktopRoute } from "@/lib/desktop";
+import { useT } from "@/lib/i18n";
 import { useSidebarStore } from "@/store/useSidebarStore";
 
 /**
@@ -21,6 +22,11 @@ export default function SideNav() {
   const pathname = usePathname();
   const open = useSidebarStore((s) => s.open);
   const setOpen = useSidebarStore((s) => s.setOpen);
+  const t = useT();
+  const openLabel = t("メニューを開く", "Open menu");
+  const closeLabel = t("メニューを閉じる", "Close menu");
+  // ブランド名の読み仮名。英語の画面では読みを添える意味が無いので行ごと出さない。
+  const brandReading = t("ニューロシンク", "");
 
   // Esc で閉じる（開いている間だけ購読）
   useEffect(() => {
@@ -43,10 +49,10 @@ export default function SideNav() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="メニューを開く"
+        aria-label={openLabel}
         aria-expanded={open}
         aria-controls="side-nav-panel"
-        title="メニューを開く"
+        title={openLabel}
         className={`hidden md:flex fixed top-4 left-4 z-50 w-14 h-14 items-center justify-center rounded-2xl bg-surface border border-surface-border text-primary neu-raised active:scale-95 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none ${
           open
             ? "opacity-0 -translate-x-2 scale-90 pointer-events-none"
@@ -74,13 +80,15 @@ export default function SideNav() {
                 NeuroSync
                 <sup className="font-normal">®</sup>
               </p>
-              <p className="text-xs text-text-secondary mt-0.5">ニューロシンク</p>
+              {brandReading && (
+                <p className="text-xs text-text-secondary mt-0.5">{brandReading}</p>
+              )}
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="メニューを閉じる"
-              title="メニューを閉じる"
+              aria-label={closeLabel}
+              title={closeLabel}
               className="shrink-0 -mr-1 w-12 h-12 flex items-center justify-center rounded-xl text-text-muted hover:text-text-secondary active:scale-95 transition-colors"
             >
               <PanelLeftClose size={22} strokeWidth={1.5} />
@@ -89,6 +97,8 @@ export default function SideNav() {
           {NAV_TABS.map((tab) => {
             const isActive = isTabActive(tab.href, pathname);
             const Icon = tab.icon;
+            // 英名の読み仮名。英語の画面では空＝英名1行だけ（行の高さは min-h-12 が保つ）。
+            const reading = t(tab.kana);
             return (
               <Link
                 key={tab.href}
@@ -107,7 +117,9 @@ export default function SideNav() {
                 <Icon size={20} strokeWidth={isActive ? 2 : 1.5} className="shrink-0" />
                 <span className="flex flex-col">
                   <span className="text-sm leading-tight">{tab.en}</span>
-                  <span className="text-2xs text-text-muted leading-tight">{tab.kana}</span>
+                  {reading && (
+                    <span className="text-2xs text-text-muted leading-tight">{reading}</span>
+                  )}
                 </span>
               </Link>
             );

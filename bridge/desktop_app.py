@@ -32,7 +32,12 @@ from desktop_bridge import DesktopBridge
 
 log = logging.getLogger("neurosync")
 
-WINDOW_TITLE = "NeuroSync 測定"
+# 画面の文言は Web 側で日本語／英語を切り替えるが、ウィンドウ名とここで出す
+# ダイアログは画面の表示言語を知らない（起動失敗は画面より先に起きる）ので、
+# 両方の言語で書く。
+APP_NAME = "NeuroSync 測定"
+APP_NAME_EN = "NeuroSync Measure"
+WINDOW_TITLE = f"{APP_NAME} / {APP_NAME_EN}"
 WEBVIEW2_URL = "https://developer.microsoft.com/microsoft-edge/webview2/"
 
 
@@ -156,8 +161,10 @@ def main() -> None:
         static_server.start(args.http_port, web_dir)
     except OSError as e:
         _fatal(
-            f"ポート {args.http_port} を開けません。すでに {WINDOW_TITLE} が起動していないか"
-            f"確認してください。\n（2つ同時に起動すると BrainLink のポートも取り合いになります）\n\n{e}"
+            f"ポート {args.http_port} を開けません。すでに {APP_NAME} が起動していないか"
+            f"確認してください。\n（2つ同時に起動すると BrainLink のポートも取り合いになります）\n\n"
+            f"Can't open port {args.http_port}. Check whether {APP_NAME_EN} is already running.\n"
+            f"(Running two at once also makes them compete for the BrainLink port.)\n\n{e}"
         )
         sys.exit(1)
     log.info("HTTP: http://127.0.0.1:%d/  (root: %s)", args.http_port, web_dir)
@@ -167,7 +174,7 @@ def main() -> None:
     thread.start()
     rt.ready.wait(15)
     if rt.error is not None or rt.ws_port is None:
-        _fatal(f"サーバの起動に失敗しました: {rt.error}")
+        _fatal(f"サーバの起動に失敗しました / The server failed to start: {rt.error}")
         sys.exit(1)
 
     # Google ログインの戻り（/auth/callback）を画面へ渡す口。HTTP は Runtime より先に
@@ -195,7 +202,9 @@ def main() -> None:
     except ImportError:
         _fatal(
             "pywebview がインストールされていません。\n"
-            "pip install -r requirements-desktop.txt を実行してください。"
+            "pip install -r requirements-desktop.txt を実行してください。\n\n"
+            "pywebview is not installed.\n"
+            "Run: pip install -r requirements-desktop.txt"
         )
         rt.request_stop()
         sys.exit(1)
@@ -224,7 +233,9 @@ def main() -> None:
     except Exception as e:  # noqa: BLE001 — WebView2 ランタイム欠如が典型
         _fatal(
             "画面の表示に失敗しました。Microsoft Edge WebView2 ランタイムが必要です。\n"
-            f"インストール: {WEBVIEW2_URL}\n\n詳細: {e}"
+            f"インストール: {WEBVIEW2_URL}\n\n"
+            "The window couldn't be shown. The Microsoft Edge WebView2 Runtime is required.\n"
+            f"Install it from: {WEBVIEW2_URL}\n\n詳細 / Details: {e}"
         )
         rt.request_stop()
         sys.exit(1)

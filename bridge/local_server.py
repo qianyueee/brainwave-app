@@ -6,7 +6,7 @@
 プロトコル（lib/mind/desktop-bridge.ts と対で保つ）:
   server→client  {"type":"state","state":{...}}   接続時・変化時・毎コマンド後の全量
                  {"type":"sample","sample":{...}}  EegSample そのまま（1Hz）
-                 {"type":"log","msg":"..."}
+                 {"type":"log","msg":"...","msgEn":"..."}  msgEn は英語の画面用（無い古い版もある）
                  {"type":"auth_callback","code":"..."}  Google ログインの戻り
                  {"type":"auth_callback","error":"...","errorCode":"...","description":"..."}
   client→server  {"type":"scan"} / {"type":"connect","port":"COM3"} /
@@ -137,7 +137,7 @@ class LocalServer:
             if port:
                 await b.start_serial(port)
             else:
-                await b.emit_log("ポートを選択してください")
+                await b.emit_log("ポートを選択してください", "Please choose a port")
         elif t == "disconnect":
             await b.stop_pipeline()
         elif t == "demo":
@@ -149,7 +149,7 @@ class LocalServer:
             code = cmd.get("code")
             await b.set_cloud(bool(cmd.get("on")), code if isinstance(code, str) else None)
         else:
-            await b.emit_log(f"未知のコマンド: {t}")
+            await b.emit_log(f"未知のコマンド: {t}", f"Unknown command: {t}")
         await self.emit({"type": "state", "state": b.state()})
 
 

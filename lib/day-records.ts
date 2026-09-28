@@ -1,8 +1,11 @@
 import type { BrainProfile } from "./brain-profile";
+import type { Locale } from "./i18n";
 import type { SessionLog } from "@/store/useAppStore";
 import type { BaselineCheck } from "@/store/useBaselineStore";
-import { compositeScore } from "./brain-measurements";
+import { compositeScore, sessionTagLabel } from "./brain-measurements";
 import { rateMethodLabel } from "./mind/baseline";
+import { programNameById } from "./programs";
+import { subjectDisplayName } from "./subject-groups";
 import { formatTime } from "./utils";
 
 /**
@@ -50,8 +53,11 @@ export interface DayRecordSources {
  */
 export function buildDayRecords(
   { sessionLogs, measurements, checks }: DayRecordSources,
-  key: string
+  key: string,
+  locale: Locale = "ja"
 ): DayRecord[] {
+  const en = locale === "en";
+  const sep = en ? " · " : "・";
   const out: DayRecord[] = [];
 
   for (const log of sessionLogs) {
@@ -60,8 +66,10 @@ export function buildDayRecords(
       id: `s-${log.id}`,
       kind: "session",
       at: new Date(log.date).getTime(),
-      title: log.programName,
-      detail: [formatTime(log.duration), log.mood].filter(Boolean).join("・"),
+      // 日本語は記録した名前のまま。英語は id から名前を引き直す（カスタム・
+      // 配信の節目は記録した名前＝人が付けた名前のまま）。
+      title: en ? programNameById(log.programId, log.programName, locale) : log.programName,
+      detail: [formatTime(log.duration), log.mood].filter(Boolean).join(sep),
     });
   }
 
@@ -72,10 +80,14 @@ export function buildDayRecords(
       id: `m-${m.uploadedAt}`,
       kind: "measurement",
       at: new Date(m.uploadedAt).getTime(),
-      title: note || "脳波測定",
+      title: note || (en ? "Brainwave measurement" : "脳波測定"),
       detail:
-        [m.subject, note ? null : m.sessionTag].filter(Boolean).join("・") ||
-        "脳特性チャート",
+        [
+          m.subject && subjectDisplayName(m.subject, locale),
+          note ? null : sessionTagLabel(m, locale),
+        ]
+          .filter(Boolean)
+          .join(sep) || (en ? "Brain profile chart" : "脳特性チャート"),
       score: compositeScore(m.indicators),
       uploadedAt: m.uploadedAt,
     });
@@ -94,8 +106,10 @@ export function buildDayRecords(
       at: new Date(c.recordedAt).getTime(),
       // デモで取った回は必ずそう見せる（実測と並ぶ場所なので、区別が消えると
       // 「この日はこうだった」の読みが狂う）。
-      title: `10秒チェック${c.source === "demo" ? "（デモ）" : ""}`,
-      detail: [scores.join("・"), rateMethodLabel(c.method)]
+      title: en
+        ? `10-second check${c.source === "demo" ? " (demo)" : ""}`
+        : `10秒チェック${c.source === "demo" ? "（デモ）" : ""}`,
+      detail: [scores.join(sep), rateMethodLabel(c.method, locale)]
         .filter(Boolean)
         .join(" / "),
     });

@@ -8,9 +8,11 @@ import {
   getTodaySky,
   isNightNow,
   dailyRecommendation,
+  zodiacName,
   type TodaySky,
 } from "@/lib/zodiac";
-import { getProgramById } from "@/lib/programs";
+import { getProgramById, programName } from "@/lib/programs";
+import { useLocale, useT } from "@/lib/i18n";
 import ZodiacSignPicker from "@/components/ZodiacSignPicker";
 import ZodiacConstellation from "@/components/ZodiacConstellation";
 import { usePlayProgram } from "@/components/usePlayProgram";
@@ -39,6 +41,8 @@ export default function ZodiacSyncCard() {
   const playProgram = usePlayProgram();
   const selectedSign = useZodiacStore((s) => s.selectedSign);
   const setSelectedSign = useZodiacStore((s) => s.setSelectedSign);
+  const t = useT();
+  const locale = useLocale();
 
   // Guard hydration mismatch from the persisted sign
   const [hydrated, setHydrated] = useState(false);
@@ -82,7 +86,8 @@ export default function ZodiacSyncCard() {
   // Modular synthesis: the carrier stays the user's own sign (fixed 音色),
   // while the guided beat varies daily with the sun/moon elements, weekday
   // and time of day (§5 matrix) — so the recommendation changes with the sky.
-  const rec = sign ? dailyRecommendation(sky, sign) : null;
+  // The wording (tag / reason / advice) comes back in the display language.
+  const rec = sign ? dailyRecommendation(sky, sign, new Date(), locale) : null;
   const program = rec ? getProgramById(rec.programId) : undefined;
 
   const handleSelect = (key: (typeof ZODIAC_SIGNS)[number]["key"]) => {
@@ -120,24 +125,35 @@ export default function ZodiacSyncCard() {
       <div className="relative flex-1 p-5 flex flex-col gap-3">
         {/* 1) 今日の空（左）と、自分の星座＝12星座パネルの入り口（右） */}
         <div className="relative flex items-start justify-between gap-3">
+          {/* 英語は「Sun in Libra / Moon in Pisces」——いまの空の位置を言う定型で、
+              短いうえに右の「Your sign」（利用者自身の星座）と取り違えない。 */}
           <span className="min-w-0 flex flex-col gap-1 text-xs text-sky-text">
             <span className="flex items-center gap-1.5">
               <Sun size={14} strokeWidth={1.5} className="shrink-0" />
-              今月の星座：{sunSign ? sunSign.nameJa : "…"}
+              {t(
+                `今月の星座：${sunSign ? sunSign.nameJa : "…"}`,
+                `Sun in ${sunSign ? zodiacName(sunSign, locale) : "…"}`
+              )}
             </span>
             <span className="flex items-center gap-1.5">
               <Moon size={14} strokeWidth={1.5} className="shrink-0" />
-              今夜の月星座：{moonSign ? moonSign.nameJa : "…"}
+              {t(
+                `今夜の月星座：${moonSign ? moonSign.nameJa : "…"}`,
+                `Moon in ${moonSign ? zodiacName(moonSign, locale) : "…"}`
+              )}
             </span>
           </span>
 
           {hydrated && (
             <span className="shrink-0 flex flex-col items-end gap-1">
-              <span className="text-xs text-sky-text">あなたの星座：</span>
+              <span className="text-xs text-sky-text">{t("あなたの星座：", "Your sign:")}</span>
               <button
                 onClick={() => setPickerOpen((v) => !v)}
                 aria-expanded={pickerOpen}
-                aria-label={`あなたの星座：${sign ? sign.nameJa : "未選択"}／変更する`}
+                aria-label={t(
+                  `あなたの星座：${sign ? sign.nameJa : "未選択"}／変更する`,
+                  `Your sign: ${sign ? zodiacName(sign, locale) : "not chosen"} (change)`
+                )}
                 className="flex items-center gap-1.5 min-h-12 px-3 rounded-2xl bg-sky-chip text-sky-strong text-base font-bold ring-1 ring-sky-line active:scale-95 transition-transform"
               >
                 {sign && (
@@ -147,7 +163,7 @@ export default function ZodiacSyncCard() {
                     className="w-5 h-5 shrink-0"
                   />
                 )}
-                {sign ? sign.nameJa : "星座を選ぶ"}
+                {sign ? zodiacName(sign, locale) : t("星座を選ぶ", "Choose your sign")}
                 <ChevronDown
                   size={16}
                   strokeWidth={2}
@@ -183,7 +199,7 @@ export default function ZodiacSyncCard() {
         {/* 2) 今日の一言 — 読むところ。溝に沈めて「読みもの」だと手触りで示す */}
         {rec && (
           <div className="rounded-2xl bg-sky-chip ring-1 ring-sky-line px-3.5 py-3 flex flex-col gap-1">
-            <p className="text-xs text-sky-text">今日の一言：</p>
+            <p className="text-xs text-sky-text">{t("今日の一言：", "Today's message:")}</p>
             <p className="text-sm text-sky-strong leading-relaxed">{rec.advice}</p>
           </div>
         )}
@@ -194,17 +210,22 @@ export default function ZodiacSyncCard() {
             {/* 伸ばしたぶんの余白はここが吸う——上の2ブロックは上、CTA は下に
                 残したまま、おすすめ本文が中央に据わる。下端に空きが溜まらない。 */}
             <div className="flex-1 flex flex-col justify-center">
+              {/* 英語は【】を付けない（英文の中では括弧が記号にしか見えない）。
+                  太字の小見出しとして名前の上に載るだけで区切りは足りる。 */}
               {rec.tagLabel && (
                 <p className="text-sm font-bold text-sky-strong mb-0.5">
-                  【{rec.tagLabel}】
+                  {t(`【${rec.tagLabel}】`, rec.tagLabel)}
                 </p>
               )}
-              <p className="text-lg font-bold text-sky-strong">{program.name}</p>
+              <p className="text-lg font-bold text-sky-strong">{programName(program, locale)}</p>
               {/* Held short of the star figure so the two never overlap */}
               <p className="text-sm text-sky-text leading-relaxed mt-1 max-w-[290px]">
                 {rec.reason
-                  ? `${rec.reason}、この周波数をおすすめします`
-                  : "星のサイクルと脳波を共鳴"}
+                  ? t(
+                      `${rec.reason}、この周波数をおすすめします`,
+                      `${rec.reason}. We recommend this frequency.`
+                    )
+                  : t("星のサイクルと脳波を共鳴", "Brainwaves in tune with the cycles of the stars")}
               </p>
             </div>
 
@@ -213,16 +234,22 @@ export default function ZodiacSyncCard() {
               className="w-full h-12 rounded-2xl bg-primary text-on-primary text-base font-bold flex items-center justify-center gap-2 neu-press active:scale-95 transition-transform"
             >
               <Play size={18} strokeWidth={2} />
-              この音でセッションを開始する
+              {t("この音でセッションを開始する", "Start a session with this sound")}
             </button>
           </>
         ) : (
           <p className="flex-1 flex items-center text-sm text-sky-text">
             {!hydrated || (!sky && !skyFailed)
-              ? "今日の空を計算中…"
+              ? t("今日の空を計算中…", "Calculating today's sky…")
               : skyFailed && !sign
-                ? "今日の星空は取得できませんでした。星座を選ぶとおすすめが表示されます"
-                : "星座を選ぶとおすすめプログラムが表示されます"}
+                ? t(
+                    "今日の星空は取得できませんでした。星座を選ぶとおすすめが表示されます",
+                    "Couldn't load today's sky. Choose your sign to see a recommendation."
+                  )
+                : t(
+                    "星座を選ぶとおすすめプログラムが表示されます",
+                    "Choose your sign to see a recommended program."
+                  )}
           </p>
         )}
       </div>

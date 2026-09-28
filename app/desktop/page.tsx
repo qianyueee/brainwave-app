@@ -24,6 +24,8 @@ import DesktopSourceDialog from "@/components/mind/DesktopSourceDialog";
 import SubjectSelector from "@/components/mind/SubjectSelector";
 import TargetHzInput from "@/components/mind/TargetHzInput";
 import DesktopAccountButton from "@/components/mind/DesktopAccountButton";
+import { LanguageToggleButton } from "@/components/LanguageSwitch";
+import { useT } from "@/lib/i18n";
 import CloudSaveBanner from "@/components/mind/CloudSaveBanner";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
@@ -45,6 +47,7 @@ import PageHeader from "@/components/PageHeader";
  * WebView2 は独自プロファイル（origin も別）なので Web 側の保存値とは衝突しない。
  */
 export default function DesktopPage() {
+  const t = useT();
   const sourceKind = useMindStore((s) => s.sourceKind);
   const latestSample = useMindStore((s) => s.latestSample);
   const history = useMindStore((s) => s.history);
@@ -87,7 +90,17 @@ export default function DesktopPage() {
 
   return (
     <div style={{ animation: "fade-in 0.3s ease-out" }}>
-      <PageHeader title="Sync Brain" subtitle="脳波同期・測定" actions={<DesktopAccountButton />} />
+      <PageHeader
+        title="Sync Brain"
+        subtitle={t("脳波同期・測定", "Brainwave sync & measurement")}
+        actions={
+          <>
+            {/* 設定画面の無いアプリなので、言語はここで切り替える（ログイン前でも） */}
+            <LanguageToggleButton />
+            <DesktopAccountButton />
+          </>
+        }
+      />
 
       <PageColumn>
       <CloudSaveBanner />
@@ -113,7 +126,7 @@ export default function DesktopPage() {
 
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:grid-rows-[auto_auto] md:gap-6 md:items-start">
         <section className="flex flex-col gap-3 md:col-start-1 md:row-start-1">
-          <h2 className="text-lg font-bold text-text-primary">マインドマップ</h2>
+          <h2 className="text-lg font-bold text-text-primary">{t("マインドマップ", "Mind map")}</h2>
           <MindMapCanvas sample={latestSample} boost={zoneBoost} isRecording={isRecording} />
           <MindStatusText sample={latestSample} boost={zoneBoost} gammaBoost={gammaBoost} />
         </section>
@@ -123,10 +136,13 @@ export default function DesktopPage() {
         </div>
 
         <section className="flex flex-col gap-3 md:col-start-2 md:row-start-1">
-          <h2 className="text-lg font-bold text-text-primary">ブレインアート</h2>
+          <h2 className="text-lg font-bold text-text-primary">{t("ブレインアート", "Brain art")}</h2>
           <MindArtCanvas sample={latestSample} boost={zoneBoost} />
           <p className="text-sm text-text-secondary text-center">
-            脳波がリアルタイムに幾何学模様として紡ぎ出されます
+            {t(
+              "脳波がリアルタイムに幾何学模様として紡ぎ出されます",
+              "Your brainwaves are woven into geometric patterns in real time"
+            )}
           </p>
         </section>
 

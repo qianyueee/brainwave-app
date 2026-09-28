@@ -13,6 +13,7 @@ import {
 import { BAND_META, BAND_HZ_RANGE, getBandColors } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 import { useDocumentScheme } from "@/components/useDocumentScheme";
+import { useT } from "@/lib/i18n";
 
 /** The 8 spectrum bands, positioned on the Hz axis by their frequency range.
  *  Colors come from getBandColors(scheme) at render time (light/dark sets),
@@ -21,6 +22,7 @@ import { useDocumentScheme } from "@/components/useDocumentScheme";
 export const SPECTRUM_BANDS = BAND_META.map((b) => ({
   key: b.key,
   label: b.ja,
+  labelEn: b.en,
   from: BAND_HZ_RANGE[b.key][0],
   to: BAND_HZ_RANGE[b.key][1],
 }));
@@ -59,6 +61,7 @@ function subscribeTheme(cb: () => void): () => void {
  * `spectrum[i]` is the magnitude at (i+1) Hz.
  */
 export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] }) {
+  const t = useT();
   const data = spectrum.map((v, i) => ({ hz: i + 1, amp: v }));
 
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
@@ -127,7 +130,7 @@ export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] })
               className="inline-block w-2.5 h-2.5 rounded-sm"
               style={{ backgroundColor: bandColors[b.key] }}
             />
-            {b.label}
+            {t(b.label, b.labelEn)}
           </span>
         ))}
       </div>

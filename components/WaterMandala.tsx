@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { translator, type Locale } from "@/lib/i18n";
 
 interface WaterMandalaProps {
   /** Carrier frequency (Hz) — sets how many concentric rings the surface has. */
@@ -7,6 +8,11 @@ interface WaterMandalaProps {
   beat: number;
   animated?: boolean;
   className?: string;
+  /**
+   * Language of the accessible name. Passed in (from the caller's useLocale())
+   * rather than read here, so the figure stays a plain hook-free component.
+   */
+  locale?: Locale;
 }
 
 const clamp = (min: number, max: number, v: number) => Math.max(min, Math.min(max, v));
@@ -25,7 +31,9 @@ export default function WaterMandala({
   beat,
   animated = false,
   className = "",
+  locale = "ja",
 }: WaterMandalaProps) {
+  const t = translator(locale);
   const rings = clamp(4, 8, Math.round(3 + carrier / 180));
   const petals = clamp(
     6,
@@ -46,7 +54,7 @@ export default function WaterMandala({
       viewBox="0 0 200 200"
       className={className}
       role="img"
-      aria-label={`水のマンダラ（${carrier}Hz × ${beat}Hz）`}
+      aria-label={t(`水のマンダラ（${carrier}Hz × ${beat}Hz）`, `Water mandala (${carrier}Hz × ${beat}Hz)`)}
     >
       {/* Still-water rings — density follows the carrier */}
       {ringRadii.map((r, i) => (

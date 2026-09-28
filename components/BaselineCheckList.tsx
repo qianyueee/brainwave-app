@@ -10,12 +10,14 @@ import {
 } from "@/store/useBaselineStore";
 import { BASELINE_MEASURE_SEC, rateMethodLabel } from "@/lib/mind/baseline";
 import { scoreColor } from "@/lib/brain-measurements";
+import { subjectDisplayName } from "@/lib/subject-groups";
+import { intlLocale, useLocale, useT, type Locale } from "@/lib/i18n";
 
 /** 最初に見せる件数。これ以上は「全 N 件を表示」で開く。 */
 const PREVIEW_COUNT = 5;
 
-function checkTime(c: BaselineCheck): string {
-  return new Date(c.recordedAt).toLocaleString("ja-JP", {
+function checkTime(c: BaselineCheck, locale: Locale): string {
+  return new Date(c.recordedAt).toLocaleString(intlLocale(locale), {
     month: "long",
     day: "numeric",
     hour: "2-digit",
@@ -24,35 +26,49 @@ function checkTime(c: BaselineCheck): string {
 }
 
 function CheckRow({ c, onDelete }: { c: BaselineCheck; onDelete: (id: string) => void }) {
+  const t = useT();
+  const locale = useLocale();
   const detail = [
-    rateMethodLabel(c.method),
-    c.alphaRiseSec != null ? `α立ち上がり ${c.alphaRiseSec}秒` : null,
-    c.alphaRatio != null ? `閉眼／開眼のα比 ${c.alphaRatio.toFixed(2)}倍` : null,
-    `有効データ ${c.usableSec}/${BASELINE_MEASURE_SEC}秒`,
+    rateMethodLabel(c.method, locale),
+    c.alphaRiseSec != null
+      ? t(`α立ち上がり ${c.alphaRiseSec}秒`, `Alpha rise ${c.alphaRiseSec} sec`)
+      : null,
+    c.alphaRatio != null
+      ? t(
+          `閉眼／開眼のα比 ${c.alphaRatio.toFixed(2)}倍`,
+          `Alpha ratio (eyes closed/open) ${c.alphaRatio.toFixed(2)}×`
+        )
+      : null,
+    t(
+      `有効データ ${c.usableSec}/${BASELINE_MEASURE_SEC}秒`,
+      `Usable data ${c.usableSec}/${BASELINE_MEASURE_SEC} sec`
+    ),
   ]
     .filter(Boolean)
-    .join("・");
+    .join(t("・", " · "));
 
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-2 neu-raised">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-base font-bold text-text-primary">{checkTime(c)}</p>
+          <p className="text-base font-bold text-text-primary">{checkTime(c, locale)}</p>
           <p className="text-xs text-text-muted">
             {[
-              c.subjectName,
+              c.subjectName && subjectDisplayName(c.subjectName, locale),
               // デモで取った回は必ずそう見せる（実測と並ぶ場所なので）。
-              c.source === "demo" ? "デモデータ" : null,
+              c.source === "demo" ? t("デモデータ", "Demo data") : null,
             ]
               .filter(Boolean)
-              .join("・") || "測定者の指定なし"}
+              .join(t("・", " · ")) || t("測定者の指定なし", "No person set")}
           </p>
         </div>
         <button
           onClick={() => {
-            if (window.confirm("この10秒チェックの記録を削除しますか？")) onDelete(c.id);
+            if (window.confirm(t("この10秒チェックの記録を削除しますか？", "Delete this 10-second check record?"))) {
+              onDelete(c.id);
+            }
           }}
-          aria-label="この記録を削除"
+          aria-label={t("この記録を削除", "Delete this record")}
           className="shrink-0 w-12 h-12 rounded-xl bg-navy neu-raised-sm neu-press flex items-center justify-center text-danger"
         >
           <Trash2 size={18} />
@@ -106,6 +122,7 @@ function CheckRow({ c, onDelete }: { c: BaselineCheck; onDelete: (id: string) =>
  * アカウントからも消える。
  */
 export default function BaselineCheckList() {
+  const t = useT();
   // この端末の記録＋アカウントの記録（デスクトップ測定アプリで取った分も）。
   const checks = useAllBaselineChecks();
   const deleteCheck = useBaselineStore((s) => s.deleteCheck);
@@ -122,9 +139,14 @@ export default function BaselineCheckList() {
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <h2 className="text-xl font-bold text-text-primary">10秒チェックの記録</h2>
+        <h2 className="text-xl font-bold text-text-primary">
+          {t("10秒チェックの記録", "10-second check records")}
+        </h2>
         <p className="text-sm text-text-secondary mt-1">
-          保存した10秒チェックの Rate・Clarity・Reset
+          {t(
+            "保存した10秒チェックの Rate・Clarity・Reset",
+            "Rate, Clarity and Reset from your saved 10-second checks"
+          )}
         </p>
       </div>
 
@@ -134,16 +156,19 @@ export default function BaselineCheckList() {
             <Timer size={40} className="text-primary" strokeWidth={1.5} />
           </div>
           <p className="text-base font-bold text-text-primary mb-2">
-            まだ記録がありません
+            {t("まだ記録がありません", "No records yet")}
           </p>
           <p className="text-sm text-text-secondary mb-6">
-            シンク・ブレインの「10秒チェック」で測って保存すると、ここに残ります。
+            {t(
+              "シンク・ブレインの「10秒チェック」で測って保存すると、ここに残ります。",
+              "Take and save a “10-second check” on Sync Brain, and it will be kept here."
+            )}
           </p>
           <Link
             href="/brain"
             className="inline-flex items-center justify-center min-h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
           >
-            10秒チェックへ
+            {t("10秒チェックへ", "Go to 10-second check")}
           </Link>
         </div>
       ) : (
@@ -156,7 +181,9 @@ export default function BaselineCheckList() {
               onClick={() => setExpanded((v) => !v)}
               className="min-h-12 rounded-2xl bg-navy text-text-secondary text-sm font-bold neu-raised-sm neu-press transition-transform"
             >
-              {expanded ? "最近の5件だけ表示" : `全 ${ordered.length} 件を表示`}
+              {expanded
+                ? t("最近の5件だけ表示", "Show only the latest 5")
+                : t(`全 ${ordered.length} 件を表示`, `Show all ${ordered.length} records`)}
             </button>
           )}
         </>

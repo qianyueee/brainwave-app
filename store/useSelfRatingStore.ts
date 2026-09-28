@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { Locale } from "@/lib/i18n";
 
 /**
  * 「感コンディション」＝ユーザーが自分で入れる主観の3指標。
@@ -72,15 +73,20 @@ function isSameDay(iso: string, now: Date): boolean {
  * 同じ日なら時刻だけ返す——呼び出し側（ホームの「前回：」）は「今日のコンディ
  * ションを更新する」ボタンの真下にあり、日付は文脈で決まっているので、そこに
  * 「今日」と書くと同じことを二度言うことになる。
+ *
+ * 英語の画面は「9:43 PM」「Yesterday 9:40 PM」「8/9 9:40 PM」（月/日の順は同じ）。
  */
-export function formatRecordedAt(iso: string, now: Date): string {
+export function formatRecordedAt(iso: string, now: Date, locale: Locale = "ja"): string {
   const d = new Date(iso);
-  const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const time =
+    locale === "en"
+      ? d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      : `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
   if (isSameDay(iso, now)) return time;
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (isSameDay(iso, yesterday)) return `昨日${time}`;
+  if (isSameDay(iso, yesterday)) return locale === "en" ? `Yesterday ${time}` : `昨日${time}`;
 
   return `${d.getMonth() + 1}/${d.getDate()} ${time}`;
 }

@@ -9,6 +9,7 @@ import {
   treeCanopy,
   treeSceneGeometry,
 } from "@/components/SyncTreeArt";
+import { useT } from "@/lib/i18n";
 
 /**
  * /tree の大きな木。いまの段階の樹が1本、空いっぱいに立つ。
@@ -116,6 +117,7 @@ export default function SyncTreeWaterScene({
   ariaLabel?: string;
   onWater?: () => void;
 }) {
+  const t = useT();
   const [armed, setArmed] = useState(false);
   const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -250,7 +252,7 @@ export default function SyncTreeWaterScene({
       {hint && (
         <span aria-hidden="true" className="flex justify-center px-4 pb-4">
           <span className="rounded-full px-4 py-1.5 text-base font-bold text-center" style={CHIP}>
-            {armed ? "もう一度タップで水やり" : hint}
+            {armed ? t("もう一度タップで水やり", "Tap again to water") : hint}
           </span>
         </span>
       )}

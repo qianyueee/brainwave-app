@@ -15,12 +15,13 @@ import { INDICATOR_META } from "@/lib/brain-profile";
 import { compositeScore } from "@/lib/brain-measurements";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 import Fullscreenable from "@/components/Fullscreenable";
+import { intlLocale, useLocale, useT, type LocalizedText } from "@/lib/i18n";
 
 type MetricKey = "composite" | (typeof INDICATOR_META)[number]["key"];
 
-const METRIC_OPTIONS: { key: MetricKey; label: string }[] = [
-  { key: "composite", label: "総合" },
-  ...INDICATOR_META.map((m) => ({ key: m.key, label: m.shortLabel })),
+const METRIC_OPTIONS: { key: MetricKey; label: LocalizedText }[] = [
+  { key: "composite", label: { ja: "総合", en: "Overall" } },
+  ...INDICATOR_META.map((m) => ({ key: m.key, label: { ja: m.shortLabel, en: m.shortLabelEn } })),
 ];
 
 function getThemeColor(varName: string, fallback: string): string {
@@ -34,6 +35,8 @@ function metricValue(p: BrainProfile, key: MetricKey): number {
 }
 
 export default function BrainTrendChart({ measurements }: { measurements: BrainProfile[] }) {
+  const t = useT();
+  const locale = useLocale();
   const [metric, setMetric] = useState<MetricKey>("composite");
 
   const [colors, setColors] = useState({
@@ -63,18 +66,19 @@ export default function BrainTrendChart({ measurements }: { measurements: BrainP
   }, [readColors]);
 
   const data = measurements.map((m) => ({
-    date: new Date(m.uploadedAt).toLocaleDateString("ja-JP", {
+    date: new Date(m.uploadedAt).toLocaleDateString(intlLocale(locale), {
       month: "numeric",
       day: "numeric",
     }),
     value: metricValue(m, metric),
   }));
 
-  const activeLabel = METRIC_OPTIONS.find((o) => o.key === metric)?.label ?? "";
+  const activeOption = METRIC_OPTIONS.find((o) => o.key === metric);
+  const activeLabel = activeOption ? t(activeOption.label) : "";
 
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-      <p className="text-base font-bold text-text-primary mb-3">推移グラフ</p>
+      <p className="text-base font-bold text-text-primary mb-3">{t("推移グラフ", "Trend chart")}</p>
 
       {/* Metric selector */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -90,13 +94,13 @@ export default function BrainTrendChart({ measurements }: { measurements: BrainP
                   : "bg-navy text-text-secondary neu-raised-sm"
               }`}
             >
-              {o.label}
+              {t(o.label)}
             </button>
           );
         })}
       </div>
 
-      <Fullscreenable title={`推移グラフ・${activeLabel}`}>
+      <Fullscreenable title={t(`推移グラフ・${activeLabel}`, `Trend chart · ${activeLabel}`)}>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={data} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />

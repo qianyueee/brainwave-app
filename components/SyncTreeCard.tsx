@@ -11,7 +11,8 @@ import {
   TreeDeciduous,
   type LucideIcon,
 } from "lucide-react";
-import { isTreeComplete, treeStage } from "@/lib/sync-tree";
+import { isTreeComplete, treeStage, treeStageName } from "@/lib/sync-tree";
+import { useLocale, useT, type LocalizedText } from "@/lib/i18n";
 import { useSyncTreeView, type SyncTreeView } from "@/store/useSyncTreeStore";
 import { CARE_TONE_CLASS, listenCare, waterCare, type CareStatus } from "@/components/tree-care";
 
@@ -34,21 +35,22 @@ import { CARE_TONE_CLASS, listenCare, waterCare, type CareStatus } from "@/compo
  */
 
 /** 表示できないあいだ、2行目に出すひと言。 */
-const WAITING_TEXT: Record<Exclude<SyncTreeView, "ready">, string> = {
-  "logged-out": "ログインすると、木を育てられます",
-  loading: "読み込み中…",
-  error: "木を読み込めませんでした",
-  unavailable: "水やりとリスニングで育つ、あなたの木",
+const WAITING_TEXT: Record<Exclude<SyncTreeView, "ready">, LocalizedText> = {
+  "logged-out": { ja: "ログインすると、木を育てられます", en: "Log in to grow your tree" },
+  loading: { ja: "読み込み中…", en: "Loading…" },
+  error: { ja: "木を読み込めませんでした", en: "Couldn't load your tree" },
+  unavailable: { ja: "水やりとリスニングで育つ、あなたの木", en: "Your tree grows with watering and listening" },
 };
 
 function CareItem({ icon: Icon, label, care }: { icon: LucideIcon; label: string; care: CareStatus }) {
+  const t = useT();
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
       <Icon size={18} strokeWidth={1.5} className="shrink-0 text-accent" aria-hidden="true" />
       <span className="text-text-secondary">{label}</span>
       <span className={`inline-flex items-center gap-0.5 font-bold ${CARE_TONE_CLASS[care.tone]}`}>
         {care.tone === "done" && <Check size={14} strokeWidth={2.5} aria-hidden="true" />}
-        {care.label}
+        {t(care.label)}
       </span>
     </span>
   );
@@ -57,27 +59,30 @@ function CareItem({ icon: Icon, label, care }: { icon: LucideIcon; label: string
 export default function SyncTreeCard() {
   const { view, fold, day } = useSyncTreeView();
   const ready = view === "ready";
+  const t = useT();
+  const locale = useLocale();
 
   let status: ReactNode = null;
   if (view !== "ready") {
-    status = <span className="text-text-secondary">{WAITING_TEXT[view]}</span>;
+    status = <span className="text-text-secondary">{t(WAITING_TEXT[view])}</span>;
   } else if (isTreeComplete(fold.points)) {
     status = (
       <>
         <span className="inline-flex items-center gap-1 font-bold text-accent">
           <Sparkles size={18} strokeWidth={1.5} aria-hidden="true" />
-          育ちきりました
+          {t("育ちきりました", "Fully grown")}
         </span>
-        <span className="text-text-secondary">新しい木を育てられます</span>
+        <span className="text-text-secondary">{t("新しい木を育てられます", "Ready for a new tree")}</span>
       </>
     );
   } else if (day) {
     status = (
       <>
-        <CareItem icon={Droplets} label="水やり" care={waterCare(day)} />
+        <CareItem icon={Droplets} label={t("水やり", "Water")} care={waterCare(day)} />
         {/* 「リスニング」だと「今日はたっぷり」の日に幅 360〜390 の画面で折り返す。
-            /tree の行見出し「プログラムを聴く」を縮めた「聴く」で1行に収める。 */}
-        <CareItem icon={Headphones} label="聴く" care={listenCare(day)} />
+            /tree の行見出し「プログラムを聴く」を縮めた「聴く」で1行に収める
+            （英語も同じ理由で動詞1語の Water / Listen）。 */}
+        <CareItem icon={Headphones} label={t("聴く", "Listen")} care={listenCare(day)} />
       </>
     );
   }
@@ -91,7 +96,9 @@ export default function SyncTreeCard() {
         <TreeDeciduous size={18} strokeWidth={1.5} className="shrink-0 text-accent" aria-hidden="true" />
         <span className="flex-1 text-sm text-text-secondary">Sync Tree</span>
         {ready && (
-          <span className="text-lg font-bold text-text-primary">{treeStage(fold.points).name}</span>
+          <span className="text-lg font-bold text-text-primary">
+            {treeStageName(treeStage(fold.points), locale)}
+          </span>
         )}
         <ChevronRight size={20} className="shrink-0 text-text-muted" aria-hidden="true" />
       </span>

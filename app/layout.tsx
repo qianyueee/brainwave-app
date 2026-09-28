@@ -7,6 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import MiniPlayer from "@/components/MiniPlayer";
 import SideNav from "@/components/SideNav";
 import ThemeProvider from "@/components/ThemeProvider";
+import LocaleSync from "@/components/LocaleSync";
 import AuthProvider from "@/components/AuthProvider";
 import WaveBackground from "@/components/WaveBackground";
 
@@ -41,6 +42,8 @@ export default function RootLayout({
   return (
     <html lang="ja" className={notoSansJP.variable}>
       <body>
+        {/* 表示言語に合わせて <html lang> と文書タイトルを直す（静的 HTML は日本語） */}
+        <LocaleSync />
         <ThemeProvider>
           {/* 波の背景。body の直下に置いて全ページ共通の地にする */}
           <WaveBackground />

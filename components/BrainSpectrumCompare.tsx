@@ -15,6 +15,7 @@ import { getBandColors } from "@/lib/mind/types";
 import { useDocumentScheme } from "@/components/useDocumentScheme";
 import { compareSeriesColors } from "@/lib/compare-colors";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
+import { useT } from "@/lib/i18n";
 
 const SERVER_COLORS = "#4a7fd4|#1e3a5f|#8890a8|#8890a8";
 
@@ -47,6 +48,7 @@ export interface SpectrumSeries {
  * maps each color to its date.
  */
 export default function BrainSpectrumCompare({ series }: { series: SpectrumSeries[] }) {
+  const t = useT();
   const len = series.reduce((m, s) => Math.max(m, s.spectrum.length), 0);
   const data = Array.from({ length: len }, (_, i) => {
     const row: Record<string, number | null> = { hz: i + 1 };
@@ -134,7 +136,7 @@ export default function BrainSpectrumCompare({ series }: { series: SpectrumSerie
               className="inline-block w-2.5 h-2.5 rounded-sm"
               style={{ backgroundColor: bandColors[b.key] }}
             />
-            {b.label}
+            {t(b.label, b.labelEn)}
           </span>
         ))}
       </div>

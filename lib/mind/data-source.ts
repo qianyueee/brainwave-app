@@ -4,7 +4,8 @@ export type SourceStatus = "idle" | "connecting" | "connected" | "error";
 
 export interface MindSourceHandlers {
   onSample: (s: EegSample) => void;
-  /** `detail` is a Japanese message shown directly in the UI. */
+  /** `detail` is a message shown directly in the UI, written in the display
+   *  language at the moment it is sent (`translator(getLocale())` in lib/i18n). */
   onStatus: (status: SourceStatus, detail?: string) => void;
   /** Realtime source only: whether the PC bridge is currently online. */
   onBridgeOnline?: (online: boolean) => void;

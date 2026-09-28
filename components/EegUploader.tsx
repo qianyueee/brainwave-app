@@ -4,8 +4,10 @@ import { useRef, useState } from "react";
 import { parseEegFile, computeIndicators, computeBandPowers } from "@/lib/brain-profile";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { Upload } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export default function EegUploader() {
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const addMeasurement = useBrainProfileStore((s) => s.addMeasurement);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -25,7 +27,9 @@ export default function EegUploader() {
         sessionTag: tag,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "ファイルの読み込みに失敗しました");
+      setError(
+        e instanceof Error ? e.message : t("ファイルの読み込みに失敗しました", "Couldn't read the file")
+      );
     } finally {
       setIsProcessing(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -53,10 +57,12 @@ export default function EegUploader() {
         className="w-full py-3 rounded-2xl bg-primary text-on-primary text-base font-bold transition-colors active:scale-[0.98] disabled:opacity-50 neu-raised neu-press flex items-center justify-center gap-2"
       >
         <Upload size={20} strokeWidth={2} />
-        {isProcessing ? "解析中..." : "脳波データをアップロード"}
+        {isProcessing
+          ? t("解析中...", "Analyzing...")
+          : t("脳波データをアップロード", "Upload brainwave data")}
       </button>
       <p className="text-xs text-text-muted text-center">
-        Excel (.xlsx) または CSV ファイルに対応
+        {t("Excel (.xlsx) または CSV ファイルに対応", "Works with Excel (.xlsx) and CSV files")}
       </p>
       {error && (
         <p className="text-sm text-danger text-center">{error}</p>

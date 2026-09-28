@@ -13,6 +13,7 @@ import type { BaseTickContentProps } from "recharts";
 import type { BrainIndicators } from "@/lib/brain-profile";
 import { INDICATOR_META } from "@/lib/brain-profile";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
+import { useLocale } from "@/lib/i18n";
 
 interface BrainRadarChartProps {
   indicators: BrainIndicators;
@@ -32,8 +33,9 @@ export default function BrainRadarChart({
   size = "large",
   showScores = false,
 }: BrainRadarChartProps) {
+  const locale = useLocale();
   const data = INDICATOR_META.map((meta) => ({
-    label: meta.shortLabel,
+    label: locale === "en" ? meta.shortLabelEn : meta.shortLabel,
     value: indicators[meta.key],
   }));
   const scoreByLabel: Record<string, number> = {};
@@ -94,11 +96,20 @@ export default function BrainRadarChart({
     const push = isSmall ? 8 : 14;
     const lx = x + (dx / dist) * push;
     const ly = y + (dy / dist) * push;
+    // The English names run about twice as wide as the Japanese ones and would
+    // spill out of the chart at the side vertices on a phone, so English breaks
+    // at the space (every name is two words). The extra line grows away from
+    // the polygon: upward above the center, downward below it.
+    const lines = locale === "en" ? label.split(" ") : [label];
+    const lineStep = isSmall ? 14 : 15;
+    const firstDy = (isSmall ? -2 : -3) - (dy < 0 ? (lines.length - 1) * lineStep : 0);
     return (
       <text x={lx} y={ly} textAnchor={p.textAnchor} fill={colors.text}>
-        <tspan x={lx} dy={isSmall ? -2 : -3} fontSize={isSmall ? 12 : 13}>
-          {label}
-        </tspan>
+        {lines.map((line, i) => (
+          <tspan key={i} x={lx} dy={i === 0 ? firstDy : lineStep} fontSize={isSmall ? 12 : 13}>
+            {line}
+          </tspan>
+        ))}
         <tspan
           x={lx}
           dy={isSmall ? 15 : 18}
@@ -126,7 +137,12 @@ export default function BrainRadarChart({
           tick={
             showScores
               ? renderTick
-              : { fill: colors.text, fontSize: isSmall ? 12 : 13 }
+              : {
+                  fill: colors.text,
+                  fontSize: isSmall ? 12 : 13,
+                  // English: one word per line (see renderTick).
+                  ...(locale === "en" ? { width: 60 } : {}),
+                }
           }
         />
         {!isSmall && !showScores && (

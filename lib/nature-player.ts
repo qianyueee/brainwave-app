@@ -4,16 +4,18 @@ import { getAudioDestination } from "./keep-alive";
 export interface NatureSoundConfig {
   id: string;
   name: string;
+  /** 英語の画面の名前 */
+  nameEn: string;
   file: string;
 }
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export const NATURE_SOUNDS: NatureSoundConfig[] = [
-  { id: "rain", name: "雨", file: `${BASE_PATH}/sounds/rain.mp3` },
-  { id: "ocean", name: "海", file: `${BASE_PATH}/sounds/ocean.mp3` },
-  { id: "forest", name: "森", file: `${BASE_PATH}/sounds/forest.mp3` },
-  { id: "stream", name: "川", file: `${BASE_PATH}/sounds/stream.mp3` },
+  { id: "rain", name: "雨", nameEn: "Rain", file: `${BASE_PATH}/sounds/rain.mp3` },
+  { id: "ocean", name: "海", nameEn: "Ocean", file: `${BASE_PATH}/sounds/ocean.mp3` },
+  { id: "forest", name: "森", nameEn: "Forest", file: `${BASE_PATH}/sounds/forest.mp3` },
+  { id: "stream", name: "川", nameEn: "Stream", file: `${BASE_PATH}/sounds/stream.mp3` },
 ];
 
 // Cache decoded audio buffers so we only fetch/decode each file once

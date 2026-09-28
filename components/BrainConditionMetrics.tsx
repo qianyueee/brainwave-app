@@ -6,6 +6,7 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { computeBrainConditionMetrics } from "@/lib/brain-metrics";
 import { scoreColor } from "@/lib/brain-measurements";
 import type { BrainProfile } from "@/lib/brain-profile";
+import { useT } from "@/lib/i18n";
 
 interface BrainConditionMetricsProps {
   /**
@@ -26,6 +27,7 @@ export default function BrainConditionMetrics({
   profile: profileProp,
   asLink = true,
 }: BrainConditionMetricsProps) {
+  const t = useT();
   const storeProfile = useBrainProfileStore((s) => s.profile);
   const external = profileProp !== undefined;
 
@@ -53,18 +55,18 @@ export default function BrainConditionMetrics({
         <span className="text-sm font-bold text-text-primary leading-tight mt-1">
           {m.title}
         </span>
-        <span className="text-xs text-text-muted leading-tight">{m.subtitle}</span>
+        <span className="text-xs text-text-muted leading-tight">{t(m.subtitle, m.subtitleEn)}</span>
       </>
     );
     const className =
       "bg-surface border border-surface-border rounded-2xl px-2 py-4 flex flex-col items-center gap-1 text-center neu-raised" +
       (asLink ? " neu-press transition-transform breathe" : "");
     return asLink ? (
-      <Link key={m.key} href="/brain" title={m.fullName} className={className}>
+      <Link key={m.key} href="/brain" title={t(m.fullName, m.fullNameEn)} className={className}>
         {inner}
       </Link>
     ) : (
-      <div key={m.key} title={m.fullName} className={className}>
+      <div key={m.key} title={t(m.fullName, m.fullNameEn)} className={className}>
         {inner}
       </div>
     );
@@ -72,11 +74,14 @@ export default function BrainConditionMetrics({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-text-secondary">脳コンディション</p>
+      <p className="text-sm text-text-secondary">{t("脳コンディション", "Brain condition")}</p>
       <div className={`grid grid-cols-3 gap-3${asLink ? " breathe-stagger" : ""}`}>{tiles}</div>
       {asLink && ready && !hasAnyScore && (
         <p className="text-xs text-text-muted text-center">
-          測定するとスコアが表示されます（タップで測定へ）
+          {t(
+            "測定するとスコアが表示されます（タップで測定へ）",
+            "Your scores appear after you measure (tap to measure)"
+          )}
         </p>
       )}
     </div>

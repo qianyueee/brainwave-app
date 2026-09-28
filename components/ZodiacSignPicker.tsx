@@ -1,6 +1,7 @@
 "use client";
 
-import { ZODIAC_SIGNS, type ZodiacKey } from "@/lib/zodiac";
+import { ZODIAC_SIGNS, zodiacName, type ZodiacKey } from "@/lib/zodiac";
+import { useLocale, useT } from "@/lib/i18n";
 import ZodiacConstellation from "@/components/ZodiacConstellation";
 
 interface ZodiacSignPickerProps {
@@ -17,6 +18,19 @@ interface ZodiacSignPickerProps {
 }
 
 /**
+ * English names too wide for a 4-column cell on a 360px phone (~58px at 14px:
+ * Sagittarius ≈ 71px, Capricorn ≈ 64px, Aquarius ≈ 58px) get a soft hyphen at
+ * a dictionary break point. The browser breaks there only when the name does
+ * not fit ("Sagit-/tarius"), so wider screens still show the whole word.
+ * Japanese names are 2–3 characters and never need this.
+ */
+const EN_BREAKABLE: Partial<Record<ZodiacKey, string>> = {
+  sagittarius: "Sagit\u00adtarius",
+  capricorn: "Capri\u00adcorn",
+  aquarius: "Aquar\u00adius",
+};
+
+/**
  * Always-visible 4×3 grid — every sign is one tap away (the spec's ワンタップ
  * 切替), styled like the Timer preset buttons.
  */
@@ -26,10 +40,14 @@ export default function ZodiacSignPicker({
   disabled,
   onSky = false,
 }: ZodiacSignPickerProps) {
+  const t = useT();
+  const locale = useLocale();
   return (
-    <div role="group" aria-label="星座を選択" className="grid grid-cols-4 gap-2">
+    <div role="group" aria-label={t("星座を選択", "Choose your sign")} className="grid grid-cols-4 gap-2">
       {ZODIAC_SIGNS.map((sign) => {
         const isSelected = sign.key === value;
+        const name =
+          locale === "en" ? (EN_BREAKABLE[sign.key] ?? zodiacName(sign, locale)) : sign.nameJa;
         return (
           <button
             key={sign.key}
@@ -47,7 +65,7 @@ export default function ZodiacSignPicker({
             }`}
           >
             <ZodiacConstellation sign={sign.key} variant="icon" className="w-8 h-8" />
-            <span className="text-sm leading-tight">{sign.nameJa}</span>
+            <span className="text-sm leading-tight">{name}</span>
           </button>
         );
       })}

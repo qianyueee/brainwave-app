@@ -8,6 +8,7 @@ import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import WaterMandalaHero from "@/components/WaterMandalaHero";
 import { ArrowRight, User } from "lucide-react";
+import { useT } from "@/lib/i18n";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 
@@ -34,6 +35,7 @@ export default function SessionPage() {
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
   const isLoggedIn = !!user;
+  const t = useT();
 
   // Guard against hydration mismatch from persist middleware
   const [hydrated, setHydrated] = useState(false);
@@ -61,7 +63,10 @@ export default function SessionPage() {
 
   return (
     <div style={{ animation: "fade-in 0.3s ease-out" }}>
-      <PageHeader title="Sync Session" subtitle="プログラム選択・再生" />
+      <PageHeader
+        title="Sync Session"
+        subtitle={t("プログラム選択・再生", "Choose and play programs")}
+      />
 
       <PageColumn>
       {/* Mobile: single column. Desktop: mandala + built-ins | published + custom. */}
@@ -75,7 +80,7 @@ export default function SessionPage() {
       {/* Published Programs (filtered by group) */}
       {hydrated && visiblePrograms.length > 0 && (
         <div className="flex flex-col gap-3 breathe-stagger">
-          <p className="text-sm text-text-secondary">配信プログラム</p>
+          <p className="text-sm text-text-secondary">{t("配信プログラム", "Shared programs")}</p>
           {visiblePrograms.map((program) => (
             <PublishedProgramCard key={program.id} program={program} />
           ))}
@@ -90,7 +95,10 @@ export default function SessionPage() {
       {!isLoggedIn && !authLoading && (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-text-secondary">
-            ログインして配信されたプログラムを再生
+            {t(
+              "ログインして配信されたプログラムを再生",
+              "Log in to play programs shared with your group"
+            )}
           </p>
           <button
             onClick={() => openAuthModal("login")}
@@ -98,7 +106,7 @@ export default function SessionPage() {
           >
             <span className="flex-1 flex items-center justify-center gap-2 text-base font-bold text-primary">
               <User size={20} strokeWidth={1.5} />
-              ログイン
+              {t("ログイン", "Log in")}
             </span>
             <span className="shrink-0 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center">
               <ArrowRight size={20} strokeWidth={2} />
@@ -111,7 +119,9 @@ export default function SessionPage() {
 
       {/* Sync Sound の一覧。幅いっぱいの段（上の理由はファイル冒頭）。 */}
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-text-secondary">Sync Sound｜脳波同期サウンド</p>
+        <p className="text-sm text-text-secondary">
+          {t("Sync Sound｜脳波同期サウンド", "Sync Sound · Brainwave sync sounds")}
+        </p>
         <CatalogSection />
       </div>
       </PageColumn>

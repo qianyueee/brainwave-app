@@ -12,10 +12,14 @@ import type { BrainProfile } from "@/lib/brain-profile";
 import { compositeScore, scoreColor, measurementLabel } from "@/lib/brain-measurements";
 import {
   ALL_SUBJECTS,
+  NO_SUBJECT_NAME,
   matchesSubject,
   resolveSubjectKey,
+  subjectDisplayName,
   subjectGroups,
 } from "@/lib/subject-groups";
+import { sessionTagLabel } from "@/lib/brain-measurements";
+import { intlLocale, useLocale, useT, type Locale } from "@/lib/i18n";
 import SimpleCalendar from "@/components/SimpleCalendar";
 import BrainTrendChart from "@/components/BrainTrendChart";
 import BrainRadarChart from "@/components/BrainRadarChart";
@@ -35,6 +39,19 @@ import PageHeader from "@/components/PageHeader";
 const NOTE_MAX = 200;
 
 /**
+ * 木の完成日（ローカルの YYYY-MM-DD）。日本語は従来どおり「7/2」、英語は
+ * 月名で「Jul 2」——数字だけの月/日は英語圏でも読み順が割れる。
+ */
+function treeDateLabel(iso: string, locale: Locale): string {
+  if (locale !== "en") return formatTreeDate(iso);
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(intlLocale(locale), {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
  * The measurement chosen in the 記録 dropdown, shown in full. Not collapsible —
  * the dropdown above already answers "which one", so there is exactly one card
  * and it is always open.
@@ -52,6 +69,8 @@ function MeasurementDetail({
   /** Open this measurement on the Sync Report page (脳特性チャート). */
   onView: (uploadedAt: string) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [editingNote, setEditingNote] = useState(false);
   const [draft, setDraft] = useState("");
   const total = compositeScore(m.indicators);
@@ -62,16 +81,18 @@ function MeasurementDetail({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-base font-bold text-text-primary">
-            {date.toLocaleDateString("ja-JP", {
+            {date.toLocaleDateString(intlLocale(locale), {
               year: "numeric",
               month: "long",
               day: "numeric",
             })}
           </p>
           {showSubject && m.subject && (
-            <p className="text-sm font-bold text-primary truncate">{m.subject}</p>
+            <p className="text-sm font-bold text-primary truncate">
+              {subjectDisplayName(m.subject, locale)}
+            </p>
           )}
-          <p className="text-sm text-text-secondary truncate">{m.sessionTag}</p>
+          <p className="text-sm text-text-secondary truncate">{sessionTagLabel(m, locale)}</p>
           <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
         </div>
         <div className="text-right shrink-0">
@@ -81,11 +102,11 @@ function MeasurementDetail({
           >
             {total}
           </p>
-          <p className="text-xs text-text-muted">総合</p>
+          <p className="text-xs text-text-muted">{t("総合", "Overall")}</p>
         </div>
       </div>
 
-      <Fullscreenable title={measurementLabel(m)}>
+      <Fullscreenable title={measurementLabel(m, locale)}>
         <BrainRadarChart indicators={m.indicators} size="small" showScores />
       </Fullscreenable>
 
@@ -98,7 +119,10 @@ function MeasurementDetail({
             rows={2}
             maxLength={NOTE_MAX}
             autoFocus
-            placeholder="メモを入力…（体調・気分・状況など）"
+            placeholder={t(
+              "メモを入力…（体調・気分・状況など）",
+              "Write a note… (how you feel, your mood, what was going on)"
+            )}
             className="w-full rounded-xl bg-navy neu-inset p-3 text-sm text-text-primary placeholder:text-text-muted resize-none outline-none focus:ring-1 focus:ring-primary"
           />
           <div className="flex items-center justify-between">
@@ -110,7 +134,7 @@ function MeasurementDetail({
                 onClick={() => setEditingNote(false)}
                 className="min-h-12 px-4 py-2 rounded-xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform"
               >
-                キャンセル
+                {t("キャンセル", "Cancel")}
               </button>
               <button
                 onClick={() => {
@@ -119,7 +143,7 @@ function MeasurementDetail({
                 }}
                 className="min-h-12 px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-bold neu-raised-sm neu-press transition-transform"
               >
-                保存
+                {t("保存", "Save")}
               </button>
             </div>
           </div>
@@ -146,7 +170,7 @@ function MeasurementDetail({
           }}
           className="self-start flex items-center gap-1.5 text-sm text-text-muted active:opacity-70"
         >
-          <Pencil size={14} /> メモを追加
+          <Pencil size={14} /> {t("メモを追加", "Add a note")}
         </button>
       )}
 
@@ -155,15 +179,17 @@ function MeasurementDetail({
           onClick={() => onView(m.uploadedAt)}
           className="flex items-center gap-2 min-h-12 px-4 py-2 rounded-2xl bg-primary text-on-primary text-sm font-bold neu-raised-sm neu-press transition-transform"
         >
-          <BarChart3 size={16} /> レポートで見る
+          <BarChart3 size={16} /> {t("レポートで見る", "View in Report")}
         </button>
         <button
           onClick={() => {
-            if (window.confirm("この記録を削除しますか？")) onDelete(m.uploadedAt);
+            if (window.confirm(t("この記録を削除しますか？", "Delete this record?"))) {
+              onDelete(m.uploadedAt);
+            }
           }}
           className="flex items-center gap-2 min-h-12 px-4 py-2 rounded-2xl bg-navy text-danger text-sm font-medium neu-raised-sm neu-press transition-transform"
         >
-          <Trash2 size={16} /> 削除
+          <Trash2 size={16} /> {t("削除", "Delete")}
         </button>
       </div>
     </div>
@@ -172,6 +198,8 @@ function MeasurementDetail({
 
 export default function HistoryPage() {
   const router = useRouter();
+  const t = useT();
+  const locale = useLocale();
   const sessionLogs = useAppStore((s) => s.sessionLogs);
   const measurements = useBrainProfileStore((s) => s.measurements);
   const deleteMeasurement = useBrainProfileStore((s) => s.deleteMeasurement);
@@ -233,10 +261,21 @@ export default function HistoryPage() {
   const selected =
     orderedForSubject.find((m) => m.uploadedAt === recordId) ?? orderedForSubject[0] ?? null;
 
+  const recordCount = (n: number) => t(`${n}件`, n === 1 ? "1 record" : `${n} records`);
   const subjectOptions: SelectOption[] = [
-    ...groups.map((g) => ({ value: g.key, label: g.name, trailing: `${g.count}件` })),
+    ...groups.map((g) => ({
+      value: g.key,
+      label: subjectDisplayName(g.name, locale),
+      trailing: recordCount(g.count),
+    })),
     ...(groups.length > 1
-      ? [{ value: ALL_SUBJECTS, label: "全員", trailing: `${measurements.length}件` }]
+      ? [
+          {
+            value: ALL_SUBJECTS,
+            label: t("全員", "Everyone"),
+            trailing: recordCount(measurements.length),
+          },
+        ]
       : []),
   ];
 
@@ -246,10 +285,12 @@ export default function HistoryPage() {
   const recordOptions: SelectOption[] = orderedForSubject.map((m) => {
     const total = compositeScore(m.indicators);
     const note = m.note?.trim();
+    const tag = sessionTagLabel(m, locale);
+    const who = subjectDisplayName(m.subject ?? NO_SUBJECT_NAME, locale);
     return {
       value: m.uploadedAt,
-      label: note || measurementLabel(m),
-      detail: showAll ? `${m.subject ?? "測定者未設定"}・${m.sessionTag}` : m.sessionTag,
+      label: note || measurementLabel(m, locale),
+      detail: showAll ? `${who}${t("・", " · ")}${tag}` : tag,
       trailing: String(total),
       trailingColor: scoreColor(total),
     };
@@ -257,7 +298,10 @@ export default function HistoryPage() {
 
   return (
     <div style={{ animation: "fade-in 0.3s ease-out" }}>
-      <PageHeader title="Sync History" subtitle="あなたのチューニング記録" />
+      <PageHeader
+        title="Sync History"
+        subtitle={t("あなたのチューニング記録", "Your tuning records")}
+      />
 
       <PageColumn>
 
@@ -268,11 +312,11 @@ export default function HistoryPage() {
       <div className="flex gap-3">
         <div className="flex-1 bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised">
           <p className="text-2xl font-bold text-primary">{totalSessions}</p>
-          <p className="text-xs text-text-muted mt-1">セッション</p>
+          <p className="text-xs text-text-muted mt-1">{t("セッション", "Sessions")}</p>
         </div>
         <div className="flex-1 bg-surface border border-surface-border rounded-3xl p-4 text-center neu-raised">
           <p className="text-2xl font-bold text-accent">{totalMinutes}</p>
-          <p className="text-xs text-text-muted mt-1">合計（分）</p>
+          <p className="text-xs text-text-muted mt-1">{t("合計（分）", "Total (min)")}</p>
         </div>
         {/* 育てた木 — /tree・ホームのカードと同じストアを読む（数字は同源）。
             未ログイン・読み込み中は数えようがないので「—」 */}
@@ -280,7 +324,7 @@ export default function HistoryPage() {
           <p className="text-2xl font-bold text-accent">
             {tree.view === "ready" ? completedTrees.length : "—"}
           </p>
-          <p className="text-xs text-text-muted mt-1">育てた木</p>
+          <p className="text-xs text-text-muted mt-1">{t("育てた木", "Trees grown")}</p>
         </div>
       </div>
 
@@ -293,22 +337,35 @@ export default function HistoryPage() {
       >
         <div className="flex items-center gap-2">
           <TreeDeciduous size={20} strokeWidth={1.5} className="text-accent" />
-          <h2 className="text-base font-bold text-text-primary">Sync Tree の記録</h2>
+          <h2 className="text-base font-bold text-text-primary">
+            {t("Sync Tree の記録", "Sync Tree records")}
+          </h2>
           <ChevronRight size={18} className="ml-auto text-text-muted" aria-hidden="true" />
         </div>
         <p className="text-sm text-text-secondary">
           {tree.view === "ready"
             ? completedTrees.length > 0
               ? completedTrees
-                  .map((t) => `${t.index}号木 ${formatTreeDate(t.completedAt)}`)
-                  .join("　・　")
-              : "木が1本育つと、ここに完成日が記録されます"
+                  .map((tr) =>
+                    t(
+                      `${tr.index}号木 ${formatTreeDate(tr.completedAt)}`,
+                      `Tree ${tr.index} (${treeDateLabel(tr.completedAt, locale)})`
+                    )
+                  )
+                  .join(t("　・　", " · "))
+              : t(
+                  "木が1本育つと、ここに完成日が記録されます",
+                  "When a tree is fully grown, its completion date will be recorded here"
+                )
             : tree.view === "logged-out"
-              ? "ログインすると、育てた木がここに記録されます"
+              ? t(
+                  "ログインすると、育てた木がここに記録されます",
+                  "Log in and the trees you grow will be recorded here"
+                )
               : tree.view === "error"
-                ? "木の記録を読み込めませんでした"
+                ? t("木の記録を読み込めませんでした", "Couldn't load your tree records")
                 : tree.view === "loading"
-                  ? "読み込み中…"
+                  ? t("読み込み中…", "Loading…")
                   : "—"}
         </p>
       </Link>
@@ -318,8 +375,12 @@ export default function HistoryPage() {
       {/* Brainwave measurement history */}
       <div className="flex flex-col gap-3">
         <div>
-          <h2 className="text-xl font-bold text-text-primary">脳波の記録</h2>
-          <p className="text-sm text-text-secondary mt-1">測定ごとの6指標の推移</p>
+          <h2 className="text-xl font-bold text-text-primary">
+            {t("脳波の記録", "Brainwave records")}
+          </h2>
+          <p className="text-sm text-text-secondary mt-1">
+            {t("測定ごとの6指標の推移", "Trend of the 6 indicators across your measurements")}
+          </p>
         </div>
 
         {!hydrated ? null : !authLoading && !user ? (
@@ -328,13 +389,16 @@ export default function HistoryPage() {
               <Lock size={28} className="text-text-muted" strokeWidth={1.5} />
             </div>
             <p className="text-sm text-text-secondary">
-              ログインすると脳波データを記録・同期できます
+              {t(
+                "ログインすると脳波データを記録・同期できます",
+                "Log in to record and sync your brainwave data"
+              )}
             </p>
             <button
               onClick={() => openAuthModal("login")}
               className="h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
             >
-              ログイン
+              {t("ログイン", "Log in")}
             </button>
           </div>
         ) : measurements.length === 0 ? (
@@ -342,9 +406,14 @@ export default function HistoryPage() {
             <div className="flex justify-center mb-4">
               <BrainCircuit size={40} className="text-primary" strokeWidth={1.5} />
             </div>
-            <p className="text-base font-bold text-text-primary mb-2">まだ記録がありません</p>
+            <p className="text-base font-bold text-text-primary mb-2">
+              {t("まだ記録がありません", "No records yet")}
+            </p>
             <p className="text-sm text-text-secondary mb-6">
-              シンク・ブレインや PC の測定アプリ（ログインして測定）で測るか、脳波データをアップロードすると、ここに測定の履歴と推移が表示されます。
+              {t(
+                "シンク・ブレインや PC の測定アプリ（ログインして測定）で測るか、脳波データをアップロードすると、ここに測定の履歴と推移が表示されます。",
+                "Measure on Sync Brain or with the PC measurement app (log in before measuring), or upload brainwave data, and your measurement history and trend will appear here."
+              )}
             </p>
             <EegUploader />
           </div>
@@ -354,7 +423,7 @@ export default function HistoryPage() {
                 same person: there is nothing to separate yet. */}
             {groups.length > 1 && (
               <SelectDropdown
-                caption="測定者を選択"
+                caption={t("測定者を選択", "Choose a person")}
                 icon={<User size={18} strokeWidth={1.5} />}
                 value={activeKey}
                 options={subjectOptions}
@@ -367,12 +436,12 @@ export default function HistoryPage() {
 
             {/* Step 2 — which of that person's measurements. */}
             <SelectDropdown
-              caption="測定データを選択"
+              caption={t("測定データを選択", "Choose a measurement")}
               icon={<CalendarClock size={18} strokeWidth={1.5} />}
               value={selected?.uploadedAt ?? null}
               options={recordOptions}
               onChange={setRecordId}
-              placeholder="測定記録がありません"
+              placeholder={t("測定記録がありません", "No measurement records")}
             />
 
             <BrainTrendChart measurements={forSubject} />

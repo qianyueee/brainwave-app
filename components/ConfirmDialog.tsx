@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId } from "react";
+import { useT } from "@/lib/i18n";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -21,12 +22,13 @@ export default function ConfirmDialog({
   title,
   message,
   confirmLabel = "OK",
-  cancelLabel = "キャンセル",
+  cancelLabel,
   tone = "primary",
   busy = false,
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
+  const t = useT();
   const titleId = useId();
 
   // Escape closes, unless the confirmed action is still running.
@@ -74,7 +76,7 @@ export default function ConfirmDialog({
           {busy && (
             <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
           )}
-          {busy ? "保存中..." : confirmLabel}
+          {busy ? t("保存中...", "Saving...") : confirmLabel}
         </button>
 
         <button
@@ -82,7 +84,7 @@ export default function ConfirmDialog({
           disabled={busy}
           className="w-full min-h-[56px] rounded-2xl bg-navy text-text-secondary text-base font-bold disabled:opacity-40 active:scale-95 neu-raised-sm neu-press"
         >
-          {cancelLabel}
+          {cancelLabel ?? t("キャンセル", "Cancel")}
         </button>
       </div>
     </div>

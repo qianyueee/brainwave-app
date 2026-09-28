@@ -1,4 +1,11 @@
+import type { Locale } from "./i18n";
+
 export interface FrequencyPhase {
+  /**
+   * 相位名（日本語）。**表示用の文字列であると同時に識別子**でもある——
+   * Visualizer は「導入」、getAdjustedProgram は「加速」を名前で探す。英語の
+   * 画面では書き換えずに phaseLabel() で訳して出す。
+   */
   name: string;
   /** Start time in seconds (relative to program default duration) */
   startTime: number;
@@ -18,8 +25,13 @@ export type ProgramCategory = "default" | "target" | "energy" | "astro";
 
 export interface ProgramConfig {
   id: string;
+  /** 表示名（日本語）。英語の画面では programName() が nameEn → titleEn の順に選ぶ。 */
   name: string;
   description: string;
+  /** 英語の表示名。無ければ titleEn、それも無ければ name（星座節目は name が英語）。 */
+  nameEn?: string;
+  /** 英語の説明。無ければ description のまま。 */
+  descriptionEn?: string;
   icon: string;
   /** Carrier frequency for left ear (Hz) */
   carrierFreq: number;
@@ -33,8 +45,13 @@ export interface ProgramConfig {
 
   /** Sync Session のどのタブに並ぶか。省略時は "default" 扱い。 */
   category?: ProgramCategory;
-  /** Target 内の小分類（仕事・勉強 など）。他カテゴリでは未使用。 */
+  /**
+   * 小分類（Target の「仕事・勉強」、Astro の星座名）。一覧の段組みの鍵にも
+   * 使うので日本語のまま持ち、英語の画面では subGenreEn を出す。
+   */
   subGenre?: string;
+  /** subGenre の英語（Work & Study / Aries など）。 */
+  subGenreEn?: string;
   /** 英語原題。プレイヤーの副題と検索に使う。 */
   titleEn?: string;
   /**
@@ -60,6 +77,8 @@ const resetAndDeep: ProgramConfig = {
   category: "default",
   name: "リセット＆ディープ",
   description: "シューマン共鳴 7.83Hz でリセット",
+  nameEn: "Reset & Deep",
+  descriptionEn: "Reset with the 7.83Hz Schumann resonance",
   icon: "🌊",
   carrierFreq: 174,
   defaultDuration: 15 * 60,
@@ -105,6 +124,8 @@ const clarityFocus: ProgramConfig = {
   category: "default",
   name: "クラリティ・フォーカス",
   description: "ガンマ波 40Hz で集中力アップ",
+  nameEn: "Clarity Focus",
+  descriptionEn: "Sharpen your focus with 40Hz gamma waves",
   icon: "⚡",
   carrierFreq: 432,
   defaultDuration: 20 * 60,
@@ -150,6 +171,8 @@ const nightRecovery: ProgramConfig = {
   category: "default",
   name: "ナイトリカバリー",
   description: "デルタ波で深い睡眠をサポート",
+  nameEn: "Night Recovery",
+  descriptionEn: "Delta waves to support deep sleep",
   icon: "🌙",
   carrierFreq: 136.1,
   defaultDuration: 30 * 60,
@@ -210,6 +233,7 @@ const morningTuning: ProgramConfig = {
   name: "モーニングチューニング",
   titleEn: "Morning Tuning & Energize",
   description: "アルファ→ベータ 432Hz で朝の覚醒",
+  descriptionEn: "Wake up for the day: alpha → beta at 432Hz",
   icon: "🌅",
   carrierFreq: 432,
   defaultDuration: 10 * 60,
@@ -261,9 +285,11 @@ import {
   ZODIAC_SIGNS,
   zodiacProgramId,
   modularProgramId,
+  zodiacNameEn,
   MODULAR_BEATS,
   BEAT_TITLE,
   BEAT_EFFECT,
+  BEAT_EFFECT_EN,
   type ZodiacSign,
 } from "./zodiac";
 
@@ -290,9 +316,11 @@ function createZodiacProgram(sign: ZodiacSign): ProgramConfig {
     id: zodiacProgramId(sign.key),
     category: "astro",
     subGenre: sign.nameJa,
+    subGenreEn: zodiacNameEn(sign.key),
     keywords: `${sign.nameJa} ${sign.key}`,
     name: sign.programName,
     description: sign.description,
+    descriptionEn: sign.descriptionEn,
     icon: sign.glyph,
     carrierFreq: sign.carrierFreq,
     defaultDuration: 15 * 60,
@@ -312,9 +340,11 @@ function createModularProgram(sign: ZodiacSign, beat: number): ProgramConfig {
     id: modularProgramId(sign.key, beat),
     category: "astro",
     subGenre: sign.nameJa,
+    subGenreEn: zodiacNameEn(sign.key),
     keywords: `${sign.nameJa} ${sign.key}`,
     name: `${Math.round(sign.carrierFreq)}Hz × ${beatKey}Hz ${BEAT_TITLE[beatKey]}`,
     description: BEAT_EFFECT[beatKey],
+    descriptionEn: BEAT_EFFECT_EN[beatKey],
     icon: sign.glyph,
     carrierFreq: sign.carrierFreq,
     defaultDuration: 15 * 60,
@@ -340,7 +370,7 @@ export const ZODIAC_PROGRAMS: ProgramConfig[] = [
 // --- Catalog (Target / Energy) & cross-category lookup ---
 
 import { CATALOG_PROGRAMS } from "./catalog";
-import { CATEGORY_LABEL } from "./catalog/categories";
+import { CATEGORY_LABEL, CATEGORY_LABEL_EN } from "./catalog/categories";
 import { assertCatalog } from "./catalog/invariants";
 import { buildSearchText, matchesQuery } from "./catalog/search";
 
@@ -393,12 +423,17 @@ const searchTextCache = new Map<string, string>();
 function searchTextOf(p: ProgramConfig): string {
   const cached = searchTextCache.get(p.id);
   if (cached !== undefined) return cached;
+  // 英語の画面の人が英語で探しても当たるよう、英語の名前・説明・分類も入れる。
   const built = buildSearchText([
     p.name,
     p.titleEn,
+    p.nameEn,
     p.description,
+    p.descriptionEn,
     CATEGORY_LABEL[programCategory(p)],
+    CATEGORY_LABEL_EN[programCategory(p)],
     p.subGenre,
+    p.subGenreEn,
     p.keywords,
     `${p.carrierFreq}Hz`,
     `${p.targetBeatFreq}Hz`,
@@ -411,6 +446,61 @@ function searchTextOf(p: ProgramConfig): string {
 export function searchPrograms(query: string): ProgramConfig[] {
   if (!query.trim()) return [];
   return ALL_PROGRAMS.filter((p) => matchesQuery(searchTextOf(p), query));
+}
+
+// --- 表示言語ごとの名前（lib/i18n.ts） ---
+
+/** 画面に出す名前。英語では nameEn → titleEn → name（星座節目は name が英語）。 */
+export function programName(p: ProgramConfig, locale: Locale): string {
+  return locale === "en" ? (p.nameEn ?? p.titleEn ?? p.name) : p.name;
+}
+
+export function programDescription(p: ProgramConfig, locale: Locale): string {
+  return locale === "en" ? (p.descriptionEn ?? p.description) : p.description;
+}
+
+/**
+ * 名前の下に添える副題。日本語の画面では英語原題（titleEn）、英語の画面では
+ * 名前そのものが英題なので出さない。
+ */
+export function programSubtitle(p: ProgramConfig, locale: Locale): string | undefined {
+  return locale === "en" ? undefined : p.titleEn;
+}
+
+/** 小分類の表示名（段組みの見出し）。 */
+export function programSubGenre(p: ProgramConfig, locale: Locale): string | undefined {
+  return locale === "en" ? (p.subGenreEn ?? p.subGenre) : p.subGenre;
+}
+
+/**
+ * 再生ログなど、名前を文字列で持っている記録の表示名。id が内蔵・カタログ・
+ * 星座の節目ならいまの言語の名前を引き直し、それ以外（合成器のカスタム節目・
+ * 配信節目）は記録された名前をそのまま出す——人が付けた名前なので訳さない。
+ */
+export function programNameById(id: string, recordedName: string, locale: Locale): string {
+  const p = getProgramById(id);
+  return p ? programName(p, locale) : recordedName;
+}
+
+/** 相位名の英語。相位名は識別子を兼ねるので、データは日本語のまま訳して出す。 */
+const PHASE_LABEL_EN: Record<string, string> = {
+  導入: "Intro",
+  遷移: "Transition",
+  同調: "Sync",
+  収束: "Wind-down",
+  降下: "Descent",
+  覚醒: "Awaken",
+  加速: "Ramp-up",
+  ピーク: "Peak",
+  深化: "Deepen",
+  デルタ維持: "Delta hold",
+  浮上: "Resurface",
+  定着: "Settle",
+  送り出し: "Send-off",
+};
+
+export function phaseLabel(name: string, locale: Locale): string {
+  return locale === "en" ? (PHASE_LABEL_EN[name] ?? name) : name;
 }
 
 // --- Custom Programs (synth-based) ---

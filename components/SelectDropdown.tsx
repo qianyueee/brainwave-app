@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export interface SelectOption {
   value: string;
@@ -41,9 +42,11 @@ export default function SelectDropdown({
   value,
   options,
   onChange,
-  placeholder = "選択してください",
+  placeholder,
   disabled,
 }: SelectDropdownProps) {
+  const t = useT();
+  const placeholderText = placeholder ?? t("選択してください", "Please select");
   const [expanded, setExpanded] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const selected = options.find((o) => o.value === value) ?? null;
@@ -88,7 +91,7 @@ export default function SelectDropdown({
         )}
         <span className="min-w-0 flex-1">
           <span className="block text-base font-bold text-text-primary truncate">
-            {selected?.label ?? placeholder}
+            {selected?.label ?? placeholderText}
           </span>
           {selected?.detail && (
             <span className="block text-sm text-text-secondary truncate">

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DEFAULT_SUBJECT_NAME } from "@/lib/subject-groups";
 
 /**
  * Who a measurement was taken on. One headset is often shared — a clinic, a
@@ -16,8 +17,12 @@ export interface Subject {
   createdAt: string;
 }
 
-/** Seeded on first use so existing installs keep recording without a setup step. */
-export const DEFAULT_SUBJECT_NAME = "自分";
+/**
+ * Seeded on first use so existing installs keep recording without a setup step.
+ * Defined next to subjectDisplayName (lib/subject-groups.ts), which shows it as
+ * "Me" in English without changing the stored name.
+ */
+export { DEFAULT_SUBJECT_NAME };
 
 export const SUBJECT_NAME_MAX = 20;
 

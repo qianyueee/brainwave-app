@@ -6,12 +6,19 @@ import {
   ALL_PROGRAMS,
   programCategory,
   programsByCategory,
+  programSubGenre,
   searchPrograms,
   type ProgramCategory,
   type ProgramConfig,
 } from "@/lib/programs";
-import { CATEGORIES, CATEGORY_LABEL, TARGET_SUB_GENRES } from "@/lib/catalog";
-import { ZODIAC_SIGNS, zodiacProgramId } from "@/lib/zodiac";
+import {
+  CATEGORIES,
+  TARGET_SUB_GENRES,
+  categoryDescription,
+  categoryLabel,
+} from "@/lib/catalog";
+import { ZODIAC_SIGNS, zodiacName, zodiacProgramId } from "@/lib/zodiac";
+import { useLocale, useT } from "@/lib/i18n";
 import { useZodiacStore } from "@/store/useZodiacStore";
 import ProgramCard from "@/components/ProgramCard";
 
@@ -45,31 +52,39 @@ function CardGrid({ programs }: { programs: ProgramConfig[] }) {
 }
 
 function SectionHeading({ label, count }: { label: string; count: number }) {
+  const t = useT();
   return (
     <p className="text-sm text-text-secondary">
       {label}
-      <span className="ml-2 text-xs text-text-muted">{count}件</span>
+      <span className="ml-2 text-xs text-text-muted">
+        {t(`${count}件`, count === 1 ? "1 program" : `${count} programs`)}
+      </span>
     </p>
   );
 }
 
-/** 星座1つぶん。自星座プログラムは常に出し、差频違いのモジュール版は畳んでおく。 */
+/**
+ * 星座1つぶん。自星座プログラムは常に出し、差频違いのモジュール版は畳んでおく。
+ * `label` は見出しに出す星座名（表示言語のもの）。
+ */
 function SignSection({
-  nameJa,
+  label,
   own,
   modular,
   expanded,
   onToggle,
 }: {
-  nameJa: string;
+  label: string;
   own: ProgramConfig[];
   modular: ProgramConfig[];
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const t = useT();
+  const n = modular.length;
   return (
     <div className="flex flex-col gap-3">
-      <SectionHeading label={nameJa} count={own.length + modular.length} />
+      <SectionHeading label={label} count={own.length + modular.length} />
       <CardGrid programs={own} />
       {modular.length > 0 && (
         <>
@@ -83,7 +98,13 @@ function SignSection({
               size={16}
               className={`transition-transform${expanded ? " rotate-180" : ""}`}
             />
-            {expanded ? "モジュール版を閉じる" : `モジュール版 ${modular.length}種を表示`}
+            {/* 英語は「モジュール版」を中身で言う——同じ星座の載波でビートだけ違う版 */}
+            {expanded
+              ? t("モジュール版を閉じる", "Hide beat variations")
+              : t(
+                  `モジュール版 ${n}種を表示`,
+                  `Show ${n} beat variation${n === 1 ? "" : "s"}`
+                )}
           </button>
         </>
       )}
@@ -94,6 +115,8 @@ function SignSection({
 export default function CatalogSection() {
   const [tab, setTab] = useState<ProgramCategory>("default");
   const [query, setQuery] = useState("");
+  const t = useT();
+  const locale = useLocale();
 
   const counts = useMemo(() => {
     const map = new Map<ProgramCategory, number>();
@@ -120,14 +143,14 @@ export default function CatalogSection() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="名前・効果・周波数で検索"
-          aria-label="プログラムを検索"
+          placeholder={t("名前・効果・周波数で検索", "Search by name, effect or Hz")}
+          aria-label={t("プログラムを検索", "Search programs")}
           className="w-full min-h-12 pl-10 pr-12 py-3 rounded-2xl bg-navy text-text-primary text-base border border-surface-border focus:outline-none focus:border-primary"
         />
         {searching && (
           <button
             onClick={() => setQuery("")}
-            aria-label="検索をクリア"
+            aria-label={t("検索をクリア", "Clear search")}
             className="absolute right-1 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-text-muted"
           >
             <X size={18} />
@@ -138,7 +161,11 @@ export default function CatalogSection() {
       {/* タブ。4枚は横1列だと狭い端末で潰れるので、モバイルは2×2（管理パネルと同じ）。 */}
       {!searching && (
         <div className="flex flex-col gap-2">
-          <div role="tablist" aria-label="プログラムの分類" className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div
+            role="tablist"
+            aria-label={t("プログラムの分類", "Program categories")}
+            className="grid grid-cols-2 md:grid-cols-4 gap-2"
+          >
             {CATEGORIES.map((c) => {
               const Icon = TAB_ICONS[c.key];
               const isActive = tab === c.key;
@@ -155,13 +182,15 @@ export default function CatalogSection() {
                   }`}
                 >
                   <Icon size={16} className="shrink-0" />
-                  {c.label}
+                  {categoryLabel(c, locale)}
                   <span className="text-xs opacity-70">{counts.get(c.key) ?? 0}</span>
                 </button>
               );
             })}
           </div>
-          {active && <p className="text-xs text-text-muted">{active.description}</p>}
+          {active && (
+            <p className="text-xs text-text-muted">{categoryDescription(active, locale)}</p>
+          )}
         </div>
       )}
 
@@ -180,10 +209,12 @@ export default function CatalogSection() {
 
 /** 検索結果はカテゴリをまたいで平らに出し、どのタブの節目かを見出しで示す。 */
 function SearchResults({ programs }: { programs: ProgramConfig[] }) {
+  const t = useT();
+  const locale = useLocale();
   if (programs.length === 0) {
     return (
       <p className="text-sm text-text-muted text-center py-8">
-        プログラムが見つかりません
+        {t("プログラムが見つかりません", "No programs found")}
       </p>
     );
   }
@@ -194,7 +225,7 @@ function SearchResults({ programs }: { programs: ProgramConfig[] }) {
         if (hit.length === 0) return null;
         return (
           <div key={c.key} className="flex flex-col gap-3">
-            <SectionHeading label={CATEGORY_LABEL[c.key]} count={hit.length} />
+            <SectionHeading label={categoryLabel(c, locale)} count={hit.length} />
             <CardGrid programs={hit} />
           </div>
         );
@@ -205,14 +236,16 @@ function SearchResults({ programs }: { programs: ProgramConfig[] }) {
 
 function TargetTab() {
   const programs = programsByCategory("target");
+  const locale = useLocale();
   return (
     <div className="flex flex-col gap-6">
       {TARGET_SUB_GENRES.map((sub) => {
+        // 段分けの鍵は日本語の subGenre のまま。見出しだけ表示言語で出す。
         const hit = programs.filter((p) => p.subGenre === sub);
         if (hit.length === 0) return null;
         return (
           <div key={sub} className="flex flex-col gap-3">
-            <SectionHeading label={sub} count={hit.length} />
+            <SectionHeading label={programSubGenre(hit[0], locale) ?? sub} count={hit.length} />
             <CardGrid programs={hit} />
           </div>
         );
@@ -224,6 +257,7 @@ function TargetTab() {
 function AstroTab() {
   const programs = programsByCategory("astro");
   const selectedSign = useZodiacStore((s) => s.selectedSign);
+  const locale = useLocale();
 
   // マイ星座の段だけ最初から開いておく。persist のストアだが、この成分は
   // 既定タブが「デフォルト」なので利用者がタブを押すまで描画されない——
@@ -254,7 +288,7 @@ function AstroTab() {
         return (
           <SignSection
             key={sign.key}
-            nameJa={sign.nameJa}
+            label={zodiacName(sign, locale)}
             own={own}
             modular={modular}
             expanded={expanded.has(sign.key)}

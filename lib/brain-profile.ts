@@ -2,6 +2,7 @@ import type { ProgramConfig, FrequencyPhase } from "./programs";
 import { getProgramById } from "./programs";
 import type { BandPowers } from "./mind/types";
 import { POOR_SIGNAL_LIMIT } from "./mind/types";
+import { getLocale, translator } from "./i18n";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -156,7 +157,11 @@ export async function parseEegFile(file: File): Promise<{ rows: EegRow[]; tag: s
   // Read as a raw grid so we can handle both wide and transposed layouts.
   const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, blankrows: false });
 
-  if (!aoa.length) throw new Error("ファイルにデータがありません");
+  // The message is shown as-is by the uploader, so it is written in the
+  // language on screen at the moment of the upload.
+  const tr = translator(getLocale());
+
+  if (!aoa.length) throw new Error(tr("ファイルにデータがありません", "The file contains no data"));
 
   const asStr = (v: unknown): string => (v == null ? "" : String(v));
 
@@ -214,7 +219,9 @@ export async function parseEegFile(file: File): Promise<{ rows: EegRow[]; tag: s
     }
   }
 
-  if (columns.size === 0) throw new Error("認識可能な列ヘッダーがありません");
+  if (columns.size === 0) {
+    throw new Error(tr("認識可能な列ヘッダーがありません", "No recognizable column headers were found"));
+  }
 
   // Reconstruct per-second rows (keep interior gaps; trimming happens after).
   let maxLen = 0;
@@ -245,7 +252,7 @@ export async function parseEegFile(file: File): Promise<{ rows: EegRow[]; tag: s
   while (hi >= lo && rows[hi].attention <= 0 && rows[hi].relaxation <= 0) hi--;
   const trimmed = rows.slice(lo, hi + 1);
 
-  if (trimmed.length === 0) throw new Error("有効なデータ行がありません");
+  if (trimmed.length === 0) throw new Error(tr("有効なデータ行がありません", "No valid data rows were found"));
 
   return { rows: trimmed, tag: tag || file.name.replace(/\.\w+$/, "") };
 }
@@ -727,6 +734,9 @@ export interface IndicatorMeta {
   key: keyof BrainIndicators;
   label: string;
   shortLabel: string;
+  /** English UI names (the same six everywhere: radar, trend, compare). */
+  labelEn: string;
+  shortLabelEn: string;
 }
 
 // Array order = radar/hexagon vertex order, clockwise from the top vertex:
@@ -734,12 +744,48 @@ export interface IndicatorMeta {
 // Names follow the "6指標説明" document; per-indicator explanations (with the
 // ①〜⑥ numbering, which is independent of this layout) live in INDICATOR_GROUPS.
 export const INDICATOR_META: IndicatorMeta[] = [
-  { key: "focusIntensity", label: "集中の強さ", shortLabel: "集中の強さ" },
-  { key: "sustainedFocus", label: "集中の持続度", shortLabel: "集中の持続度" },
-  { key: "calmnessStability", label: "平静の持続度", shortLabel: "平静の持続度" },
-  { key: "relaxationDepth", label: "リラックスの深さ", shortLabel: "リラックスの深さ" },
-  { key: "calmnessSpeed", label: "入定の速度", shortLabel: "入定の速度" },
-  { key: "focusSpeed", label: "集中の速度", shortLabel: "集中の速度" },
+  {
+    key: "focusIntensity",
+    label: "集中の強さ",
+    shortLabel: "集中の強さ",
+    labelEn: "Focus strength",
+    shortLabelEn: "Focus strength",
+  },
+  {
+    key: "sustainedFocus",
+    label: "集中の持続度",
+    shortLabel: "集中の持続度",
+    labelEn: "Focus endurance",
+    shortLabelEn: "Focus endurance",
+  },
+  {
+    key: "calmnessStability",
+    label: "平静の持続度",
+    shortLabel: "平静の持続度",
+    labelEn: "Calm endurance",
+    shortLabelEn: "Calm endurance",
+  },
+  {
+    key: "relaxationDepth",
+    label: "リラックスの深さ",
+    shortLabel: "リラックスの深さ",
+    labelEn: "Relaxation depth",
+    shortLabelEn: "Relaxation depth",
+  },
+  {
+    key: "calmnessSpeed",
+    label: "入定の速度",
+    shortLabel: "入定の速度",
+    labelEn: "Settling speed",
+    shortLabelEn: "Settling speed",
+  },
+  {
+    key: "focusSpeed",
+    label: "集中の速度",
+    shortLabel: "集中の速度",
+    labelEn: "Focus speed",
+    shortLabelEn: "Focus speed",
+  },
 ];
 
 // ─── Indicator Explanation Groups (脳特性 help popup) ─────────────────────────
@@ -752,6 +798,8 @@ export interface IndicatorGroupItem {
   /** Numbered name shown in the popup, e.g. "① 集中の強さ（選択的注意力）". */
   label: string;
   description: string;
+  labelEn: string;
+  descriptionEn: string;
 }
 
 export interface IndicatorGroup {
@@ -760,61 +808,92 @@ export interface IndicatorGroup {
   items: IndicatorGroupItem[];
   /** 【評価のポイント】note shown under the group. */
   evaluationPoint: string;
+  titleEn: string;
+  introEn: string;
+  evaluationPointEn: string;
 }
 
 export const INDICATOR_GROUPS: IndicatorGroup[] = [
   {
     title: "1. 認知・注意力の評価（①②③）：脳の「処理能力と制御力」",
+    titleEn: "1. Cognition & attention (①②③): the brain's “processing and control”",
     intro:
       "これらは主にベータ波（Beta波）やSMR（感覚運動リズム）などの脳波の活動と関連し、脳の「オン」の状態におけるパフォーマンスを評価します。",
+    introEn:
+      "These relate mainly to brainwave activity such as beta waves and SMR (sensorimotor rhythm), and assess how your brain performs in its “on” state.",
     items: [
       {
         key: "focusIntensity",
         label: "① 集中の強さ（選択的注意力）",
+        labelEn: "① Focus strength (selective attention)",
         description:
           "目標に向けた脳のエネルギーの強さを示します。ここが高いと、雑音や妨害をシャットアウトする「ノイズキャンセリング機能」が優れており、情報処理の精度が高いと評価されます。",
+        descriptionEn:
+          "Shows how strongly your brain directs its energy toward a goal. A high score means a good “noise-cancelling” ability that shuts out noise and distractions, and is read as precise information processing.",
       },
       {
         key: "focusSpeed",
         label: "② 集中の速度（交替性注意力）",
+        labelEn: "② Focus speed (alternating attention)",
         description:
           "脳の「柔軟性（フレキシビリティ）」を評価します。異なるタスク間をスムーズに移行できるかは、脳のワーキングメモリや処理速度の若々しさを示す指標となります。",
+        descriptionEn:
+          "Assesses your brain's “flexibility.” How smoothly you can move between different tasks is a sign of how youthful your working memory and processing speed are.",
       },
       {
         key: "sustainedFocus",
         label: "③ 集中の持続度（持続的注意力）",
+        labelEn: "③ Focus endurance (sustained attention)",
         description:
           "脳の「持久力」を評価します。長時間にわたり安定した脳波を維持できるかは、根気強さや学習能力に直結します。加齢に伴い最も低下しやすい指標の一つでもあります。",
+        descriptionEn:
+          "Assesses your brain's “stamina.” Whether you can keep your brainwaves steady for a long time is directly linked to perseverance and the ability to learn. It is also one of the indicators most likely to decline with age.",
       },
     ],
     evaluationPoint:
       "【評価のポイント】①〜③のスコアのバランスを見ます。「①と②が高く③が低い」場合は瞬発力やマルチタスクは得意だが飽きっぽいタイプ、「③が高く②が低い」場合は地道な作業は得意だが、急な変化への対応にエネルギーを使うタイプ、といった特性が浮かび上がります。",
+    evaluationPointEn:
+      "Key point: look at the balance of scores ①–③. “① and ② high, ③ low” suggests someone who is quick and good at multitasking but gets bored easily; “③ high, ② low” suggests someone who is good at steady work but spends energy adjusting to sudden changes. Traits like these come to light.",
   },
   {
     title: "2. 情緒・自己調整の評価（④⑤⑥）：脳の「回復力と安定性」",
+    titleEn: "2. Emotion & self-regulation (④⑤⑥): the brain's “recovery and stability”",
     intro:
       "これらは主にアルファ波（Alpha波）やシータ波（Theta波）の活動と関連し、脳の「オフ」の状態における自律神経の調整力やストレス耐性を評価します。",
+    introEn:
+      "These relate mainly to alpha and theta wave activity, and assess how well your autonomic nervous system regulates itself and how well you handle stress while your brain is in its “off” state.",
     items: [
       {
         key: "relaxationDepth",
         label: "④ リラックスの深さ",
+        labelEn: "④ Relaxation depth",
         description:
           "脳と身体の「回復力」を評価します。深いリラックス状態（アルファ波の増加など）にどれだけ到達できるかは、睡眠の質や疲労回復能力の高さを示します。",
+        descriptionEn:
+          "Assesses the “recovery power” of your brain and body. How deeply you can relax (for example, with more alpha waves) shows your sleep quality and how well you recover from fatigue.",
       },
       {
         key: "calmnessSpeed",
         label: "⑤ 入定の速度",
+        labelEn: "⑤ Settling speed",
         description:
           "自律神経の「切り替えの良さ」を評価します。緊張状態（交感神経優位）からリラックス状態（副交感神経優位）へいかに早くスイッチを切り替えられるかは、不眠や不安の解消能力に関わります。",
+        descriptionEn:
+          "Assesses how well your autonomic nerves “switch over.” How quickly you can switch from tension (sympathetic nerves dominant) to relaxation (parasympathetic nerves dominant) relates to your ability to ease sleeplessness and anxiety.",
       },
       {
         key: "calmnessStability",
         label: "⑥ 平静の持続度",
+        labelEn: "⑥ Calm endurance",
         description:
           "ストレスに対する「レジリエンス（回復弾性）」を評価します。外的なストレスがかかっても脳の平静さを保てるかは、メンタルヘルスの安定性や感情制御の成熟度を表します。",
+        descriptionEn:
+          "Assesses your “resilience” to stress. Whether your brain can stay calm under outside stress reflects the stability of your mental health and the maturity of your emotional control.",
       },
     ],
     evaluationPoint:
       "【評価のポイント】現代社会ではストレスが多いため、④〜⑥の「オフの能力」が脳の健康寿命を左右します。ここが低いと、脳が常にオーバーヒート気味（慢性疲労・不眠・イライラ）であると評価されます。",
+    evaluationPointEn:
+      "Key point: modern life is full of stress, so the “off” abilities ④–⑥ influence how long your brain stays healthy. Low scores here are read as a brain that tends to be constantly overheated (chronic fatigue, sleeplessness, irritability).",
   },
 ];

@@ -17,20 +17,28 @@ import { downloadBlob } from "@/lib/audio-export";
 import { SynthPreset } from "@/lib/synth-engine";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useAdminStore } from "@/store/useAdminStore";
+import { useT, type LocalizedText } from "@/lib/i18n";
 
 const MAX_LAYERS = 8;
 const FREQ_MIN = 20;
 const FREQ_MAX = 10000;
 const HARMONIC_BASE_MIN = 1;
 
-/** A save action held back until the user confirms it in the dialog. */
+/**
+ * A save action held back until the user confirms it in the dialog.
+ * Texts are kept in both languages and picked at render time, so an open
+ * dialog follows a language switch.
+ */
 interface ConfirmRequest {
-  title: string;
-  message: string;
-  confirmLabel: string;
+  title: LocalizedText;
+  message: LocalizedText;
+  confirmLabel: LocalizedText;
   tone: "primary" | "accent";
   run: () => Promise<void>;
 }
+
+const SAVE_FAILED: LocalizedText = { ja: "保存に失敗しました", en: "Couldn't save" };
+const CONFIRM_SAVE: LocalizedText = { ja: "保存する", en: "Save" };
 
 export default function SynthPage() {
   const router = useRouter();
@@ -38,6 +46,7 @@ export default function SynthPage() {
   const authLoading = useAuthStore((s) => s.loading);
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const roleLoaded = useAdminStore((s) => s.roleLoaded);
+  const t = useT();
 
   useEffect(() => {
     if (!authLoading && roleLoaded && (!user || !isAdmin)) {
@@ -94,10 +103,10 @@ export default function SynthPage() {
   const segmentPreviewPlaying = isSynthPlaying && !appIsPlaying;
 
   const [presetName, setPresetName] = useState("");
-  const [presetMsg, setPresetMsg] = useState("");
+  const [presetMsg, setPresetMsg] = useState<LocalizedText | null>(null);
   const [programName, setProgramName] = useState("");
   const [programDesc, setProgramDesc] = useState("");
-  const [programMsg, setProgramMsg] = useState("");
+  const [programMsg, setProgramMsg] = useState<LocalizedText | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmRequest | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -207,9 +216,9 @@ export default function SynthPage() {
     try {
       await savePreset(name);
       setPresetName("");
-      setPresetMsg(`「${name}」を保存しました`);
+      setPresetMsg({ ja: `「${name}」を保存しました`, en: `Saved “${name}”` });
     } catch {
-      setPresetMsg("保存に失敗しました");
+      setPresetMsg(SAVE_FAILED);
     }
   };
 
@@ -217,9 +226,9 @@ export default function SynthPage() {
     if (!editingPresetId) return;
     try {
       await updatePreset(editingPresetId);
-      setPresetMsg(`「${editingPresetName}」を上書きしました`);
+      setPresetMsg({ ja: `「${editingPresetName}」を上書きしました`, en: `Overwrote “${editingPresetName}”` });
     } catch {
-      setPresetMsg("保存に失敗しました");
+      setPresetMsg(SAVE_FAILED);
     }
   };
 
@@ -229,9 +238,9 @@ export default function SynthPage() {
     try {
       // updateProgram is timeline-aware (branches on isTimelineMode internally).
       await updateProgram(editingProgramId, programDesc);
-      setProgramMsg(`「${editingProgramName}」を更新しました`);
+      setProgramMsg({ ja: `「${editingProgramName}」を更新しました`, en: `Updated “${editingProgramName}”` });
     } catch {
-      setProgramMsg("保存に失敗しました");
+      setProgramMsg(SAVE_FAILED);
     }
   };
 
@@ -250,9 +259,9 @@ export default function SynthPage() {
         await saveAsProgram(name, programDesc);
       }
       setProgramName("");
-      setProgramMsg(`「${name}」として保存しました`);
+      setProgramMsg({ ja: `「${name}」として保存しました`, en: `Saved as “${name}”` });
     } catch {
-      setProgramMsg("保存に失敗しました");
+      setProgramMsg(SAVE_FAILED);
     }
   };
 
@@ -274,9 +283,12 @@ export default function SynthPage() {
     const name = presetName.trim();
     if (!name) return;
     setConfirmState({
-      title: "プリセットを保存しますか？",
-      message: `「${name}」という名前で新しいプリセットを保存します。`,
-      confirmLabel: "保存する",
+      title: { ja: "プリセットを保存しますか？", en: "Save this preset?" },
+      message: {
+        ja: `「${name}」という名前で新しいプリセットを保存します。`,
+        en: `This saves a new preset named “${name}”.`,
+      },
+      confirmLabel: CONFIRM_SAVE,
       tone: "primary",
       run: handleSave,
     });
@@ -285,9 +297,12 @@ export default function SynthPage() {
   const requestOverwritePreset = () => {
     if (!editingPresetId) return;
     setConfirmState({
-      title: "プリセットを上書きしますか？",
-      message: `「${editingPresetName}」の内容が現在の設定に置き換わります。\n元に戻すことはできません。`,
-      confirmLabel: "上書きする",
+      title: { ja: "プリセットを上書きしますか？", en: "Overwrite this preset?" },
+      message: {
+        ja: `「${editingPresetName}」の内容が現在の設定に置き換わります。\n元に戻すことはできません。`,
+        en: `“${editingPresetName}” will be replaced with the current settings.\nThis can't be undone.`,
+      },
+      confirmLabel: { ja: "上書きする", en: "Overwrite" },
       tone: "accent",
       run: handleOverwriteSave,
     });
@@ -296,9 +311,12 @@ export default function SynthPage() {
   const requestUpdateProgram = () => {
     if (!editingProgramId) return;
     setConfirmState({
-      title: "プログラムを更新しますか？",
-      message: `「${editingProgramName}」の内容が現在の設定に置き換わります。\n元に戻すことはできません。`,
-      confirmLabel: "更新する",
+      title: { ja: "プログラムを更新しますか？", en: "Update this program?" },
+      message: {
+        ja: `「${editingProgramName}」の内容が現在の設定に置き換わります。\n元に戻すことはできません。`,
+        en: `“${editingProgramName}” will be replaced with the current settings.\nThis can't be undone.`,
+      },
+      confirmLabel: { ja: "更新する", en: "Update" },
       tone: "accent",
       run: handleUpdateProgram,
     });
@@ -308,11 +326,19 @@ export default function SynthPage() {
     const name = programName.trim();
     if (!name) return;
     setConfirmState({
-      title: editingProgramId ? "別名で保存しますか？" : "プログラムを保存しますか？",
+      title: editingProgramId
+        ? { ja: "別名で保存しますか？", en: "Save as a new program?" }
+        : { ja: "プログラムを保存しますか？", en: "Save this program?" },
       message: editingProgramId
-        ? `「${name}」を新しいプログラムとして追加します。\n「${editingProgramName}」はそのまま残ります。`
-        : `「${name}」をホーム画面にカードとして追加します。`,
-      confirmLabel: "保存する",
+        ? {
+            ja: `「${name}」を新しいプログラムとして追加します。\n「${editingProgramName}」はそのまま残ります。`,
+            en: `“${name}” will be added as a new program.\n“${editingProgramName}” stays as it is.`,
+          }
+        : {
+            ja: `「${name}」をホーム画面にカードとして追加します。`,
+            en: `“${name}” will be added to the Home screen as a card.`,
+          },
+      confirmLabel: CONFIRM_SAVE,
       tone: "primary",
       run: handleSaveAsNewProgram,
     });
@@ -380,22 +406,22 @@ export default function SynthPage() {
           <Lock size={36} className="text-text-muted" strokeWidth={1.5} />
         </div>
         <div className="text-center">
-          <p className="text-lg font-bold text-text-primary">ログインが必要です</p>
+          <p className="text-lg font-bold text-text-primary">{t("ログインが必要です", "Please log in")}</p>
           <p className="text-sm text-text-secondary mt-2">
-            合成器機能を利用するにはログインしてください
+            {t("合成器機能を利用するにはログインしてください", "Log in to use the synth.")}
           </p>
         </div>
         <button
           onClick={() => openAuthModal("login")}
           className="h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
         >
-          ログイン
+          {t("ログイン", "Log in")}
         </button>
         <button
           onClick={() => router.back()}
           className="text-sm text-text-muted underline active:opacity-70"
         >
-          戻る
+          {t("戻る", "Back")}
         </button>
       </div>
       </BareColumn>
@@ -410,16 +436,16 @@ export default function SynthPage() {
           <Lock size={36} className="text-text-muted" strokeWidth={1.5} />
         </div>
         <div className="text-center">
-          <p className="text-lg font-bold text-text-primary">権限がありません</p>
+          <p className="text-lg font-bold text-text-primary">{t("権限がありません", "No access")}</p>
           <p className="text-sm text-text-secondary mt-2">
-            この機能は管理者のみ利用できます
+            {t("この機能は管理者のみ利用できます", "Only admins can use this feature.")}
           </p>
         </div>
         <button
           onClick={() => router.replace("/")}
           className="h-12 px-8 rounded-2xl bg-primary text-on-primary text-base font-bold active:scale-95 transition-all neu-raised neu-press"
         >
-          ホームへ
+          {t("ホームへ", "Go to Home")}
         </button>
       </div>
       </BareColumn>
@@ -434,18 +460,18 @@ export default function SynthPage() {
         <button
           onClick={() => router.back()}
           className="w-10 h-10 rounded-full bg-navy flex items-center justify-center text-text-secondary active:scale-95 neu-raised-sm"
-          aria-label="戻る"
+          aria-label={t("戻る", "Back")}
         >
           <ChevronLeft size={20} strokeWidth={2} />
         </button>
         <div>
           <h1 className="text-xl font-bold text-text-primary">
-            {isTimelineMode ? "タイムライン作成" : "カスタム合成器"}
+            {isTimelineMode ? t("タイムライン作成", "Create a timeline") : t("カスタム合成器", "Custom synth")}
           </h1>
           <p className="text-sm text-text-secondary">
             {isTimelineMode
-              ? "時間で音が切り替わる音声を作成"
-              : "振荡器を重ねてオリジナル音を作成"}
+              ? t("時間で音が切り替わる音声を作成", "Make audio whose sound changes over time")
+              : t("振荡器を重ねてオリジナル音を作成", "Layer oscillators to make your own sound")}
           </p>
         </div>
       </div>
@@ -473,13 +499,13 @@ export default function SynthPage() {
 
         {/* Stereo toggle */}
         <div className="flex items-center justify-between bg-surface border border-surface-border rounded-2xl px-4 py-3 neu-raised">
-          <span className="text-sm text-text-primary font-medium">ステレオ</span>
+          <span className="text-sm text-text-primary font-medium">{t("ステレオ", "Stereo")}</span>
           <button
             onClick={handleStereoToggle}
             className={`w-11 h-6 rounded-full transition-colors relative neu-toggle-track ${
               isStereo ? "bg-primary" : "bg-navy-lighter"
             }`}
-            aria-label="ステレオ切替"
+            aria-label={t("ステレオ切替", "Toggle stereo")}
           >
             <span
               className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform neu-raised-sm ${
@@ -495,7 +521,7 @@ export default function SynthPage() {
         <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-3 neu-raised">
           {isStereo ? (
             <>
-              <label className="text-xs text-text-secondary">基本周波数</label>
+              <label className="text-xs text-text-secondary">{t("基本周波数", "Base frequency")}</label>
               <div className="flex gap-2 items-center">
                 <span className="w-7 text-xs text-accent font-bold tabular-nums">L</span>
                 <input
@@ -513,7 +539,7 @@ export default function SynthPage() {
                   onClick={() => handleBaseFreqApply("left")}
                   className="px-4 py-3 rounded-xl bg-primary text-on-primary text-sm font-bold active:scale-95 neu-raised-sm"
                 >
-                  生成
+                  {t("生成", "Generate")}
                 </button>
               </div>
               <div className="flex gap-2 items-center">
@@ -533,16 +559,19 @@ export default function SynthPage() {
                   onClick={() => handleBaseFreqApply("right")}
                   className="px-4 py-3 rounded-xl bg-primary text-on-primary text-sm font-bold active:scale-95 neu-raised-sm"
                 >
-                  生成
+                  {t("生成", "Generate")}
                 </button>
               </div>
               <p className="text-xs text-text-muted">
-                左右別に基本周波数を設定できます（1〜9倍音を生成）
+                {t(
+                  "左右別に基本周波数を設定できます（1〜9倍音を生成）",
+                  "Set a separate base frequency for left and right (generates harmonics 1–9)",
+                )}
               </p>
             </>
           ) : (
             <>
-              <label className="text-xs text-text-secondary">基本周波数</label>
+              <label className="text-xs text-text-secondary">{t("基本周波数", "Base frequency")}</label>
               <div className="flex gap-2 items-center">
                 <input
                   type="number"
@@ -559,11 +588,11 @@ export default function SynthPage() {
                   onClick={() => handleBaseFreqApply()}
                   className="px-4 py-3 rounded-xl bg-primary text-on-primary text-sm font-bold active:scale-95 neu-raised-sm"
                 >
-                  生成
+                  {t("生成", "Generate")}
                 </button>
               </div>
               <p className="text-xs text-text-muted">
-                基本周波数の1〜9倍音を生成します
+                {t("基本周波数の1〜9倍音を生成します", "Generates harmonics 1–9 of the base frequency")}
               </p>
             </>
           )}
@@ -580,7 +609,7 @@ export default function SynthPage() {
             }`}
           >
             {segmentPreviewPlaying ? <Square size={18} fill="white" strokeWidth={0} /> : <Play size={18} fill="currentColor" strokeWidth={0} />}
-            この区間を試聴
+            {t("この区間を試聴", "Preview segment")}
           </button>
           <button
             onClick={handleWholeTimeline}
@@ -589,7 +618,7 @@ export default function SynthPage() {
             }`}
           >
             {wholeTimelinePlaying ? <Square size={18} fill="white" strokeWidth={0} /> : <Play size={18} fill="white" strokeWidth={0} />}
-            全体を再生
+            {t("全体を再生", "Play all")}
           </button>
         </div>
       ) : (
@@ -604,7 +633,7 @@ export default function SynthPage() {
       {/* Stereo solo monitor */}
       {isStereo && (
         <div className="bg-surface border border-surface-border rounded-2xl px-3 py-2 neu-raised flex items-center gap-2">
-          <span className="text-xs text-text-muted shrink-0">モニター</span>
+          <span className="text-xs text-text-muted shrink-0">{t("モニター", "Monitor")}</span>
           <div className="flex gap-1 flex-1">
             {(["left", "both", "right"] as const).map((c) => (
               <button
@@ -620,7 +649,7 @@ export default function SynthPage() {
                     : "bg-navy text-text-secondary neu-raised-sm"
                 }`}
               >
-                {c === "left" ? "L のみ" : c === "right" ? "R のみ" : "両方"}
+                {c === "left" ? t("L のみ", "L only") : c === "right" ? t("R のみ", "R only") : t("両方", "Both")}
               </button>
             ))}
           </div>
@@ -640,7 +669,7 @@ export default function SynthPage() {
                   : "bg-navy text-text-secondary neu-raised-sm"
               }`}
             >
-              {ch === "left" ? "L 左チャンネル" : "R 右チャンネル"}
+              {ch === "left" ? t("L 左チャンネル", "L Left channel") : t("R 右チャンネル", "R Right channel")}
             </button>
           ))}
         </div>
@@ -650,16 +679,19 @@ export default function SynthPage() {
       <div className="flex flex-col gap-3">
         {isTimelineMode && (
           <p className="text-xs text-primary font-bold">
-            編集中: セグメント {activeSegmentIndex + 1}
+            {t(`編集中: セグメント ${activeSegmentIndex + 1}`, `Editing: Segment ${activeSegmentIndex + 1}`)}
             {timelineSegments[activeSegmentIndex]?.name
-              ? `「${timelineSegments[activeSegmentIndex].name}」`
+              ? t(
+                  `「${timelineSegments[activeSegmentIndex].name}」`,
+                  ` “${timelineSegments[activeSegmentIndex].name}”`,
+                )
               : ""}
           </p>
         )}
         <div className="flex items-center justify-between">
           <p className="text-sm text-text-secondary">
             {isStereo ? `${activeChannel === "left" ? "L" : "R"} ` : ""}
-            {editorMode === "harmonic" ? "倍音レイヤー" : "レイヤー"}
+            {editorMode === "harmonic" ? t("倍音レイヤー", "Harmonic layers") : t("レイヤー", "Layers")}
           </p>
           <p className="text-xs text-text-muted">{displayLayers.length}/{maxDisplay}</p>
         </div>
@@ -681,7 +713,7 @@ export default function SynthPage() {
             className="w-full py-3 rounded-2xl bg-navy text-text-secondary text-sm font-medium neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
           >
             <Plus size={18} strokeWidth={2} />
-            レイヤーを追加
+            {t("レイヤーを追加", "Add layer")}
           </button>
         )}
       </div>
@@ -694,7 +726,7 @@ export default function SynthPage() {
             className="w-full py-3 rounded-2xl bg-navy text-text-primary text-base font-bold flex items-center justify-center gap-2 neu-raised-sm neu-press transition-transform"
           >
             <Download size={20} strokeWidth={2} />
-            音声をエクスポート
+            {t("音声をエクスポート", "Export audio")}
           </button>
 
           <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} mode="synth" />
@@ -704,7 +736,7 @@ export default function SynthPage() {
       {/* Save preset (single-config only) */}
       {!isTimelineMode && (
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-text-secondary">プリセット保存</p>
+        <p className="text-sm text-text-secondary">{t("プリセット保存", "Save preset")}</p>
 
         {/* Overwrite existing preset */}
         {editingPresetName && (
@@ -712,7 +744,7 @@ export default function SynthPage() {
             onClick={requestOverwritePreset}
             className="w-full py-3 rounded-xl bg-primary text-on-primary text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
           >
-            「{editingPresetName}」を上書き保存
+            {t(`「${editingPresetName}」を上書き保存`, `Overwrite “${editingPresetName}”`)}
           </button>
         )}
 
@@ -722,9 +754,9 @@ export default function SynthPage() {
             type="text"
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
-            placeholder={editingPresetName ? "新しいプリセット名を入力" : "プリセット名を入力"}
+            placeholder={editingPresetName ? t("新しいプリセット名を入力", "New preset name") : t("プリセット名を入力", "Preset name")}
             maxLength={30}
-            className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-primary"
+            className="flex-1 min-w-0 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-primary"
           />
           <button
             onClick={requestSavePreset}
@@ -735,12 +767,12 @@ export default function SynthPage() {
                 : "bg-primary text-on-primary"
             }`}
           >
-            {editingPresetName ? "別名保存" : "保存"}
+            {editingPresetName ? t("別名保存", "Save as new") : t("保存", "Save")}
           </button>
         </div>
 
         {presetMsg && (
-          <p className="text-xs text-primary font-bold" role="status">{presetMsg}</p>
+          <p className="text-xs text-primary font-bold" role="status">{t(presetMsg)}</p>
         )}
       </div>
       )}
@@ -754,14 +786,14 @@ export default function SynthPage() {
           className="flex-1 py-3 rounded-xl bg-navy text-text-primary text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
         >
           <FileDown size={18} strokeWidth={2} />
-          エクスポート
+          {t("エクスポート", "Export")}
         </button>
         <button
           onClick={() => fileInputRef.current?.click()}
           className="flex-1 py-3 rounded-xl bg-navy text-text-primary text-sm font-bold flex items-center justify-center gap-2 active:scale-95 neu-raised-sm"
         >
           <Upload size={18} strokeWidth={2} />
-          インポート
+          {t("インポート", "Import")}
         </button>
         <input
           ref={fileInputRef}
@@ -776,14 +808,14 @@ export default function SynthPage() {
       {/* Save as program */}
       <div className="flex flex-col gap-2">
         <p className="text-sm text-text-secondary">
-          {isTimelineMode ? "タイムラインを保存" : "プログラムとして保存"}
+          {isTimelineMode ? t("タイムラインを保存", "Save timeline") : t("プログラムとして保存", "Save as program")}
         </p>
         {editingProgramId ? (
           <div className="flex flex-col gap-2">
             <textarea
               value={programDesc}
               onChange={(e) => setProgramDesc(e.target.value)}
-              placeholder="簡単な説明を入力（任意）"
+              placeholder={t("簡単な説明を入力（任意）", "Short description (optional)")}
               maxLength={100}
               rows={2}
               className="w-full bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent resize-none"
@@ -795,7 +827,9 @@ export default function SynthPage() {
               className="w-full py-3 rounded-xl bg-accent text-on-accent text-sm font-bold transition-opacity active:scale-95 neu-raised-sm"
             >
               <span className="block truncate px-2">
-                {editingProgramName ? `「${editingProgramName}」を更新` : "プログラムを更新"}
+                {editingProgramName
+                  ? t(`「${editingProgramName}」を更新`, `Update “${editingProgramName}”`)
+                  : t("プログラムを更新", "Update program")}
               </span>
             </button>
 
@@ -805,22 +839,28 @@ export default function SynthPage() {
                 type="text"
                 value={programName}
                 onChange={(e) => setProgramName(e.target.value)}
-                placeholder="新しいプログラム名を入力"
+                placeholder={t("新しいプログラム名を入力", "New program name")}
                 maxLength={30}
-                className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent"
+                className="flex-1 min-w-0 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent"
               />
               <button
                 onClick={requestSaveAsNewProgram}
                 disabled={!programName.trim()}
                 className="px-5 py-3 rounded-xl bg-navy-light text-accent text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm whitespace-nowrap"
               >
-                別名保存
+                {t("別名保存", "Save as new")}
               </button>
             </div>
             <p className="text-xs text-text-muted">
-              別名保存すると
-              {editingProgramName ? `「${editingProgramName}」` : "元のプログラム"}
-              はそのまま残り、新しいプログラムが追加されます
+              {editingProgramName
+                ? t(
+                    `別名保存すると「${editingProgramName}」はそのまま残り、新しいプログラムが追加されます`,
+                    `Saving as new adds a new program and leaves “${editingProgramName}” as it is`,
+                  )
+                : t(
+                    "別名保存すると元のプログラムはそのまま残り、新しいプログラムが追加されます",
+                    "Saving as new adds a new program and leaves the original as it is",
+                  )}
             </p>
           </div>
         ) : (
@@ -830,7 +870,7 @@ export default function SynthPage() {
                 type="text"
                 value={programName}
                 onChange={(e) => setProgramName(e.target.value)}
-                placeholder="プログラム名を入力"
+                placeholder={t("プログラム名を入力", "Program name")}
                 maxLength={30}
                 className="flex-1 bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent"
               />
@@ -839,13 +879,13 @@ export default function SynthPage() {
                 disabled={!programName.trim()}
                 className="px-5 py-3 rounded-xl bg-accent text-on-accent text-sm font-bold disabled:opacity-40 transition-opacity active:scale-95 neu-raised-sm"
               >
-                保存
+                {t("保存", "Save")}
               </button>
             </div>
             <textarea
               value={programDesc}
               onChange={(e) => setProgramDesc(e.target.value)}
-              placeholder="簡単な説明を入力（任意）"
+              placeholder={t("簡単な説明を入力（任意）", "Short description (optional)")}
               maxLength={100}
               rows={2}
               className="w-full bg-navy rounded-xl px-4 py-3 text-base text-text-primary placeholder:text-text-muted outline-none neu-inset focus:ring-1 focus:ring-accent resize-none"
@@ -853,16 +893,16 @@ export default function SynthPage() {
           </div>
         )}
         {programMsg && (
-          <p className="text-xs text-primary font-bold" role="status">{programMsg}</p>
+          <p className="text-xs text-primary font-bold" role="status">{t(programMsg)}</p>
         )}
-        <p className="text-xs text-text-muted">ホーム画面にカードとして表示されます</p>
+        <p className="text-xs text-text-muted">{t("ホーム画面にカードとして表示されます", "Shows as a card on the Home screen")}</p>
       </div>
 
       <ConfirmDialog
         open={confirmState !== null}
-        title={confirmState?.title ?? ""}
-        message={confirmState?.message}
-        confirmLabel={confirmState?.confirmLabel}
+        title={confirmState ? t(confirmState.title) : ""}
+        message={confirmState ? t(confirmState.message) : undefined}
+        confirmLabel={confirmState ? t(confirmState.confirmLabel) : undefined}
         tone={confirmState?.tone}
         busy={confirmBusy}
         onConfirm={runConfirmed}

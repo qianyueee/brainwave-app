@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_TABS, isTabActive } from "@/components/nav-tabs";
 import { isDesktopRoute } from "@/lib/desktop";
+import { useT } from "@/lib/i18n";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const t = useT();
 
   // デスクトップ測定アプリ（/desktop）はアプリ内の一画面ではないのでナビを出さない。
   if (isDesktopRoute(pathname)) return null;
@@ -44,7 +46,7 @@ export default function BottomNav() {
               ) : (
                 <Icon size={20} strokeWidth={1.5} />
               )}
-              <span className="text-2xs leading-none whitespace-nowrap">{tab.short}</span>
+              <span className="text-2xs leading-none whitespace-nowrap">{t(tab.short)}</span>
             </Link>
           );
         })}

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { SynthPreset } from "@/lib/synth-engine";
 import { useSynthStore } from "@/store/useSynthStore";
 import { Piano, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface SynthPresetCardProps {
   preset: SynthPreset;
@@ -13,6 +14,8 @@ export default function SynthPresetCard({ preset }: SynthPresetCardProps) {
   const router = useRouter();
   const loadPreset = useSynthStore((s) => s.loadPreset);
   const deletePreset = useSynthStore((s) => s.deletePreset);
+  const t = useT();
+  const layerCount = preset.layers.length;
 
   const handleClick = () => {
     loadPreset(preset);
@@ -35,7 +38,7 @@ export default function SynthPresetCard({ preset }: SynthPresetCardProps) {
       <div className="flex-1 min-w-0">
         <p className="text-base font-bold text-text-primary truncate">{preset.name}</p>
         <p className="text-xs text-text-muted mt-1">
-          {preset.layers.length}レイヤー
+          {t(`${layerCount}レイヤー`, `${layerCount} ${layerCount === 1 ? "layer" : "layers"}`)}
         </p>
       </div>
       <div
@@ -43,7 +46,7 @@ export default function SynthPresetCard({ preset }: SynthPresetCardProps) {
         role="button"
         tabIndex={0}
         className="w-12 h-12 rounded-full bg-navy neu-raised-sm flex items-center justify-center text-text-muted shrink-0 active:scale-95 hover:text-danger transition-colors"
-        aria-label="削除"
+        aria-label={t("削除", "Delete")}
       >
         <X size={18} strokeWidth={2} />
       </div>

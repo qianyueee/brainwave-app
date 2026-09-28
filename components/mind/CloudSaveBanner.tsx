@@ -7,6 +7,7 @@ import { unassignedRecords } from "@/lib/sync/cloud-mark";
 import { useMindStore } from "@/store/useMindStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import { useCloudSyncStore } from "@/store/useCloudSyncStore";
+import { useT } from "@/lib/i18n";
 
 const subscribeNoop = () => () => {};
 
@@ -20,6 +21,7 @@ const subscribeNoop = () => () => {};
  * 残り、以後は尋ねない。
  */
 export default function CloudSaveBanner() {
+  const t = useT();
   const account = useCloudSyncStore((s) => s.account);
   const sessions = useMindStore((s) => s.sessions);
   const checks = useBaselineStore((s) => s.checks);
@@ -39,30 +41,45 @@ export default function CloudSaveBanner() {
 
   if (!supabase || !mounted || !account || total === 0) return null;
 
+  // 英語は「種類: 件数」の形にする（"1 10-second check" と数字が並ぶのを避ける）。
   const counts = [
-    sessionIds.length ? `測定 ${sessionIds.length}件` : null,
-    checkIds.length ? `10秒チェック ${checkIds.length}件` : null,
+    sessionIds.length
+      ? t(`測定 ${sessionIds.length}件`, `measurements: ${sessionIds.length}`)
+      : null,
+    checkIds.length
+      ? t(`10秒チェック ${checkIds.length}件`, `10-second checks: ${checkIds.length}`)
+      : null,
   ]
     .filter(Boolean)
-    .join("・");
+    .join(t("・", ", "));
 
   return (
     <section
-      aria-label="アカウントに保存していない記録"
+      aria-label={t("アカウントに保存していない記録", "Records not saved to your account")}
       className="bg-surface border border-surface-border rounded-3xl p-5 flex flex-col gap-3 neu-raised"
     >
       <div className="flex items-start gap-3">
         <CloudUpload size={24} className="shrink-0 text-primary mt-0.5" />
         <div className="flex flex-col gap-1">
           <p className="text-base font-bold text-text-primary">
-            このPCに、アカウントに保存していない記録があります（{counts}）
+            {t(
+              `このPCに、アカウントに保存していない記録があります（${counts}）`,
+              `This PC has records that aren't saved to your account (${counts})`
+            )}
           </p>
           <p className="text-sm text-text-secondary">
-            ログインする前に測った記録です。このアカウント（{account.email}）に保存しますか？
+            {t(
+              `ログインする前に測った記録です。このアカウント（${account.email ?? ""}）に保存しますか？`,
+              account.email
+                ? `They were measured before you logged in. Save them to this account (${account.email})?`
+                : "They were measured before you logged in. Save them to this account?"
+            )}
           </p>
           <p className="text-xs text-text-muted">
-            以前に「合成データでテスト」した記録は実測と区別できないため、含まれることがあります。
-            保存したあとでも Web版のヒストリーから削除できます。
+            {t(
+              "以前に「合成データでテスト」した記録は実測と区別できないため、含まれることがあります。 保存したあとでも Web版のヒストリーから削除できます。",
+              "Records from earlier “Test with synthetic data” runs can't be told apart from real measurements, so they may be included. You can still delete them later from History in the web app."
+            )}
           </p>
         </div>
       </div>
@@ -74,7 +91,7 @@ export default function CloudSaveBanner() {
           }}
           className="flex-1 min-h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press"
         >
-          保存しない
+          {t("保存しない", "Don't save")}
         </button>
         <button
           onClick={() => {
@@ -83,7 +100,7 @@ export default function CloudSaveBanner() {
           }}
           className="flex-1 min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press"
         >
-          このアカウントに保存する
+          {t("このアカウントに保存する", "Save to this account")}
         </button>
       </div>
     </section>

@@ -17,6 +17,7 @@ import {
   type BaselinePhase,
 } from "@/lib/mind/baseline";
 import { scoreColor } from "@/lib/brain-measurements";
+import { useLocale, useT } from "@/lib/i18n";
 
 /**
  * 10秒クイックチェック（DAILY BRAIN CHECK）。
@@ -30,6 +31,8 @@ import { scoreColor } from "@/lib/brain-measurements";
  * 破綻しないよう、進行は画面表示だけでも追えるようにしてある。
  */
 export default function BaselineCheck({ onClose }: { onClose: () => void }) {
+  const t = useT();
+  const locale = useLocale();
   const sourceKind = useMindStore((s) => s.sourceKind);
   const canReceive = useMindStore(canReceiveData);
   const record = useBaselineStore((s) => s.record);
@@ -202,7 +205,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="10秒クイックチェック"
+        aria-label={t("10秒クイックチェック", "10-second check")}
         className="w-full max-w-[420px] bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
         onClick={(e) => e.stopPropagation()}
       >
@@ -211,7 +214,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
           <button
             onClick={onClose}
             disabled={running}
-            aria-label="閉じる"
+            aria-label={t("閉じる", "Close")}
             className="w-12 h-12 shrink-0 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary disabled:opacity-40"
           >
             <X size={20} />
@@ -221,11 +224,16 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
         {phase === "idle" && (
           <>
             <p className="text-base text-text-primary">
-              10秒で今の脳の切り替え力を測ります。5秒間だけ画面を見て、
-              チャイムが鳴ったら5秒間目を閉じてください。
+              {t(
+                "10秒で今の脳の切り替え力を測ります。5秒間だけ画面を見て、 チャイムが鳴ったら5秒間目を閉じてください。",
+                "In 10 seconds, this checks how easily your brain can switch gears right now. First, look at the screen for 5 seconds. When the chime sounds, close your eyes for 5 seconds."
+              )}
             </p>
             <p className="text-sm text-text-muted">
-              できるだけ動かず、まばたきは控えめに。音を出せる環境だと合図が分かりやすくなります
+              {t(
+                "できるだけ動かず、まばたきは控えめに。音を出せる環境だと合図が分かりやすくなります",
+                "Stay as still as you can and try not to blink much. The cues are easier to follow with your sound turned on"
+              )}
             </p>
             {/* データが来ていない状態で始めると、10秒かけて「読み取れません
                 でした」に着地するだけ。始める前に止める。 */}
@@ -234,11 +242,14 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
               disabled={!canReceive}
               className="min-h-[52px] rounded-2xl bg-primary text-on-primary text-lg font-bold neu-raised-sm neu-press transition-transform disabled:opacity-50 disabled:active:scale-100"
             >
-              計測を始める
+              {t("計測を始める", "Start the check")}
             </button>
             {!canReceive && (
               <p className="text-sm text-text-muted text-center">
-                脳波データを待っています…（「接続する」から接続してください）
+                {t(
+                  "脳波データを待っています…（「接続する」から接続してください）",
+                  "Waiting for brainwave data… (please connect using “Connect”)"
+                )}
               </p>
             )}
           </>
@@ -247,7 +258,9 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
         {running && (
           <>
             <p className="text-sm text-text-secondary text-center">
-              {phase === "countdown" ? "まもなく始まります" : "＼ 今の脳の状態を計測中 ／"}
+              {phase === "countdown"
+                ? t("まもなく始まります", "Starting in a moment…")
+                : t("＼ 今の脳の状態を計測中 ／", "Measuring your brain right now…")}
             </p>
 
             {/* 残り秒。閉眼中は見えないので、これは開眼中と助走のための表示。 */}
@@ -261,8 +274,22 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
             <ol className="flex flex-col gap-2">
               {(
                 [
-                  { key: "open", icon: Eye, label: `${BASELINE_PROTOCOL.openSec}秒間：目を開けて画面を見る` },
-                  { key: "close", icon: EyeOff, label: `${BASELINE_PROTOCOL.closeSec}秒間：音に合わせて目を閉じる` },
+                  {
+                    key: "open",
+                    icon: Eye,
+                    label: t(
+                      `${BASELINE_PROTOCOL.openSec}秒間：目を開けて画面を見る`,
+                      `${BASELINE_PROTOCOL.openSec} sec: eyes open, look at the screen`
+                    ),
+                  },
+                  {
+                    key: "close",
+                    icon: EyeOff,
+                    label: t(
+                      `${BASELINE_PROTOCOL.closeSec}秒間：音に合わせて目を閉じる`,
+                      `${BASELINE_PROTOCOL.closeSec} sec: close your eyes at the chime`
+                    ),
+                  },
                 ] as const
               ).map((step) => {
                 const active = phase === step.key;
@@ -278,14 +305,19 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                   >
                     <Icon size={20} strokeWidth={active ? 2.5 : 1.5} className="shrink-0" />
                     <span className="min-w-0 flex-1">{step.label}</span>
-                    {active && <span className="shrink-0 text-xs font-bold">今ココ</span>}
+                    {active && (
+                      <span className="shrink-0 text-xs font-bold">{t("今ココ", "Now")}</span>
+                    )}
                   </li>
                 );
               })}
             </ol>
 
             <p className="text-sm text-text-muted text-center">
-              . . : : （ 息を吸って… 吐いて… ） : : . .
+              {t(
+                ". . : : （ 息を吸って… 吐いて… ） : : . .",
+                ". . : : ( breathe in… breathe out… ) : : . ."
+              )}
             </p>
           </>
         )}
@@ -295,10 +327,14 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
             {result.usableSec === 0 ? (
               <>
                 <p className="text-base text-text-primary">
-                  脳波を読み取れませんでした。ヘッドセットが額に密着しているかご確認のうえ、
-                  もう一度お試しください。
+                  {t(
+                    "脳波を読み取れませんでした。ヘッドセットが額に密着しているかご確認のうえ、 もう一度お試しください。",
+                    "We couldn't read your brainwaves. Please check that the headset is resting firmly on your forehead, then try again."
+                  )}
                 </p>
-                <p className="text-sm text-text-muted">この計測は記録されません</p>
+                <p className="text-sm text-text-muted">
+                  {t("この計測は記録されません", "This check won't be saved")}
+                </p>
               </>
             ) : (
               <>
@@ -334,17 +370,26 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                 <div className="flex flex-col gap-1">
                   <p className="flex items-center gap-1.5 text-sm text-text-secondary">
                     <Timer size={16} strokeWidth={1.5} className="shrink-0" />
-                    {rateMethodLabel(result.method)}
+                    {rateMethodLabel(result.method, locale)}
                   </p>
                   {result.alphaRiseSec != null && result.alphaRatio != null && (
                     <p className="text-xs text-text-muted">
-                      α波の立ち上がり {result.alphaRiseSec}秒・閉眼／開眼のα比{" "}
-                      {result.alphaRatio.toFixed(2)}倍
+                      {t(
+                        `α波の立ち上がり ${result.alphaRiseSec}秒・閉眼／開眼のα比 ${result.alphaRatio.toFixed(2)}倍`,
+                        `α-wave rise ${result.alphaRiseSec} sec · α ratio (eyes closed/open) ${result.alphaRatio.toFixed(2)}×`
+                      )}
                     </p>
                   )}
                   <p className="text-xs text-text-muted">
-                    有効データ {result.usableSec}/{BASELINE_MEASURE_SEC}秒
-                    {sourceKind === "demo" && "・デモデータ（記録は実測と区別されます）"}
+                    {t(
+                      `有効データ ${result.usableSec}/${BASELINE_MEASURE_SEC}秒`,
+                      `Usable data ${result.usableSec}/${BASELINE_MEASURE_SEC} sec`
+                    )}
+                    {sourceKind === "demo" &&
+                      t(
+                        "・デモデータ（記録は実測と区別されます）",
+                        " · Demo data (kept separate from real measurements)"
+                      )}
                   </p>
                 </div>
               </>
@@ -358,20 +403,20 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                   onClick={start}
                   className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
                 >
-                  もう一度
+                  {t("もう一度", "Try again")}
                 </button>
                 <button
                   onClick={onClose}
                   className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
                 >
-                  閉じる
+                  {t("閉じる", "Close")}
                 </button>
               </div>
             ) : saved ? (
               <>
                 <p className="flex items-center justify-center gap-1.5 text-sm font-medium text-success">
                   <Check size={18} strokeWidth={2.5} />
-                  記録しました
+                  {t("記録しました", "Saved")}
                 </p>
                 {savedId && <CloudSaveStatus kind="check" id={savedId} />}
                 <div className="flex gap-3">
@@ -379,13 +424,13 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                     onClick={start}
                     className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
                   >
-                    もう一度
+                    {t("もう一度", "Check again")}
                   </button>
                   <button
                     onClick={onClose}
                     className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
                   >
-                    閉じる
+                    {t("閉じる", "Close")}
                   </button>
                 </div>
               </>
@@ -395,13 +440,13 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                   onClick={onClose}
                   className="flex-1 min-h-[52px] rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
                 >
-                  保存しない
+                  {t("保存しない", "Don't save")}
                 </button>
                 <button
                   onClick={handleSave}
                   className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
                 >
-                  記録を保存
+                  {t("記録を保存", "Save result")}
                 </button>
               </div>
             )}
