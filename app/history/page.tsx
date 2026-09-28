@@ -30,6 +30,7 @@ import { useSyncTreeView } from "@/store/useSyncTreeStore";
 import { Trash2, BrainCircuit, Lock, BarChart3, Pencil, StickyNote, User, CalendarClock, TreeDeciduous, ChevronRight } from "lucide-react";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
+import AccountSaveBanner from "@/components/AccountSaveBanner";
 
 /** Max length of a measurement memo (matches the mind-map list). */
 const NOTE_MAX = 200;
@@ -263,6 +264,7 @@ export default function HistoryPage() {
       <PageHeader title="Sync History" subtitle="あなたのチューニング記録" />
 
       <PageColumn>
+      <AccountSaveBanner />
 
       {/* Mobile: single column. Desktop: stats+calendar | history side by side. */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">

@@ -15,3 +15,13 @@
  * こちらはページではなく「どの殻の中で動いているか」なのでビルドで決める。
  */
 export const IS_ANDROID_APP = process.env.NEXT_PUBLIC_APP_PLATFORM === "android";
+
+/**
+ * Windows アプリ（bridge/desktop_app.py の WebView2 が開く完全版）向けのビルドか。
+ * `pnpm build:desktop`（scripts/build-desktop.mjs）だけが NEXT_PUBLIC_APP_PLATFORM=desktop を
+ * 焼き込む。理由は IS_ANDROID_APP と同じ（ビルド時の定数ならハイドレーションが一致する）。
+ * Sync Brain の出どころ（PC の COM ポートを読む Python の管線 → ローカル WS → LocalSource）、
+ * Google ログイン（既定のブラウザ＋ループバック）、画面全体で保つローカル WS
+ * （DesktopAppShell）がこれで切り替わる。
+ */
+export const IS_DESKTOP_APP = process.env.NEXT_PUBLIC_APP_PLATFORM === "desktop";
