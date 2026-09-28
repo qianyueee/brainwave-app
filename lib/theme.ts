@@ -326,17 +326,20 @@ export function interpolateSky(a: SkyPalette, b: SkyPalette, t: number): SkyPale
 }
 
 /**
- * Backdrop for the Sync Tree scene card (Home). Coarser than the 4-way `sky`:
- * the two night themes (midnight, evening) share one starry night, while the
- * daylight side splits into sunrise (day, 06-12) and full daylight (afternoon,
- * 12-18). The night pair stays merged because a starry sky reads the same at
- * 2am and 8pm; the daylight pair does not — a sunrise sky and a midday sky are
- * visibly different times of day. Both daylight skies take their hue from the
- * page palette (apricot vs mint) and share the same lightness ramp, so the
- * hue alone says which one you are looking at.
+ * Backdrop for the Sync Tree scene card (Home, and the big tree on /tree). One
+ * set per period, like `sky`. The three light periods — sunrise (day, 06-12),
+ * noon (afternoon, 12-18) and dusk (evening, 18-24) — carry the page into the
+ * card: each takes its hue from the page palette (blush / mint / pale violet)
+ * and keeps its middle stop close to the page ground's lightness, so the card
+ * grows out of the page instead of floating on it. Only midnight keeps a deep
+ * starry sky, because at 00-06 the page itself is dark — the card flips
+ * between light and dark exactly when the page does.
+ *
+ * Sunrise and noon share one lightness ramp, so the hue alone says which one
+ * you are looking at; dusk sits a step lower because its page does.
  *
  * The tree art itself (foliage/trunk palette) never theme-shifts; only this
- * backdrop, its ink (ground line + sparkles) and the card chrome
+ * backdrop, its ink (text, ground line, sparkles) and the card chrome
  * (border/shadow) do.
  */
 export interface TreeSky {
@@ -344,7 +347,7 @@ export interface TreeSky {
   a: string;
   b: string;
   c: string;
-  /** Ground line + hand-drawn sparkles. */
+  /** Text on the card, ground line + hand-drawn sparkles. */
   ink: string;
   /** Soft aura behind the tree. */
   glow: string;
@@ -408,15 +411,42 @@ export const TREE_SKY_SUNRISE: TreeSky = {
   shadow: "rgba(140,55,40,0.18)",
 };
 
+/**
+ * 宵（18-24）の樹。ページの淡紫に合わせた、陽が沈んだあとの空。
+ *
+ * 以前は真夜中と同じ深い星空（TREE_SKY_NIGHT）を共用していた。星空は2時でも
+ * 20時でも同じに読めるという理由だったが、この時間帯のページは明るい淡紫で、
+ * ホームで暗い板になっているのはこのカードだけだった（同じ時間帯の星座カードは
+ * すでにページの延長）。朝・昼の樹と同じ扱いに揃える。
+ *
+ * 作りは昼と同じ：3つの stop はページと同じ色相、中間の b は地の navy とほぼ
+ * 同じ明るさ（0.638 対 0.628）、中心は白へ寄せ、外周は深く彩度を足す。明るさ
+ * の段を朝・昼と共通にしない（中心 0.80 → 外周 0.42）のは、宵のページ地その
+ * ものが一段暗いから——朝・昼の段のままだと、カードが地より明るい板として浮く。
+ * 日が暮れるにつれて空が落ちていく順にもなる。
+ *
+ * halo は同時間帯の星座カードと同じ暖色（沈んだばかりの陽の名残）で、
+ * 真夜中の冷たい月光と見分けがつく。
+ */
+export const TREE_SKY_DUSK: TreeSky = {
+  a: "#eee4f8",
+  b: "#dec9f3",
+  c: "#c0a0e3",
+  ink: "#472a6b",
+  glow: "rgba(255,225,190,0.44)",
+  border: "#c4b0e0",
+  shadow: "rgba(84,52,124,0.18)",
+};
+
 export function treeSkyForPeriod(period: TimePeriod): TreeSky {
-  // 「day」は 06-12（＝朝）。名前が紛らわしいので定数側は SUNRISE / NOON。
+  // 「day」は 06-12（＝朝）。名前が紛らわしいので、定数側は空の様子で呼ぶ。
   if (period.id === "day") return TREE_SKY_SUNRISE;
   if (period.id === "afternoon") return TREE_SKY_NOON;
+  if (period.id === "evening") return TREE_SKY_DUSK;
   return TREE_SKY_NIGHT;
 }
 
 function interpolateTreeSky(a: TreeSky, b: TreeSky, t: number): TreeSky {
-  if (a === b) return a;
   const keys = Object.keys(a) as (keyof TreeSky)[];
   const result = {} as TreeSky;
   for (const key of keys) {
@@ -489,10 +519,7 @@ export function getEffectiveSky(date: Date): SkyPalette {
   return blendAtTime(date, (p) => p.sky, interpolateSky);
 }
 
-/**
- * Day/night crossfades only at the 06:00 and 18:00 boundaries (both sides of
- * the 12:00 / 00:00 boundaries pick the same set, so the mix is a no-op).
- */
+/** Crossfades at every period boundary, in step with the page palette. */
 export function getEffectiveTreeSky(date: Date): TreeSky {
   return blendAtTime(date, treeSkyForPeriod, interpolateTreeSky);
 }
