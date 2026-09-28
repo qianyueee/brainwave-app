@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, BarChart3, Music, Timer } from "lucide-react";
-import { useAppStore } from "@/store/useAppStore";
+import { usePlaybackHistory } from "@/store/usePlaybackHistoryStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAllBaselineChecks } from "@/store/useBaselineStore";
 import { useJournalStore, type JournalEntry } from "@/store/useJournalStore";
@@ -47,7 +47,7 @@ const KIND_META: Record<DayRecordKind, { icon: typeof Music; color: string }> = 
  */
 export default function SimpleCalendar() {
   const router = useRouter();
-  const sessionLogs = useAppStore((s) => s.sessionLogs);
+  const sessionLogs = usePlaybackHistory();
   const measurements = useBrainProfileStore((s) => s.measurements);
   const setViewingMeasurement = useBrainProfileStore((s) => s.setViewingMeasurement);
   const checks = useAllBaselineChecks();
@@ -69,12 +69,12 @@ export default function SimpleCalendar() {
   const year = viewing.getFullYear();
   const month = viewing.getMonth();
 
-  // ドットは mounted 前は再生ログだけ（脳波系は persist 由来なので、
-  // 初回描画で出すと hydration mismatch になる）。
+  // ドットは mounted まで出さない（再生の記録・脳波系・振り返りはどれも persist
+  // 由来なので、初回描画で出すと hydration mismatch になる）。
   const dots = useMemo(
     () =>
       recordedDayKeys({
-        sessionLogs,
+        sessionLogs: mounted ? sessionLogs : [],
         measurements: mounted ? measurements : [],
         checks: mounted ? checks : [],
       }),

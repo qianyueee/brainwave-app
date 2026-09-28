@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAppStore } from "@/store/useAppStore";
+import { usePlaybackHistory } from "@/store/usePlaybackHistoryStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
@@ -172,7 +172,9 @@ function MeasurementDetail({
 
 export default function HistoryPage() {
   const router = useRouter();
-  const sessionLogs = useAppStore((s) => s.sessionLogs);
+  // 再生の記録（端末に残り、ログイン中はアカウントとも揃う。useAppStore.sessionLogs は
+  // この起動のあいだだけの流れで、Sync Tree の積算用）。
+  const sessionLogs = usePlaybackHistory();
   const measurements = useBrainProfileStore((s) => s.measurements);
   const deleteMeasurement = useBrainProfileStore((s) => s.deleteMeasurement);
   const setViewingMeasurement = useBrainProfileStore((s) => s.setViewingMeasurement);
@@ -198,10 +200,11 @@ export default function HistoryPage() {
   const [subjectKey, setSubjectKey] = useState<string | null>(null);
   const [recordId, setRecordId] = useState<string | null>(null);
 
-  const totalSessions = sessionLogs.length;
-  const totalMinutes = Math.round(
-    sessionLogs.reduce((sum, log) => sum + log.duration, 0) / 60
-  );
+  // 再生の記録は端末に残る（persist 由来）ので、数えるのは mount 後。
+  const totalSessions = hydrated ? sessionLogs.length : 0;
+  const totalMinutes = hydrated
+    ? Math.round(sessionLogs.reduce((sum, log) => sum + log.duration, 0) / 60)
+    : 0;
 
   // Sync Tree（ログイン中だけ・アカウントにある）。統計タイルと記録カードは
   // ホームのカード・/tree と同じストアを読むので、数字が食い違わない。
