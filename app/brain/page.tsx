@@ -5,7 +5,8 @@ import { useMindStore } from "@/store/useMindStore";
 import { DummySource } from "@/lib/mind/dummy-source";
 import { RealtimeSource } from "@/lib/mind/realtime-source";
 import { BluetoothSource } from "@/lib/mind/bluetooth-source";
-import { IS_ANDROID_APP } from "@/lib/platform";
+import { LocalSource } from "@/lib/mind/local-source";
+import { IS_ANDROID_APP, IS_DESKTOP_APP } from "@/lib/platform";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
 import { rawBandPowers, EMPTY_BAND_POWERS } from "@/lib/mind/types";
 import MindMapCanvas from "@/components/mind/MindMapCanvas";
@@ -17,6 +18,7 @@ import MindRecorder from "@/components/mind/MindRecorder";
 import BaselineCheckButton from "@/components/mind/BaselineCheckButton";
 import SourceDialog, { SourceStatusLine } from "@/components/mind/SourceDialog";
 import BluetoothSourceDialog from "@/components/mind/BluetoothSourceDialog";
+import DesktopSourceDialog from "@/components/mind/DesktopSourceDialog";
 import SubjectSelector from "@/components/mind/SubjectSelector";
 import TargetHzInput from "@/components/mind/TargetHzInput";
 import PageColumn from "@/components/PageColumn";
@@ -31,8 +33,11 @@ import PageHeader from "@/components/PageHeader";
  * Android アプリ（IS_ANDROID_APP）では、リアルタイムの出どころが PC ブリッジ
  * （ペアリングコード → RealtimeSource）ではなく、手元の Bluetooth で直接つないだ
  * 脳波計（BluetoothSource）になり、「接続する」の中身も BluetoothSourceDialog に
- * 替わる。/desktop が LocalSource と DesktopSourceDialog に替えているのと同じ形で、
- * sourceKind の "realtime" は「実機の脳波（どの経路でも）」の意味のまま。
+ * 替わる。Windows アプリ（IS_DESKTOP_APP）では、同じ PC で動く測定アプリ（Python が
+ * COM ポートの BrainLink を読む）のローカル WS（LocalSource）が出どころで、「接続する」は
+ * ポート選択の DesktopSourceDialog——旧い /desktop と同じ組み合わせ。どちらでも
+ * sourceKind の "realtime" は「実機の脳波（どの経路でも）」の意味のままで、測り終えた後は
+ * Web と同じく「取り込む」で残す。
  */
 export default function BrainPage() {
   const sourceKind = useMindStore((s) => s.sourceKind);
@@ -62,6 +67,8 @@ export default function BrainPage() {
       source = new DummySource(handlers);
     } else if (IS_ANDROID_APP) {
       source = new BluetoothSource(handlers);
+    } else if (IS_DESKTOP_APP) {
+      source = new LocalSource(handlers);
     } else if (pairingCode) {
       source = new RealtimeSource(pairingCode, handlers);
     } else {
@@ -90,7 +97,13 @@ export default function BrainPage() {
           長さも目的も違うので、選ばせてから始める。 */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          {IS_ANDROID_APP ? <BluetoothSourceDialog /> : <SourceDialog />}
+          {IS_ANDROID_APP ? (
+            <BluetoothSourceDialog />
+          ) : IS_DESKTOP_APP ? (
+            <DesktopSourceDialog />
+          ) : (
+            <SourceDialog />
+          )}
           <div className="min-w-0 ml-auto">
             <SubjectSelector />
           </div>

@@ -49,7 +49,7 @@ bridge/build/
 bridge/dist/
 *.pyc
 
-# desktop measurement app (bridge/desktop_app.py)
+# Windows app (bridge/desktop_app.py)
 bridge/web/
 bridge/profile/
 bridge/desktop_config.json

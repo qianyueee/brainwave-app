@@ -7,7 +7,7 @@ import { useDesktopBridgeStore } from "@/store/useDesktopBridgeStore";
 import { useDesktopLoginStore } from "@/store/useDesktopLoginStore";
 import { supabase } from "@/lib/supabase";
 import { isDesktopRoute } from "@/lib/desktop";
-import { IS_ANDROID_APP } from "@/lib/platform";
+import { IS_ANDROID_APP, IS_DESKTOP_APP } from "@/lib/platform";
 import {
   beginDesktopGoogleLogin,
   cancelDesktopGoogleLogin,
@@ -25,10 +25,11 @@ export default function AuthModal() {
   const closeAuthModal = useAuthStore((s) => s.closeAuthModal);
   const user = useAuthStore((s) => s.user);
 
-  // デスクトップ測定アプリ（/desktop）と Android アプリの中では、Google ログインを
-  // 外のブラウザで行う（WebView 内のログインは Google が拒む。
-  // lib/mind/desktop-google-auth.ts）。以下の `nativeLogin` はその両方。
-  const desktop = isDesktopRoute(usePathname());
+  // Windows アプリ・旧いデスクトップ測定アプリ（/desktop）・Android アプリの中では、
+  // Google ログインを外のブラウザで行う（WebView 内のログインは Google が拒む。
+  // lib/mind/desktop-google-auth.ts）。`desktop` は前の2つ（戻りは測定アプリの
+  // ローカル WS）、`nativeLogin` は3つ全部。
+  const desktop = isDesktopRoute(usePathname()) || IS_DESKTOP_APP;
   const nativeLogin = desktop || IS_ANDROID_APP;
   const callbackUrl = useDesktopBridgeStore((s) => s.state?.authCallbackUrl);
   const googleStatus = useDesktopLoginStore((s) => s.status);

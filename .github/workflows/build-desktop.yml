@@ -1,15 +1,30 @@
-name: Build Desktop App (Windows)
+name: Build Windows App
 
-# デスクトップ測定アプリ（NeuroSyncMeasure.exe）のビルド。
-# Web バンドル（pnpm build:desktop → bridge/web/）→ PyInstaller の2段構え。
-# Actions タブから手動実行（Run workflow）するか、`desktop-v*` タグを push する。
-# 成果物は run の Artifacts（タグビルドは Release にも添付）。
+# Windows アプリ（NeuroSync.exe、Web 版と同じ画面一式＋PC 単体の脳波測定）のビルド。
+# Web バンドル（pnpm build:desktop → bridge/web/）→ PyInstaller の2段構え。手順は bridge/README.md。
+#
+# - Windows アプリまわりを変えた push：exe まで作り、`--no-window --demo` で起動して
+#   ページとローカル WS が答えるかを確かめる（bridge/smoke_desktop.py）。成果物は run の
+#   Artifacts に置くだけで、Release には出さない
+# - `desktop-v*` タグ（例 desktop-v2.0.0）：同じものを Release に添付する
+# - Actions タブから手動実行（Run workflow）
 
 on:
   workflow_dispatch:
   push:
     tags:
       - "desktop-v*"
+    branches:
+      - "**"
+    paths:
+      - "bridge/**"
+      - "!bridge/README.md"
+      - "scripts/build-desktop.mjs"
+      - "components/DesktopAppShell.tsx"
+      - "lib/mind/desktop-*.ts"
+      - "lib/mind/local-source.ts"
+      - "lib/platform.ts"
+      - ".github/workflows/build-desktop.yml"
 
 permissions:
   contents: write
@@ -22,13 +37,14 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      # build-android と揃える（Capacitor 8 の CLI が Node 22 以上を求める。依存は同じ lockfile）。
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       # Supabase の env は Web 版（deploy.yml）と同じリポジトリ変数：アプリ内の
-      # ログインと、測定のアカウントへの自動保存が使う。無いと build-desktop.mjs が
+      # ログインと、記録のアカウント同期が使う。無いと build-desktop.mjs が
       # 失敗する（ログインできない exe を配らないため）。
       - name: Build web bundle
         run: |
@@ -49,16 +65,35 @@ jobs:
 
       - name: Build exe
         working-directory: bridge
-        run: pyinstaller NeuroSyncMeasure.spec
+        run: pyinstaller NeuroSync.spec
+
+      # 出来た exe そのもの（onefile の展開・同梱した画面・隠れ import を含めて）を
+      # サーバだけのモードで起動し、ページとローカル WS を確かめる。ウィンドウ
+      # （pywebview / WebView2）はこのモードでは読み込まない。
+      - name: Smoke test (exe in server mode, synthetic data)
+        working-directory: bridge
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath .\dist\NeuroSync.exe -ArgumentList "--no-window","--demo" -PassThru
+          try {
+            python smoke_desktop.py --platform desktop --timeout 120
+            if ($LASTEXITCODE -ne 0) { throw "smoke test failed" }
+          } finally {
+            # onefile は展開役の親と本体の子の2プロセスなので、木ごと止める。
+            taskkill /F /T /PID $proc.Id
+            # 止める相手がもう居なくても失敗にしない（ステップの結果は最後の終了コード）。
+            $global:LASTEXITCODE = 0
+            if (Test-Path .\dist\neurosync_desktop.log) { Get-Content .\dist\neurosync_desktop.log }
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NeuroSyncMeasure-windows
-          path: bridge/dist/NeuroSyncMeasure.exe
+          name: NeuroSync-windows
+          path: bridge/dist/NeuroSync.exe
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/desktop-v')
         uses: softprops/action-gh-release@v2
         with:
-          files: bridge/dist/NeuroSyncMeasure.exe
+          files: bridge/dist/NeuroSync.exe

@@ -1,9 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec — デスクトップ測定アプリ（単一ファイル・ウィンドウ付き）。
+"""PyInstaller spec — NeuroSync Windows アプリ（完全版。単一ファイル・ウィンドウ付き）。
 
 Build:  pnpm build:desktop   （先に bridge/web/ を生成する。無いとここで止まる）
-        pyinstaller NeuroSyncMeasure.spec   （Windows 上で実行。CI: build-desktop.yml）
-Output: dist/NeuroSyncMeasure.exe
+        pyinstaller NeuroSync.spec   （Windows 上で実行。CI: build-desktop.yml）
+Output: dist/NeuroSync.exe
+
+以前の名前は NeuroSyncMeasure（測定だけのアプリ）。exe の隣の profile/（WebView2 の
+保存先＝この PC の記録とログイン）を引き継ぐため、新しい exe は古い exe と同じ
+フォルダに置く（bridge/README.md）。
 
 BrainLinkBridge.spec（従来の Tkinter ブリッジ）とは別ビルド。supabase スタックの
 collect_all 一式は同じ理由（動的 import）で引き継ぎ、pywebview（WebView2 backend =
@@ -90,7 +94,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="NeuroSyncMeasure",
+    name="NeuroSync",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
