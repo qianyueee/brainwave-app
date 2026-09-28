@@ -157,8 +157,10 @@ public class DownloadsPlugin extends Plugin {
             return;
         }
         final String name = target.name;
+        // 画面の表示言語の言葉が JS から届く（無ければ日本語）。
+        final String savedMessage = call.getString("savedMessage", "「ダウンロード」に保存しました：");
         new Handler(Looper.getMainLooper()).post(() ->
-            Toast.makeText(getContext(), "「ダウンロード」に保存しました：" + name, Toast.LENGTH_LONG).show()
+            Toast.makeText(getContext(), savedMessage + name, Toast.LENGTH_LONG).show()
         );
         JSObject ret = new JSObject();
         ret.put("name", name);

@@ -6,6 +6,7 @@ import { useMindStore } from "@/store/useMindStore";
 import { useBluetoothStore, type BtPhase } from "@/store/useBluetoothStore";
 import type { BtDevice } from "@/lib/native/brainlink";
 import {
+  DEFAULT_DEVICE_NAME,
   connectBluetoothDevice,
   disconnectBluetooth,
   openBluetoothSettings,
@@ -15,6 +16,7 @@ import {
   startBluetoothScan,
   stopBluetoothScan,
 } from "@/lib/mind/bluetooth-link";
+import { useT, type LocalizedText } from "@/lib/i18n";
 
 /**
  * 接続設定（Android アプリの Sync Brain 用）— SourceDialog の置き換え。
@@ -29,13 +31,13 @@ import {
 
 const isBrainLink = (d: BtDevice) => /brainlink/i.test(d.name ?? "");
 
-const PHASE_LABEL: Record<BtPhase, string> = {
-  idle: "未接続",
-  connecting: "接続中…",
-  pairing: "ペアリング中…",
-  connected: "接続済み",
-  reconnecting: "再接続中…",
-  error: "未接続",
+const PHASE_LABEL: Record<BtPhase, LocalizedText> = {
+  idle: { ja: "未接続", en: "Not connected" },
+  connecting: { ja: "接続中…", en: "Connecting…" },
+  pairing: { ja: "ペアリング中…", en: "Pairing…" },
+  connected: { ja: "接続済み", en: "Connected" },
+  reconnecting: { ja: "再接続中…", en: "Reconnecting…" },
+  error: { ja: "未接続", en: "Not connected" },
 };
 
 export default function BluetoothSourceDialog() {
@@ -56,6 +58,9 @@ export default function BluetoothSourceDialog() {
 
   const [open, setOpen] = useState(false);
   const [showOthers, setShowOthers] = useState(false);
+  const t = useT();
+  // 名乗らない機器に付けた名前（端末に残る日本語）は、英語の画面では Headset と出す。
+  const shownName = (name: string) => (name === DEFAULT_DEVICE_NAME ? t(DEFAULT_DEVICE_NAME, "Headset") : name);
 
   const realtime = sourceKind === "realtime";
 
@@ -135,19 +140,19 @@ export default function BluetoothSourceDialog() {
         <Bluetooth size={20} className={connected ? "text-success shrink-0" : "text-text-secondary shrink-0"} />
         {/* 機器名は省略しない（同じ型番が並ぶと末尾で見分けるので）——長ければ折り返す */}
         <span className="flex-1 min-w-0">
-          <span className="block text-base font-bold text-text-primary break-all">{d.name || "名前のない機器"}</span>
+          <span className="block text-base font-bold text-text-primary break-all">{d.name || t("名前のない機器", "Unnamed device")}</span>
           <span className="block text-xs text-text-muted font-mono">{d.address}</span>
         </span>
         <span className="shrink-0 text-sm font-bold text-primary">
           {connected ? (
             <span className="flex items-center gap-1 text-success">
               <Check size={16} />
-              接続済み
+              {t("接続済み", "Connected")}
             </span>
           ) : busy ? (
             <LoaderCircle size={18} className="animate-spin text-text-secondary" />
           ) : (
-            "接続する"
+            t("接続する", "Connect")
           )}
         </span>
       </button>
@@ -166,14 +171,14 @@ export default function BluetoothSourceDialog() {
       >
         {realtime ? (
           <>
-            接続中
+            {t("接続中", "Connected")}
             <span
               className={`inline-block w-2.5 h-2.5 rounded-full ${bridgeOnline ? "bg-success" : "bg-text-muted"}`}
             />
           </>
         ) : (
           <>
-            接続する
+            {t("接続する", "Connect")}
             <Bluetooth size={18} strokeWidth={2} />
           </>
         )}
@@ -184,17 +189,17 @@ export default function BluetoothSourceDialog() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={() => setOpen(false)}
           role="button"
-          aria-label="閉じる"
+          aria-label={t("閉じる", "Close")}
         >
           <div
             className="w-full max-w-[420px] mx-4 max-h-[85vh] overflow-y-auto bg-surface border border-surface-border rounded-3xl p-6 flex flex-col gap-4 neu-raised-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-text-primary">接続設定</h2>
+              <h2 className="text-lg font-bold text-text-primary">{t("接続設定", "Connection settings")}</h2>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="閉じる"
+                aria-label={t("閉じる", "Close")}
                 className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
               >
                 <X size={20} />
@@ -204,13 +209,16 @@ export default function BluetoothSourceDialog() {
             {!ready && (
               <p className="flex items-center gap-2 text-base text-text-secondary">
                 <LoaderCircle size={20} className="animate-spin" />
-                Bluetooth を確認しています…
+                {t("Bluetooth を確認しています…", "Checking Bluetooth…")}
               </p>
             )}
 
             {ready && adapter === "unsupported" && (
               <p className="text-base text-text-secondary">
-                この端末は Bluetooth に対応していないため、脳波計につなげません。
+                {t(
+                  "この端末は Bluetooth に対応していないため、脳波計につなげません。",
+                  "This device doesn't support Bluetooth, so it can't connect to the headset."
+                )}
               </p>
             )}
 
@@ -218,18 +226,24 @@ export default function BluetoothSourceDialog() {
             {needsPermission && (
               <div className="flex flex-col gap-3">
                 <p className="text-base text-text-primary">
-                  脳波計（BrainLink）とつなぐには、「付近のデバイス」へのアクセスを許可してください。
+                  {t(
+                    "脳波計（BrainLink）とつなぐには、「付近のデバイス」へのアクセスを許可してください。",
+                    "To connect to your headset (BrainLink), allow access to “Nearby devices”."
+                  )}
                 </p>
                 {permanentlyDenied ? (
                   <>
                     <p className="text-sm text-text-secondary">
-                      以前に「許可しない」が選ばれています。設定の「権限」から「付近のデバイス」を許可してください。
+                      {t(
+                        "以前に「許可しない」が選ばれています。設定の「権限」から「付近のデバイス」を許可してください。",
+                        "“Don't allow” was chosen before. Allow “Nearby devices” under Permissions in Settings."
+                      )}
                     </p>
                     <button
                       onClick={() => void openBluetoothSettings("app")}
                       className="min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
                     >
-                      設定を開く
+                      {t("設定を開く", "Open Settings")}
                     </button>
                   </>
                 ) : (
@@ -237,7 +251,7 @@ export default function BluetoothSourceDialog() {
                     onClick={() => void requestBluetoothPermission()}
                     className="min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
                   >
-                    許可する
+                    {t("許可する", "Allow")}
                   </button>
                 )}
               </div>
@@ -246,12 +260,12 @@ export default function BluetoothSourceDialog() {
             {/* ② Bluetooth がオフ */}
             {bluetoothOff && (
               <div className="flex flex-col gap-3">
-                <p className="text-base text-text-primary">Bluetooth がオフになっています。</p>
+                <p className="text-base text-text-primary">{t("Bluetooth がオフになっています。", "Bluetooth is off.")}</p>
                 <button
                   onClick={() => void requestBluetoothOn()}
                   className="min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform"
                 >
-                  Bluetooth をオンにする
+                  {t("Bluetooth をオンにする", "Turn on Bluetooth")}
                 </button>
               </div>
             )}
@@ -268,29 +282,37 @@ export default function BluetoothSourceDialog() {
                       }`}
                     />
                     <p className="text-base text-text-primary">
-                      脳波計：{PHASE_LABEL[phase]}
-                      {device && phase !== "idle" ? `（${device.name}）` : ""}
+                      {t(`脳波計：${t(PHASE_LABEL[phase])}`, `Headset: ${t(PHASE_LABEL[phase])}`)}
+                      {device && phase !== "idle"
+                        ? t(`（${shownName(device.name)}）`, ` (${shownName(device.name)})`)
+                        : ""}
                     </p>
                   </div>
                   {phase === "connected" && !bridgeOnline && (
-                    <p className="text-sm text-text-secondary">データを待っています…</p>
+                    <p className="text-sm text-text-secondary">{t("データを待っています…", "Waiting for data…")}</p>
                   )}
                   {phase === "pairing" && (
                     <p className="text-sm text-text-secondary">
-                      端末の画面にペアリングの確認が出ます。PIN を聞かれたら、脳波計の説明書にある番号（多くは 0000）を入力してください。
+                      {t(
+                        "端末の画面にペアリングの確認が出ます。PIN を聞かれたら、脳波計の説明書にある番号（多くは 0000）を入力してください。",
+                        "Your phone will ask you to confirm the pairing. If it asks for a PIN, enter the number in the headset's manual (usually 0000)."
+                      )}
                     </p>
                   )}
-                  {error && <p className="text-sm text-warning">{error}</p>}
+                  {error && <p className="text-sm text-warning">{t(error)}</p>}
                 </div>
 
                 {/* ペアリング済み */}
                 <div className="flex flex-col gap-2">
-                  <p className="text-sm text-text-secondary">ペアリング済みの脳波計</p>
+                  <p className="text-sm text-text-secondary">{t("ペアリング済みの脳波計", "Paired headsets")}</p>
                   {pairedBrainLinks.length > 0 ? (
                     pairedBrainLinks.map((d) => deviceRow(d))
                   ) : (
                     <p className="text-sm text-text-secondary">
-                      まだありません。脳波計の電源を入れて「近くの脳波計を探す」を押してください。
+                      {t(
+                        "まだありません。脳波計の電源を入れて「近くの脳波計を探す」を押してください。",
+                        "None yet. Turn on your headset and tap “Find nearby headsets”."
+                      )}
                     </p>
                   )}
                   {pairedOthers.length > 0 &&
@@ -301,7 +323,10 @@ export default function BluetoothSourceDialog() {
                         onClick={() => setShowOthers(true)}
                         className="min-h-12 text-sm text-text-secondary underline"
                       >
-                        ほかの機器も表示（{pairedOthers.length}台）
+                        {t(
+                          `ほかの機器も表示（${pairedOthers.length}台）`,
+                          `Show other devices (${pairedOthers.length})`
+                        )}
                       </button>
                     ))}
                 </div>
@@ -315,7 +340,7 @@ export default function BluetoothSourceDialog() {
                       className="min-h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2"
                     >
                       <LoaderCircle size={18} className="animate-spin" />
-                      探しています…（止める）
+                      {t("探しています…（止める）", "Searching… (stop)")}
                     </button>
                   ) : (
                     <button
@@ -324,17 +349,22 @@ export default function BluetoothSourceDialog() {
                       className="min-h-12 rounded-2xl bg-surface border border-primary text-primary text-base font-bold neu-raised-sm neu-press transition-transform flex items-center justify-center gap-2 disabled:opacity-60"
                     >
                       <BluetoothSearching size={18} />
-                      近くの脳波計を探す
+                      {t("近くの脳波計を探す", "Find nearby headsets")}
                     </button>
                   )}
                   {nearby.length > 0 && (
                     <p className="text-sm text-text-secondary">
-                      近くで見つかった機器（選ぶと、ペアリングしてから接続します）
+                      {t(
+                        "近くで見つかった機器（選ぶと、ペアリングしてから接続します）",
+                        "Devices found nearby (choose one to pair and connect)"
+                      )}
                     </p>
                   )}
                   {nearby.map((d) => deviceRow(d))}
                   {!discovering && nearby.length === 0 && found.length > 0 && (
-                    <p className="text-sm text-text-secondary">新しい機器は見つかりませんでした。</p>
+                    <p className="text-sm text-text-secondary">
+                      {t("新しい機器は見つかりませんでした。", "No new devices were found.")}
+                    </p>
                   )}
                 </div>
               </div>
@@ -347,7 +377,7 @@ export default function BluetoothSourceDialog() {
                 onClick={handleBackToDemo}
                 className="min-h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press transition-transform"
               >
-                デモデータに戻す
+                {t("デモデータに戻す", "Back to demo data")}
               </button>
             )}
           </div>

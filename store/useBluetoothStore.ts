@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BrainLinkPermissions, BtAdapterState, BtDevice } from "@/lib/native/brainlink";
+import type { LocalizedText } from "@/lib/i18n";
 
 /**
  * Android アプリの Sync Brain：脳波計（BrainLink）との Bluetooth 接続の状態。
@@ -9,7 +10,7 @@ import type { BrainLinkPermissions, BtAdapterState, BtDevice } from "@/lib/nativ
  *
  * - phase：idle（繋いでいない）→ connecting / pairing → connected。意図せず切れたら
  *   reconnecting（5秒ごとに繋ぎ直す＝PC ブリッジと同じ）、失敗が続いている間は error
- * - error：画面にそのまま出す日本語
+ * - error：画面に出す案内（日本語と英語を両方持ち、表示言語は描画時に選ぶ）
  * 永続しない（正は装置とネイティブ側）。最後に繋いだ機器だけは
  * useBluetoothDeviceStore に残す。
  */
@@ -33,7 +34,7 @@ interface BluetoothState {
   discovering: boolean;
   phase: BtPhase;
   device: BtTarget | null;
-  error: string | null;
+  error: LocalizedText | null;
   lastSampleAt: number;
   patch: (partial: Partial<Omit<BluetoothState, "patch">>) => void;
 }

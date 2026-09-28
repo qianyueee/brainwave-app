@@ -75,6 +75,13 @@ public class NowPlayingService extends Service {
     private static volatile String album = "Binaural Beats";
     private static volatile boolean playing = true;
 
+    // 通知のボタンと通知チャンネル（端末の設定に出る）の名前。画面の表示言語（日本語／
+    // 英語）で JS から届く。届かない（古い画面の）ときは日本語のまま。
+    private static volatile String playLabel = "再生";
+    private static volatile String pauseLabel = "一時停止";
+    private static volatile String channelName = "再生中のプログラム";
+    private static volatile String channelDescription = "再生・一時停止のボタン（ロック画面にも出ます）";
+
     private MediaSession session;
     /** この起動で startForeground 済みか（2回目からの描き直しは notify。render の注記）。 */
     private boolean foreground = false;
@@ -124,6 +131,14 @@ public class NowPlayingService extends Service {
 
     static void setListener(ActionListener l) {
         listener = l;
+    }
+
+    /** 通知の言葉を替える（次の show から。show の前に呼ぶ）。 */
+    static void setLabels(String play, String pause, String name, String description) {
+        playLabel = play;
+        pauseLabel = pause;
+        channelName = name;
+        channelDescription = description;
     }
 
     /** 通知を出して前面サービスを始める（動いていれば描き直す）。前面にいる時だけ呼べる。 */
@@ -206,6 +221,9 @@ public class NowPlayingService extends Service {
             dispatch("play");
         } else if (ACTION_PAUSE.equals(action)) {
             dispatch("pause");
+        } else if (ACTION_UPDATE.equals(action)) {
+            // 表示言語を替えたあとの再生なら、チャンネルの名前もそれに合わせる。
+            ensureChannel();
         }
         // startForegroundService で起こされたら、止めるにしても一度は前面に出る必要がある。
         render();
@@ -382,7 +400,7 @@ public class NowPlayingService extends Service {
         );
         Notification.Action toggleButton = new Notification.Action.Builder(
             Icon.createWithResource(this, isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play),
-            isPlaying ? "一時停止" : "再生",
+            isPlaying ? pauseLabel : playLabel,
             toggle
         ).build();
 
@@ -408,11 +426,13 @@ public class NowPlayingService extends Service {
             return;
         }
         NotificationManager manager = getSystemService(NotificationManager.class);
-        if (manager == null || manager.getNotificationChannel(CHANNEL_ID) != null) {
+        if (manager == null) {
             return;
         }
-        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "再生中のプログラム", NotificationManager.IMPORTANCE_LOW);
-        channel.setDescription("再生・一時停止のボタン（ロック画面にも出ます）");
+        // 既にあっても渡し直す：既存のチャンネルで変わるのは名前と説明だけ（表示言語を
+        // 替えたとき用）。重要度など利用者が設定で変えられる項目は上書きされない。
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
+        channel.setDescription(channelDescription);
         channel.setShowBadge(false);
         manager.createNotificationChannel(channel);
     }

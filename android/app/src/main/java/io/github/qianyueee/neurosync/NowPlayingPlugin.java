@@ -11,7 +11,9 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * 動かす口。JS 側は lib/native/now-playing.ts、呼ぶのは lib/keep-alive.ts だけ
  * （Web 版で navigator.mediaSession を触っている箇所と1対1）。
  *
- * - start({title, artist, album})：通知を出して前面サービスを始める（再生中）
+ * - start({title, artist, album, playLabel?, pauseLabel?, channelName?, channelDescription?})：
+ *   通知を出して前面サービスを始める（再生中）。後ろの4つは通知のボタンとチャンネルの
+ *   名前で、画面の表示言語で届く（無ければ日本語）
  * - setState({state: "playing" | "paused"})：再生／一時停止の表示を切り替える
  * - stop()：通知を消してサービスを止める
  * - イベント "action"（{action: "play" | "pause"}）：通知・ロック画面・イヤホンの操作
@@ -33,6 +35,12 @@ public class NowPlayingPlugin extends Plugin {
         String title = call.getString("title", "NeuroSync");
         String artist = call.getString("artist", "NeuroSync");
         String album = call.getString("album", "Binaural Beats");
+        NowPlayingService.setLabels(
+            call.getString("playLabel", "再生"),
+            call.getString("pauseLabel", "一時停止"),
+            call.getString("channelName", "再生中のプログラム"),
+            call.getString("channelDescription", "再生・一時停止のボタン（ロック画面にも出ます）")
+        );
         try {
             NowPlayingService.show(getContext(), title, artist, album);
             call.resolve();

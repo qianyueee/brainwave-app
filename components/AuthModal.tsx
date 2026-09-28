@@ -179,7 +179,12 @@ export default function AuthModal() {
     setError("");
     if (IS_ANDROID_APP) {
       if (!prepared) {
-        setError("Google ログインの準備ができていません。少し待ってから、もう一度お試しください");
+        setError(
+          t(
+            "Google ログインの準備ができていません。少し待ってから、もう一度お試しください",
+            "Google login isn't ready yet. Please wait a moment and try again."
+          )
+        );
         return;
       }
       // Custom Tab で開く（lib/native/android-google-auth.ts）。戻りはアプリの起動時

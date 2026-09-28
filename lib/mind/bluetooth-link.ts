@@ -2,6 +2,7 @@ import type { BrainLinkErrorCode, BrainLinkPlugin, BtDevice } from "@/lib/native
 import { useBluetoothDeviceStore, useBluetoothStore, type BtTarget } from "@/store/useBluetoothStore";
 import { ThinkGearParser } from "./thinkgear";
 import type { EegSample } from "./types";
+import type { LocalizedText } from "@/lib/i18n";
 
 /**
  * Android アプリの Sync Brain：脳波計（BrainLink）との Bluetooth 接続（単一の係）。
@@ -24,6 +25,12 @@ import type { EegSample } from "./types";
  */
 
 const RETRY_MS = 5000;
+
+/**
+ * 名前を名乗らない機器に付ける名前。最後に繋いだ機器として端末に残るので日本語の
+ * まま持ち、英語の画面では接続ダイアログが「Headset」と出す。
+ */
+export const DEFAULT_DEVICE_NAME = "脳波計";
 
 // ⚠ Capacitor のプラグインは「どんな名前のメソッドでも持っている」ように見える
 // Proxy なので、Promise をプラグインそのもので resolve してはいけない（resolve が
@@ -64,7 +71,13 @@ async function load(): Promise<{ p: BrainLinkPlugin }> {
         } else if (ev.error === "BT_OFF") {
           store().patch({ phase: "error", error: messageFor("BT_OFF") });
         } else {
-          store().patch({ phase: "reconnecting", error: "接続が切れました。5秒ごとに再接続しています…" });
+          store().patch({
+            phase: "reconnecting",
+            error: {
+              ja: "接続が切れました。5秒ごとに再接続しています…",
+              en: "The connection was lost. Reconnecting every 5 seconds…",
+            },
+          });
           scheduleRetry();
         }
       }
@@ -101,26 +114,41 @@ function onData(base64: string, t: number): void {
   }
 }
 
-/** 画面に出す言葉。 */
-function messageFor(code: BrainLinkErrorCode | null): string {
+/** 画面に出す言葉（日本語と英語。表示言語は画面が描画時に選ぶ）。 */
+function messageFor(code: BrainLinkErrorCode | null): LocalizedText {
   switch (code) {
     case "UNSUPPORTED":
-      return "この端末は Bluetooth に対応していません";
+      return { ja: "この端末は Bluetooth に対応していません", en: "This device doesn't support Bluetooth" };
     case "BT_OFF":
-      return "Bluetooth がオフになっています";
+      return { ja: "Bluetooth がオフになっています", en: "Bluetooth is off" };
     case "PERMISSION_DENIED":
-      return "「付近のデバイス」へのアクセスが許可されていません";
+      return {
+        ja: "「付近のデバイス」へのアクセスが許可されていません",
+        en: "Access to “Nearby devices” isn't allowed",
+      };
     case "LOCATION_OFF":
-      return "近くの機器を探すには、端末の位置情報をオンにしてください（Android 11 以前の決まりです）";
+      return {
+        ja: "近くの機器を探すには、端末の位置情報をオンにしてください（Android 11 以前の決まりです）",
+        en: "To find nearby devices, turn on Location on your phone (required on Android 11 and earlier)",
+      };
     case "PAIR_FAILED":
-      return "ペアリングできませんでした。脳波計の電源を入れ直して、もう一度選んでください";
+      return {
+        ja: "ペアリングできませんでした。脳波計の電源を入れ直して、もう一度選んでください",
+        en: "Pairing failed. Turn the headset off and on again, then choose it again",
+      };
     case "NOT_FOUND":
-      return "この機器が見つかりません。もう一度探してください";
+      return {
+        ja: "この機器が見つかりません。もう一度探してください",
+        en: "This device can't be found. Please search again",
+      };
     case "CONNECT_FAILED":
     case "IO":
-      return "つながりませんでした。脳波計の電源と、近くにあるかを確かめてください（5秒ごとに試し続けます）";
+      return {
+        ja: "つながりませんでした。脳波計の電源と、近くにあるかを確かめてください（5秒ごとに試し続けます）",
+        en: "Couldn't connect. Check that the headset is on and nearby (retrying every 5 seconds)",
+      };
     default:
-      return "接続できませんでした。もう一度お試しください";
+      return { ja: "接続できませんでした。もう一度お試しください", en: "Couldn't connect. Please try again" };
   }
 }
 
@@ -234,7 +262,7 @@ export function subscribeBluetoothSamples(fn: (s: EegSample) => void): () => voi
 
 /** 一覧の機器を選んだ：（必要ならペアリングして）繋ぐ。 */
 export async function connectBluetoothDevice(device: BtDevice | BtTarget): Promise<void> {
-  const target: BtTarget = { address: device.address, name: device.name || "脳波計" };
+  const target: BtTarget = { address: device.address, name: device.name || DEFAULT_DEVICE_NAME };
   if (want?.address !== target.address || !parser) {
     // 別の機器：パーサ（実測率の履歴など）も新しく。自動の繋ぎ直しでは使い回す
     // （ブリッジが同じ読み取りスレッドの中でパーサを使い回すのと同じ）。
@@ -291,8 +319,14 @@ export async function startBluetoothScan(): Promise<void> {
     if (permissions.scan !== "granted") {
       store().patch({
         error: store().scanNeedsLocation
-          ? "近くの機器を探すには、位置情報の許可が必要です（Android 11 以前の決まりです）"
-          : "近くの機器を探すには、「付近のデバイス」の許可が必要です",
+          ? {
+              ja: "近くの機器を探すには、位置情報の許可が必要です（Android 11 以前の決まりです）",
+              en: "Finding nearby devices needs Location permission (required on Android 11 and earlier)",
+            }
+          : {
+              ja: "近くの機器を探すには、「付近のデバイス」の許可が必要です",
+              en: "Finding nearby devices needs the “Nearby devices” permission",
+            },
       });
       return;
     }

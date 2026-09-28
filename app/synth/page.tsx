@@ -369,7 +369,7 @@ export default function SynthPage() {
     const json = JSON.stringify(savedPresets, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     downloadBlob(blob, "brainwave-presets.json").catch(() => {
-      window.alert("ファイルを保存できませんでした");
+      window.alert(t("ファイルを保存できませんでした", "Couldn't save the file"));
     });
   };
 

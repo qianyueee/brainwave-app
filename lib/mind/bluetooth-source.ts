@@ -1,7 +1,8 @@
 import type { MindDataSource, MindSourceHandlers, SourceStatus } from "./data-source";
-import { activateBluetooth, subscribeBluetoothSamples } from "./bluetooth-link";
+import { DEFAULT_DEVICE_NAME, activateBluetooth, subscribeBluetoothSamples } from "./bluetooth-link";
 import { isValidSample } from "./types";
 import { BT_SAMPLE_FRESH_MS, useBluetoothStore } from "@/store/useBluetoothStore";
+import { getLocale, translator } from "@/lib/i18n";
 
 /**
  * Android アプリの Sync Brain：Bluetooth で直接つないだ脳波計を MindDataSource に写す
@@ -48,33 +49,39 @@ export class BluetoothSource implements MindDataSource {
 
   private pushStatus(): void {
     const st = useBluetoothStore.getState();
-    const name = st.device?.name ?? "脳波計";
+    // 状態の言葉は知らせる時点の表示言語で（LocalSource・RealtimeSource と同じ）。
+    const t = translator(getLocale());
+    const stored = st.device?.name;
+    const name = stored && stored !== DEFAULT_DEVICE_NAME ? stored : t("脳波計", "the headset");
     let status: SourceStatus;
     let detail: string;
     switch (st.phase) {
       case "connected":
         status = "connected";
-        detail = `${name} に接続しました`;
+        detail = t(`${name} に接続しました`, `Connected to ${name}`);
         break;
       case "connecting":
         status = "connecting";
-        detail = `${name} に接続しています…`;
+        detail = t(`${name} に接続しています…`, `Connecting to ${name}…`);
         break;
       case "pairing":
         status = "connecting";
-        detail = "ペアリングしています…画面の案内に従ってください";
+        detail = t(
+          "ペアリングしています…画面の案内に従ってください",
+          "Pairing… follow the instructions on the screen"
+        );
         break;
       case "reconnecting":
         status = "connecting";
-        detail = st.error ?? "再接続しています…";
+        detail = st.error ? t(st.error) : t("再接続しています…", "Reconnecting…");
         break;
       case "error":
         status = "error";
-        detail = st.error ?? "接続できませんでした";
+        detail = st.error ? t(st.error) : t("接続できませんでした", "Couldn't connect");
         break;
       default:
         status = "idle";
-        detail = "脳波計が接続されていません";
+        detail = t("脳波計が接続されていません", "The headset isn't connected");
     }
     const key = `${status}|${detail}`;
     if (key !== this.lastStatus) {

@@ -11,6 +11,7 @@ import { useMindStore } from "@/store/useMindStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import { useCloudSyncStore } from "@/store/useCloudSyncStore";
 import { useUserRecordsStore } from "@/store/useUserRecordsStore";
+import { useLocale, useT } from "@/lib/i18n";
 
 const subscribeNoop = () => () => {};
 
@@ -42,6 +43,8 @@ export default function AccountSaveBanner() {
   const skipSessions = useMindStore((s) => s.markSessionsLocalOnly);
   const userScope = useUserRecordsStore((s) => (account ? s.scopes[account.id] : undefined));
   const anon = useUserRecordsStore((s) => s.scopes[ANON_SCOPE]);
+  const t = useT();
+  const en = useLocale() === "en";
 
   // persist 由来の記録を読むので mount 後に出す（hydration 対策）。
   const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
@@ -63,14 +66,23 @@ export default function AccountSaveBanner() {
 
   if (!supabase || !mounted || !account || total === 0) return null;
 
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const counts = [
-    sessionIds.length ? `測定 ${sessionIds.length}件` : null,
-    checkIds.length ? `10秒チェック ${checkIds.length}件` : null,
-    journal ? `振り返り ${journal}日分` : null,
-    playback ? `再生 ${playback}回` : null,
+    sessionIds.length
+      ? en
+        ? plural(sessionIds.length, "measurement", "measurements")
+        : `測定 ${sessionIds.length}件`
+      : null,
+    checkIds.length
+      ? en
+        ? plural(checkIds.length, "10-second check", "10-second checks")
+        : `10秒チェック ${checkIds.length}件`
+      : null,
+    journal ? (en ? plural(journal, "day of reflections", "days of reflections") : `振り返り ${journal}日分`) : null,
+    playback ? (en ? plural(playback, "play", "plays") : `再生 ${playback}回`) : null,
   ]
     .filter(Boolean)
-    .join("・");
+    .join(en ? ", " : "・");
 
   const save = () => {
     useUserRecordsStore.getState().claimAnon(account.id);
@@ -85,22 +97,30 @@ export default function AccountSaveBanner() {
 
   return (
     <section
-      aria-label="アカウントに保存していない記録"
+      aria-label={t("アカウントに保存していない記録", "Records not saved to your account")}
       className="bg-surface border border-surface-border rounded-3xl p-5 flex flex-col gap-3 neu-raised"
     >
       <div className="flex items-start gap-3">
         <CloudUpload size={24} className="shrink-0 text-primary mt-0.5" />
         <div className="flex flex-col gap-1">
           <p className="text-base font-bold text-text-primary">
-            この端末に、まだアカウントに保存していない記録があります（{counts}）
+            {t(
+              `この端末に、まだアカウントに保存していない記録があります（${counts}）`,
+              `This device has records that aren't saved to your account yet (${counts})`
+            )}
           </p>
           <p className="text-sm text-text-secondary">
-            このアカウント（{account.email ?? "ログイン中のアカウント"}）に保存すると、ほかの端末
-            （Web・Android・Windows）でも同じ記録が見られます。
+            {t(
+              `このアカウント（${account.email ?? "ログイン中のアカウント"}）に保存すると、ほかの端末 （Web・Android・Windows）でも同じ記録が見られます。`,
+              `Save them to this account (${account.email ?? "the account you're logged in to"}) to see the same records on your other devices (web, Android, Windows).`
+            )}
           </p>
           {sessionIds.length > 0 && (
             <p className="text-xs text-text-muted">
-              以前に「合成データでテスト」した測定は実測と区別できないため、含まれることがあります。
+              {t(
+                "以前に「合成データでテスト」した測定は実測と区別できないため、含まれることがあります。",
+                "Measurements from earlier “Test with synthetic data” runs can't be told apart from real ones, so they may be included."
+              )}
             </p>
           )}
         </div>
@@ -110,13 +130,13 @@ export default function AccountSaveBanner() {
           onClick={skip}
           className="flex-1 min-h-12 rounded-2xl bg-navy text-text-secondary text-base font-bold neu-raised-sm neu-press"
         >
-          保存しない
+          {t("保存しない", "Don't save")}
         </button>
         <button
           onClick={save}
           className="flex-1 min-h-12 rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press"
         >
-          このアカウントに保存する
+          {t("このアカウントに保存する", "Save to this account")}
         </button>
       </div>
     </section>
