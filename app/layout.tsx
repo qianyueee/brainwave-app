@@ -10,6 +10,9 @@ import ThemeProvider from "@/components/ThemeProvider";
 import LocaleSync from "@/components/LocaleSync";
 import AuthProvider from "@/components/AuthProvider";
 import WaveBackground from "@/components/WaveBackground";
+import AndroidAppShell from "@/components/AndroidAppShell";
+import DesktopAppShell from "@/components/DesktopAppShell";
+import { IS_ANDROID_APP, IS_DESKTOP_APP } from "@/lib/platform";
 
 // Self-hosted at build time (works with output:"export"); gives Android a
 // proper Japanese face — the system stack only covers iOS (Hiragino) and
@@ -40,7 +43,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ja" className={notoSansJP.variable}>
+    <html
+      lang="ja"
+      className={notoSansJP.variable}
+      // アプリのビルドだけに付く目印（scripts/build-android.mjs・build-desktop.mjs が
+      // 書き出しを確かめるのに使う）。Web 版には属性ごと足さない（RSC の中身にも出ない）。
+      {...(IS_ANDROID_APP
+        ? { "data-app-platform": "android" }
+        : IS_DESKTOP_APP
+          ? { "data-app-platform": "desktop" }
+          : {})}
+    >
       <body>
         {/* 表示言語に合わせて <html lang> と文書タイトルを直す（静的 HTML は日本語） */}
         <LocaleSync />
@@ -58,6 +71,10 @@ export default function RootLayout({
               </div>
               <MiniPlayer />
               <BottomNav />
+              {/* Android アプリの殻（システムバー・戻るキー等）。Web 版では空。 */}
+              <AndroidAppShell />
+              {/* Windows アプリの殻（測定アプリとのローカル WS・Google ログインの戻り）。Web 版では空。 */}
+              <DesktopAppShell />
             </AudioProvider>
           </AuthProvider>
         </ThemeProvider>

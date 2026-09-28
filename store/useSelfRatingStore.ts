@@ -1,6 +1,7 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { useMemo } from "react";
 import type { Locale } from "@/lib/i18n";
+import { useRecordView, useUserRecordsStore } from "@/store/useUserRecordsStore";
+import { SELF_RATING_KEY, type StoredRecord } from "@/lib/sync/record-merge";
 
 /**
  * 「感コンディション」＝ユーザーが自分で入れる主観の3指標。
@@ -31,31 +32,37 @@ interface SelfRatingState {
   record: (values: { switching: number; clarity: number; rest: number }) => void;
 }
 
+function record(values: { switching: number; clarity: number; rest: number }): void {
+  const recordedAt = new Date().toISOString();
+  useUserRecordsStore.getState().put(SELF_RATING_KEY, "self_rating", { ...values, recordedAt });
+}
+
+const isScore = (v: unknown): v is number => typeof v === "number" && v >= 0 && v <= 100;
+
+function latestOf(rec: StoredRecord | undefined): SelfRating | null {
+  if (!rec) return null;
+  const { switching, clarity, rest, recordedAt } = rec.data;
+  if (!isScore(switching) || !isScore(clarity) || !isScore(rest)) return null;
+  if (typeof recordedAt !== "string" || !Number.isFinite(Date.parse(recordedAt))) return null;
+  return { switching, clarity, rest, recordedAt };
+}
+
 /**
- * 素の localStorage に持たせる（useZodiacStore と同じ方針）— 未ログインでも
- * 毎日の記録が続けられることが、この機能の前提なので。
+ * 置き場は store/useUserRecordsStore.ts（端末をまたいで同じにする記録。いちばん新しい
+ * 1件だけ）。未ログインでも端末に残り——毎日の記録が続けられることがこの機能の
+ * 前提——ログイン中はアカウントにも載る。以前は機能ごとの localStorage（`self-rating`、
+ * v1＝いまの3軸）で、初回に移す（v0 のリラックス度／集中度／睡眠の質は**意味が違う**
+ * 別の質問の答えなので移さない）。
+ *
+ * 形は以前の zustand ストアと同じ（`useSelfRatingStore((s) => s.latest)`）。
  */
-export const useSelfRatingStore = create<SelfRatingState>()(
-  persist(
-    (set) => ({
-      latest: null,
-      record: (values) =>
-        set({ latest: { ...values, recordedAt: new Date().toISOString() } }),
-    }),
-    {
-      name: "self-rating",
-      partialize: (s) => ({ latest: s.latest }),
-      /**
-       * v0 は リラックス度／集中度／睡眠の質 の3軸だった。新しい3軸とは
-       * **意味が違う**（リラックス度は「スイッチ力」ではない）ので、値を
-       * 引き継ぐと古い回答を別の質問の答えとして表示することになる。
-       * 移行せず捨てる——手入力1件ぶんなので、入れ直してもらう方が正しい。
-       */
-      version: 1,
-      migrate: () => ({ latest: null }),
-    }
-  )
-);
+export function useSelfRatingStore<T>(selector: (s: SelfRatingState) => T): T {
+  // 記録のオブジェクトはほかの種類が変わっても同じ参照のまま（viewOf が拾い直すだけ）
+  // なので、latest も内容が変わったときだけ作り直される。
+  const rec = useRecordView()[SELF_RATING_KEY];
+  const latest = useMemo(() => latestOf(rec), [rec]);
+  return selector({ latest, record });
+}
 
 /** 同じ暦日か（formatRecordedAt が「今日／昨日」を出し分けるのに使う）。 */
 function isSameDay(iso: string, now: Date): boolean {

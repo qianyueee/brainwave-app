@@ -17,6 +17,7 @@ import { runFirstLoginMigration } from "@/lib/sync/migrate";
 import { ensureCloudOutbox, releaseCloudOutbox } from "@/lib/sync/outbox";
 import { refreshAccountViews } from "@/lib/sync/account-views";
 import { startSyncTreeRuntime } from "@/lib/sync/tree-runtime";
+import { loadUserRecords, startUserRecordsSync } from "@/lib/sync/record-sender";
 import { isDesktopRoute } from "@/lib/desktop";
 import AuthModal from "@/components/AuthModal";
 
@@ -25,6 +26,9 @@ async function hydrateForUser(user: User) {
   // Sync Tree はアカウントにだけある。読み込みは失敗しても reject しないが、
   // 下の Promise.all には入れない——木の都合で初回ログインの移行を待たせない。
   void useSyncTreeStore.getState().loadForUser(user.id);
+  // 振り返り・再生の記録・感コンディション・測定者・マイ星座（端末をまたぐ小さな記録）。
+  // 木と同じく待たない。タブに戻るたびの SIGNED_IN で呼ばれても 15 秒に1回に間引かれる。
+  void loadUserRecords(user.id);
   await Promise.all([
     useSynthStore.getState().loadFromCloud(user.id),
     useBrainProfileStore.getState().loadFromCloud(user.id),
@@ -122,6 +126,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (desktop) return;
     return startSyncTreeRuntime();
+  }, [desktop]);
+
+  // 端末をまたぐ小さな記録の送信係（/desktop の測定だけの画面には、その記録が無い）。
+  useEffect(() => {
+    if (desktop) return;
+    return startUserRecordsSync();
   }, [desktop]);
 
   // タブに戻ったら記録を読み直す：デスクトップ測定アプリで測ってからブラウザに

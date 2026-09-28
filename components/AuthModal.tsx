@@ -8,6 +8,7 @@ import { useDesktopLoginStore } from "@/store/useDesktopLoginStore";
 import { supabase } from "@/lib/supabase";
 import { isDesktopRoute } from "@/lib/desktop";
 import { useT } from "@/lib/i18n";
+import { IS_ANDROID_APP, IS_DESKTOP_APP } from "@/lib/platform";
 import {
   beginDesktopGoogleLogin,
   cancelDesktopGoogleLogin,
@@ -26,16 +27,19 @@ export default function AuthModal() {
   const closeAuthModal = useAuthStore((s) => s.closeAuthModal);
   const user = useAuthStore((s) => s.user);
 
-  // デスクトップ測定アプリ（/desktop）の中では、Google ログインを既定のブラウザで
-  // 行う（WebView 内のログインは Google が拒む。lib/mind/desktop-google-auth.ts）。
-  const desktop = isDesktopRoute(usePathname());
+  // Windows アプリ・旧いデスクトップ測定アプリ（/desktop）・Android アプリの中では、
+  // Google ログインを外のブラウザで行う（WebView 内のログインは Google が拒む。
+  // lib/mind/desktop-google-auth.ts）。`desktop` は前の2つ（戻りは測定アプリの
+  // ローカル WS）、`nativeLogin` は3つ全部。
+  const desktop = isDesktopRoute(usePathname()) || IS_DESKTOP_APP;
+  const nativeLogin = desktop || IS_ANDROID_APP;
   const callbackUrl = useDesktopBridgeStore((s) => s.state?.authCallbackUrl);
   const googleStatus = useDesktopLoginStore((s) => s.status);
   const googleMessage = useDesktopLoginStore((s) => s.message);
   const googleUrl = useDesktopLoginStore((s) => s.url);
   const googleStartedAt = useDesktopLoginStore((s) => s.startedAt);
   const [prepared, setPrepared] = useState<PreparedGoogleLogin | null>(null);
-  const googleBusy = desktop && (googleStatus === "waiting" || googleStatus === "exchanging");
+  const googleBusy = nativeLogin && (googleStatus === "waiting" || googleStatus === "exchanging");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -111,7 +115,7 @@ export default function AuthModal() {
       setError(err.message);
     } else {
       setMessage(
-        desktop
+        nativeLogin
           ? t(
               "確認メールを送信しました。メールのリンクを開いて登録を済ませたあと、このアプリに戻ってログインしてください。",
               "We've sent you a confirmation email. Open the link in it to finish signing up, then come back to this app and log in."
@@ -142,7 +146,7 @@ export default function AuthModal() {
 
   // ボタンを押す前に PKCE を用意しておく（押した瞬間に同期で開くため）。
   useEffect(() => {
-    if (!open || !desktop || googleBusy) return;
+    if (!open || !nativeLogin || googleBusy) return;
     let alive = true;
     void prepareDesktopGoogleLogin().then((p) => {
       if (alive) setPrepared(p);
@@ -150,12 +154,12 @@ export default function AuthModal() {
     return () => {
       alive = false;
     };
-  }, [open, desktop, googleBusy, callbackUrl]);
+  }, [open, nativeLogin, googleBusy, callbackUrl]);
 
   // ブラウザでのログインが済んで、この画面にセッションが届いたら閉じる。
   useEffect(() => {
-    if (open && desktop && user) closeAuthModal();
-  }, [open, desktop, user, closeAuthModal]);
+    if (open && nativeLogin && user) closeAuthModal();
+  }, [open, nativeLogin, user, closeAuthModal]);
 
   // Supabase 側の期限（5分）を過ぎても戻らなければ、待つのをやめて案内する。
   useEffect(() => {
@@ -173,6 +177,19 @@ export default function AuthModal() {
       return;
     }
     setError("");
+    if (IS_ANDROID_APP) {
+      if (!prepared) {
+        setError("Google ログインの準備ができていません。少し待ってから、もう一度お試しください");
+        return;
+      }
+      // Custom Tab で開く（lib/native/android-google-auth.ts）。戻りはアプリの起動時
+      // から聞いている appUrlOpen が受け取る。
+      beginDesktopGoogleLogin(prepared, (url) => {
+        void import("@/lib/native/android-google-auth").then((m) => m.openGoogleLoginPage(url));
+      });
+      setPrepared(null);
+      return;
+    }
     if (desktop) {
       if (!prepared) {
         setError(
@@ -238,7 +255,7 @@ export default function AuthModal() {
         </div>
 
         {/* Error / Message */}
-        {(error || (desktop && googleStatus === "error" && googleMessage)) && (
+        {(error || (nativeLogin && googleStatus === "error" && googleMessage)) && (
           <p role="alert" className="text-sm text-danger bg-danger/10 rounded-2xl px-4 py-3">
             {error || (googleMessage && t(googleMessage))}
           </p>

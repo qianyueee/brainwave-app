@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- アイコンと起動画面の地色。Web 版の theme-color の既定（app/layout.tsx の #1E1B4B）。 -->
+    <color name="ic_launcher_background">#1E1B4B</color>
+</resources>

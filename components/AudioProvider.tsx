@@ -23,6 +23,7 @@ import { setUserPaused } from "@/lib/audio-context";
 import { useAppStore } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { useCustomAudioStore } from "@/store/useCustomAudioStore";
+import { recordPlayback } from "@/store/usePlaybackHistoryStore";
 
 interface AudioContextValue {
   startSession: (program: ProgramConfig, duration: number) => void;
@@ -110,14 +111,23 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const logPlayed = useCallback(
     (programId: string, programName: string, seconds: number) => {
       if (seconds < 1) return;
-      addSessionLog({
-        id: Date.now().toString(),
+      const log = {
+        // 端末をまたいで1件ずつ見分けるので UUID（Date.now() は別の端末と重なりうる）。
+        // crypto.randomUUID は HTTP では使えないことがある。
+        id:
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : Date.now().toString(36) + Math.random().toString(36).slice(2, 10),
         programId,
         programName,
         date: new Date().toISOString(),
         duration: Math.round(seconds),
         mood: useAppStore.getState().mood,
-      });
+      };
+      // 先にこの起動の流れへ（Sync Tree のリスニングはこれで締まる）、それから
+      // 端末をまたいで残る再生の記録へ。
+      addSessionLog(log);
+      recordPlayback(log);
     },
     [addSessionLog]
   );

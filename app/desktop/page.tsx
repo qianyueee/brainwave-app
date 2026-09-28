@@ -10,6 +10,7 @@ import {
   subscribeDesktopAuthCallbacks,
 } from "@/lib/mind/desktop-bridge";
 import { completeDesktopGoogleLogin } from "@/lib/mind/desktop-google-auth";
+import { IS_DESKTOP_APP } from "@/lib/platform";
 import type { MindDataSource, MindSourceHandlers } from "@/lib/mind/data-source";
 import { rawBandPowers, EMPTY_BAND_POWERS } from "@/lib/mind/types";
 import MindMapCanvas from "@/components/mind/MindMapCanvas";
@@ -65,11 +66,12 @@ export default function DesktopPage() {
   }, []);
 
   // Google ログインの戻り（既定のブラウザ → 測定アプリ → ローカル WS）。ログインの
-  // ダイアログを閉じていても受け取れるよう、ページが常に聞いておく。
-  useEffect(
-    () => subscribeDesktopAuthCallbacks((ev) => void completeDesktopGoogleLogin(ev)),
-    []
-  );
+  // ダイアログを閉じていても受け取れるよう、ページが常に聞いておく。Windows アプリ
+  // （完全版）では DesktopAppShell が聞いているので、二重に引き換えない。
+  useEffect(() => {
+    if (IS_DESKTOP_APP) return;
+    return subscribeDesktopAuthCallbacks((ev) => void completeDesktopGoogleLogin(ev));
+  }, []);
 
   // /brain と同じ形の源ライフサイクル。realtime だけ LocalSource に差し替わる。
   useEffect(() => {

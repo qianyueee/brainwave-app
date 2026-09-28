@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NeuroSync</string>
+    <string name="title_activity_main">NeuroSync</string>
+    <string name="package_name">io.github.qianyueee.neurosync</string>
+    <string name="custom_url_scheme">io.github.qianyueee.neurosync</string>
+</resources>

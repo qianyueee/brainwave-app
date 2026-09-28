@@ -12,6 +12,12 @@ Next の書き出しは trailingSlash なしだと /desktop → desktop.html と
 ——ディレクトリが素通しされて 301 → 中身一覧になる。拡張子なしパスは
 （index.html を持つ本物のディレクトリでない限り）.html 同名ファイルを優先する。
 
+キャッシュは、名前に中身のハッシュが入る /_next/static/ だけを長く持たせ、ページ
+（.html）と画面遷移で読む RSC（.txt）は毎回確かめさせる——アプリを更新したあと、
+古いページが消えたチャンクの名前を指したまま残ると画面が壊れる。MIME も主要な
+拡張子は自分で決める（Windows の mimetypes はレジストリを読み、環境によっては
+.js / .css が text/plain になって読み込みを拒まれる）。
+
 /auth/callback だけは静的ファイルではなくここで答える：Google ログインを既定の
 ブラウザで済ませたあと、Supabase がそのブラウザをここへ戻す（?code=…）。code を
 set_auth_callback_sink で受け取った関数（desktop_app → WS → 画面）へ渡し、
@@ -78,13 +84,64 @@ def _page(title: str, body: str, title_en: str, body_en: str, detail: str = "") 
 """.encode("utf-8")
 
 
+_MIME = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    # RSC ペイロード。静的書き出しの Next は text/plain を画面遷移の応答として受け取る。
+    ".txt": "text/plain; charset=utf-8",
+    ".json": "application/json",
+    ".webmanifest": "application/manifest+json",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".webp": "image/webp",
+    ".ico": "image/x-icon",
+    ".woff2": "font/woff2",
+    ".woff": "font/woff",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+}
+
+_IMMUTABLE_PREFIX = "/_next/static/"
+
+
 class _Handler(SimpleHTTPRequestHandler):
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, **_MIME}
+    # この応答に付ける Cache-Control（静的ファイルの応答だけ。/auth/callback は自分で付ける）。
+    _cache_control: Optional[str] = None
+
     def do_GET(self) -> None:  # noqa: N802 — 基底の名前
         parts = urlsplit(self.path)
         if parts.path == AUTH_CALLBACK_PATH:
             self._auth_callback(parse_qs(parts.query))
             return
+        self._cache_control = self._cache_policy(parts.path)
         super().do_GET()
+
+    def do_HEAD(self) -> None:  # noqa: N802 — 基底の名前
+        self._cache_control = self._cache_policy(urlsplit(self.path).path)
+        super().do_HEAD()
+
+    @staticmethod
+    def _cache_policy(path: str) -> str:
+        return "immutable" if path.startswith(_IMMUTABLE_PREFIX) else "no-cache"
+
+    def send_response(self, code: int, message: Optional[str] = None) -> None:
+        self._status = code
+        super().send_response(code, message)
+
+    def end_headers(self) -> None:
+        policy = self._cache_control
+        if policy:
+            # 長く持たせるのは中身のある応答だけ（404 を1年覚えさせない）。
+            if policy == "immutable" and getattr(self, "_status", 0) == 200:
+                self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+            else:
+                self.send_header("Cache-Control", "no-cache")
+            self._cache_control = None
+        super().end_headers()
 
     def _auth_callback(self, query: dict) -> None:
         def first(key: str) -> str:
@@ -111,27 +168,27 @@ class _Handler(SimpleHTTPRequestHandler):
         if code and delivered:
             body = _page(
                 "ログインが完了しました",
-                "このタブを閉じて、NeuroSync 測定アプリの画面に戻ってください。",
+                "このタブを閉じて、NeuroSync アプリの画面に戻ってください。",
                 "You're logged in",
-                "Close this tab and go back to the NeuroSync measuring app.",
+                "Close this tab and go back to the NeuroSync app.",
             )
         elif code:
             # 画面が再接続すれば 2 分以内は届く（local_server.AUTH_RETAIN_SEC）ので、
             # 「失敗」とは言い切らない。
             body = _page(
                 "アプリの画面に戻ってください",
-                "測定アプリの画面とまだつながっていません。アプリに戻ってログインできていなければ、"
+                "NeuroSync アプリの画面とまだつながっていません。アプリに戻ってログインできていなければ、"
                 "「Googleでログイン」からもう一度お試しください。",
                 "Please go back to the app",
-                "The measuring app isn't connected yet. Go back to the app, and if you aren't logged in, "
+                "The NeuroSync app isn't connected yet. Go back to the app, and if you aren't logged in, "
                 "try “Log in with Google” again.",
             )
         else:
             body = _page(
                 "ログインできませんでした",
-                "NeuroSync 測定アプリの画面に戻って、もう一度お試しください。",
+                "NeuroSync アプリの画面に戻って、もう一度お試しください。",
                 "Couldn't log in",
-                "Go back to the NeuroSync measuring app and try again.",
+                "Go back to the NeuroSync app and try again.",
                 event.get("description", ""),
             )
         self.send_response(200)
@@ -161,12 +218,19 @@ class _Handler(SimpleHTTPRequestHandler):
         pass
 
 
+class _Server(ThreadingHTTPServer):
+    # Windows の SO_REUSEADDR は「使用中のポートにも重ねて bind できる」意味になる
+    # （HTTPServer の既定は有効）。それだと2つ目の起動が失敗せず、同じポートを
+    # 取り合ってしまうので、Windows では外す。
+    allow_reuse_address = sys.platform != "win32"
+
+
 def start(port: int, directory: str) -> ThreadingHTTPServer:
     """127.0.0.1:port で配信を開始する（デーモンスレッド）。
 
     ポートが塞がっているときの OSError はそのまま投げる——既に別インスタンスが
     動いている合図で、呼び出し側（desktop_app）がダイアログを出して終了する。
     """
-    server = ThreadingHTTPServer(("127.0.0.1", port), partial(_Handler, directory=directory))
+    server = _Server(("127.0.0.1", port), partial(_Handler, directory=directory))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server

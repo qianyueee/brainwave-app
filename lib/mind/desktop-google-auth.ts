@@ -1,29 +1,48 @@
 import { supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase";
 import type { LocalizedText } from "@/lib/i18n";
+import { IS_ANDROID_APP } from "@/lib/platform";
 import { useDesktopBridgeStore } from "@/store/useDesktopBridgeStore";
 import { useDesktopLoginStore } from "@/store/useDesktopLoginStore";
 import type { DesktopAuthCallback } from "./desktop-bridge";
 
 /**
- * デスクトップ測定アプリの Google ログイン（ネイティブアプリ向けの定石＝
- * RFC 8252 の「既定のブラウザ＋ループバック＋PKCE」）。
+ * ネイティブアプリの Google ログイン（RFC 8252 の定石＝「既定のブラウザ＋PKCE」）。
+ * デスクトップ測定アプリと Android アプリが使う。違うのは「どう戻ってくるか」だけ：
  *
- * Google はアプリに埋め込まれた WebView の中でのログインを拒むので、ログイン
- * ページは既定のブラウザで開く（window.open → pywebview がブラウザへ回す）。
- * 終わると Supabase がそのブラウザを測定アプリの HTTP サーバ
- * （http://127.0.0.1:17860/auth/callback、state.authCallbackUrl）へ戻し、Python が
- * code をローカル WS でこの画面へ渡す（bridge/static_server.py → local_server.py）。
- * 画面は、最初に作っておいた verifier と code を引き換えてセッションを得る。
+ * - デスクトップ：ログインページは既定のブラウザで開く（window.open → pywebview が
+ *   ブラウザへ回す）。終わると Supabase がそのブラウザを測定アプリの HTTP サーバ
+ *   （http://127.0.0.1:17860/auth/callback、state.authCallbackUrl）へ戻し、Python が
+ *   code をローカル WS でこの画面へ渡す（bridge/static_server.py → local_server.py）。
+ * - Android：Custom Tab（@capacitor/browser）で開き、Supabase が
+ *   ANDROID_GOOGLE_REDIRECT（アプリの独自スキーム）へ戻す。Android がアプリを
+ *   前面に戻し、appUrlOpen で code が届く（lib/native/android-google-auth.ts）。
  *
- * - verifier はこの画面の中（sessionStorage）にしか無いので、途中で code を見た
- *   ほかのプログラムがあっても、それだけではログインできない。1回使ったら捨てる。
+ * Google はアプリに埋め込まれた WebView の中でのログインを拒むので、どちらも
+ * ログインページは外のブラウザで開く。画面は、最初に作っておいた verifier と code を
+ * 引き換えてセッションを得る。
+ *
+ * - verifier はこの画面の中にしか無いので、途中で code を見たほかのプログラムが
+ *   あっても、それだけではログインできない。1回使ったら捨てる。デスクトップは
+ *   sessionStorage、Android は localStorage に置く——Custom Tab が前面にいる間に
+ *   Android がアプリのプロセスを片付けることがあり、sessionStorage だと戻ってきた
+ *   ときに消えている。
  * - アプリ全体の supabase クライアントは implicit フローのまま——Web 版の Google
  *   ログインや、メールの確認リンクの動きは変えない。ここだけ PKCE の交換を
  *   GoTrue の API へ直接頼む（auth-js の exchangeCodeForSession と同じ呼び方）。
  * - Supabase 側の flow state は /authorize から5分で切れる。
  */
 
+/**
+ * Android アプリの戻り先。Supabase の Redirect URLs に登録しておくこと
+ * （android/app/src/main/AndroidManifest.xml の intent-filter と対）。
+ */
+export const ANDROID_GOOGLE_REDIRECT = "io.github.qianyueee.neurosync://auth/callback";
+
 const PENDING_KEY = "desktop-google-login";
+
+function pendingStorage(): Storage {
+  return IS_ANDROID_APP ? localStorage : sessionStorage;
+}
 /** GoTrue の flow state の寿命（/authorize から）。 */
 export const DESKTOP_LOGIN_TTL_MS = 5 * 60_000;
 
@@ -49,7 +68,7 @@ interface Pending {
   startedAt: number;
 }
 
-// sessionStorage が使えない環境の控え（同じ画面の中でしか使わない）。
+// Storage が使えない環境の控え（同じ画面の中でしか使わない）。
 let pendingInMemory: Pending | null = null;
 
 function base64url(bytes: Uint8Array): string {
@@ -61,11 +80,13 @@ function base64url(bytes: Uint8Array): string {
 /**
  * ログインページの URL と verifier を用意する。ボタンを押す前（ダイアログを
  * 開いたとき）に済ませておく——押した瞬間に同期で window.open しないと、
- * ブラウザによってはポップアップとして止められる。測定アプリと繋がっていない
- * （戻り先が分からない）・アカウント機能の無いビルドでは null。
+ * ブラウザによってはポップアップとして止められる。戻り先が分からない
+ * （デスクトップで測定アプリと繋がっていない）・アカウント機能の無いビルドでは null。
  */
 export async function prepareDesktopGoogleLogin(): Promise<PreparedGoogleLogin | null> {
-  const callback = useDesktopBridgeStore.getState().state?.authCallbackUrl;
+  const callback = IS_ANDROID_APP
+    ? ANDROID_GOOGLE_REDIRECT
+    : useDesktopBridgeStore.getState().state?.authCallbackUrl;
   if (!SUPABASE_URL || !callback || typeof crypto === "undefined" || !crypto.subtle) return null;
   const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
@@ -78,23 +99,30 @@ export async function prepareDesktopGoogleLogin(): Promise<PreparedGoogleLogin |
   return { url: `${SUPABASE_URL}/auth/v1/authorize?${params.toString()}`, verifier };
 }
 
-/** ボタンを押したとき（同期）：戻りを待つ状態にして、既定のブラウザでログインページを開く。 */
-export function beginDesktopGoogleLogin(prepared: PreparedGoogleLogin): void {
+/**
+ * ボタンを押したとき（同期）：戻りを待つ状態にして、ログインページを開く。
+ * 開き方の既定は window.open（デスクトップ＝既定のブラウザ）。Android は Custom Tab
+ * で開く関数を渡す。
+ */
+export function beginDesktopGoogleLogin(
+  prepared: PreparedGoogleLogin,
+  open: (url: string) => void = (url) => void window.open(url, "_blank")
+): void {
   const pending: Pending = { verifier: prepared.verifier, startedAt: Date.now() };
   pendingInMemory = pending;
   try {
-    sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+    pendingStorage().setItem(PENDING_KEY, JSON.stringify(pending));
   } catch {
     // 使えなくてもメモリの控えで足りる
   }
   useDesktopLoginStore.getState().setWaiting(prepared.url);
-  window.open(prepared.url, "_blank");
+  open(prepared.url);
 }
 
 function clearPending(): void {
   pendingInMemory = null;
   try {
-    sessionStorage.removeItem(PENDING_KEY);
+    pendingStorage().removeItem(PENDING_KEY);
   } catch {
     // noop
   }
@@ -109,7 +137,7 @@ export function cancelDesktopGoogleLogin(): void {
 function takePending(): Pending | null {
   let pending = pendingInMemory;
   try {
-    const raw = sessionStorage.getItem(PENDING_KEY);
+    const raw = pendingStorage().getItem(PENDING_KEY);
     if (raw) pending = JSON.parse(raw) as Pending;
   } catch {
     // noop
@@ -130,9 +158,10 @@ function describeError(ev: DesktopAuthCallback): LocalizedText {
 }
 
 /**
- * ローカル WS から Google ログインの戻りが届いたとき（/desktop のページが常時
- * 購読している）。待っているログインが無ければ何もしない——別の画面が始めた
- * もの、もう使ったもの、よそから差し込まれたものは受け付けない。
+ * Google ログインの戻りが届いたとき（デスクトップ＝ローカル WS、/desktop のページが
+ * 常時購読／Android＝appUrlOpen、lib/native/android-google-auth.ts が起動時から
+ * 購読）。待っているログインが無ければ何もしない——別の画面が始めたもの、もう
+ * 使ったもの、よそから差し込まれたものは受け付けない。
  */
 export async function completeDesktopGoogleLogin(ev: DesktopAuthCallback): Promise<void> {
   const pending = takePending();

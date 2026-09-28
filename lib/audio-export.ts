@@ -6,6 +6,7 @@ import { getAudioBlob } from "./custom-audio-db";
 import { ensureBlobCached } from "./sync/custom-audios";
 import { useCustomAudioStore } from "@/store/useCustomAudioStore";
 import { getLocale, translator } from "./i18n";
+import { IS_ANDROID_APP } from "./platform";
 
 // --- Types ---
 
@@ -489,7 +490,23 @@ function floatTo16BitPCM(float32: Float32Array): Int16Array {
 
 // --- Download ---
 
-export function downloadBlob(blob: Blob, filename: string): void {
+/**
+ * ファイルとして保存する（ブラウザのダウンロード）。Android アプリの WebView は
+ * blob: の <a download> を保存できないので、端末の「ダウンロード」フォルダへ
+ * ネイティブで書く（lib/native/downloads.ts）——保存し終えてから resolve する。
+ *
+ * blob: の URL は1分置いてから捨てる。Windows アプリ（WebView2）はダウンロードの
+ * 始まりで「名前を付けて保存」を開いて待つ——Chromium は読み始めた blob を URL と
+ * 別に握っているので捨てても保存できるはずだが、確かめられない実機の都合に賭けない。
+ */
+export async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+  if (IS_ANDROID_APP) {
+    const native = await import("./native/downloads");
+    if (native.canSaveToDownloads()) {
+      await native.saveBlobToDownloads(blob, filename);
+      return;
+    }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -497,7 +514,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 // --- High-level export orchestrators ---
@@ -527,10 +544,10 @@ export async function exportBinaural(options: {
     const ext = format === "wav" ? "wav" : "mp3";
     // ファイル名もいまの表示言語の名前で（英語の画面なら Reset & Deep → Reset___Deep）。
     const safeName = programName(program, getLocale()).replace(
-      /[^\w\u3000-\u9fff\u30a0-\u30ff\u3040-\u309f]/g,
+      /[^\w　-鿿゠-ヿ぀-ゟ]/g,
       "_"
     );
-    downloadBlob(blob, `${safeName}_${duration}s.${ext}`);
+    await downloadBlob(blob, `${safeName}_${duration}s.${ext}`);
 
     onProgress({ status: "done" });
   } catch (err) {
@@ -568,7 +585,7 @@ export async function exportSynth(options: {
       : await encodeMp3(buffer);
 
     const ext = format === "wav" ? "wav" : "mp3";
-    downloadBlob(blob, `synth_export_${duration}s.${ext}`);
+    await downloadBlob(blob, `synth_export_${duration}s.${ext}`);
 
     onProgress({ status: "done" });
   } catch (err) {

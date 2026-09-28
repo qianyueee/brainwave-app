@@ -12,7 +12,9 @@ import { useDesktopBridgeStore } from "@/store/useDesktopBridgeStore";
  *
  * 接続先は `ws://127.0.0.1:{port}`。ポートはページ URL の `?ws=`（desktop_app が
  * ウィンドウを開くときに実ポートを埋める）、無ければ既定の 17861（`pnpm dev` で
- * `--no-window` サーバへ繋ぐ開発フロー）。
+ * `--no-window` サーバへ繋ぐ開発フロー）。`?ws=` が付くのは最初に開くページだけ
+ * （Windows アプリはそこから画面を移る）なので、読んだ値は sessionStorage に控え、
+ * 読み込み直した後もつなぎ直した後も同じポートへ行く。
  */
 
 export interface DesktopPortInfo {
@@ -70,13 +72,30 @@ let retryTimer: ReturnType<typeof setTimeout> | null = null;
 const sampleListeners = new Set<(s: EegSample) => void>();
 const authListeners = new Set<(ev: DesktopAuthCallback) => void>();
 
-function wsUrl(): string {
-  let port = DEFAULT_WS_PORT;
-  if (typeof location !== "undefined") {
-    const q = new URLSearchParams(location.search).get("ws");
-    if (q && /^\d+$/.test(q)) port = Number(q);
+const WS_PORT_KEY = "desktop-ws-port";
+
+function wsPort(): number {
+  if (typeof location === "undefined") return DEFAULT_WS_PORT;
+  const q = new URLSearchParams(location.search).get("ws");
+  if (q && /^\d+$/.test(q)) {
+    try {
+      sessionStorage.setItem(WS_PORT_KEY, q);
+    } catch {
+      // 控えられなくても、このページのうちは URL から読める
+    }
+    return Number(q);
   }
-  return `ws://127.0.0.1:${port}`;
+  try {
+    const saved = sessionStorage.getItem(WS_PORT_KEY);
+    if (saved && /^\d+$/.test(saved)) return Number(saved);
+  } catch {
+    // 既定のポートへ
+  }
+  return DEFAULT_WS_PORT;
+}
+
+function wsUrl(): string {
+  return `ws://127.0.0.1:${wsPort()}`;
 }
 
 function connect(): void {
@@ -179,7 +198,7 @@ export function subscribeDesktopSamples(fn: (s: EegSample) => void): () => void 
   };
 }
 
-/** Google ログインの戻りを受け取る（/desktop のページが常時購読する）。 */
+/** Google ログインの戻りを受け取る（Windows アプリは DesktopAppShell、旧い /desktop はそのページが常時購読する）。 */
 export function subscribeDesktopAuthCallbacks(fn: (ev: DesktopAuthCallback) => void): () => void {
   authListeners.add(fn);
   return () => {

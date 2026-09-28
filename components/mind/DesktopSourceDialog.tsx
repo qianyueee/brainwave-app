@@ -8,7 +8,8 @@ import { sendDesktopCommand } from "@/lib/mind/desktop-bridge";
 import { useT } from "@/lib/i18n";
 
 /**
- * 接続設定（デスクトップ測定アプリ /desktop 用）— SourceDialog の置き換え。
+ * 接続設定（Windows アプリの /brain と、旧いデスクトップ測定アプリの /desktop 用）
+ * — SourceDialog の置き換え。
  *
  * /brain の SourceDialog はペアリングコードを「見せる」だけ（つなぐ相手は
  * クラウドの向こうの PC ブリッジ）だが、ここでは自分自身が装置側なので、

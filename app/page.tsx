@@ -10,6 +10,7 @@ import { useRefreshAccountViewsOnMount } from "@/lib/sync/account-views";
 import { useT } from "@/lib/i18n";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
+import AccountSaveBanner from "@/components/AccountSaveBanner";
 
 /**
  * ホーム。上から Sync Tree の状態バー → 脳コンディション（測定3値＋毎日の
@@ -90,6 +91,9 @@ export default function HomePage() {
       />
 
       <PageColumn>
+      {/* ログインした端末に、アカウントへまだ保存していない記録があれば尋ねる（無ければ何も出ない）。 */}
+      <AccountSaveBanner />
+
       {/* モバイルは1カラムで Sync Tree → 脳コンディション → 星空。
           デスクトップは 左（Tree＋コンディション）｜右（星空）の2カラムで、
           DOM 順のまま行列を明示指定している（order だけではグリッドが行方向に

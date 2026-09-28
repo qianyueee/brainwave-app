@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <!-- fontScale / fontWeightAdjustment（太字）も自前で受ける
+             （MainActivity.onConfigurationChanged）：文字の設定を変えるたびに Activity を
+             作り直すと、WebView ごと読み直して再生や測定が止まる。Chrome は止まらない。 -->
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density|fontScale|fontWeightAdjustment"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Google ログインの戻り（Supabase → io.github.qianyueee.neurosync://auth/callback）。
+                 lib/mind/desktop-google-auth.ts の ANDROID_GOOGLE_REDIRECT と対。Supabase の
+                 Redirect URLs にも同じ URL を登録しておくこと。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="auth"
+                    android:path="/callback"
+                    android:scheme="io.github.qianyueee.neurosync" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- 再生中だけ動く前面サービス（通知・ロック画面の再生／一時停止と、画面を
+             消しても再生が止まらないこと）。NowPlayingService.java 参照。 -->
+        <service
+            android:name=".NowPlayingService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            android:stopWithTask="true" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 通信の回復（online イベント）を WebView に届ける。アカウント同期の送信箱
+         （lib/sync/outbox.ts）が再送のきっかけに使う。 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 後台再生（NowPlayingService）。メディアの通知は Android 13+ の通知許可の
+         対象外なので POST_NOTIFICATIONS は要らない。 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- 書き出したファイルを「ダウンロード」へ（DownloadsPlugin）。Android 10+ は
+         MediaStore で許可不要、9 以前だけ要る（Chrome も同じ許可を求める）。 -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- BrainLink（Bluetooth Classic の SPP）を直接読む（BrainLinkPlugin）。
+         Android 12+：「付近のデバイス」＝ CONNECT（接続・ペアリング済み一覧）と
+         SCAN（近くの機器を探す。位置の推定には使わない）。
+         Android 11 以前：BLUETOOTH / ADMIN は自動で付き、探すときだけ位置情報の許可が要る。 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="30" />
+    <!-- Bluetooth の無い端末にも入れられる（Sync Brain 以外は使える）。 -->
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
+</manifest>
