@@ -24,7 +24,7 @@ export default function Mixer() {
   const t = useT();
 
   const isCustom = isCustomProgramId(programId);
-  // Only the zodiac programs ship a music bed; the built-ins stay pure tone.
+  // Every built-in and catalog program ships a music bed; custom ones don't.
   const hasMusic = hasMusicBed(programId);
 
   const handleBeatVolume = (e: React.ChangeEvent<HTMLInputElement>) => {

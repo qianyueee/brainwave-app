@@ -54,11 +54,6 @@ export interface ProgramConfig {
   subGenreEn?: string;
   /** 英語原題。プレイヤーの副題と検索に使う。 */
   titleEn?: string;
-  /**
-   * 音楽ベッドの mp3 がまだ無い。誘導ビートは BinauralSession が実時間合成する
-   * ので再生自体は通常どおりできる——伴奏が付かないだけ。
-   */
-  audioPending?: boolean;
   /** 周波数が一覧 xlsx 未取り込みの暫定値であることの印。 */
   paramsProvisional?: boolean;
   /**
@@ -239,7 +234,6 @@ const morningTuning: ProgramConfig = {
   defaultDuration: 10 * 60,
   targetBeatFreq: 14.0,
   paramsProvisional: true,
-  audioPending: true,
   phases: [
     {
       name: "導入",

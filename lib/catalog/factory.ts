@@ -45,9 +45,6 @@ export interface CatalogEntry {
 }
 
 /**
- * カタログ節目はいまのところ全件が mp3 未納品（audioPending）。誘導ビートは
- * BinauralSession が実時間合成するので、再生自体は最後まで通常どおりできる。
- *
  * 周波数は既定で暫定値（paramsProvisional）だが、params.generated.ts に id が
  * 載っている＝一覧 xlsx から取り込み済みの節目はそちらが勝ち、印も外れる。
  */
@@ -77,7 +74,6 @@ export function createCatalogProgram(e: CatalogEntry): ProgramConfig {
     targetBeatFreq,
     phases,
     keywords: e.keywords,
-    audioPending: true,
     ...(confirmed ? {} : { paramsProvisional: true as const }),
   };
 }

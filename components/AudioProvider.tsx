@@ -367,13 +367,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Zodiac and the three built-in programs carry a music bed; the beat
+      // Every built-in and catalog program carries a music bed; the beat
       // above it is still the synthesised one, since the tracks hold no
       // entrainment themselves.
       const musicUrl = musicBedUrl(program.id);
       if (musicUrl) {
         session.playMusicBed(musicUrl, musicVolume).catch((err) => {
-          console.error("[audio-provider] zodiac music bed failed:", err);
+          console.error("[audio-provider] music bed failed:", err);
         });
       }
 

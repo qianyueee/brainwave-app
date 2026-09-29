@@ -41,8 +41,9 @@ export default function ProgramCard({ program, breathe = true }: ProgramCardProp
 
   const adjusted = getAdjustedProgram(program.id, profile?.indicators ?? null);
   const isPersonalized = adjusted && adjusted.defaultDuration !== program.defaultDuration;
-  // 音楽ベッド未納品の印。カタログ節目だけに出す（内蔵3つと星座は曲があり、
-  // 曲を持たない合成器の節目にこの説明は要らない）。
+  // 音楽ベッドの無い節目の印。いまは全件に曲があるので出ないが、節目を足して
+  // 曲が届く前（lib/catalog/music.ts に載る前）はこれが付く。カタログ節目だけに
+  // 出す（曲を持たない合成器の節目にこの説明は要らない）。
   const beatOnly = !!program.category && !hasMusicBed(program.id);
 
   const handleClick = () => playProgram(program);

@@ -79,10 +79,11 @@ brainwave-app/
 │   │   ├── search.ts           # NFKC＋小文字化＋カタカナ→ひらがな＋記号落とし。クエリは空白区切りの全トークン一致（AND）
 │   │   ├── categories.ts       # タブの名前・順・説明
 │   │   ├── invariants.ts       # 開発時のみ走る自己点検（相位名「導入」／duration 一致／id 重複／載波上限／暫定ビートの語彙）。テストランナーが無いのでここが唯一の番人
+│   │   ├── music.ts            # Target/Energy の曲の表（id → brainwave-sounds 内のパス。ファイル名は納品時のまま＝id から導けないので1件ずつ）。値だけ・import なし
 │   │   └── params.generated.ts # ⚠ 生成物。`scripts/import-program-xlsx.mjs` が書く。直接編集しない
 │   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（モジュール合成：載波=自星座固定、差频按四标签×情境可变——活性=太阳40/月20Hz、フロー=太阳12/月10Hz、バランス=平日14/休日夜间7.83Hz、回復=傍晚6/深夜4/月在魚座2Hz；48条 §6 メッセージ模板；优先级 healing→activation→flow→balance，火×地/風×水归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
-│   ├── zodiac-audio.ts         # 音乐床垫映射（program id → public/sounds/zodiac/<key>-b<beat>.mp3；缺失差频就近取用）。カタログ節目（Target/Energy）と morning-tuning はまだ曲が無いので `musicBedUrl` が null を返し、`hasMusicBed` はそのまま**嘘をつかない**——Mixer の音楽スライダーは出ず、カードに「ビートのみ」が付く
+│   ├── zodiac-audio.ts         # 音乐床垫映射（program id → brainwave-sounds 内のパス → `musicUrl`。星座＝`Astroプログラム/<星座> (<載波>Hz)_<TAG>_<beat>Hz.mp3`〔納品時の名前、空白の有無まで星座ごとに違うので表で持つ〕、デフォルト4＝表、Target/Energy＝`lib/catalog/music.ts`；缺失差频就近取用）。曲の無い id は `musicBedUrl` が null＝`hasMusicBed` が**嘘をつかない**——Mixer の音楽スライダーは出ず、カードに「ビートのみ」が付く
 │   ├── sync-tree.ts            # Sync Tree の成長モデル（**純関数・import なし**＝node で直接確かめられる）。ルール：水やり 1日1回 +1／プログラムを5分聴くごとに +2・1日 +5 まで（2+2+1）＝1日最大 +6／13 で次の段階（16段階、大樹＝195）／大樹から 7（計 202）で完成→植え替えで育てた木 +1。**状態は保存せず出来事（水やり・リスニング・植え替え）を畳む**（foldTreeEvents：時刻順・202 で頭打ち・植え替えは 202 のときだけ数える、完成日＝202 に届いた日。並べ替えは Date.parse——端末の `…Z` と DB の `…+00:00` が混ざる）。日付は treeDayKey（ローカル YYYY-MM-DD。dayKeyOf の0始まり月とは別物）。リスニング積算 trackListening（新しい再生の最初のサンプルは起点・巻き戻りは数えない・数えてよくない間は積まない・持ち主が替われば端数を捨てる）。growthLevel＝いまの区間（次の段階まで／大樹から完成まで）の進み具合を early/middle/near の3つにぼかす——画面は数値の代わりにこれで言葉を選ぶ。**点数は行に持たずここで決める**——定数を変えると過去の木も数え直される。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure＝樹本体／SyncTreeScene＝空に立つ樹の風景、/tree の大きな木が使う／treeCanopy＝しずくを落とす樹冠，手描きの光の樹）；/tree の大きな木の背景为四态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_SUNRISE/NOON/DUSK/NIGHT：day=日の出の淡桃〜珊瑚、afternoon=真昼のミント、evening=宵の淡紫、midnight=星空。明るい3つは**ページの色相をそのまま**借り、中間の b をページ地に近い明るさに置く＝カードが地から生えて見える。朝と昼は明るさの段（0.91→0.5前後）も共通——差は色相だけが語る；宵はページ地そのものが一段暗いので段ごと下げる（0.80→0.42）。深い星空は真夜中だけ——ページも暗い時間帯なので、カードの明暗が替わるのはページと同じ 0時・6時。树本体配色不随主题变）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
 │   ├── journal.ts              # その日の振り返り（日誌）の語彙：5段階の調子 MOOD_SCALE（絵文字＋**必ず言葉も**——50〜60代には表情の描き分けが読み取りにくい）/ moodColor（token を返す。生の色名はテーマ4種のどれかで必ず浮く）/ JOURNAL_TEXT_MAX
@@ -100,7 +101,7 @@ brainwave-app/
 │   ├── mind/bluetooth-source.ts # BluetoothSource＝MindDataSource 第四の実装（Android の /brain 用）。繋がっている→onStatus("connected")、6秒以内にサンプル→onBridgeOnline——LocalSource と同じ写し方
 │   ├── desktop.ts              # isDesktopRoute()：/desktop で BottomNav・SideNav・MiniPlayer・ランチャー溝（PageColumn）を消す**唯一の判定**。ビルドフラグでなく pathname なので dev/Pages/同梱ビルドで挙動が同じ。WEB_APP_URL（「Web版で記録を見る」の先、NEXT_PUBLIC_WEB_APP_URL で上書き可）。desktopFullAppSince（Windows アプリが完全版として初めて開いた時刻、素の localStorage `desktop-full-app-since`。これより前の宛先未定の測定＝旧い測定アプリの自動保存の約束で溜まった分だけを AccountSaveBanner が尋ねる）
 │   ├── platform.ts             # IS_ANDROID_APP / IS_DESKTOP_APP：Android アプリ／Windows アプリのビルドか（**ビルド時の定数**、NEXT_PUBLIC_APP_PLATFORM=android|desktop を build-android.mjs / build-desktop.mjs だけが焼き込む）。静的 HTML もこれで描かれるのでハイドレーションが一致する
-│   ├── sounds.ts               # `/sounds/*` の置き場所（soundUrl）。Web 版は同じ origin、Android と Windows は NEXT_PUBLIC_SOUNDS_BASE＝Web 版（GitHub Pages）から取る（APK・exe に 300MB を入れない）
+│   ├── sounds.ts               # 音源の置き場所は2つ：`soundUrl`＝このリポジトリの `/sounds/*`（自然音。Web 版は同じ origin、Android と Windows は NEXT_PUBLIC_SOUNDS_BASE＝Web 版の GitHub Pages）／`musicUrl`＝プログラムの曲、別リポジトリ qianyueee/brainwave-sounds の GitHub Pages（`MUSIC_BASE`、NEXT_PUBLIC_MUSIC_BASE で上書き可。三端とも同じ URL、パスは区切りごとに URL エンコード）
 │   ├── native/                 # Android アプリの Capacitor 側（**ここ以外で @capacitor/* と lib/native/ を静的 import しない**、ESLint が禁止。外からは IS_ANDROID_APP の中で動的 import()）：android-shell（バー色・戻る・ログインの戻り）/ app-chrome（バー色・画面常時点灯）/ now-playing（後台再生・ロック画面）/ downloads（「ダウンロード」へ保存）/ android-google-auth（Custom Tab＋appUrlOpen）/ brainlink（Bluetooth のバイトの管）＋ brainlink-web（ブラウザ開発用の替え玉）
 │   ├── sync/                   # アカウント同期（下の「アカウント同期」）：brain-profile.ts / baseline-checks.ts＝1記録1行の API（keyset ページング・必ず user_id で絞る）／cloud-mark.ts＝記録に付ける宛先・保存済みの印（純関数）／outbox.ts＝送信箱（全体で1つ、AuthProvider が起動）／account-views.ts＝Web の読み直し（木も）／tree-events.ts＝Sync Tree の出来事の API（1件1行・追記のみ・ignoreDuplicates）／tree-runtime.ts＝木の常駐処理（リスニング積算＋送信のやり直し、AuthProvider が起動・/desktop では起動しない）／**record-merge.ts**＝端末をまたぐ小さな記録（振り返り・再生の記録・感コンディション・測定者・マイ星座）の合わせ方（純関数・型以外 import しない＝`pnpm check:records` が node で直接確かめる）／**records.ts**＝`user_records` の API（keyset・chunk upsert）／**record-sender.ts**＝その送信係と読み直し（共通の送信箱には乗せない、AuthProvider が起動・/desktop では起動しない）／per-user-storage.ts・migrate.ts・presets.ts・programs.ts・custom-audios.ts は従来どおり
 │   ├── subject-groups.ts      # 測定者→記録 二段下拉的纯函数（subjectGroups / matchesSubject / resolveSubjectKey；ALL_SUBJECTS / NO_SUBJECT 哨兵值）
@@ -130,8 +131,8 @@ brainwave-app/
 ├── android/                    # Capacitor の Android プロジェクト（Java、コミットする）。自前のプラグイン：AppChrome / NowPlaying（＋前面サービス）/ Downloads / BrainLink、WebView の補い：ExportRouteWebViewClient（/brain → brain.html）/ LocalizedChromeClient。配布・署名鍵・確認リストは android/README.md
 ├── supabase/migrations/        # 手で SQL Editor に流す（CLI 設定なし）。001 管理者・グループ／002 ユーザー同期（旧 user_brain_profile＝1ユーザー1 JSONB）／**003 account_sync＝1記録1行の user_brain_measurements・user_baseline_checks＋旧表から移行＋旧表を読み取り・削除専用に**／**004 sync_tree＝Sync Tree の出来事 user_tree_events（1件1行・追記のみ。キーの形で1日の上限を守る）**／**005 user_records＝端末をまたぐ小さな記録（振り返り・再生の記録・感コンディション・測定者・マイ星座）の汎用表（新しい方が勝つトリガ・墓標・本人の行だけ）**
 ├── scripts/import-program-xlsx.mjs # 一覧 xlsx → `lib/catalog/params.generated.ts`。**必ず `--inspect <file>` を先に**走らせて見出しの対応を確かめ、必要なら HEADER_SYNONYMS に足してから `--in <file>`。出力するのは周波数と尺だけ——名前・よみ・アイコン・並びは人が決めたものなので取り込みで消さない。突き合わせは名前（id は xlsx に無く、しかも localStorage に残る利用者の選択そのものなので機械に振り直させない）
-├── public/sounds/              # 自然音素材
-│   └── zodiac/                 # 96 首星座音乐（12星座×8差频，128kbps 立体声，已去封面图，共 284MB）
+├── public/sounds/              # 自然音素材（rain/ocean/forest/stream）
+│   └── zodiac/ ・ programs/    # ⚠ もう読まない旧い置き場（曲は brainwave-sounds へ移った）。配布済みの旧い APK・exe がまだここを読むので残してある——全員が新しい版になったら消してよい（消しても git の履歴は軽くならない、軽くなるのは Pages だけ）
 └── zodiac-music/               # 星座音乐素材说明（README；原始 190kbps 版本只存在于 `zodiac-music` 分支，不合并进 main）
 ```
 
@@ -150,13 +151,14 @@ brainwave-app/
 
 ### 星座音乐（音楽ベッド）
 
-- 96 首（12星座 × 8差频）放在 `public/sounds/zodiac/<key>-b<beat>.mp3`，由 `lib/zodiac-audio.ts` 的 `musicBedUrl(programId)` 解析（`zodiac-<key>` 走自星座差频，`zodiac-<key>-b<beat>` 走模块差频）；**三大基础程序也各有专属曲**（Suno 生成）放在 `public/sounds/programs/<节目id>.mp3`，同一 resolver 优先命中。`hasMusicBed(programId)` 门控 Mixer 音乐滑块，标签对星座节目为「星座ミュージック」、对基础程序为「ミュージック」
-- **曲の無い節目があってよい**——Target 42・Energy 13・morning-tuning の 56 件は曲が未納品。誘導ビートは `BinauralSession` が実時間合成するので、これらも最後まで通常どおり再生でき、欠けるのは伴奏だけ。カードには「ビートのみ」と出す（「準備中」とは書かない——鳴るのだから使える）。`musicBedUrl` が null を返すので Mixer の音楽スライダーも自動で消える
-- 曲が届いたら：`public/sounds/<category>/<プログラムid>.mp3` に置き、`musicBedUrl` にその分岐を1本足すだけ。ただし**置く前にリポジトリの重さを決めること**——パックは既に 303MiB、Git LFS 無し、静的導出なので mp3 は全部 GitHub Pages に載る。56 件を既存の平均で足すと約 +170MB（GitHub Pages の公開サイト上限 1GB に近づく）。選択肢は ①新規分を 96kbps モノラルに落とす（合成ビートの下に敷く伴奏なので実用上充分）②そのまま入れて次回に持ち越す ③Git LFS（`.gitattributes` と CI の `lfs: true` が要る）④外部ホスト（オフラインと `/desktop` が壊れるので不可）
+- **曲は全部、別リポジトリ [qianyueee/brainwave-sounds](https://github.com/qianyueee/brainwave-sounds) の GitHub Pages**（`https://qianyueee.github.io/brainwave-sounds/`、main の / を配信）。このリポジトリは Git LFS 無しでパックが既に 303MiB、Pages も 1GB が上限なので、曲の重さをここの履歴と Pages から切り離した。155 曲＝星座 96（`Astroプログラム/`）＋デフォルト 4（`デフォルトプログラム/`）＋Target 42（`Targetプログラム/`）＋Energy 13（`Energyプログラム/`）、計 約500MB。**ファイル名は納品時のまま**（日本語・空白・括弧入り）——`lib/sounds.ts` の `musicUrl` が区切りごとに URL エンコードする。Web 版とは origin が同じ（qianyueee.github.io）、Android・Windows からは ACAO:* で通るので、三端とも同じ URL から取る
+- 規格は全曲そろえてある：**MP3 128kbps CBR・48kHz・ステレオ・カバー画像なし**（ラウドネスは星座曲で約 -14 LUFS）。単声道には落とさない——星座曲は左右の相関 0.35〜0.86 の本物のステレオで、モノラルにすると明らかに狭くなる
+- 解決は `lib/zodiac-audio.ts` の `musicBedUrl(programId)` の1本（`zodiac-<key>` は自星座差频、`zodiac-<key>-b<beat>` は模块差频；デフォルト4は表、Target/Energy は `lib/catalog/music.ts`）。`hasMusicBed(programId)` 门控 Mixer 音乐滑块，标签对星座节目为「星座ミュージック」、其余为「ミュージック」。**曲を足す・差し替える**＝brainwave-sounds に置いて（差し替えは同じ名前で上書き）、新しい id ならその表に1行足す。名前を変えたら表も直す（`musicBedUrl` は存在を確かめないので、表と実物がずれると 404＝伴奏だけ鳴らない）。表を変えたら Android の APK・Windows の exe は作り直しが要る（表はバンドルに焼き込まれる）
+- **曲の無い節目があってよい**——誘導ビートは `BinauralSession` が実時間合成するので、表に無い節目も最後まで通常どおり再生でき、欠けるのは伴奏だけ。カードには「ビートのみ」と出す（「準備中」とは書かない——鳴るのだから使える）。`musicBedUrl` が null を返すので Mixer の音楽スライダーも自動で消える。いまは 169 件すべてに曲がある
 - **这些音频里没有任何诱导成分**（经三项检测：左右声道无频率差、包络无差频调制、无差频纯音）。它们是围绕载波频率做的音乐，文件名里的 `_40Hz` 只是标记所属节目。因此诱导仍由 `BinauralSession` 实时合成，音乐只作为**伴奏铺在节拍下面**循环播放（曲长 1〜8 分钟，平均 3 分，对 15 分钟节目）
-- 音量独立于自然音：`useAppStore.musicVolume`（默认 0.6）→ `BinauralSession.playMusicBed / setMusicVolume`（内部第二个 `NaturePlayer` 实例，与自然音互不干扰，可同时开）；Mixer 在有音乐床垫的节目（星座＋三大基础）显示音乐滑块
+- 音量独立于自然音：`useAppStore.musicVolume`（默认 0.6）→ `BinauralSession.playMusicBed / setMusicVolume`（内部第二个 `NaturePlayer` 实例，与自然音互不干扰，可同时开）；Mixer 在有音乐床垫的节目（カスタム以外の全部）显示音乐滑块
 - 缺失差频就近取用（只换伴奏，合成的诱导差频不变）：4Hz 未交付 → 2Hz（2/6 等距，取更深的）；獅子座自星座 15Hz → 14Hz；天秤座 8Hz → 7.83Hz
-- 若日后补齐 4Hz，把文件放进 `public/sounds/zodiac/` 并在 `AVAILABLE_BEATS` 加上 4 即可，其余逻辑无需改动
+- 若日后补齐 4Hz，把文件以同样的命名（`…_TAG_HEALING (6Hz_4Hz_2Hz)_4Hz.mp3`）放进 brainwave-sounds 的 `Astroプログラム/`，在 `lib/zodiac-audio.ts` 的 `AVAILABLE_BEATS` 与 `ZODIAC_TAG_BY_BEAT` 各加上 4 即可
 
 ### 表示言語（日本語／英語）
 
@@ -435,7 +437,7 @@ BrainLink ─RFCOMM(SPP)─> BrainLinkPlugin（Java：バイトを約50msごと�
     ページ＝ブラウザと同じ。共有 CSS に safe-area は要らない）
   - 文字サイズ（fontScale に追従、Activity は作り直さない）・ピンチズーム（zoomEnabled）・
     alert/confirm のボタン文言（端末の言語）・戻るキー（履歴を戻る、最初の画面では背面へ）
-- **音源は APK に入れない**：lib/sounds.ts の SOUNDS_BASE で Web 版（GitHub Pages、ACAO:*）から取る。
+- **音源は APK に入れない**：自然音は lib/sounds.ts の SOUNDS_BASE で Web 版（GitHub Pages、ACAO:*）から、プログラムの曲は MUSIC_BASE（brainwave-sounds の Pages）から取る。
 - **Sync Brain の接続（bluetooth-link.ts）**：sourceKind の "realtime" は「実機の脳波（経路は問わない）」
   のまま（/desktop と同じ）なので、canReceiveData・取り込み・アカウント保存の判定は Web 版と同じ。
   接続はページを離れても保つ（ブリッジが送り続けるのと同じ）、意図せず切れたら Sync Brain を開いている
@@ -475,7 +477,7 @@ BrainLink ─SPP(COM)─> desktop_bridge（Python：ThinkGear 解析・CSV）─
 - **旧い測定アプリからの引き継ぎ**：同じ profile なので端末の記録はそのまま見える。旧アプリが「測り終えたら自動で
   保存」の約束で溜めた宛先未定の測定だけは、完全版で初めて開いた時刻（desktopFullAppSince）より前の分に限って、
   ログイン後の AccountSaveBanner で一度だけ尋ねる。
-- **音源は exe に入れない**：lib/sounds.ts の SOUNDS_BASE で Web 版（GitHub Pages、ACAO:*）から取る。
+- **音源は exe に入れない**：自然音は lib/sounds.ts の SOUNDS_BASE で Web 版（GitHub Pages、ACAO:*）から、プログラムの曲は MUSIC_BASE（brainwave-sounds の Pages）から取る。
 - **既知の違い**：書き出しは「名前を付けて保存」が開く（Chrome はダウンロードバー）／キーボードのメディアキー・
   Windows のメディア操作は効かないことがある／ブラウザのショートカット（F5・Ctrl+F・Ctrl+プラスなど）は効かない
   （pywebview が WebView2 の AreBrowserAcceleratorKeysEnabled を切る）——拡大は Ctrl＋ホイールかピンチで。
@@ -519,7 +521,7 @@ BrainLink ─SPP(COM)─> desktop_bridge（Python：ThinkGear 解析・CSV）─
 
 ### 目录体系（Sync Session 的 4 个分类）
 
-`ProgramConfig` 上有一组**全部可选**的目录字段（`category` / `subGenre` / `titleEn` / `keywords` / `audioPending` / `paramsProvisional`）。做成可选字段而不是旁挂一张 meta 表，是因为所有消费端本来就经 `getProgramById` 拿到 `ProgramConfig`——放在对象上，一次查表就够，也不可能两边不同步。
+`ProgramConfig` 上有一组**全部可选**的目录字段（`category` / `subGenre` / `titleEn` / `keywords` / `paramsProvisional`）。做成可选字段而不是旁挂一张 meta 表，是因为所有消费端本来就经 `getProgramById` 拿到 `ProgramConfig`——放在对象上，一次查表就够，也不可能两边不同步。
 
 | 分类 | 来源 | 件数 | 备注 |
 |---|---|---|---|
