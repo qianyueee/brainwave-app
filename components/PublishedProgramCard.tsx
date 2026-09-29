@@ -14,11 +14,17 @@ interface PublishedProgramCardProps {
    * は管理者にとっても再生面なので、配信の操作はここには出さない。
    */
   manage?: boolean;
+  /**
+   * 呼吸アニメ（`breathe`、最大 104.5% の拡大縮小）。Sync Session の配信一覧は
+   * スクロールする枠の中に並ぶので false——膨らんだ分が枠で切れる。
+   */
+  breathe?: boolean;
 }
 
 export default function PublishedProgramCard({
   program,
   manage = false,
+  breathe = true,
 }: PublishedProgramCardProps) {
   const playProgram = usePlayProgram();
   const isAdmin = useAdminStore((s) => s.isAdmin);
@@ -41,7 +47,7 @@ export default function PublishedProgramCard({
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }}
-      className="w-full bg-surface border border-surface-border rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform breathe cursor-pointer"
+      className={`w-full bg-surface border border-surface-border rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform cursor-pointer${breathe ? " breathe" : ""}`}
     >
       <div className="w-14 h-14 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
         <Waves size={26} className="text-success" strokeWidth={1.5} />

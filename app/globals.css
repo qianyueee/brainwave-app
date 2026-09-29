@@ -352,6 +352,31 @@ input[type="range"]:disabled::-moz-range-thumb {
   animation-delay: var(--breathe-delay, 0s);
 }
 
+/* 細いスクロールバー：カードの中でスクロールする一覧用（Sync Session の配信
+   プログラム）。Chromium（Web・Android の WebView・Windows の WebView2）と Safari は
+   ::-webkit-scrollbar で幅 6px・角丸のつまみだけ（矢印ボタン無し）にする。
+   scrollbar-width / scrollbar-color は書かない——Chromium は標準の方があると
+   ::-webkit-scrollbar を無視し、thin でも上下に小さな矢印が残る。標準の方は
+   ::-webkit-scrollbar を持たない Firefox にだけ使う。つまみの色は時間帯のテーマに
+   付いていく text-muted。 */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--dyn-text-muted) 55%, transparent);
+  border-radius: 9999px;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--dyn-text-muted) 55%, transparent) transparent;
+  }
+}
+
 /* Stagger breathing for sibling cards */
 .breathe-stagger > .breathe:nth-of-type(1) { --breathe-delay: 0s; }
 .breathe-stagger > .breathe:nth-of-type(2) { --breathe-delay: 0.6s; }
