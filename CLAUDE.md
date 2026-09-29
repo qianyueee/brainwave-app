@@ -83,6 +83,7 @@ brainwave-app/
 │   │   └── params.generated.ts # ⚠ 生成物。`scripts/import-program-xlsx.mjs` が書く。直接編集しない
 │   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（モジュール合成：載波=自星座固定、差频按四标签×情境可变——活性=太阳40/月20Hz、フロー=太阳12/月10Hz、バランス=平日14/休日夜间7.83Hz、回復=傍晚6/深夜4/月在魚座2Hz；48条 §6 メッセージ模板；优先级 healing→activation→flow→balance，火×地/風×水归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
+│   ├── music-intro.ts          # セッションの始まり：ビートを曲の立ち上がりに合わせて一緒に強くする（**純関数・import なし**）。measureIntro＝曲の頭の盛り上がり（本体の音量に対する振幅比、累積最大）／beatStartCurve＝曲の聞こえ方（盛り上がり×音量の立ち上げ START_FADE_SEC=4 秒の二乗カーブ）をなぞるビートの曲線、MAX_FOLLOW_SEC=10 秒で必ず満量／MUSIC_WAIT_MS=2.5 秒＝ビートが曲を待つ上限。使い手は下の「星座音乐」参照
 │   ├── zodiac-audio.ts         # 音乐床垫映射（program id → brainwave-sounds 内のパス → `musicUrl`。星座＝`Astroプログラム/<星座> (<載波>Hz)_<TAG>_<beat>Hz.mp3`〔納品時の名前、空白の有無まで星座ごとに違うので表で持つ〕、デフォルト4＝表、Target/Energy＝`lib/catalog/music.ts`；缺失差频就近取用）。曲の無い id は `musicBedUrl` が null＝`hasMusicBed` が**嘘をつかない**——Mixer の音楽スライダーは出ず、カードに「ビートのみ」が付く
 │   ├── sync-tree.ts            # Sync Tree の成長モデル（**純関数・import なし**＝node で直接確かめられる）。ルール：水やり 1日1回 +1／プログラムを5分聴くごとに +2・1日 +5 まで（2+2+1）＝1日最大 +6／13 で次の段階（16段階、大樹＝195）／大樹から 7（計 202）で完成→植え替えで育てた木 +1。**状態は保存せず出来事（水やり・リスニング・植え替え）を畳む**（foldTreeEvents：時刻順・202 で頭打ち・植え替えは 202 のときだけ数える、完成日＝202 に届いた日。並べ替えは Date.parse——端末の `…Z` と DB の `…+00:00` が混ざる）。日付は treeDayKey（ローカル YYYY-MM-DD。dayKeyOf の0始まり月とは別物）。リスニング積算 trackListening（新しい再生の最初のサンプルは起点・巻き戻りは数えない・数えてよくない間は積まない・持ち主が替われば端数を捨てる）。growthLevel＝いまの区間（次の段階まで／大樹から完成まで）の進み具合を early/middle/near の3つにぼかす——画面は数値の代わりにこれで言葉を選ぶ。**点数は行に持たずここで決める**——定数を変えると過去の木も数え直される。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure＝樹本体／SyncTreeScene＝空に立つ樹の風景、/tree の大きな木が使う／treeCanopy＝しずくを落とす樹冠，手描きの光の樹）；/tree の大きな木の背景为四态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_SUNRISE/NOON/DUSK/NIGHT：day=日の出の淡桃〜珊瑚、afternoon=真昼のミント、evening=宵の淡紫、midnight=星空。明るい3つは**ページの色相をそのまま**借り、中間の b をページ地に近い明るさに置く＝カードが地から生えて見える。朝と昼は明るさの段（0.91→0.5前後）も共通——差は色相だけが語る；宵はページ地そのものが一段暗いので段ごと下げる（0.80→0.42）。深い星空は真夜中だけ——ページも暗い時間帯なので、カードの明暗が替わるのはページと同じ 0時・6時。树本体配色不随主题变）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
@@ -157,6 +158,8 @@ brainwave-app/
 - **曲の無い節目があってよい**——誘導ビートは `BinauralSession` が実時間合成するので、表に無い節目も最後まで通常どおり再生でき、欠けるのは伴奏だけ。カードには「ビートのみ」と出す（「準備中」とは書かない——鳴るのだから使える）。`musicBedUrl` が null を返すので Mixer の音楽スライダーも自動で消える。いまは 169 件すべてに曲がある
 - **这些音频里没有任何诱导成分**（经三项检测：左右声道无频率差、包络无差频调制、无差频纯音）。它们是围绕载波频率做的音乐，文件名里的 `_40Hz` 只是标记所属节目。因此诱导仍由 `BinauralSession` 实时合成，音乐只作为**伴奏铺在节拍下面**循环播放（曲长 1〜8 分钟，平均 3 分，对 15 分钟节目）
 - 音量独立于自然音：`useAppStore.musicVolume`（默认 0.6）→ `BinauralSession.playMusicBed / setMusicVolume`（内部第二个 `NaturePlayer` 实例，与自然音互不干扰，可同时开）；Mixer 在有音乐床垫的节目（カスタム以外の全部）显示音乐滑块
+- **始まりはビートと曲が一緒に強くなる**（`lib/music-intro.ts`）：曲のある節目は `startSession` が `session.start(vol, { waitForMusic: true })`——ビートは無音で走り出し（周波数の時間軸はもう進む）、`playMusicBed` が曲を鳴らす時刻に、曲には `START_FADE_SEC`（4 秒）の立ち上げを、ビートには「曲の聞こえ方＝曲自身の頭の盛り上がり（録音に入っている）×その立ち上げ」をなぞる曲線を**同じ時刻から**掛ける。納品 155 曲の頭は約 3/4 が無音近くから 3.5〜5 秒で盛り上がり、1/4 は頭から本体の音量——前者はビートが録音をなぞり（最長 10 秒で必ず満量）、後者は立ち上げどおり 4 秒。曲線は**音量とは別の段**に掛ける（ビートは merger の後ろの `fadeGain`、曲は `NaturePlayer.playBuffer` の `fadeNode`）——音量のスライダーを立ち上げ中に動かしても曲線と衝突しない（同じ AudioParam に setValueCurveAtTime と他の自動化を重ねると例外）。曲が `MUSIC_WAIT_MS`（2.5 秒）までに鳴らなければビートだけ先に立ち上げ、曲は届いたところから 4 秒で入る。曲の読み込みに失敗したらビートはすぐ立ち上がる
+- **曲は /player を開いた時点で取りに行き、デコードまで済ませる**（`preloadAudio`、`OfflineAudioContext`＝48kHz で。最初のタップより前は本物の AudioContext を作れないが、オフラインでデコードした AudioBuffer はそのまま鳴らせる）。3 分の曲のデコードだけで 1 秒以上かかるので、先に済ませないと再生ボタンから音が出るまで間が空く。読み込み中に再生を押せばその読み込みを待つ（二重に取らない）。デコード済みは直近 **2 本**だけ持つ（1 分あたり約 23MB、8 分の曲なら 180MB——聴いた曲を全部抱えるとスマホの WebView が落ちる）
 - 缺失差频就近取用（只换伴奏，合成的诱导差频不变）：4Hz 未交付 → 2Hz（2/6 等距，取更深的）；獅子座自星座 15Hz → 14Hz；天秤座 8Hz → 7.83Hz
 - 若日后补齐 4Hz，把文件以同样的命名（`…_TAG_HEALING (6Hz_4Hz_2Hz)_4Hz.mp3`）放进 brainwave-sounds 的 `Astroプログラム/`，在 `lib/zodiac-audio.ts` 的 `AVAILABLE_BEATS` 与 `ZODIAC_TAG_BY_BEAT` 各加上 4 即可
 
@@ -182,9 +185,11 @@ AudioContext（全局单例，getAudioContext() 管理）
 ├── OscillatorNode (左声道 carrier freq)
 │   → GainNode → ChannelMergerNode(input 0) ─┐
 ├── OscillatorNode (右声道 carrier + beatFreq) │
-│   → GainNode → ChannelMergerNode(input 1) ─┤→ destination
-└── AudioBufferSourceNode (自然音 loop)        │
-    → GainNode ─────────────────────────────→ destination
+│   → GainNode → ChannelMergerNode(input 1) ─┤→ fadeGain（始まりの立ち上げ）→ analyser → destination
+├── AudioBufferSourceNode (自然音 loop)        │
+│   → GainNode ─────────────────────────────→ destination
+└── AudioBufferSourceNode (音楽ベッド loop)
+    → fadeNode（始まりの立ち上げ）→ GainNode（音量）→ destination
 ```
 
 #### 2. 自定义合成器引擎 (`lib/synth-engine.ts`)

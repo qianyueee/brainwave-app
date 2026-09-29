@@ -13,6 +13,8 @@ import {
   timelineTotalDuration,
 } from "@/lib/programs";
 import { formatTime, getCurrentSegmentInfo } from "@/lib/utils";
+import { musicBedUrl } from "@/lib/zodiac-audio";
+import { preloadAudio } from "@/lib/nature-player";
 import { useLocale, useT } from "@/lib/i18n";
 import Visualizer from "@/components/Visualizer";
 import PlaybackControls from "@/components/PlaybackControls";
@@ -71,6 +73,16 @@ export default function PlayerPage() {
       fetchPrograms();
     }
   }, [isCustom, customProgram, fetchPrograms]);
+
+  // Fetch and decode the music bed while the listener is still on this page:
+  // the beat waits for the track to begin (lib/music-intro.ts), and that wait
+  // should be a moment, not a download plus a second-long decode. Gated on
+  // hydration so the pre-restore default program isn't fetched.
+  useEffect(() => {
+    if (!hydrated) return;
+    const url = musicBedUrl(programId);
+    if (url) preloadAudio(url);
+  }, [hydrated, programId]);
 
   // Custom (synth) programs carry the user's own name/description — shown
   // as-is; built-in / catalog / zodiac programs follow the display language.

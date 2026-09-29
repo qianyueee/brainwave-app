@@ -3,7 +3,15 @@ import { scheduleRamps } from "./ramp-scheduler";
 import { getAudioContext } from "./audio-context";
 import { getAudioDestination } from "./keep-alive";
 import { getSharedAnalyser } from "./audio-analyser";
-import { NaturePlayer } from "./nature-player";
+import { NaturePlayer, loadAudioBuffer } from "./nature-player";
+import {
+  MUSIC_WAIT_MS,
+  START_FADE_SEC,
+  beatStartCurve,
+  curveDuration,
+  measureIntro,
+  startFadeCurve,
+} from "./music-intro";
 
 // Re-export so existing imports from "@/lib/audio-engine" keep working
 export { getAudioContext } from "./audio-context";
@@ -14,6 +22,22 @@ export interface SessionState {
   isPlaying: boolean;
   elapsed: number;
   totalDuration: number;
+}
+
+// How far ahead the start fade is scheduled, so it never lands in the past.
+const START_LEAD_SEC = 0.05;
+
+// Each track's measured opening swell. bufferCache hands back the same
+// AudioBuffer for a replay, so a track is measured once while it is cached.
+const introCache = new WeakMap<AudioBuffer, Float32Array | null>();
+
+function introOf(buffer: AudioBuffer): Float32Array | null {
+  if (introCache.has(buffer)) return introCache.get(buffer) ?? null;
+  const channels: Float32Array[] = [];
+  for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
+  const intro = measureIntro(channels, buffer.sampleRate);
+  introCache.set(buffer, intro);
+  return intro;
 }
 
 // Harmonic overtone config: [multiplier, gain]
@@ -35,6 +59,14 @@ export class BinauralSession {
   private rightHarmonicOscs: OscillatorNode[] = [];
   private rightHarmonicGains: GainNode[] = [];
   private merger: ChannelMergerNode | null = null;
+  // Start fade, after the merger and apart from the volume gains above. A
+  // program with a music bed holds it at 0 — the beat runs silent — until the
+  // track begins, then raises it along the track's own audible swell
+  // (lib/music-intro.ts), so beat and music grow louder together. Being its
+  // own stage, the volume slider can move mid-fade without breaking the curve.
+  private fadeGain: GainNode | null = null;
+  private waitingForMusic = false;
+  private musicWaitTimer: ReturnType<typeof setTimeout> | null = null;
   // Nature sound
   private naturePlayer: NaturePlayer | null = null;
   // Zodiac music bed — a separate looped layer, independent of the nature sound
@@ -85,7 +117,12 @@ export class BinauralSession {
     this.onEndCallback = callback;
   }
 
-  start(initialVolume = 1): void {
+  /**
+   * `waitForMusic`: the program has a music bed — keep the beat silent until
+   * playMusicBed starts the track (or MUSIC_WAIT_MS passes), then fade it in
+   * with the music. Without it the beat starts at once, as it always has.
+   */
+  start(initialVolume = 1, opts: { waitForMusic?: boolean } = {}): void {
     if (this._isPlaying) return;
 
     // Ensure context is running
@@ -108,7 +145,10 @@ export class BinauralSession {
 
     // ChannelMergerNode: input 0 = left channel, input 1 = right channel
     this.merger = this.ctx.createChannelMerger(2);
-    this.merger.connect(getSharedAnalyser() ?? getAudioDestination());
+    this.fadeGain = this.ctx.createGain();
+    this.fadeGain.gain.setValueAtTime(opts.waitForMusic ? 0 : 1, now);
+    this.merger.connect(this.fadeGain);
+    this.fadeGain.connect(getSharedAnalyser() ?? getAudioDestination());
 
     // Create fundamental + harmonic oscillators for each channel
     // Harmonics are at fixed carrier multiples (no beat offset) to keep binaural beat clean
@@ -165,6 +205,13 @@ export class BinauralSession {
     this.startTime = now;
     this._isPlaying = true;
 
+    if (opts.waitForMusic) {
+      this.waitingForMusic = true;
+      // The track is late (slow network): raise the beat alone; the music
+      // still fades in with the same curve when it arrives.
+      this.musicWaitTimer = setTimeout(() => this.releaseBeat(null), MUSIC_WAIT_MS);
+    }
+
     // Auto-stop at end of duration
     this.endTimer = setTimeout(() => {
       this.stop();
@@ -206,6 +253,11 @@ export class BinauralSession {
       clearTimeout(this.endTimer);
       this.endTimer = null;
     }
+    if (this.musicWaitTimer) {
+      clearTimeout(this.musicWaitTimer);
+      this.musicWaitTimer = null;
+    }
+    this.waitingForMusic = false;
 
     // A suspended context would freeze the fade-out below — un-suspend first.
     // Raw resume (not getAudioContext) on purpose; the caller resets the
@@ -245,6 +297,7 @@ export class BinauralSession {
       this.leftGain?.disconnect();
       this.rightGain?.disconnect();
       this.merger?.disconnect();
+      this.fadeGain?.disconnect();
 
       this.leftOsc = null;
       this.rightOsc = null;
@@ -255,6 +308,7 @@ export class BinauralSession {
       this.leftGain = null;
       this.rightGain = null;
       this.merger = null;
+      this.fadeGain = null;
     }, fadeOut * 1000 + 50);
 
     this._isPlaying = false;
@@ -295,19 +349,52 @@ export class BinauralSession {
   }
 
   /**
-   * Load and loop the zodiac music bed under the beat. The delivered tracks
-   * run 1-8 minutes against a 15-minute session, so they loop; they carry no
+   * Raise the beat held silent by `waitForMusic`: along the track's opening
+   * swell (`intro`; null = the plain start fade) from `at` (default: now).
+   */
+  private releaseBeat(intro: Float32Array | null, at?: number): void {
+    if (this.musicWaitTimer) {
+      clearTimeout(this.musicWaitTimer);
+      this.musicWaitTimer = null;
+    }
+    if (!this.waitingForMusic || !this.fadeGain || !this._isPlaying) return;
+    this.waitingForMusic = false;
+    const curve = beatStartCurve(intro);
+    this.fadeGain.gain.setValueCurveAtTime(
+      curve,
+      at ?? this.ctx.currentTime + START_LEAD_SEC,
+      curveDuration(curve)
+    );
+  }
+
+  /**
+   * Load and loop the music bed under the beat. The delivered tracks run 1-8
+   * minutes against a 15-minute session, so they loop; they carry no
    * entrainment of their own, which is why the oscillators keep running.
+   *
+   * The track starts with a START_FADE_SEC fade, and a beat still waiting for
+   * it (start's `waitForMusic`) starts at the same instant, following what the
+   * listener hears: the track's own recorded swell times that fade.
    */
   async playMusicBed(url: string, volume: number): Promise<void> {
     this.stopMusicBed();
     if (!this._isPlaying) return;
     const player = new NaturePlayer();
     this.musicPlayer = player;
-    await player.playFromUrl(url, volume);
+    let buffer: AudioBuffer;
+    try {
+      buffer = await loadAudioBuffer(this.ctx, url);
+    } catch (err) {
+      // No music is coming — don't keep the beat waiting for it.
+      this.releaseBeat(null);
+      throw err;
+    }
     // A stop() during the fetch/decode above would have cleared the ref —
     // don't leave an orphan looping after the session ended.
-    if (this.musicPlayer !== player || !this._isPlaying) player.stop();
+    if (this.musicPlayer !== player || !this._isPlaying) return;
+    const at = this.ctx.currentTime + START_LEAD_SEC;
+    if (this.waitingForMusic) this.releaseBeat(introOf(buffer), at);
+    player.playBuffer(buffer, volume, { at, curve: startFadeCurve(), duration: START_FADE_SEC });
   }
 
   /** Stop the music bed with fade-out */

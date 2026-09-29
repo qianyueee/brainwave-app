@@ -345,7 +345,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         stopSession();
       });
 
-      session.start(beatVolume);
+      // With a music bed the beat starts silent and fades in with the track
+      // (playMusicBed below starts both); without one it starts at once.
+      const musicUrl = musicBedUrl(program.id);
+      session.start(beatVolume, { waitForMusic: musicUrl !== null });
       sessionRef.current = session;
       setIsPlaying(true);
       setPlayingProgramId(program.id);
@@ -370,7 +373,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       // Every built-in and catalog program carries a music bed; the beat
       // above it is still the synthesised one, since the tracks hold no
       // entrainment themselves.
-      const musicUrl = musicBedUrl(program.id);
       if (musicUrl) {
         session.playMusicBed(musicUrl, musicVolume).catch((err) => {
           console.error("[audio-provider] music bed failed:", err);
