@@ -182,6 +182,24 @@ export const BAND_META: { key: BandKey; en: string; ja: string; isGamma?: boolea
   { key: "highGamma", en: "Mid-Gamma", ja: "高γ波", isGamma: true },
 ];
 
+/**
+ * English column labels for charts with one column per band. BAND_META's `en`
+ * ("High-Alpha", "Mid-Gamma") is too wide for eight ~34px columns on a phone, so
+ * English keeps the Greek letters the Japanese labels use (δ波 → δ, 高α波 →
+ * High α). Mid γ follows BAND_META's "Mid-Gamma". Shared by the live equalizer
+ * and the report's band comparison.
+ */
+export const BAND_SHORT_EN: Record<BandKey, string> = {
+  delta: "δ",
+  theta: "θ",
+  lowAlpha: "Low α",
+  highAlpha: "High α",
+  lowBeta: "Low β",
+  highBeta: "High β",
+  lowGamma: "Low γ",
+  highGamma: "Mid γ",
+};
+
 /** Single source of truth for band colors — shared by the 8-band pie and the
  *  frequency-spectrum shading so the two always correspond. This is the set
  *  tuned for the dark (midnight) palette. */

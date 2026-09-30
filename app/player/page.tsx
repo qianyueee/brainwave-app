@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
@@ -22,7 +23,40 @@ import Timer from "@/components/Timer";
 import Mixer from "@/components/Mixer";
 import ExportDialog from "@/components/ExportDialog";
 import { BareColumn } from "@/components/PageColumn";
-import { Download } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
+
+/**
+ * 見出しの1行目：左に「戻る」、中央に Sync Sound。右の空きは戻るボタンと同じ幅
+ * で、Sync Sound を画面の中央に保つためのもの。番組名と説明は長くなるので、
+ * この行には入れず下の段で幅いっぱいに使う。
+ *
+ * このページは菜单外で、プログラムのカード（Session・ホーム）やミニプレーヤー
+ * から入ってくる。戻り先は来た画面そのものなので履歴を1つ戻る——リロードや
+ * ブックマークで直接開いたときは戻る先が無いので、プログラムの一覧（Session）へ。
+ */
+function PlayerTopRow() {
+  const router = useRouter();
+  const t = useT();
+  const goBack = () => {
+    if (window.history.length > 1) router.back();
+    else router.push("/session");
+  };
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        onClick={goBack}
+        aria-label={t("戻る", "Back")}
+        className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95 shrink-0"
+      >
+        <ArrowLeft size={20} />
+      </button>
+      <p className="min-w-0 flex-1 text-center text-xs font-bold text-primary tracking-wider">
+        Sync Sound
+      </p>
+      <div className="w-12 shrink-0" aria-hidden="true" />
+    </div>
+  );
+}
 
 export default function PlayerPage() {
   const programId = useDisplayProgramId();
@@ -100,9 +134,7 @@ export default function PlayerPage() {
     return (
       <BareColumn>
         <div className="flex flex-col gap-6 pt-6">
-          <div className="text-center">
-            <p className="text-xs font-bold text-primary tracking-wider">Sync Sound</p>
-          </div>
+          <PlayerTopRow />
         </div>
       </BareColumn>
     );
@@ -111,9 +143,10 @@ export default function PlayerPage() {
   return (
     <BareColumn>
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      {/* Program name */}
+      {/* Back + program name */}
+      <div className="flex flex-col gap-1">
+      <PlayerTopRow />
       <div className="text-center">
-        <p className="text-xs font-bold text-primary tracking-wider">Sync Sound</p>
         <h1 className="text-xl font-bold text-text-primary">
           {displayName ??
             (publishedLoading
@@ -123,6 +156,7 @@ export default function PlayerPage() {
         <p className="text-sm text-text-secondary mt-1">
           {displayDesc}
         </p>
+      </div>
       </div>
 
       {/* Mobile: single column. Desktop: visualizer+controls | timer/mixer side by side. */}

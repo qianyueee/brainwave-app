@@ -1,25 +1,8 @@
 "use client";
 
-import type { BandKey, BandPowers } from "@/lib/mind/types";
-import { BAND_META } from "@/lib/mind/types";
+import type { BandPowers } from "@/lib/mind/types";
+import { BAND_META, BAND_SHORT_EN } from "@/lib/mind/types";
 import { useLocale } from "@/lib/i18n";
-
-/**
- * English column labels. BAND_META's `en` ("High-Alpha", "Mid-Gamma") is too
- * wide for eight ~34px columns on a phone, so the English equalizer keeps the
- * Greek letters the Japanese labels use (δ波 → δ, 高α波 → High α). Mid γ
- * follows BAND_META's "Mid-Gamma".
- */
-const BAND_SHORT_EN: Record<BandKey, string> = {
-  delta: "δ",
-  theta: "θ",
-  lowAlpha: "Low α",
-  highAlpha: "High α",
-  lowBeta: "Low β",
-  highBeta: "High β",
-  lowGamma: "Low γ",
-  highGamma: "Mid γ",
-};
 
 /**
  * Vertical equalizer of the 8 raw EEG bands (Delta … Mid-Gamma). Presentational

@@ -1,8 +1,8 @@
 /**
- * Per-series colors for the log comparison charts (spectrum line chart +
+ * Per-series colors for the log comparison charts (8-band grouped bars +
  * 6-indicator radar), oldest→newest. Shared so the two charts use the SAME
  * color for the same measurement. Both the 2- and 3-series cases use highly
- * distinct hues so overlapping lines/shapes stay easy to tell apart:
+ * distinct hues so neighbouring bars / overlapping shapes stay easy to tell apart:
  * 2 series → cyan · rose; 3 series → cyan · amber · rose.
  *
  * Two sets: the default was tuned for the dark midnight palette; the light

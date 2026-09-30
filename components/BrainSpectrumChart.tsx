@@ -17,9 +17,8 @@ import { useT } from "@/lib/i18n";
 
 /** The 8 spectrum bands, positioned on the Hz axis by their frequency range.
  *  Colors come from getBandColors(scheme) at render time (light/dark sets),
- *  keeping the spectrum shading and the pie in correspondence. Shared with
- *  the compare chart. */
-export const SPECTRUM_BANDS = BAND_META.map((b) => ({
+ *  keeping the spectrum shading and the pie in correspondence. */
+const SPECTRUM_BANDS = BAND_META.map((b) => ({
   key: b.key,
   label: b.ja,
   labelEn: b.en,
@@ -27,11 +26,25 @@ export const SPECTRUM_BANDS = BAND_META.map((b) => ({
   to: BAND_HZ_RANGE[b.key][1],
 }));
 
+/**
+ * Highest frequency the report draws. Records hold up to SPECTRUM_MAX_HZ (64)
+ * bins — the bins past 50Hz exist to expose mains hum while analysing, not to be
+ * read as brainwaves — so the chart stops at 50Hz. Older records are 45 bins
+ * long and stop there on their own.
+ */
+export const SPECTRUM_DISPLAY_MAX_HZ = 50;
+
+/** The bins the chart draws: 1Hz up to SPECTRUM_DISPLAY_MAX_HZ, or fewer if the
+ *  record is shorter. The page's "1〜N Hz" caption reads the same length. */
+export function displayedSpectrum(spectrum: number[]): number[] {
+  return spectrum.slice(0, SPECTRUM_DISPLAY_MAX_HZ);
+}
+
 /** Axis ticks for a spectrum `maxHz` bins wide: 1Hz, then every 5Hz. The array's
  *  own length is the source of truth — measurements recorded before the band was
- *  widened are 45 bins long, newer ones 64 — so the ticks cannot be a fixed list.
- *  Shared with the compare chart so both label the same axis. */
-export function spectrumTicks(maxHz: number): number[] {
+ *  widened are 45 bins long, newer ones are cut to 50 for display — so the ticks
+ *  cannot be a fixed list. */
+function spectrumTicks(maxHz: number): number[] {
   const ticks = [1];
   for (let hz = 5; hz <= maxHz; hz += 5) ticks.push(hz);
   return ticks;
@@ -58,11 +71,12 @@ function subscribeTheme(cb: () => void): () => void {
 /**
  * Per-Hz frequency spectrum as a line/area chart: x = frequency (Hz), y =
  * relative amplitude (the FFT magnitude of the raw waveform, arbitrary units).
- * `spectrum[i]` is the magnitude at (i+1) Hz.
+ * `spectrum[i]` is the magnitude at (i+1) Hz; only 1–50Hz is drawn
+ * (SPECTRUM_DISPLAY_MAX_HZ).
  */
 export default function BrainSpectrumChart({ spectrum }: { spectrum: number[] }) {
   const t = useT();
-  const data = spectrum.map((v, i) => ({ hz: i + 1, amp: v }));
+  const data = displayedSpectrum(spectrum).map((v, i) => ({ hz: i + 1, amp: v }));
 
   const colorStr = useSyncExternalStore(subscribeTheme, readThemeColors, () => SERVER_COLORS);
   const [line, grid, axis] = colorStr.split("|");
