@@ -614,11 +614,17 @@ async function handleRequest(req: Request, env: Env, fetchImpl: typeof fetch): P
 
 // ─── 待ち受け ─────────────────────────────────────────────────────────────────
 //
-// ⚠ Supabase の書き方そのまま、トップレベルで **素の `Deno.serve(...)`** を呼ぶ。
-// 以前は node でも読めるよう `(globalThis as …).Deno` 経由で呼んでいたが、Supabase の
-// 実行環境ではそれでは待ち受けが登録されず、起動はするのに OPTIONS（CORS の下調べ）
-// すら答えないまま 150 秒で打ち切られた（546）。`typeof Deno` の確認だけなら node でも
-// 例外にならない（未宣言の名前に typeof は使える）。形は `pnpm check:analysis` が見張る。
+// Supabase の書き方そのまま、トップレベルで **素の `Deno.serve(...)`** を呼ぶ（形は
+// `pnpm check:analysis` が見張る）。`typeof Deno` の確認だけなら node でも例外に
+// ならない（未宣言の名前に typeof は使える）ので、node の自己点検もこのファイルを読める。
+//
+// 一度「起動（booted）はするのに OPTIONS（CORS の下調べ）にすら答えず、150 秒で
+// 打ち切られる（546）」ことがあった。原因は Supabase 側の関数がこのファイルの最新・
+// 全文になっていなかったことで、全文を貼り直して Deploy したら直った。以前の
+// `(globalThis as …).Deno.serve` という書き方でも起きるのかは確かめていない（素の Deno
+// では動く）——いまの書き方は Supabase の文書どおりなので、このままにする。
+// 下の「analyze-brain: serving」は**ファイルの最後**で出す。Logs にこれが出れば、
+// 全文が載って待ち受けまで済んでいる。
 if (typeof Deno !== "undefined") {
   const env: Env = {
     SUPABASE_URL: Deno.env.get("SUPABASE_URL"),

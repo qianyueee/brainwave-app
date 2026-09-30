@@ -29,8 +29,11 @@ Secrets に同じ名前で新しい publishable key（`sb_publishable_…`）と
 
 ## 更新するとき
 
-`index.ts` を直したら、Dashboard → Edge Functions → `analyze-brain` → **Code** のエディタに
-**全文を貼り直して Deploy**（Web のデプロイとは別。貼り直さない限り古い関数が動き続ける）。
+**GitHub で PR をマージしても、この関数は変わりません**（変わるのは Web だけ）。
+`index.ts` を直したら、Dashboard → Edge Functions → `analyze-brain` → **Code** のエディタで
+中身を全部選んで消し、**`index.ts` の全文を貼り直して Deploy**。貼り終えたら、エディタの
+いちばん下に `Deno.serve(...)` と `console.log("analyze-brain: serving")` があることを
+確かめてから Deploy する（途中までしか貼れていないと、起動はしても何も答えない）。
 Deploy したら Logs に `analyze-brain: serving` が出ることを確かめる。
 送る数値の形（`lib/brain-analysis.ts` の `BrainAnalysisInput`）を変えたときは、
 こちらの `validateInput` も同じに直し、両方の版（`ANALYSIS_INPUT_VERSION` / `INPUT_VERSION`）を上げます。
@@ -51,7 +54,7 @@ Dashboard → Edge Functions → `analyze-brain` → **Logs**（呼ばれた記�
 
 | Logs / Invocations に出るもの | 意味 | すること |
 |---|---|---|
-| `booted` の後に `analyze-brain: serving` が**出ない**、OPTIONS が 150 秒かかって **546** | 関数は起動したが待ち受けていない（古い `index.ts` のまま） | 最新の `index.ts` を貼り直して Deploy |
+| `booted` の後に `analyze-brain: serving` が**出ない**、OPTIONS が 150 秒かかって **546** | 関数は起動したが待ち受けていない（古い `index.ts` のまま、または途中までしか貼れていない） | 最新の `index.ts` を**全文**貼り直し、最後の行まであるのを確かめて Deploy |
 | POST が **401** | ログインのトークンを受け付けていない | ログインし直す。続くなら Verify JWT をオフにしてよい（関数自身が `/auth/v1/user` で本人確認する） |
 | `analyze-brain: unexpected error` と例外の中身 | 関数の中で想定外の失敗 | その行をそのまま開発者へ |
 | `deepseek 401` / `deepseek 402` など | DeepSeek に断られた（キーの誤り・残高不足） | Secrets の `DEEPSEEK_API_KEY`・DeepSeek の残高を確かめる |
@@ -59,9 +62,9 @@ Dashboard → Edge Functions → `analyze-brain` → **Logs**（呼ばれた記�
 画面の「AIの窓口から応答がありませんでした」は、返事を読めなかった（オンラインなのに関数が答えない・
 実行環境に打ち切られた）ときの表示。上の表で原因を探す。
 
-⚠ **待ち受けはトップレベルで素の `Deno.serve(...)` を呼ぶ**（`typeof Deno` で囲むだけ）。
-`globalThis` 経由で呼ぶと、Supabase の実行環境では起動はしても待ち受けが登録されない（実際に起きた）。
-`pnpm check:analysis` がこの書き方を見張っている。
+**待ち受けはトップレベルで素の `Deno.serve(...)` を呼ぶ**（`typeof Deno` で囲むだけ）——Supabase の
+文書どおりの書き方で、`pnpm check:analysis` が見張っている。上の表の「OPTIONS が 546」は実際に
+起きたが、原因は関数がこのファイルの最新・全文になっていなかったことで、全文を貼り直したら直った。
 
 ## 返すエラー
 

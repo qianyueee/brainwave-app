@@ -422,9 +422,11 @@ BrainAiAnalysis ─buildAnalysisInput（数値だけ）─> functions.invoke("an
   持ち主の DeepSeek を使える窓口」になる。メモ・測定者名はそもそも送らない。送る形（lib/brain-analysis.ts）と
   検査（index.ts の validateInput）は同じに保ち、変えたら両方の版を上げて `pnpm check:analysis`。
 - **書くのは関数だけ**（service_role）。利用者は自分の分析を読む・消すだけ。測定を消すと分析も DB が消す（外部キー）。
-- **待ち受けはトップレベルで素の `Deno.serve(...)`**（`typeof Deno` で囲むだけ＝node でも読める）。`globalThis` 経由だと
-  Supabase の実行環境では起動しても待ち受けが登録されず、OPTIONS すら答えないまま 150 秒で 546 になる（実際に起きた。
-  素の Deno では再現しない）。`pnpm check:analysis` が書き方を見張る。関数内の想定外の例外は CORS 付きの 500 で返す
+- **関数は GitHub のマージでは変わらない**（変わるのは Web だけ）。`index.ts` を直したら Dashboard のエディタに**全文**を
+  貼り直して Deploy し、Logs に `analyze-brain: serving`（ファイルの最後で出す）が出るのを確かめる。これが出ずに
+  「booted の後、OPTIONS すら答えず 150 秒で 546」になったことがあり、原因は関数が最新・全文でなかったこと
+  （貼り直して直った）。待ち受けは Supabase の文書どおりトップレベルで素の `Deno.serve(...)`（`typeof Deno` で
+  囲むだけ＝node でも読める）、`pnpm check:analysis` が書き方を見張る。関数内の想定外の例外は CORS 付きの 500 で返す
   （CORS 無しの 5xx はブラウザが中身を隠し、画面は理由を言えない）。返事を読めなかったときの画面は、オフラインなら
   `network`、オンラインなら `unreachable`。
 - **言語は画面の表示言語**。保存された分析の言語と画面が違えば「もう一度分析すると〜」と添える。
