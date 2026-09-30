@@ -29,7 +29,9 @@ Secrets に同じ名前で新しい publishable key（`sb_publishable_…`）と
 
 ## 更新するとき
 
-`index.ts` を直したら、Dashboard の同じ関数のエディタに全文を貼り直して Deploy。
+`index.ts` を直したら、Dashboard → Edge Functions → `analyze-brain` → **Code** のエディタに
+**全文を貼り直して Deploy**（Web のデプロイとは別。貼り直さない限り古い関数が動き続ける）。
+Deploy したら Logs に `analyze-brain: serving` が出ることを確かめる。
 送る数値の形（`lib/brain-analysis.ts` の `BrainAnalysisInput`）を変えたときは、
 こちらの `validateInput` も同じに直し、両方の版（`ANALYSIS_INPUT_VERSION` / `INPUT_VERSION`）を上げます。
 直したら `pnpm check:analysis` で確かめます（node でこのファイルの検査・プロンプト・流れを通す）。
@@ -43,6 +45,24 @@ Secrets に同じ名前で新しい publishable key（`sb_publishable_…`）と
 - **回数の上限**：1人1日（日本時間）20回、同じ測定の分析し直しは 30 秒あける。
   DeepSeek に問い合わせる前に数えるので、失敗した回も1回と数えます。
 
+## うまく動かないとき（Logs の見方）
+
+Dashboard → Edge Functions → `analyze-brain` → **Logs**（呼ばれた記録は Invocations）。
+
+| Logs / Invocations に出るもの | 意味 | すること |
+|---|---|---|
+| `booted` の後に `analyze-brain: serving` が**出ない**、OPTIONS が 150 秒かかって **546** | 関数は起動したが待ち受けていない（古い `index.ts` のまま） | 最新の `index.ts` を貼り直して Deploy |
+| POST が **401** | ログインのトークンを受け付けていない | ログインし直す。続くなら Verify JWT をオフにしてよい（関数自身が `/auth/v1/user` で本人確認する） |
+| `analyze-brain: unexpected error` と例外の中身 | 関数の中で想定外の失敗 | その行をそのまま開発者へ |
+| `deepseek 401` / `deepseek 402` など | DeepSeek に断られた（キーの誤り・残高不足） | Secrets の `DEEPSEEK_API_KEY`・DeepSeek の残高を確かめる |
+
+画面の「AIの窓口から応答がありませんでした」は、返事を読めなかった（オンラインなのに関数が答えない・
+実行環境に打ち切られた）ときの表示。上の表で原因を探す。
+
+⚠ **待ち受けはトップレベルで素の `Deno.serve(...)` を呼ぶ**（`typeof Deno` で囲むだけ）。
+`globalThis` 経由で呼ぶと、Supabase の実行環境では起動はしても待ち受けが登録されない（実際に起きた）。
+`pnpm check:analysis` がこの書き方を見張っている。
+
 ## 返すエラー
 
 | error | HTTP | 画面の表示 |
@@ -52,4 +72,5 @@ Secrets に同じ名前で新しい publishable key（`sb_publishable_…`）と
 | `bad_input` | 400 | 通信エラー（アプリの更新を促す） |
 | `not_saved` | 409 | まだアカウントに保存されていない |
 | `rate_limited` | 429 | しばらくしてから |
-| `upstream` | 502 | AI に届かなかった・読めない返事 |
+| `upstream` | 502（想定外の例外は 500） | AI に届かなかった・読めない返事 |
+| （返事を読めない） | — | オフラインなら `network`（接続を確かめて）、オンラインなら `unreachable`（窓口が応答しない） |

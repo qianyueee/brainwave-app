@@ -176,7 +176,12 @@ export interface BrainAnalysis {
   content: BrainAnalysisContent;
 }
 
-/** 失敗の種類（Edge Function の error と、届かなかった場合の network）。 */
+/**
+ * 失敗の種類（Edge Function の error と、返事を読めなかった場合の2つ）。
+ * network＝端末がオフライン、unreachable＝オンラインなのに窓口が答えなかった
+ * （関数が待ち受けていない・実行環境の打ち切りなど。CORS 無しの応答はブラウザが
+ * 中身を見せないので、ここまでしか分けられない）。
+ */
 export type AnalysisErrorCode =
   | "unauthorized"
   | "bad_input"
@@ -184,7 +189,8 @@ export type AnalysisErrorCode =
   | "rate_limited"
   | "upstream"
   | "not_configured"
-  | "network";
+  | "network"
+  | "unreachable";
 
 const ERROR_CODES: AnalysisErrorCode[] = [
   "unauthorized",
@@ -194,6 +200,7 @@ const ERROR_CODES: AnalysisErrorCode[] = [
   "upstream",
   "not_configured",
   "network",
+  "unreachable",
 ];
 
 export function toAnalysisErrorCode(v: unknown): AnalysisErrorCode {
