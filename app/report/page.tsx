@@ -427,17 +427,25 @@ export default function ReportPage() {
                   is displayed they describe that measurement. */}
               <BrainConditionMetrics profile={displayed} asLink={false} />
 
-              {/* Mobile: single column. Desktop: radar (scores) | 8-band pie. */}
-              <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-              <div className="flex flex-col gap-6">
+              {/* モバイル：1列（大脳特性 → AI 分析 → 記録へ → 脳波バランス → スペクトル →
+                  アップロード）。デスクトップ：2×2 のグリッドに置き直す——1段目＝大脳特性｜
+                  脳波バランス、2段目＝AI 分析｜スペクトル。左右を別々の縦列にすると、隣り合う
+                  2枚の高さが中身しだいでずれる（大脳特性のほうが長い）。同じ段に入れれば
+                  グリッドが2枚を同じ高さに揃え、2段目も同じ線から始まる。DOM の順番は変えず
+                  row/col の指定だけで並べ替えるので、モバイルの順は従来どおり。 */}
+              <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6">
               {/* Radar chart — scores shown directly on each vertex */}
-              <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-                <div className="flex items-center justify-center gap-2 mb-1">
+              <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col md:col-start-1 md:row-start-1">
+                {/* 見出しの行は2枚とも 48px（右の？ボタンの高さ）——見出しと全画面ボタンの
+                    高さが隣のカードと揃う。 */}
+                <div className="flex items-center justify-center gap-2 min-h-12 mb-1">
                   <h3 className="text-base font-bold text-text-primary">
                     {t("大脳特性", "Brain profile")}
                   </h3>
                   <IndicatorHelp />
                 </div>
+                {/* 段の高さに引き伸ばされたときは、中身をその真ん中に置く。 */}
+                <div className="flex-1 flex flex-col justify-center">
                 <Fullscreenable title={t("大脳特性", "Brain profile")}>
                   <BrainRadarChart indicators={displayed.indicators} size="large" showScores />
                 </Fullscreenable>
@@ -471,8 +479,10 @@ export default function ReportPage() {
                     )}
                   </div>
                 )}
+                </div>
               </div>
 
+              <div className="flex flex-col gap-6 md:col-start-1 md:row-start-2 md:self-start">
               {/* AI（DeepSeek）による分析——大脳特性の読み解きなので、その真下に置く。 */}
               <BrainAiAnalysis measurement={displayed} />
 
@@ -491,13 +501,15 @@ export default function ReportPage() {
               )}
               </div>
 
-              <div className="flex flex-col gap-6">
               {/* 8-band balance pie — always shown, with an explanation when the
                   measurement predates band data (legacy records omit it) */}
-              <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
-                <p className="text-base font-bold text-text-primary mb-2 text-center">
-                  {t("8種類の脳波バランス", "Brainwave balance (8 types)")}
-                </p>
+              <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col md:col-start-2 md:row-start-1">
+                <div className="flex items-center justify-center min-h-12 mb-1">
+                  <h3 className="text-base font-bold text-text-primary text-center">
+                    {t("8種類の脳波バランス", "Brainwave balance (8 types)")}
+                  </h3>
+                </div>
+                <div className="flex-1 flex flex-col justify-center">
                 {displayed.bands ? (
                   <Fullscreenable title={t("8種類の脳波バランス", "Brainwave balance (8 types)")}>
                     <BrainBandPie
@@ -519,8 +531,10 @@ export default function ReportPage() {
                     )}
                   </p>
                 )}
+                </div>
               </div>
 
+              <div className="flex flex-col gap-6 md:col-start-2 md:row-start-2 md:self-start">
               {/* Per-Hz frequency spectrum (realtime measurements only). */}
               {displayed.spectrum && displayed.spectrum.length > 0 && (
                 <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised">
