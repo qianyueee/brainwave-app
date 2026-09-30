@@ -7,6 +7,7 @@ import { usePlaybackHistory } from "@/store/usePlaybackHistoryStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAllBaselineChecks } from "@/store/useBaselineStore";
 import { useJournalStore, type JournalEntry } from "@/store/useJournalStore";
+import { useHistorySelectionStore } from "@/store/useHistorySelectionStore";
 import { scoreColor } from "@/lib/brain-measurements";
 import { moodColor } from "@/lib/journal";
 import { buildDayRecords, recordedDayKeys, type DayRecordKind } from "@/lib/day-records";
@@ -72,9 +73,13 @@ export default function SimpleCalendar() {
   }, []);
 
   const now = new Date();
-  /** 表示中の月。0 = 今月、-1 = 先月。 */
-  const [monthOffset, setMonthOffset] = useState(0);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // 表示中の月（0 = 今月、-1 = 先月）と開いている日。ページの外（ストア）に
+  // 持つのは、明細の「レポートで見る」から戻ったときに同じ日が開いたままで
+  // あるように——コンポーネントの state だと戻るたびに今月・閉じた状態に戻る。
+  const monthOffset = useHistorySelectionStore((s) => s.calendarMonthOffset);
+  const setMonthOffset = useHistorySelectionStore((s) => s.setCalendarMonthOffset);
+  const selectedKey = useHistorySelectionStore((s) => s.calendarDayKey);
+  const setSelectedKey = useHistorySelectionStore((s) => s.setCalendarDayKey);
 
   const viewing = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   const year = viewing.getFullYear();
@@ -130,7 +135,7 @@ export default function SimpleCalendar() {
     : "";
 
   const goMonth = (delta: number) => {
-    setMonthOffset((v) => Math.min(0, v + delta));
+    setMonthOffset(Math.min(0, monthOffset + delta));
     setSelectedKey(null);
   };
 

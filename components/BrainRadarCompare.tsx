@@ -41,7 +41,7 @@ function subscribeTheme(cb: () => void): () => void {
 
 /**
  * Overlays the 6 indicators of 2–3 measurements on one radar, oldest→newest,
- * using the same per-series colors as BrainSpectrumCompare so the two charts
+ * using the same per-series colors as BrainBandCompare so the two charts
  * correspond. Outline-forward (light fill) so the overlapping shapes stay
  * readable; a legend maps each color to its measurement.
  */

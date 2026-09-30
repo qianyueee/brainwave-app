@@ -7,6 +7,7 @@ import { usePlaybackHistory } from "@/store/usePlaybackHistoryStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
+import { useHistorySelectionStore } from "@/store/useHistorySelectionStore";
 import { useRefreshAccountViewsOnMount } from "@/lib/sync/account-views";
 import type { BrainProfile } from "@/lib/brain-profile";
 import { compositeScore, scoreColor, measurementLabel } from "@/lib/brain-measurements";
@@ -215,19 +216,19 @@ export default function HistoryPage() {
   // last read — navigating here inside the app fires no focus event.
   useRefreshAccountViewsOnMount();
 
-  const viewOnReport = (uploadedAt: string) => {
-    setViewingMeasurement(uploadedAt);
-    router.push("/report");
-  };
-
   // Guard hydration mismatch from persisted measurements
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  const [subjectKey, setSubjectKey] = useState<string | null>(null);
-  const [recordId, setRecordId] = useState<string | null>(null);
+  // 測定者・記録の選択はページの外（ストア）に持つ——「レポートで見る」から
+  // 戻ってきたとき、最新ではなく見ていた記録が開いたままであるように。
+  const subjectKey = useHistorySelectionStore((s) => s.subjectKey);
+  const setSubjectKey = useHistorySelectionStore((s) => s.setSubjectKey);
+  const recordId = useHistorySelectionStore((s) => s.recordId);
+  const setRecordId = useHistorySelectionStore((s) => s.setRecordId);
+  const pinSelection = useHistorySelectionStore((s) => s.pin);
 
   // 再生の記録は端末に残る（persist 由来）ので、数えるのは mount 後。
   const totalSessions = hydrated ? sessionLogs.length : 0;
@@ -264,6 +265,14 @@ export default function HistoryPage() {
   // A stale pick (record deleted, subject switched) falls back to the newest.
   const selected =
     orderedForSubject.find((m) => m.uploadedAt === recordId) ?? orderedForSubject[0] ?? null;
+
+  const viewOnReport = (uploadedAt: string) => {
+    // 「最新」のまま（recordId が null）だと、戻るまでに新しい測定が入れば
+    // そちらへ移ってしまう——いま開いている1件をはっきり選び直してから行く。
+    pinSelection(activeKey, uploadedAt);
+    setViewingMeasurement(uploadedAt);
+    router.push("/report");
+  };
 
   const recordCount = (n: number) => t(`${n}件`, n === 1 ? "1 record" : `${n} records`);
   const subjectOptions: SelectOption[] = [

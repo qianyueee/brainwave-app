@@ -21,15 +21,15 @@ import { intlLocale, useLocale, useT, type LocalizedText } from "@/lib/i18n";
 import BrainConditionMetrics from "@/components/BrainConditionMetrics";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainBandPie from "@/components/BrainBandPie";
-import BrainSpectrumChart from "@/components/BrainSpectrumChart";
-import BrainSpectrumCompare from "@/components/BrainSpectrumCompare";
+import BrainSpectrumChart, { displayedSpectrum } from "@/components/BrainSpectrumChart";
+import BrainBandCompare from "@/components/BrainBandCompare";
 import BrainRadarCompare from "@/components/BrainRadarCompare";
 import Fullscreenable from "@/components/Fullscreenable";
 import IndicatorHelp from "@/components/IndicatorHelp";
 import EegUploader from "@/components/EegUploader";
 import SignalQualityBadge from "@/components/SignalQualityBadge";
 import { isLowQuality } from "@/lib/brain-profile";
-import { BrainCircuit, Lock, CheckSquare, Square, X, GitCompare } from "lucide-react";
+import { BrainCircuit, Lock, CheckSquare, Square, X, GitCompare, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
@@ -58,8 +58,8 @@ const REPORT_TABS: {
     label: { ja: "測定の比較", en: "Compare" },
     icon: GitCompare,
     lead: {
-      ja: "周波数スペクトルのある測定を選ぶと6指標とスペクトルを表示します。2〜3件選ぶと重ねて比較できます",
-      en: "Pick a measurement that has a frequency spectrum to see its 6 indicators and spectrum. Pick 2–3 to overlay and compare them.",
+      ja: "測定を選ぶと6指標と脳波バランスを表示します。2〜3件選ぶと並べて比較できます",
+      en: "Pick a measurement to see its 6 indicators and brainwave balance. Pick 2–3 to compare them side by side.",
     },
   },
 ];
@@ -68,15 +68,19 @@ function CompareCandidateRow({
   m,
   selected,
   onToggle,
+  onView,
 }: {
   m: BrainProfile;
   selected: boolean;
   onToggle: (uploadedAt: string) => void;
+  /** Open this one measurement on the 脳特性チャート tab. */
+  onView: (uploadedAt: string) => void;
 }) {
   const t = useT();
   const locale = useLocale();
-  // Only measurements with a per-Hz spectrum can be compared.
-  const selectable = Boolean(m.spectrum?.length);
+  // Only measurements with the 8-band balance can be compared (legacy records
+  // omit it). Every record can still be opened on its own report.
+  const selectable = Boolean(m.bands);
   const total = compositeScore(m.indicators);
   // 下に添える小さい行。日時は見出しがメモに入れ替わったときだけ——メモが
   // 無ければ見出し自体が日時なので、同じ文字列を2度書かない。sessionTag も
@@ -91,48 +95,71 @@ function CompareCandidateRow({
     .join(t("・", " · "));
 
   return (
-    <button
-      onClick={() => onToggle(m.uploadedAt)}
-      disabled={!selectable}
-      aria-label={selected ? t("選択を解除", "Deselect") : t("比較に選択", "Select to compare")}
-      className={`w-full bg-surface border rounded-3xl p-4 flex items-center gap-3 text-left neu-raised transition-colors ${
+    <div
+      className={`w-full bg-surface border rounded-3xl flex items-stretch neu-raised transition-colors ${
         selected ? "border-primary" : "border-surface-border"
-      } ${selectable ? "neu-press" : "opacity-50"}`}
+      }`}
     >
-      {selectable && (
-        <span className="shrink-0 text-primary">
-          {selected ? <CheckSquare size={22} /> : <Square size={22} className="text-text-muted" />}
-        </span>
-      )}
-      <div className="min-w-0 flex-1">
-        {/* 取り込みのときに書いたメモを見出しに、測定者名をその下に立てる。
-            同じ人の似た回が並ぶ一覧なので、まず本人の言葉と名前で拾えるように——
-            日時は小さく最後の行へ回す（無くさない、順位を下げるだけ）。 */}
-        <p className="text-base font-bold text-text-primary break-words">
-          {measurementTitle(m, locale)}
-        </p>
-        <p className="text-sm font-bold text-primary truncate">
-          {t("測定者", "Person")}:{" "}
-          {m.subject != null ? subjectDisplayName(m.subject, locale) : t("未設定", "Not set")}
-        </p>
-        {meta && <p className="text-xs text-text-muted truncate">{meta}</p>}
-        <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
-        {!selectable && (
-          <p className="text-xs text-text-muted mt-1">
-            {t("比較対象外（スペクトルなし）", "Can't be compared (no spectrum)")}
-          </p>
+      <button
+        onClick={() => onToggle(m.uploadedAt)}
+        disabled={!selectable}
+        aria-pressed={selectable ? selected : undefined}
+        aria-label={`${measurementTitle(m, locale)}${t("：", ": ")}${
+          selected ? t("選択を解除", "Deselect") : t("比較に選択", "Select to compare")
+        }`}
+        className={`min-w-0 flex-1 p-4 flex items-center gap-3 text-left rounded-l-3xl ${
+          selectable ? "neu-press" : "opacity-50"
+        }`}
+      >
+        {selectable && (
+          <span className="shrink-0 text-primary">
+            {selected ? <CheckSquare size={22} /> : <Square size={22} className="text-text-muted" />}
+          </span>
         )}
-      </div>
-      <div className="text-right shrink-0">
-        <p
-          className="text-xl font-mono font-bold tabular-nums"
-          style={{ color: scoreColor(total) }}
-        >
-          {total}
-        </p>
-        <p className="text-xs text-text-muted">{t("総合", "Overall")}</p>
-      </div>
-    </button>
+        <div className="min-w-0 flex-1">
+          {/* 取り込みのときに書いたメモを見出しに、測定者名をその下に立てる。
+              同じ人の似た回が並ぶ一覧なので、まず本人の言葉と名前で拾えるように——
+              日時は小さく最後の行へ回す（無くさない、順位を下げるだけ）。 */}
+          <p className="text-base font-bold text-text-primary break-words">
+            {measurementTitle(m, locale)}
+          </p>
+          <p className="text-sm font-bold text-primary truncate">
+            {t("測定者", "Person")}:{" "}
+            {m.subject != null ? subjectDisplayName(m.subject, locale) : t("未設定", "Not set")}
+          </p>
+          {meta && <p className="text-xs text-text-muted truncate">{meta}</p>}
+          <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
+          {!selectable && (
+            <p className="text-xs text-text-muted mt-1">
+              {t("比較対象外（脳波バランスなし）", "Can't be compared (no brainwave balance)")}
+            </p>
+          )}
+        </div>
+        <div className="text-right shrink-0">
+          <p
+            className="text-xl font-mono font-bold tabular-nums"
+            style={{ color: scoreColor(total) }}
+          >
+            {total}
+          </p>
+          <p className="text-xs text-text-muted">{t("総合", "Overall")}</p>
+        </div>
+      </button>
+      {/* この1件のレポート（脳特性チャート）へ。選択の切り替えとは別のボタン——
+          行全体は比較の選択なので、同じ面を押し分けさせない。比較できない
+          （バランスの無い）記録でもレポートは読めるので、こちらは常に押せる。 */}
+      <button
+        onClick={() => onView(m.uploadedAt)}
+        aria-label={t(
+          `${measurementTitle(m, locale)}のレポートを見る`,
+          `View the report for ${measurementTitle(m, locale)}`
+        )}
+        className="shrink-0 w-16 flex flex-col items-center justify-center gap-1 border-l border-surface-border rounded-r-3xl text-primary active:opacity-60 transition-opacity"
+      >
+        <BarChart3 size={20} strokeWidth={1.75} />
+        <span className="text-xs font-bold">{t("レポート", "Report")}</span>
+      </button>
+    </div>
   );
 }
 
@@ -199,13 +226,21 @@ export default function ReportPage() {
   // The picked measurements (2–3), ordered oldest→newest for the chart.
   const picked = selectedIds
     .map((id) => measurements.find((m) => m.uploadedAt === id))
-    .filter((m): m is BrainProfile => Boolean(m?.spectrum?.length))
+    .filter((m): m is BrainProfile => Boolean(m?.bands))
     .sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
   const canCompare = picked.length >= 2;
 
-  // 1件だけ選んだときも同じ2枚（6指標・スペクトル）を描く。選んだ瞬間に何も
+  // 比較の一覧から1件のレポートへ。同じページのタブを替えるだけなので、
+  // 比較の選択はそのまま残り、「測定の比較」タブに戻れば続きから見られる。
+  const viewReport = (uploadedAt: string) => {
+    setViewingMeasurement(uploadedAt);
+    setTab("profile");
+    window.scrollTo({ top: 0 });
+  };
+
+  // 1件だけ選んだときも同じ2枚（6指標・脳波バランス）を描く。選んだ瞬間に何も
   // 出ないと「押しても反応がない」画面になるし、2件目を足したときに同じ枠へ
-  // 線が1本増えるだけなので、比較の読み方がそのまま続く。
+  // 系列が1つ増えるだけなので、比較の読み方がそのまま続く。
   const compareSection = picked.length > 0 && (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -217,7 +252,7 @@ export default function ReportPage() {
           </p>
           {!canCompare && (
             <p className="text-xs text-text-muted">
-              {t("もう1件選ぶと重ねて比較できます", "Pick one more to overlay and compare")}
+              {t("もう1件選ぶと並べて比較できます", "Pick one more to compare side by side")}
             </p>
           )}
         </div>
@@ -250,20 +285,23 @@ export default function ReportPage() {
         </Fullscreenable>
       </div>
 
+      {/* 8種類の脳波それぞれの割合を、測定ごとの棒で並べる（横＝波の種類、
+          縦＝%）。値はレポートの円グラフと同じ bands なので、1件のレポートと
+          数字が食い違わない。 */}
       <div>
         <p className="text-sm font-medium text-text-secondary mb-1 text-center">
-          {t("周波数スペクトル", "Frequency spectrum")}
+          {t("8種類の脳波バランス", "Brainwave balance (8 types)")}
         </p>
         <Fullscreenable
           title={
             canCompare
-              ? t("周波数スペクトル比較", "Comparing frequency spectra")
-              : t("周波数スペクトル", "Frequency spectrum")
+              ? t("脳波バランスの比較", "Comparing brainwave balance")
+              : t("8種類の脳波バランス", "Brainwave balance (8 types)")
           }
         >
-          <BrainSpectrumCompare
+          <BrainBandCompare
             series={picked.map((m) => ({
-              spectrum: m.spectrum!,
+              bands: m.bands!,
               label: measurementSeriesLabel(m, locale),
             }))}
           />
@@ -487,8 +525,8 @@ export default function ReportPage() {
                   </p>
                   <p className="text-xs text-text-muted text-center mb-2">
                     {t(
-                      `1〜${displayed.spectrum.length}Hz の相対振幅`,
-                      `Relative amplitude, 1–${displayed.spectrum.length} Hz`
+                      `1〜${displayedSpectrum(displayed.spectrum).length}Hz の相対振幅`,
+                      `Relative amplitude, 1–${displayedSpectrum(displayed.spectrum).length} Hz`
                     )}
                   </p>
                   <Fullscreenable title={t("周波数スペクトル", "Frequency spectrum")}>
@@ -553,6 +591,7 @@ export default function ReportPage() {
                     m={m}
                     selected={selectedIds.includes(m.uploadedAt)}
                     onToggle={toggleSelect}
+                    onView={viewReport}
                   />
                 ))}
               </div>
@@ -570,8 +609,8 @@ export default function ReportPage() {
               </p>
               <p className="text-sm text-text-secondary mb-6">
                 {t(
-                  "測定を2件以上ためると、6指標と周波数スペクトルを重ねて見比べられます。",
-                  "Once you have 2 or more measurements, you can overlay their 6 indicators and frequency spectra to compare them."
+                  "測定を2件以上ためると、6指標と脳波バランスを並べて見比べられます。",
+                  "Once you have 2 or more measurements, you can compare their 6 indicators and brainwave balance side by side."
                 )}
               </p>
               <Link
