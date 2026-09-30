@@ -13,6 +13,7 @@
  * （check-records.mjs と同じ）。Deno.serve は Deno のときだけ走る。
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   INPUT_VERSION,
   validateInput,
@@ -75,6 +76,27 @@ function fixture(over = {}) {
     ...over,
   };
 }
+
+console.log("entrypoint");
+
+// Supabase の実行環境は、`(globalThis as …).Deno.serve(...)` 経由では待ち受けを登録しない
+// （起動はするのに OPTIONS すら答えず 150 秒で 546 になった）。書き方をここで固定する。
+const source = readFileSync(new URL("../supabase/functions/analyze-brain/index.ts", import.meta.url), "utf8");
+// 説明のコメント（昔の書き方に触れている）は見ない。
+const code = source
+  .split("\n")
+  .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+  .join("\n");
+
+await check("トップレベルで素の Deno.serve(...) を呼ぶ（typeof Deno で囲むだけ）", () => {
+  assert.match(code, /^if \(typeof Deno !== "undefined"\) \{$/m);
+  assert.match(code, /^  Deno\.serve\(/m);
+});
+
+await check("globalThis 経由で待ち受けない", () => {
+  assert.doesNotMatch(code, /globalThis[^\n]*Deno/);
+  assert.doesNotMatch(code, /\bdeno\.serve\(/);
+});
 
 console.log("validateInput");
 
@@ -337,6 +359,22 @@ await check("新しい秘密鍵（sb_secret_）は apikey だけで送る", asyn
   const restCall = calls.find((c) => c.url.includes("/rest/v1/"));
   assert.equal(restCall.headers.get("apikey"), "sb_secret_abc");
   assert.equal(restCall.headers.get("Authorization"), null);
+});
+
+await check("想定外の例外 → CORS 付きの 500 upstream（ブラウザが中身を読める）", async () => {
+  const boom = async () => {
+    throw new TypeError("connection reset");
+  };
+  const origError = console.error;
+  console.error = () => {};
+  try {
+    const r = await handle(post(), ENV, boom);
+    assert.equal(r.status, 500);
+    assert.equal(r.headers.get("Access-Control-Allow-Origin"), "*");
+    assert.equal(await errorOf(r), "upstream");
+  } finally {
+    console.error = origError;
+  }
 });
 
 await check("DEEPSEEK_MODEL でモデルを替えられる", async () => {

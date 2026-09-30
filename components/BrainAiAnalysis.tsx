@@ -46,6 +46,10 @@ const ERROR_TEXT: Record<AnalysisErrorCode, LocalizedText> = {
     ja: "通信できませんでした。インターネットの接続を確かめてください。",
     en: "We couldn't connect. Please check your internet connection.",
   },
+  unreachable: {
+    ja: "AIの窓口から応答がありませんでした。時間をおいてお試しください。",
+    en: "The AI service didn't respond. Please try again later.",
+  },
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

@@ -464,7 +464,21 @@ function json(status: number, body: unknown): Response {
 
 const fail = (status: number, error: ErrorCode) => json(status, { error });
 
+/**
+ * 1件の要求に答える。想定外の例外もここで受け止め、CORS 付きの 500 として返す——
+ * 受け止めないと実行環境が CORS 無しの 5xx を返し、ブラウザには中身の読めない
+ * 「通信エラー」にしか見えない（ログにも理由が残らない）。
+ */
 export async function handle(req: Request, env: Env, fetchImpl: typeof fetch = fetch): Promise<Response> {
+  try {
+    return await handleRequest(req, env, fetchImpl);
+  } catch (e) {
+    console.error("analyze-brain: unexpected error", e);
+    return fail(500, "upstream");
+  }
+}
+
+async function handleRequest(req: Request, env: Env, fetchImpl: typeof fetch): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (req.method !== "POST") return fail(405, "bad_input");
 
@@ -598,18 +612,21 @@ export async function handle(req: Request, env: Env, fetchImpl: typeof fetch = f
   return json(200, { analysis: row });
 }
 
-// Deno（Supabase Edge Runtime）のときだけ待ち受ける。node（pnpm check:analysis）で
-// 読むときはここを通らない。
-const deno = (globalThis as {
-  Deno?: { serve: (h: (req: Request) => Promise<Response>) => unknown; env: { get(k: string): string | undefined } };
-}).Deno;
-if (deno) {
+// ─── 待ち受け ─────────────────────────────────────────────────────────────────
+//
+// ⚠ Supabase の書き方そのまま、トップレベルで **素の `Deno.serve(...)`** を呼ぶ。
+// 以前は node でも読めるよう `(globalThis as …).Deno` 経由で呼んでいたが、Supabase の
+// 実行環境ではそれでは待ち受けが登録されず、起動はするのに OPTIONS（CORS の下調べ）
+// すら答えないまま 150 秒で打ち切られた（546）。`typeof Deno` の確認だけなら node でも
+// 例外にならない（未宣言の名前に typeof は使える）。形は `pnpm check:analysis` が見張る。
+if (typeof Deno !== "undefined") {
   const env: Env = {
-    SUPABASE_URL: deno.env.get("SUPABASE_URL"),
-    SUPABASE_ANON_KEY: deno.env.get("SUPABASE_ANON_KEY"),
-    SUPABASE_SERVICE_ROLE_KEY: deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
-    DEEPSEEK_API_KEY: deno.env.get("DEEPSEEK_API_KEY"),
-    DEEPSEEK_MODEL: deno.env.get("DEEPSEEK_MODEL"),
+    SUPABASE_URL: Deno.env.get("SUPABASE_URL"),
+    SUPABASE_ANON_KEY: Deno.env.get("SUPABASE_ANON_KEY"),
+    SUPABASE_SERVICE_ROLE_KEY: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    DEEPSEEK_API_KEY: Deno.env.get("DEEPSEEK_API_KEY"),
+    DEEPSEEK_MODEL: Deno.env.get("DEEPSEEK_MODEL"),
   };
-  deno.serve((req) => handle(req, env));
+  Deno.serve((req: Request) => handle(req, env));
+  console.log("analyze-brain: serving");
 }

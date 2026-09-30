@@ -83,8 +83,11 @@ export async function requestBrainAnalysis(input: BrainAnalysisInput): Promise<B
         code !== undefined ? toAnalysisErrorCode(code) : res.status === 401 ? "unauthorized" : "upstream"
       );
     }
-    // 届かなかった（オフライン・タイムアウト・中継の失敗）。
-    throw new AnalysisError("network");
+    // 返事を読めなかった（オフライン・タイムアウト・中継の失敗・CORS の無い 5xx）。
+    // 理由はブラウザが隠すので、調べる人のためにコンソールへ残す。
+    console.warn("analyze-brain: no readable response", error.name, error.message);
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    throw new AnalysisError(offline ? "network" : "unreachable");
   }
   const analysis = normalizeAnalysis((data as { analysis?: unknown } | null)?.analysis);
   if (!analysis) throw new AnalysisError("upstream");
