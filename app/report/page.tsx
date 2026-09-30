@@ -5,7 +5,7 @@ import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRefreshAccountViewsOnMount } from "@/lib/sync/account-views";
 import type { BrainProfile } from "@/lib/brain-profile";
-import type { BandKey } from "@/lib/mind/types";
+import { displayedSpectrum, type BandKey } from "@/lib/mind/types";
 import {
   compositeScore,
   scoreColor,
@@ -21,8 +21,9 @@ import { intlLocale, useLocale, useT, type LocalizedText } from "@/lib/i18n";
 import BrainConditionMetrics from "@/components/BrainConditionMetrics";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainBandPie from "@/components/BrainBandPie";
-import BrainSpectrumChart, { displayedSpectrum } from "@/components/BrainSpectrumChart";
+import BrainSpectrumChart from "@/components/BrainSpectrumChart";
 import BrainBandCompare from "@/components/BrainBandCompare";
+import BrainAiAnalysis from "@/components/BrainAiAnalysis";
 import BrainRadarCompare from "@/components/BrainRadarCompare";
 import Fullscreenable from "@/components/Fullscreenable";
 import IndicatorHelp from "@/components/IndicatorHelp";
@@ -471,6 +472,9 @@ export default function ReportPage() {
                   </div>
                 )}
               </div>
+
+              {/* AI（DeepSeek）による分析——大脳特性の読み解きなので、その真下に置く。 */}
+              <BrainAiAnalysis measurement={displayed} />
 
               {measurements.length > 0 && (
                 <Link

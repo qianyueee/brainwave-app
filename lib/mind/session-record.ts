@@ -39,6 +39,8 @@ export function measurementFromSession(s: MindSessionSummary): BrainProfile | nu
     indicators: s.indicators,
     bands: s.bands,
     spectrum: s.spectrum,
+    // 測定中の変化（AI 分析の「測定中の変化」の材料）。
+    timeline: s.timeline,
     note: s.note,
     uploadedAt: measurementKey(s),
     sessionTag: sessionLabel(s),

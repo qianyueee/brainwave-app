@@ -48,6 +48,9 @@ const eslintConfig = defineConfig([
     // copies into android/app/src/main/assets), plus the Gradle project
     "android-web/**",
     "android/**",
+    // Supabase Edge Functions run on Deno (deployed from the Dashboard), not in
+    // the Next bundle; `pnpm check:analysis` exercises analyze-brain with node.
+    "supabase/functions/**",
   ]),
 ]);
 
