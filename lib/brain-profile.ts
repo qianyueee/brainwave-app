@@ -42,6 +42,29 @@ export interface BrainProfile {
    * 既定の 40Hz（DEFAULT_TARGET_HZ）で判定する。
    */
   targetHz?: number;
+  /**
+   * 測定の途中でどう変わったか（前半→後半）。AI 分析が「測定中の変化」を語る
+   * ための要約で、測り終えた時点で1秒ごとの行から作る（行そのものは残さない）。
+   * この項目より前の記録・60秒未満の測定には無い。
+   */
+  timeline?: BrainTimeline;
+}
+
+/** One stretch of a measurement (see computeTimeline). */
+export interface BrainTimelineSegment {
+  /** Share (0-100) of this stretch's seconds the headset actually read. */
+  usablePct: number;
+  /** Average eSense attention / relaxation over the readable seconds (0-100). */
+  attention: number | null;
+  relaxation: number | null;
+  /** 8-band balance of this stretch (%, 0.1 steps); null when nothing was readable. */
+  bands: BandPowers | null;
+}
+
+export interface BrainTimeline {
+  /** Seconds per segment (segments are equal length, ±1s from rounding). */
+  segmentSec: number;
+  segments: BrainTimelineSegment[];
 }
 
 /** Per-second EEG row from the uploaded file */
@@ -615,6 +638,51 @@ export function computeBandPowers(rows: EegRow[]): BandPowers {
   }
   for (const b of BAND_FIELDS) out[b] /= usable.length;
   return out;
+}
+
+/** Measurements shorter than this carry no timeline — two 30s halves at least. */
+const TIMELINE_MIN_SEC = 60;
+/** Upper bound on segments, so the record (and the AI prompt) stays small. */
+const TIMELINE_MAX_SEGMENTS = 10;
+/** Shortest segment: below ~30 seconds a band balance is mostly noise. */
+const TIMELINE_MIN_SEGMENT_SEC = 30;
+
+const round1 = (v: number) => Math.round(v * 10) / 10;
+
+/**
+ * How a measurement changed along the way: the rows (1 per second) cut into at
+ * most 10 equal stretches of at least 30 seconds, each with its readable share,
+ * average attention / relaxation and 8-band balance. The session averages
+ * (indicators, bands, spectrum) say *where* a person was; this says whether they
+ * settled, drifted or woke up on the way — what the AI analysis needs to talk
+ * about the course of the measurement without the raw rows being kept.
+ *
+ * Per-stretch values use the same rules as the whole-session ones (poor-contact
+ * seconds are missing data, the band balance is computeBandPowers), so a
+ * stretch and the session never disagree about what counts as a reading.
+ */
+export function computeTimeline(rows: EegRow[]): BrainTimeline | undefined {
+  const n = rows.length;
+  if (n < TIMELINE_MIN_SEC) return undefined;
+  const count = Math.min(TIMELINE_MAX_SEGMENTS, Math.floor(n / TIMELINE_MIN_SEGMENT_SEC));
+  const segments: BrainTimelineSegment[] = [];
+  for (let i = 0; i < count; i++) {
+    const slice = rows.slice(Math.round((i * n) / count), Math.round(((i + 1) * n) / count));
+    const readable = slice.filter(isValidSample);
+    const avg = (pick: (r: EegRow) => number) =>
+      readable.length ? Math.round(readable.reduce((sum, r) => sum + pick(r), 0) / readable.length) : null;
+    const bands = computeBandPowers(slice);
+    const hasBands = BAND_FIELDS.some((b) => bands[b] > 0);
+    segments.push({
+      usablePct: slice.length ? Math.round((readable.length / slice.length) * 100) : 0,
+      attention: avg((r) => r.attention),
+      relaxation: avg((r) => r.relaxation),
+      bands: hasBands
+        ? (Object.fromEntries(BAND_FIELDS.map((b) => [b, round1(bands[b])])) as BandPowers)
+        : null,
+    });
+  }
+  return { segmentSec: Math.round(n / count), segments };
 }
 
 /** Compute all 6 indicators from raw EEG rows (0-100, no post-hoc rescaling) */

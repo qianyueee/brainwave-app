@@ -20,10 +20,11 @@ import {
   sessionRev,
   type CloudMark,
 } from "@/lib/sync/cloud-mark";
-import type { BrainIndicators } from "@/lib/brain-profile";
+import type { BrainIndicators, BrainTimeline } from "@/lib/brain-profile";
 import {
   computeIndicators,
   computeBandPowers,
+  computeTimeline,
   countUsableSeconds,
   eegRowsFromSamples,
 } from "@/lib/brain-profile";
@@ -50,6 +51,9 @@ export interface MindSessionSummary {
   /** Session-average per-Hz FFT spectrum (1..SPECTRUM_MAX_HZ Hz). Realtime
    *  measurements only — the demo and the bridge provide it; uploads don't. */
   spectrum?: number[];
+  /** How the measurement changed along the way (computeTimeline). Absent on
+   *  sessions recorded before it existed and on recordings under a minute. */
+  timeline?: BrainTimeline;
   /** Free-text memo the user can attach to a measurement (optional). */
   note?: string;
   /** Seconds the headset actually read. 0 means every second was poor-signal,
@@ -344,6 +348,7 @@ export const useMindStore = create<MindState>()(
           targetHz: recordingTargetHz ?? undefined,
           indicators: computeIndicators(rows),
           bands: computeBandPowers(rows),
+          timeline: computeTimeline(rows),
           // Poor-contact seconds are excluded here for the same reason the
           // indicators and the band balance exclude them: with the electrodes
           // off the scalp the raw waveform is amplifier and mains pickup, not

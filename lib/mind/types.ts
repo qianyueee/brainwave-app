@@ -69,6 +69,19 @@ export interface EegSample {
 export const SPECTRUM_MAX_HZ = 64;
 
 /**
+ * Highest frequency the report draws and the AI analysis reads. The bins past
+ * 50Hz exist to expose mains hum while analysing, not to be read as brainwaves.
+ * Older records are 45 bins long and stop there on their own.
+ */
+export const SPECTRUM_DISPLAY_MAX_HZ = 50;
+
+/** The bins shown / analysed: 1Hz up to SPECTRUM_DISPLAY_MAX_HZ, or fewer if the
+ *  record is shorter. The report's "1〜N Hz" caption reads the same length. */
+export function displayedSpectrum(spectrum: number[]): number[] {
+  return spectrum.slice(0, SPECTRUM_DISPLAY_MAX_HZ);
+}
+
+/**
  * POOR_SIGNAL above this means the electrodes aren't reading the scalp (0 =
  * perfect contact, 200 = none). Such a second carries *no data* — TGAM zeroes
  * Attention/Meditation and the band powers are noise — so it must be treated as

@@ -12,6 +12,7 @@ import { useCustomAudioStore } from "@/store/useCustomAudioStore";
 import { useBaselineStore } from "@/store/useBaselineStore";
 import { useCloudSyncStore } from "@/store/useCloudSyncStore";
 import { useSyncTreeStore } from "@/store/useSyncTreeStore";
+import { useBrainAnalysisStore } from "@/store/useBrainAnalysisStore";
 import { setActiveCloudUserId } from "@/lib/sync/per-user-storage";
 import { runFirstLoginMigration } from "@/lib/sync/migrate";
 import { ensureCloudOutbox, releaseCloudOutbox } from "@/lib/sync/outbox";
@@ -44,6 +45,7 @@ function clearAllForLogout() {
   useCustomAudioStore.getState().clearForLogout();
   useBaselineStore.getState().clearCloudChecks();
   useSyncTreeStore.getState().clear();
+  useBrainAnalysisStore.getState().clear();
   setActiveCloudUserId(null);
 }
 

@@ -10,7 +10,7 @@ import {
   ReferenceArea,
   ResponsiveContainer,
 } from "recharts";
-import { BAND_META, BAND_HZ_RANGE, getBandColors } from "@/lib/mind/types";
+import { BAND_META, BAND_HZ_RANGE, displayedSpectrum, getBandColors } from "@/lib/mind/types";
 import { THEME_CHANGE_EVENT } from "@/lib/theme";
 import { useDocumentScheme } from "@/components/useDocumentScheme";
 import { useT } from "@/lib/i18n";
@@ -25,20 +25,6 @@ const SPECTRUM_BANDS = BAND_META.map((b) => ({
   from: BAND_HZ_RANGE[b.key][0],
   to: BAND_HZ_RANGE[b.key][1],
 }));
-
-/**
- * Highest frequency the report draws. Records hold up to SPECTRUM_MAX_HZ (64)
- * bins — the bins past 50Hz exist to expose mains hum while analysing, not to be
- * read as brainwaves — so the chart stops at 50Hz. Older records are 45 bins
- * long and stop there on their own.
- */
-export const SPECTRUM_DISPLAY_MAX_HZ = 50;
-
-/** The bins the chart draws: 1Hz up to SPECTRUM_DISPLAY_MAX_HZ, or fewer if the
- *  record is shorter. The page's "1〜N Hz" caption reads the same length. */
-export function displayedSpectrum(spectrum: number[]): number[] {
-  return spectrum.slice(0, SPECTRUM_DISPLAY_MAX_HZ);
-}
 
 /** Axis ticks for a spectrum `maxHz` bins wide: 1Hz, then every 5Hz. The array's
  *  own length is the source of truth — measurements recorded before the band was
