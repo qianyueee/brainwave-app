@@ -1,5 +1,7 @@
 import type { ProgramConfig } from "../programs";
 import { MODULAR_BEATS } from "../zodiac";
+import { MAX_CARRIER_HZ } from "./factory";
+import { PROGRAM_LIST } from "./program-list";
 
 /**
  * 開発時だけ走る自己点検。テストランナーがまだ無いので、壊れたら
@@ -40,9 +42,27 @@ export function assertCatalog(all: readonly ProgramConfig[]): void {
       }
     }
 
-    // 中高年の聴覚に合わせた上限（CLAUDE.md）。
-    if (!(p.carrierFreq > 0 && p.carrierFreq <= 1000)) {
-      problems.push(`${p.id}: 載波 ${p.carrierFreq}Hz が 0〜1000Hz の外`);
+    // 中高年の聴覚に合わせた上限（CLAUDE.md）。一覧が 1000Hz を超える値を書いて
+    // いても factory の playableCarrier が下げているはず。
+    if (!(p.carrierFreq > 0 && p.carrierFreq <= MAX_CARRIER_HZ)) {
+      problems.push(`${p.id}: 載波 ${p.carrierFreq}Hz が 0〜${MAX_CARRIER_HZ}Hz の外`);
+    }
+    for (const l of p.layers ?? []) {
+      if (!(l.carrierFreq > 0 && l.carrierFreq <= MAX_CARRIER_HZ) || !(l.beatFreq >= 0)) {
+        problems.push(`${p.id}: 重ねる組（${l.carrierFreq}Hz × ${l.beatFreq}Hz）が範囲外`);
+      }
+    }
+
+    // ビートは 0 以上（0＝うなりの無い Pure Void）。負や NaN は右耳がキャリアより
+    // 低くなる／周波数が壊れる。
+    if (!(p.targetBeatFreq >= 0) || p.phases.some((ph) => !(ph.startBeatFreq >= 0 && ph.endBeatFreq >= 0))) {
+      problems.push(`${p.id}: ビートに負または数でない値がある`);
+    }
+
+    // Target / Energy の周波数は一覧の写し（program-list.ts）から来る。載っていない
+    // と factory が受け皿の値で鳴らしてしまう。
+    if ((p.category === "target" || p.category === "energy") && !PROGRAM_LIST[p.id]) {
+      problems.push(`${p.id}: lib/catalog/program-list.ts に一覧の写しが無い`);
     }
 
     // id の前置きは予約済みのものと衝突しないこと。
@@ -58,8 +78,8 @@ export function assertCatalog(all: readonly ProgramConfig[]): void {
     }
 
     // 暫定値のビートは既存の語彙から選ぶ（lib/zodiac.ts の MODULAR_BEATS）。
-    // 縛るのは「こちらが名前から当てずっぽうで決めた値」だけ——一覧 xlsx から
-    // 取り込んだ確定値は仕様が決めたものなので、この語彙の外でも正しい。
+    // 縛るのは「一覧に値が無くてこちらが決めた値」だけ——一覧の値は仕様が
+    // 決めたものなので、この語彙の外でも正しい。
     // MODULAR_BEATS はリテラル型の組なので、任意の number を照合するには広げる。
     const beatVocabulary: readonly number[] = MODULAR_BEATS;
     if (p.paramsProvisional && (p.category === "target" || p.category === "energy") &&
@@ -79,8 +99,8 @@ export function assertCatalog(all: readonly ProgramConfig[]): void {
   const provisional = all.filter((p) => p.paramsProvisional).length;
   if (provisional > 0) {
     console.info(
-      `[catalog] ${provisional}/${all.length} 件が暫定パラメータ（TODO(xlsx)）。` +
-        `一覧 xlsx を取り込むと減る。`
+      `[catalog] ${provisional}/${all.length} 件のビートが暫定値（一覧に鳴らせる値が無い。` +
+        `lib/catalog/program-list.ts の note）。`
     );
   }
 }
