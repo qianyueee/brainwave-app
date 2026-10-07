@@ -13,7 +13,7 @@ NeuroSync（ニューロシンク）— 基于个人脑波数据的移动端 Web
 - Framework: Next.js 16 (App Router, `output: "export"` 静态导出) + TypeScript (strict)
 - Styling: Tailwind CSS
 - Audio: Web Audio API（纯前端实时合成，不依赖后端）
-- State: Zustand (`useAppStore` without persist; `useSynthStore` with persist for presets)
+- State: Zustand (`useAppStore` persists playback prefs only〔下の「关键设计决策」〕; `useSynthStore` with persist for presets)
 - Charts: Recharts
 - AI 分析: DeepSeek（Supabase Edge Function `analyze-brain` 経由。キーは関数の Secrets にだけ。下の「AI 分析（DeepSeek）」）
 - Astronomy: astronomy-engine（太陽/月星座计算；仅在 `lib/zodiac.ts` 的 `getTodaySky` 内动态 import → 独立懒加载 chunk，禁止顶层静态 import）
@@ -36,6 +36,7 @@ pnpm build:desktop    # Windows アプリ版の書き出し → bridge/web/（ex
 pnpm check:thinkgear  # ThinkGear パーサ（TS）と bridge/thinkgear.py の突き合わせ（python3 が要る）
 pnpm check:records    # 端末をまたぐ小さな記録（user_records）の合わせ方の自己点検（node だけ。3台の収束・時計のずれ・墓標）
 pnpm check:analysis   # AI 分析の Edge Function（supabase/functions/analyze-brain）の自己点検（node だけ。受け取る形・プロンプト・返事の読み取り・流れ）
+pnpm check:programs   # プログラム一覧（docs/program-lists/*.xlsx）と鳴らす周波数（lib/catalog/program-list.ts・星座マスタ）の突き合わせ（node だけ）
 ```
 
 ## Architecture
@@ -48,12 +49,12 @@ brainwave-app/
 │   ├── layout.tsx              # 全局布局 + 双导航挂载 + AudioContext 生命周期
 │   ├── page.tsx                # Home 首页（品牌行〔NeuroSync® のみ・`text-base`=16px。ページ見出し 20px を超えない範囲でいちばん大きく〕→ 「Home / 今日の星空・宇宙周波数で即座に調律」页面见出し → Sync Tree 状態バー（components/SyncTreeCard。**木の絵は出さない**小さなカード：1行目＝ラベル＋段階名、2行目＝今日の水やり・リスニングの具合〔/tree の「今日のおせわ」と同じ言葉＝components/tree-care.ts。幅 360 の画面でちょうど1行に収まる幅しかないので、ラベルは「聴く」——「リスニング」だと「今日はたっぷり」の日に折り返す〕、育ちきったら水やりの代わりに「育ちきりました」。**数値は出さない**、整卡点击进 /tree。表示できない間〔未ログイン・読み込み中・読めなかった〕は段階名を出さず2行目をひと言に置き換え、どの状態でも2行のまま〕→ 脳コンディションカード → 星座卡；右上角設定入口。桌面端左列＝Tree＋コンディション、右列＝星座卡）
 │   ├── session/page.tsx        # Sync Session（上段＝Water Mandala 水マンダラ英雄卡〔当日星座频率+播放〕｜所属グループへの配信プログラム／未ログイン CTA。**配信プログラムはデスクトップでは左の英雄卡と同じ高さの枠**（`md:absolute md:inset-0`＝行の高さの計算から外し、行は英雄卡だけで決まる）に入れ、中の沈んだ面だけが `.scroll-thin`〔globals.css、6px・矢印無しの細いスクロールバー〕でスクロールする。カードの呼吸は止める〔`PublishedProgramCard` の `breathe={false}`——膨らんだ分が枠で切れる〕。スマホは枠を `contents` で消して従来どおり全部並べる〔枠を重ねると 390px 幅で文字の欄が 1/4 狭くなり、入れ子のスクロールは指の当たった場所で動く方が変わる〕。下段＝幅いっぱいの `CatalogSection`：デフォルト・Target・Energy・Astro の4タブ＋全カテゴリ横断の検索。一覧を上段2列グリッドの片側に入れないのは、169 件を半分の幅に押し込むとカードが縦に続く筒になるから。※音源制作・公開などの管理操作は置かない——管理面板「音源」タブへ移設済み）
-│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 誘導周波数の入力 → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕。Android アプリでは源が BluetoothSource、「接続する」が BluetoothSourceDialog〔Bluetooth で BrainLink に直結〕。Windows アプリでは源が LocalSource、「接続する」が DesktopSourceDialog〔同じ PC の Python が COM ポートを読む〕。どちらも測り終えたら Web と同じく「取り込む」）
+│   ├── brain/page.tsx          # Sync Brain（脳波同期・測定：接続する＋測定者チップ → 誘導周波数〔**手入力なし**：流しているセッションの誘導周波数、無ければ既定の 40Hz＝components/mind/InductionTargetLine・lib/mind/session-target.ts〕 → 測定を開始 → 出どころ1行 → 左列＝マインドマップ＋脳波バランス／右列＝ブレインアート＋推移。**「いま」だけを映すページ**——過去の測定一覧は置かない〔記録の閲覧は /report と /history〕。Android アプリでは源が BluetoothSource、「接続する」が BluetoothSourceDialog〔Bluetooth で BrainLink に直結〕。Windows アプリでは源が LocalSource、「接続する」が DesktopSourceDialog〔同じ PC の Python が COM ポートを読む〕。どちらも測り終えたら Web と同じく「取り込む」）
 │   ├── report/page.tsx         # Sync Report（大见出し直下のタブで2ページ切替：「脳特性チャート」＝分析＋3指標タイル＋大脳特性〔その真下に **AI 分析**＝components/BrainAiAnalysis、下の「AI 分析（DeepSeek）」〕＋8種類の脳波バランス＋周波数スペクトル〔**デスクトップは 2×2 のグリッド**：1段目＝大脳特性｜脳波バランス（同じ段なので2枚は同じ高さ・見出しの行は両方 48px、中身は段の真ん中）、2段目＝AI 分析｜スペクトル＋アップロード。左右を別々の縦列にすると隣り合う2枚の高さが中身しだいでずれる。並べ替えは `md:col-start/row-start` だけで DOM 順は変えない＝モバイルは従来どおり 大脳特性→AI→記録へ→脳波バランス→スペクトル〕〔スペクトルは**1〜50Hz だけ描く**＝lib/mind/types の SPECTRUM_DISPLAY_MAX_HZ・displayedSpectrum（AI 分析に送るのも同じ範囲）。記録は 64 ビンまで持つが 50Hz より上は電源ノイズを見るためのもの〕 ／「測定の比較」＝1件で6指標＆脳波バランス・2〜3件で並べて比較。脳波バランスは components/BrainBandCompare＝**横＝8種の波・縦＝%のグループ棒グラフ**〔値は円グラフと同じ `bands`、色は6指標レーダーと同じ compareSeriesColors、1件なら棒の上に値・複数ならタップでツールチップ〕。比較に選べるのは `bands` のある記録。候補の各行の右端「レポート」＝その1件を脳特性チャートで開く〔同じページのタブ切替なので比較の選択は残る〕。既定は脳特性チャート）
 │   ├── history/page.tsx        # Sync History（日历〔日付タップで当日の明細＋**その日の振り返り**を書く〕/ セッション統計 / 脳波の記録〔ログイン必須〕/ 10秒チェックの記録〔認証ゲートの外＝未ログインでも見える〕；レポートで見る→/report。**選択〔測定者・測定データ・カレンダーの月と日〕は useHistorySelectionStore に持つ**＝/report から戻っても最新に飛ばず、見ていた記録が開いたまま）
 │   ├── settings/page.tsx       # Settings（账号〔下部に**表示言語**＝LanguageSwitch、未ログインでも切替可〕/ 管理入口 / 应用信息；菜单外，从首页齿轮进入）
 │   ├── tree/page.tsx           # Sync Tree：いまの木が**1本だけ大きく**立つ毎日のチェックイン画面（16段階ギャラリーは廃止）。大きな木＝components/SyncTreeWaterScene（**ダブルタップで水やり**：1回目で「もう一度タップで水やり」を出して 1.5 秒待ち、その間の2回目で水やり——350ms の厳密判定は 50〜60代の指に速すぎ、iOS は dblclick を安定して出さず VoiceOver の実行も1クリックで届くため。Enter/Space は1回で水やり。しずく・立ちのぼるきらめき・揺れ・段階替わりの「育つ」は CSS の1回きりアニメ）→ 育ち具合（目盛りの無い帯＋growthLevel で選ぶ言葉「育ちはじめました／すくすく／もうすぐ」・育てた木）→ 今日のおせわ（水やり 済み／まだ・リスニング まだ／育っています／今日はたっぷり。言葉と色は components/tree-care.ts でホームの状態バーと共有）→ 完成したら「新しい木を育てる」（ConfirmDialog）。**画面に数値を出さない**（プロダクト判断：％・ポイント・「+1」のような加算量・段階の番号は内部だけ。出す数字は育てた木の本数と「1日1回」「5分」という使い方だけ）。**ログイン中だけ**使える（未ログインはログイン誘導）。育てた木数はここだけ、段階名はホーム树卡と両方；菜单外，从首页树卡进入
-│   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入。左上「戻る」＝履歴を1つ戻る〔来た画面へ〕、直接開いて戻り先が無いときは /session）
+│   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音〔先頭に**聴き方**＝components/BeatChannelToggle：ステレオ＝バイノーラル／モノラル＝2音を混ぜたモノラルビート、再生中でも切替・端末に保存・書き出しも従う。lib/beat-graph.ts〕 / 定时器；菜单外，从节目卡进入。左上「戻る」＝履歴を1つ戻る〔来た画面へ〕、直接開いて戻り先が無いときは /session）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
 │   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
 │   ├── desktop/page.tsx        # **旧い**デスクトップ測定アプリ（NeuroSyncMeasure.exe）が開いていた**単体画面**。Windows アプリ（完全版、NeuroSync.exe）はもう開かない（`/` から始まり、測定は /brain）——旧路由として残してあるだけ。中身は /brain と同構成、違いは3点：源が LocalSource（ローカルWS）／接続ダイアログが DesktopSourceDialog（配对码→COMポート選択）／取り込みを尋ねず**自動保存**（MindRecorder mode="autoSave"＋右上 DesktopAccountButton でログイン、下の「アカウント同期」参照）。ナビ・MiniPlayer 等の chrome は isDesktopRoute（lib/desktop.ts）守卫で全消し。导航に載せない（Pages 版にも無リンクで存在するが無害）
@@ -71,18 +72,19 @@ brainwave-app/
 ├── lib/
 │   ├── i18n.ts                 # 表示言語（ja/en、既定 ja、端末ごとに localStorage `app-locale`）。`useT()`→`t("日本語", "English")`／`useLocale()`／`translator(locale)`／`getLocale()`（描画外専用）／`intlLocale()`。下の「表示言語」参照
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
+│   ├── beat-graph.ts           # 誘導ビートの音の組み立て（BinauralSession と書き出し renderBinauralOffline が共用）：左右のバス→送り先4つのゲイン→ChannelMerger。ステレオ⇄モノラル（BeatChannelMode）はゲインを動かすだけ＝オシレーターを作り直さない。layers（2つ目のビート）もここ
 │   ├── synth-engine.ts         # SynthSession class（多层振荡器合成 + 颤音 / 颤振）
 │   ├── programs.ts             # 基础程序频率参数（从设计文档映射）+ ZODIAC_PROGRAMS（12星座节目，工厂生成，id 前缀 `zodiac-`，不并入 PROGRAMS）+ 跨分类的 ALL_PROGRAMS / programsByCategory / searchPrograms。`getProgramById` 是**全链路唯一收口**（player/Timer/Visualizer/MiniPlayer/ExportDialog/英雄卡全走它），已改为 Map 查表——总数 169，卡片每张都经 getAdjustedProgram 叫它一次，线性扫描会让搜索框每敲一个字产生数万次比较；优先顺 PROGRAMS→ZODIAC→CATALOG 以先勝ち保持
 │   ├── catalog/                # Sync Session 目录（Target 42／Energy 13）。**`lib/programs.ts` からは値として import しない**——向きは常に programs.ts → catalog の一方通行（型だけ `import type`）。逆向きの値 import を1本でも入れると ALL_PROGRAMS の組み立てが `undefined.map` で死に、型エラーではなく真っ白な画面になる
-│   │   ├── target.ts           # 42 件／5小分類（仕事・勉強・睡眠・リズム・緊張・精神・身体・不調・生活・環境）。行は1行1件・`{ id, name, titleEn` の順を守る（取り込みスクリプトが正規表現で読む）。`kana` は漢字のよみ（検索の正規化はカタカナ→ひらがなまでしか畳めないので手で足す）
+│   │   ├── target.ts           # 42 件／5小分類（仕事・勉強・睡眠・リズム・緊張・精神・身体・不調・生活・環境）。名前・よみ・小分類・長さだけ（周波数は program-list.ts）。`kana` は漢字のよみ（検索の正規化はカタカナ→ひらがなまでしか畳めないので手で足す）
 │   │   ├── energy.ts           # 第0〜第12 チャクラの 13 件
-│   │   ├── factory.ts          # 行 → ProgramConfig。`params.generated.ts` に id があればそちらの周波数が勝ち、paramsProvisional も外れる
-│   │   ├── phases.ts           # `catalogPhases(beat, min, {intro, outro})`。**phases と duration を必ず同じ計算から返す**——ズレると全カードに嘘の「パーソナライズ済み」バッジが出る（下の理由参照）。睡眠系は outro を下げたまま終える
+│   │   ├── factory.ts          # 行 → ProgramConfig。周波数は program-list.ts の写しから（一覧に鳴らせる値が無い行だけ paramsProvisional）。`playableCarrier`＝1000Hz を超えるキャリアは1オクターブずつ下げる
+│   │   ├── phases.ts           # `planTimeline(plan, min, outro)`：一覧の鳴らし方（steady／layered／sweep／wave／path）→ 相位列・尺・誘導周波数。**phases と duration を必ず同じ計算から返す**——ズレると全カードに嘘の「パーソナライズ済み」バッジが出る（下の理由参照）。睡眠系は outro "hold" で下げたまま終える
 │   │   ├── search.ts           # NFKC＋小文字化＋カタカナ→ひらがな＋記号落とし。クエリは空白区切りの全トークン一致（AND）
 │   │   ├── categories.ts       # タブの名前・順・説明
-│   │   ├── invariants.ts       # 開発時のみ走る自己点検（相位名「導入」／duration 一致／id 重複／載波上限／暫定ビートの語彙）。テストランナーが無いのでここが唯一の番人
+│   │   ├── invariants.ts       # 開発時のみ走る自己点検（相位名「導入」／duration 一致／id 重複／載波上限〔layers も〕／ビート ≥0／一覧の写しの有無／暫定ビートの語彙）。テストランナーが無いのでここが唯一の番人
 │   │   ├── music.ts            # Target/Energy の曲の表（id → brainwave-sounds 内のパス。ファイル名は納品時のまま＝id から導けないので1件ずつ）。値だけ・import なし
-│   │   └── params.generated.ts # ⚠ 生成物。`scripts/import-program-xlsx.mjs` が書く。直接編集しない
+│   │   └── program-list.ts     # **一覧 xlsx の写し**（Target 42・Energy 13・Morning Tuning 1）：原文（名前・周波数・脳波誘導波）＋鳴らし方（BeatPlan）＋note。値だけ・import なし（node が直接読む）。一覧が変わったらここを直して `pnpm check:programs`
 │   ├── zodiac.ts               # 12星座マスタ + 太陽/月星座計算（getTodaySky，动态 import astronomy-engine）+ isNightNow（6/18时昼夜界）+ dailyRecommendation（モジュール合成：載波=自星座固定、差频按四标签×情境可变——活性=太阳40/月20Hz、フロー=太阳12/月10Hz、バランス=平日14/休日夜间7.83Hz、回復=傍晚6/深夜4/月在魚座2Hz；48条 §6 メッセージ模板；优先级 healing→activation→flow→balance，火×地/風×水归紧张）
 │   ├── zodiac-constellations.ts # 12星座点线星图数据（0-100 归一化坐标，ZodiacConstellation 组件绘制，emoji 不再使用）
 │   ├── music-intro.ts          # セッションの始まり：ビートを曲の立ち上がりに合わせて一緒に強くする（**純関数・import なし**）。measureIntro＝曲の頭の盛り上がり（本体の音量に対する振幅比、累積最大）／beatStartCurve＝曲の聞こえ方（盛り上がり×音量の立ち上げ START_FADE_SEC=4 秒の二乗カーブ）をなぞるビートの曲線、MAX_FOLLOW_SEC=10 秒で必ず満量／MUSIC_WAIT_MS=2.5 秒＝ビートが曲を待つ上限。使い手は下の「星座音乐」参照
@@ -92,9 +94,10 @@ brainwave-app/
 │   ├── brain-analysis.ts       # AI 分析の送る形と返る形：buildAnalysisInput（記録→**数値だけ**の束。メモ・測定者名・sessionTag は送らない）／BrainAnalysisContent／normalizeAnalysis。形は supabase/functions/analyze-brain の validateInput と同じに保つ（変えたら両方と版を上げる）
 │   ├── journal.ts              # その日の振り返り（日誌）の語彙：5段階の調子 MOOD_SCALE（絵文字＋**必ず言葉も**——50〜60代には表情の描き分けが読み取りにくい）/ moodColor（token を返す。生の色名はテーマ4種のどれかで必ず浮く）/ JOURNAL_TEXT_MAX
 │   ├── day-records.ts          # カレンダーの当日明細（buildDayRecords / recordedDayKeys / dayKeyOf）。再生ログ＋取り込んだ脳波測定＋10秒チェックの3出どころを時刻順に1本へ畳む純関数。UI から切り出してあるのは脳波測定がログイン必須ストア（per-user persist）でブラウザから仕込めないため——純関数なら3種すべて実コードで検証できる。描画は components/SimpleCalendar
-│   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，数据不足为 null）。**セッション由来**＝computeBrainConditionMetrics（入定速度×共鳴率）／**非セッション由来**＝computeBaselineConditionMetrics（下の baseline.ts が算出済みの値を変換するだけ）。共鳴率を見る周波数は**その測定の誘導周波数**（`BrainProfile.targetHz`）、未入力なら既定の 40Hz＝`DEFAULT_TARGET_HZ`（従来と同じ判定）
+│   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，数据不足为 null）。**セッション由来**＝computeBrainConditionMetrics（入定速度×共鳴率）／**非セッション由来**＝computeBaselineConditionMetrics（下の baseline.ts が算出済みの値を変換するだけ）。共鳴率を見る周波数は**その測定の誘導周波数**（`BrainProfile.targetHz`＝測定中に流していたセッションの誘導周波数）、無ければ既定の 40Hz＝`DEFAULT_TARGET_HZ`（従来と同じ判定）
 │   ├── mind/baseline.ts        # 10秒ベースラインチェック（非セッション時の3指標）。ターゲット周波数が無い平常時は引き込み速度が測れないので別ロジックへ：パターン1 Berger効果（開眼5秒⇄閉眼5秒のα波立ち上がり速度＋メリハリ比）を既定、成立しなければパターン2 静止時可塑性（スペクトル・エントロピー×帯域間移動度）へフォールバック。Clarity=(40Hzγ+高α)/高β、Reset=(δ+θ)比×ゆらぎ。係数は BASELINE_CONFIG に集約（**暫定値**、実測が貯まったら再標定）。⚠ サンプルは1Hzなので T_α-rise の分解能は1秒
-│   ├── mind/resonance.ts       # 「その周波数だけ周りより立っているか」＝局所突出比（目標Hzの値 ÷ ±5Hz近傍〔±1Hzは山なので除外〕の平均）＋誘導周波数の入力ルール（`TARGET_HZ_MIN/MAX/STEP`＝1〜45Hz・0.01Hz刻み、`DEFAULT_TARGET_HZ`=40、normalize/format）。ビンは1Hz刻みなので 0.01Hz 指定は前後を線形補間する
+│   ├── mind/resonance.ts       # 「その周波数だけ周りより立っているか」＝局所突出比（目標Hzの値 ÷ ±5Hz近傍〔±1Hzは山なので除外〕の平均）＋誘導周波数の範囲（`TARGET_HZ_MIN/MAX`＝1〜45Hz、0.01Hz に丸める、`DEFAULT_TARGET_HZ`=40、normalize/format）。ビンは1Hz刻みなので 0.01Hz 指定は前後を線形補間する
+│   ├── mind/session-target.ts  # 測定の誘導周波数を再生状態から決める（手入力は無い）：流している節目の targetBeatFreq（1〜45Hz の外・0Hz・カスタム節目は既定の 40Hz）、流していない／一時停止中は既定。録音中は1秒ごとに数え、**いちばん長く流れていた**周波数を測定に記録（useMindStore の recordingTargetSeconds）
 │   ├── mind/desktop-bridge.ts  # Windows アプリ（と旧 /desktop）のローカル WS クライアント（シングルトン・参照カウント・?ws= でポート受取＝最初のページにしか付かないので sessionStorage `desktop-ws-port` に控える・0.5→5s バックオフ再接続）＋プロトコル型（DesktopBridgeState / DesktopCommand / DesktopAuthCallback）。`auth_callback` は subscribeDesktopAuthCallbacks へ。**プロトコルの正は bridge/local_server.py のコメント**
 │   ├── mind/desktop-google-auth.ts # デスクトップの Google ログイン（既定のブラウザ＋ループバック＋PKCE、RFC 8252）。WebView 内のログインは Google が拒むので window.open（pywebview が既定のブラウザへ回す）→ Supabase → `state.authCallbackUrl`（Python の /auth/callback）→ WS `auth_callback` → verifier と引き換え（`/auth/v1/token?grant_type=pkce`）→ setSession。**全体の supabase クライアントは implicit のまま**（Web の Google ログイン・確認メールを変えない）。verifier は1回きり・待っていない code は捨てる。flow state は /authorize から5分
 │   ├── mind/session-record.ts  # 測定セッション → 脳特性記録（BrainProfile）の唯一の写像（measurementFromSession / sessionLabel / measurementKey）。/brain の取り込みとデスクトップの自動保存が同じ1本を通る
@@ -112,7 +115,7 @@ brainwave-app/
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
 ├── store/
-│   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志）。`sessionLogs` は**この起動のあいだだけの流れ**（Sync Tree のリスニングを締める用）——残る再生の記録は usePlaybackHistoryStore
+│   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志 / ビートの聴き方 `beatChannelMode`〔stereo|mono、persist〕）。`sessionLogs` は**この起動のあいだだけの流れ**（Sync Tree のリスニングを締める用）——残る再生の記録は usePlaybackHistoryStore
 │   ├── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
 │   ├── useUserRecordsStore.ts  # 端末をまたぐ小さな記録の端末側（persist key `user-records`、素の localStorage＝未ログインでも続く）。**スコープ**で分けて持つ：`anon`＝ログインしていない間に書いたもの／`<userId>`＝そのアカウントのもの（書くと送信待ち）。いまのスコープ＝useCloudSyncStore.account（オフライン起動でも自分の宛て）。画面は `useRecordView()`＝ログイン中はアカウント∪anon（種類ごとのきまり）、ログアウト中は anon だけ。結びつきが外れたアカウントのスコープは送信待ちだけ残して捨てる（共用の端末で次の人に見えない）。旧キー（sync-journal / self-rating〔v1 だけ〕/ zodiac-sign / mind-subjects）は anon へ移して消す（フラグ無し・何度走っても同じ）
 │   ├── usePlaybackHistoryStore.ts # 再生の記録（1回1件 `playback:<UUID>`、ヒストリーのカレンダーと統計）。以前は useAppStore.sessionLogs（メモリだけ）で再読み込みのたびに消えていた。AudioProvider が addSessionLog の直後に recordPlayback。**アカウントの記録を useAppStore.sessionLogs に混ぜない**（聴いていない分まで Sync Tree が数える）
@@ -138,7 +141,8 @@ brainwave-app/
 ├── android/                    # Capacitor の Android プロジェクト（Java、コミットする）。自前のプラグイン：AppChrome / NowPlaying（＋前面サービス）/ Downloads / BrainLink、WebView の補い：ExportRouteWebViewClient（/brain → brain.html）/ LocalizedChromeClient。配布・署名鍵・確認リストは android/README.md
 ├── supabase/migrations/        # 手で SQL Editor に流す（CLI 設定なし）。001 管理者・グループ／002 ユーザー同期（旧 user_brain_profile＝1ユーザー1 JSONB）／**003 account_sync＝1記録1行の user_brain_measurements・user_baseline_checks＋旧表から移行＋旧表を読み取り・削除専用に**／**004 sync_tree＝Sync Tree の出来事 user_tree_events（1件1行・追記のみ。キーの形で1日の上限を守る）**／**005 user_records＝端末をまたぐ小さな記録（振り返り・再生の記録・感コンディション・測定者・マイ星座）の汎用表（新しい方が勝つトリガ・墓標・本人の行だけ）**／**006 brain_analyses＝AI 分析 user_brain_analyses（1測定1行・測定を外部キーで参照して一緒に消える・書くのは関数だけ）＋1日の回数 user_ai_usage／claim_ai_analysis()（service_role だけ）**
 ├── supabase/functions/analyze-brain/ # AI 分析の Edge Function（Deno・依存なし＝fetch だけ、Dashboard のエディタに1ファイルで貼ってデプロイ。手順は同フォルダの README）。tsconfig と ESLint の対象外
-├── scripts/import-program-xlsx.mjs # 一覧 xlsx → `lib/catalog/params.generated.ts`。**必ず `--inspect <file>` を先に**走らせて見出しの対応を確かめ、必要なら HEADER_SYNONYMS に足してから `--in <file>`。出力するのは周波数と尺だけ——名前・よみ・アイコン・並びは人が決めたものなので取り込みで消さない。突き合わせは名前（id は xlsx に無く、しかも localStorage に残る利用者の選択そのものなので機械に振り直させない）
+├── scripts/check-program-lists.mjs # `pnpm check:programs`：docs/program-lists/*.xlsx と lib/catalog/program-list.ts（Astro は星座マスタ）の突き合わせ。原文が変わった（一覧の更新）・数値の写し間違い・片方にしか無い行で止まる。note／provisional のある行の食い違いは表示だけ
+├── docs/program-lists/         # プログラム一覧の原本（Targetプログラム一覧・Energyプログラム一覧・Morning Tuning & Energizeプログラム・Astroプログラム一覧 の xlsx）。周波数の唯一の出どころ
 ├── public/sounds/              # 自然音素材（rain/ocean/forest/stream）
 │   └── zodiac/ ・ programs/    # ⚠ もう読まない旧い置き場（曲は brainwave-sounds へ移った）。配布済みの旧い APK・exe がまだここを読むので残してある——全員が新しい版になったら消してよい（消しても git の履歴は軽くならない、軽くなるのは Pages だけ）
 └── zodiac-music/               # 星座音乐素材说明（README；原始 190kbps 版本只存在于 `zodiac-music` 分支，不合并进 main）
@@ -186,18 +190,19 @@ brainwave-app/
 
 本项目有两个独立的音频引擎，**互斥播放**（启动一个自动停止另一个）：
 
-#### 1. 脑波双耳节拍引擎 (`lib/audio-engine.ts`)
+#### 1. 脑波双耳节拍引擎 (`lib/audio-engine.ts` ＋ 音の組み立て `lib/beat-graph.ts`)
 ```
 AudioContext（全局单例，getAudioContext() 管理）
-├── OscillatorNode (左声道 carrier freq)
-│   → GainNode → ChannelMergerNode(input 0) ─┐
-├── OscillatorNode (右声道 carrier + beatFreq) │
-│   → GainNode → ChannelMergerNode(input 1) ─┤→ fadeGain（始まりの立ち上げ）→ analyser → destination
-├── AudioBufferSourceNode (自然音 loop)        │
-│   → GainNode ─────────────────────────────→ destination
+├── 左耳の音：carrier と倍音 2×・3×（＋layers の carrier）→ 左バス ─┐  送り先4つのゲイン
+├── 右耳の音：carrier+beat（相位で動く）と倍音（＋layers の carrier+beat）→ 右バス ─┤  stereo＝左→L・右→R
+│                                                                  │  mono  ＝(左+右)/2→L,R
+│      ChannelMergerNode → volumeGain（ビート音量）→ fadeGain（始まりの立ち上げ）→ analyser → destination
+├── AudioBufferSourceNode (自然音 loop) → GainNode → destination
 └── AudioBufferSourceNode (音楽ベッド loop)
     → fadeNode（始まりの立ち上げ）→ GainNode（音量）→ destination
 ```
+- **聴き方（`BeatChannelMode`）**：stereo＝バイノーラルビート（左右に別の音、ヘッドホンでないと効かない）／mono＝モノラルビート（2つの音を半分ずつ混ぜて両耳へ＝音そのものがうなる、スピーカーでも効く。半分ずつなのは山の高さを stereo と揃えるため）。切り替えは送り先のゲインを `setTargetAtTime(…, 0.03)` で動かすだけでオシレーターは作り直さない（再生中でも途切れない）。音楽ベッド・自然音はステレオのまま（曲は本物のステレオ）。書き出し（renderBinauralOffline）も同じ組み立てを通るので、聴いた音と書き出した音は同じ
+- **layers**（`ProgramConfig.layers`）：一覧が「10Hz×40Hz」「5Hz・40Hz重なり」と2つのビートを重ねる節目だけ。2つ目は主のキャリアの1オクターブ下で一定に鳴らす純音の組（同じキャリアに重ねると片耳で2音がぶつかり、狙っていない第3のうなりが出る）。片耳の合計が 1 を超えないようバスを `1/(1+0.82×層数)` に下げる
 
 #### 2. 自定义合成器引擎 (`lib/synth-engine.ts`)
 - 最多 8 层振荡器叠加，频率 20~10,000Hz
@@ -257,7 +262,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 - OscillatorNode 不可重用（stop 后必须重建），两个引擎都需处理节点生命周期
 - programs.ts 中的所有参数（载波频率、差频、时间轴）严格对照设计文档
 - timeScale = userDuration / defaultDuration，用于缩放所有 phase 时间点
-- `useAppStore` 启用 persist（普通 localStorage，key `app-playback`，未登录也生效）+ partialize：仅持久化 `selectedProgramId / timerDuration / beatVolume / musicVolume / natureVolume / natureSoundId`（默认音量：ビート 0.2・星座音乐 0.6）；sessionLogs 与运行态（isPlaying/elapsed/playingProgramId）仍只存内存（残る再生の記録は usePlaybackHistoryStore）。播放页整页挂 hydrated 守卫防 hydration mismatch
+- `useAppStore` 启用 persist（普通 localStorage，key `app-playback`，未登录也生效）+ partialize：仅持久化 `selectedProgramId / timerDuration / beatVolume / musicVolume / natureVolume / natureSoundId / beatChannelMode`（默认音量：ビート 0.2・星座音乐 0.6）；sessionLogs 与运行态（isPlaying/elapsed/playingProgramId）仍只存内存（残る再生の記録は usePlaybackHistoryStore）。播放页整页挂 hydrated 守卫防 hydration mismatch
 - `playingProgramId` = 实际在响的节目 id（音频真源），仅由 AudioProvider 的 start/stop 写入；显示端（/player 及其子组件、ExportDialog）一律用 `useDisplayProgramId()`（在响→真源，否则→选择），MiniPlayer 直接用真源——保证"听到的"和"看到的"永远一致
 - `useSynthStore` 启用 persist + partialize，仅持久化 `savedPresets`
 - `crypto.randomUUID` 在 HTTP 环境下不可用，需降级为 `Date.now().toString(36) + Math.random()`
@@ -551,7 +556,7 @@ BrainLink ─SPP(COM)─> desktop_bridge（Python：ThinkGear 解析・CSV）─
 - **`breathe` の呼吸アニメは少数のカード向け**：`ProgramCard` の既定は `breathe`（`gentle-breathe` 3.5s 無限、拡大縮小）だが、`breathe-stagger` の遅延は**6枚目までしか定義が無い**。7枚目から先は全部が同じ拍で膨らみ、画面がざわつくうえ合成の負荷も枚数ぶん増える。数十枚並ぶ一覧では `breathe={false}` を渡す（`CatalogSection` はそうしている）
 - 最大内容宽度 480px 居中
 - 播放页动画用 CSS animation 或 requestAnimationFrame，避免 React 重渲染
-- 载波频率 ≤ 1000Hz（适配中老年听觉）
+- 载波频率 ≤ 1000Hz（适配中老年听觉）。一覧が 1000Hz を超える値を書いている節目（Energy 第8〜第12 の 1074〜1518Hz）は `playableCarrier` が1オクターブずつ下げて鳴らす（音名＝曲との響きは変えない。バイノーラルビートも 1000Hz 超では聞き取りにくい）
 
 ### 基础程序概要（详见 programs.ts）
 | Program | ID | Carrier | Target Beat | Default Duration |
@@ -559,9 +564,9 @@ BrainLink ─SPP(COM)─> desktop_bridge（Python：ThinkGear 解析・CSV）─
 | リセット＆ディープ | reset-deep | 174Hz | 7.83Hz (Schumann) | 15min |
 | クラリティ・フォーカス | clarity-focus | 432Hz | 40Hz (Gamma) | 20min |
 | ナイトリカバリー | night-recovery | 136.1Hz | 1.5Hz (Delta) | 30min |
-| モーニングチューニング | morning-tuning | 432Hz | 14Hz (α→β) | 10min |
+| モーニングチューニング | morning-tuning | 432Hz | 10Hz → 15Hz (α→Low β) | 10min |
 
-`morning-tuning` 是第 4 个基础程序（素材文件夹「デフォルトプログラム」新增的 Morning Tuning & Energize）。它是四者里**唯一朝上走**的：结尾不回落到 10Hz，而是一路送到 20Hz——早晨要把人交给一天，不是让人躺回去。参数暂定（`paramsProvisional`），等 xlsx 取り込み。
+`morning-tuning` 是第 4 个基础程序（素材文件夹「デフォルトプログラム」新增的 Morning Tuning & Energize）。周波数は一覧「Morning Tuning & Energizeプログラム.xlsx」どおり 432Hz × 10Hz（誘導波）で同調し、「音響テーマ」の 10.0 Hz ➔ 15.0 Hz どおり 15Hz へ持ち上げて終える（`lib/catalog/program-list.ts` の path）。四者里**唯一朝上走**的：结尾不回落到 10Hz——早晨要把人交给一天，不是让人躺回去。
 
 ### 目录体系（Sync Session 的 4 个分类）
 
@@ -574,10 +579,13 @@ BrainLink ─SPP(COM)─> desktop_bridge（Python：ThinkGear 解析・CSV）─
 | Energy | `lib/catalog/energy.ts` | 13 | 第0〜第12 チャクラ |
 | Astro | `ZODIAC_PROGRAMS` | 110 | 工厂里加一行 `category: "astro"`，数据不复制；`subGenre` = 星座名 |
 
-**周波数は 56 件が暫定値**（一覧 xlsx 未入手）。暫定値は本プロジェクトの既存の語彙からのみ選ぶ——載波はソルフェジオ（星座載波と同じ並び）、ビートは `MODULAR_BEATS`（lib/zodiac.ts）の 9 種。`scripts/import-program-xlsx.mjs` で取り込むと `params.generated.ts` が埋まり、その節目の `paramsProvisional` が外れる（外れた節目はビートの語彙の縛りからも外れる——仕様が決めた値なら語彙の外でも正しい）。
+**周波数はプログラム一覧（`docs/program-lists/*.xlsx`）どおり**。Target・Energy・Morning Tuning は `lib/catalog/program-list.ts` に1行ずつ写してあり（原文つき）、`pnpm check:programs` が xlsx と突き合わせる。Astro の 96 行は星座マスタ（`ZODIAC_SIGNS` × `MODULAR_BEATS`）がもともと同じ値を持つ（一覧に無い 4Hz・獅子座 15Hz・天秤座 8Hz の 14 節目は星座仕様の値のまま、曲は近いビートの曲を流用）。「脳波誘導波」欄の読み方：
+- 「40.0 Hz」→ steady（10Hz の導入から滑らせて保つ）／「10Hz×40Hz」「5Hz・40Hz」→ layered（2つ目は layers）／デルタの幅「1.0〜2.0Hz」→ sweep（上から下へ、設計書の「段階的に下降」）／それ以外の幅「8.0Hz〜10.0Hz（ゾーン波形）」→ wave（幅を往復）／「10Hz→3Hz→15Hz」→ path（一覧の道筋どおりの折れ線）
+- 誘導周波数（`targetBeatFreq`）は一覧が1つの数字ならそれ、道筋・幅のものは同調させる周波数（path は明示、sweep・wave は中間）。Sync Brain の共鳴率もこの値で見る
+- 一覧どおりに鳴らさない行は `note` に理由を書く：40Hz Gamma Peak は説明どおり主キャリア 160Hz（432Hz は副キャリア＝曲）／Energy 第12 の Pure Void＝ビート 0Hz（うなりの無い静けさへ溶け込む）／Morning Tuning は「音響テーマ」の 10→15Hz。**暫定（`paramsProvisional`）は2件だけ**——Jet Lag（一覧の脳波誘導波が空欄）と Energy 第8（一覧の 4096Hz はビートとして鳴らせない）。どちらも一覧の確認待ちで、暫定ビートは `MODULAR_BEATS` の語彙から選ぶ（invariants が縛る）
 
 **⚠ カタログ節目を足すときに黙って壊れる2点**：
-1. `defaultDuration` は**最後の相位の `endTime` と厳密に一致**させること。`getAdjustedProgram`（lib/brain-profile.ts）は未知 id でも switch を素通りしたうえで `defaultDuration` を最後の相位から書き戻すので、ズレていると `ProgramCard` が全カードに嘘の「パーソナライズ済み」バッジを出す。`catalogPhases()` が phases と duration を一緒に返すのはこのため。
+1. `defaultDuration` は**最後の相位の `endTime` と厳密に一致**させること。`getAdjustedProgram`（lib/brain-profile.ts）は未知 id でも switch を素通りしたうえで `defaultDuration` を最後の相位から書き戻すので、ズレていると `ProgramCard` が全カードに嘘の「パーソナライズ済み」バッジを出す。`planTimeline()` が phases と duration を一緒に返すのはこのため。
 2. 最初の相位名は必ず `導入`（`components/Visualizer.tsx` がそこだけ `targetBeatFreq` を表示する特判を持つ）。
 
 另有星座节目体系（`ZODIAC_PROGRAMS`，模块合成型）：12 个固有节目（`zodiac-<sign>`，自星座载波×自星座差频）+ 各星座×9 种矩阵差频的模块版（`zodiac-<sign>-b<beat>`，共 110 个，工厂生成，统一 15min / 導入→遷移→同調→収束 四相位），经 `getProgramById` 兜底解析，全链路（播放/定时/导出/可视化）可用；首相位名必须保持 `導入`（Visualizer 特判）。

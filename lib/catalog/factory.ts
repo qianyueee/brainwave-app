@@ -1,18 +1,10 @@
-import type { ProgramCategory, ProgramConfig } from "../programs";
-import { CATALOG_PARAMS } from "./params.generated";
-import { catalogPhases, type CatalogPhaseOptions } from "./phases";
-
-/** 一覧 xlsx が持っている値＝周波数と尺だけ。名前や並びは人の側が持つ。 */
-export interface CatalogParams {
-  carrierFreq?: number;
-  targetBeatFreq?: number;
-  durationMin?: number;
-}
+import type { BeatLayer, ProgramCategory, ProgramConfig } from "../programs";
+import { PROGRAM_LIST } from "./program-list";
+import { planTimeline } from "./phases";
 
 /**
- * カタログ1件の素の定義。周波数とタイムラインの決まりごとは
- * createCatalogProgram がまとめて面倒を見るので、各カタログ表は
- * 「名前・分類・載波・ビート」だけを持てばいい。
+ * カタログ1件の素の定義。周波数は一覧の写し（program-list.ts）が持つので、
+ * 各カタログ表は「名前・分類・アイコン・長さ」だけを持てばいい。
  */
 export interface CatalogEntry {
   id: string;
@@ -26,13 +18,8 @@ export interface CatalogEntry {
   /** 英語の画面の説明（プレイヤーで名前の下に出る）。 */
   descriptionEn?: string;
   icon: string;
-  carrierFreq: number;
-  targetBeatFreq: number;
-  /** 既定 15 分。 */
+  /** 既定 15 分（一覧には長さが無い。素材名に「6分」とあるものだけ 6）。 */
   durationMin?: number;
-  /** 入口・出口のビート（phases.ts 参照）。睡眠系は outro を下げたまま終える。 */
-  intro?: number;
-  outro?: number;
   category: ProgramCategory;
   subGenre?: string;
   subGenreEn?: string;
@@ -45,17 +32,45 @@ export interface CatalogEntry {
 }
 
 /**
- * 周波数は既定で暫定値（paramsProvisional）だが、params.generated.ts に id が
- * 載っている＝一覧 xlsx から取り込み済みの節目はそちらが勝ち、印も外れる。
+ * 鳴らすキャリアの上限。50〜60代の聴覚に合わせて 1000Hz 以下（設計書
+ * 「高周波すぎるキャリア音（1000Hz以上）は避け」）。バイノーラルビートも
+ * 1000Hz を超えるキャリアでは聞き取りにくくなる。
+ */
+export const MAX_CARRIER_HZ = 1000;
+
+/**
+ * 一覧のキャリアを鳴らせる高さへ。1000Hz を超えるもの（Energy 第8〜第12 の
+ * 1074〜1518Hz）は1オクターブずつ下げる——音名（曲との響き）は変えずに高さだけ
+ * 下ろす。1000Hz 以下はそのまま。
+ */
+export function playableCarrier(hz: number): number {
+  let c = hz;
+  while (c > MAX_CARRIER_HZ) c /= 2;
+  return Math.round(c * 100) / 100;
+}
+
+/** 一覧に載っていない id（足したのに写し忘れた）の受け皿。開発時は invariants が叫ぶ。 */
+const MISSING_LISTING = { carrier: 432, beat: { kind: "steady", hz: 10 } } as const;
+
+/**
+ * 一覧の写し（PROGRAM_LIST）から周波数とタイムラインを作る。一覧に鳴らせる値が
+ * 無い節目（provisional）は暫定値のまま印を付ける。
  */
 export function createCatalogProgram(e: CatalogEntry): ProgramConfig {
-  const confirmed = CATALOG_PARAMS[e.id];
-  const carrierFreq = confirmed?.carrierFreq ?? e.carrierFreq;
-  const targetBeatFreq = confirmed?.targetBeatFreq ?? e.targetBeatFreq;
-  const durationMin = confirmed?.durationMin ?? e.durationMin ?? 15;
-
-  const opts: CatalogPhaseOptions = { intro: e.intro, outro: e.outro };
-  const { phases, duration } = catalogPhases(targetBeatFreq, durationMin, opts);
+  const listed = PROGRAM_LIST[e.id];
+  const carrierFreq = playableCarrier(listed?.carrier ?? MISSING_LISTING.carrier);
+  const plan = listed?.beat ?? MISSING_LISTING.beat;
+  const { phases, duration, targetBeatFreq, extraBeat } = planTimeline(
+    plan,
+    e.durationMin ?? 15,
+    listed?.outro
+  );
+  // layered の2つ目は1オクターブ下のキャリアで（同じキャリアに重ねると片耳で
+  // 2音がぶつかり、狙っていないうなりが出来る）。
+  const layers: BeatLayer[] | undefined =
+    extraBeat !== undefined
+      ? [{ carrierFreq: Math.round((carrierFreq / 2) * 100) / 100, beatFreq: extraBeat }]
+      : undefined;
 
   return {
     id: e.id,
@@ -73,7 +88,8 @@ export function createCatalogProgram(e: CatalogEntry): ProgramConfig {
     defaultDuration: duration,
     targetBeatFreq,
     phases,
+    ...(layers ? { layers } : {}),
     keywords: e.keywords,
-    ...(confirmed ? {} : { paramsProvisional: true as const }),
+    ...(!listed || listed.provisional ? { paramsProvisional: true as const } : {}),
   };
 }

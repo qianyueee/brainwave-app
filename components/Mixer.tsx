@@ -8,6 +8,7 @@ import { hasMusicBed } from "@/lib/zodiac-audio";
 import { useT } from "@/lib/i18n";
 import CustomAudioSection from "@/components/CustomAudioSection";
 import RangeSlider from "@/components/RangeSlider";
+import BeatChannelToggle from "@/components/BeatChannelToggle";
 
 export default function Mixer() {
   const beatVolume = useAppStore((s) => s.beatVolume);
@@ -19,6 +20,7 @@ export default function Mixer() {
   const musicVolume = useAppStore((s) => s.musicVolume);
   const setMusicVolumeStore = useAppStore((s) => s.setMusicVolume);
   const isPlaying = useAppStore((s) => s.isPlaying);
+  const beatChannelMode = useAppStore((s) => s.beatChannelMode);
   const programId = useDisplayProgramId();
   const { getSession, playNatureSound, stopNatureSound, setNatureVolume, setMusicVolume, setSynthVolume } = useAudio();
   const t = useT();
@@ -63,11 +65,19 @@ export default function Mixer() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Stereo (binaural) ⇄ mono (monaural) — the beat engine's routing only;
+          custom programs run on the synth engine, which has its own stereo modes. */}
+      {!isCustom && <BeatChannelToggle />}
+
       {/* Beat volume */}
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
           <span className="text-sm text-text-secondary">
-            {isCustom ? t("合成音量", "Synth volume") : t("バイノーラルビート", "Binaural beats")}
+            {isCustom
+              ? t("合成音量", "Synth volume")
+              : beatChannelMode === "mono"
+                ? t("モノラルビート", "Monaural beats")
+                : t("バイノーラルビート", "Binaural beats")}
           </span>
           <span className="text-sm text-text-muted tabular-nums">
             {Math.round(beatVolume * 100)}%

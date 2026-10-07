@@ -23,6 +23,18 @@ export interface FrequencyPhase {
  */
 export type ProgramCategory = "default" | "target" | "energy" | "astro";
 
+/**
+ * 主の組（carrierFreq ＋ phases のビート）と同時に鳴らす、もう1組のビート。
+ * 一覧が「10Hz×40Hz」「5Hz・40Hz重なり」のように2つのビートを重ねる節目だけが
+ * 持つ。相位では動かさない一定値で、左耳 carrierFreq・右耳 carrierFreq＋beatFreq の
+ * 純音。主の組と同じキャリアに重ねると片耳の中で2音がぶつかって狙っていない
+ * うなりが出来るので、キャリアは主の1オクターブ下にする（lib/catalog/factory.ts）。
+ */
+export interface BeatLayer {
+  carrierFreq: number;
+  beatFreq: number;
+}
+
 export interface ProgramConfig {
   id: string;
   /** 表示名（日本語）。英語の画面では programName() が nameEn → titleEn の順に選ぶ。 */
@@ -37,9 +49,15 @@ export interface ProgramConfig {
   carrierFreq: number;
   /** Default duration in seconds */
   defaultDuration: number;
-  /** Target beat frequency displayed during intro phase (Hz) */
+  /**
+   * この節目の誘導周波数（Hz）。導入の間は Visualizer がこれを表示し、Sync Brain は
+   * 再生中の節目のこの値で共鳴率を見る。一覧が道筋・幅で書いているものは同調させる
+   * 周波数（lib/catalog/phases.ts）。0 はうなりの無い節目（Energy 第12 の Pure Void）。
+   */
   targetBeatFreq: number;
   phases: FrequencyPhase[];
+  /** 主の組と同時に鳴らす一定のビート（BeatLayer）。2つのビートを重ねる節目だけ。 */
+  layers?: BeatLayer[];
 
   // --- カタログ用（すべて任意。既存の消費側は読まないので後方互換） ---
 
@@ -54,7 +72,10 @@ export interface ProgramConfig {
   subGenreEn?: string;
   /** 英語原題。プレイヤーの副題と検索に使う。 */
   titleEn?: string;
-  /** 周波数が一覧 xlsx 未取り込みの暫定値であることの印。 */
+  /**
+   * ビートが一覧（docs/program-lists/*.xlsx）の値ではない暫定値であることの印。
+   * 一覧に鳴らせる値が無い節目だけ（lib/catalog/program-list.ts の provisional）。
+   */
   paramsProvisional?: boolean;
   /**
    * 検索用の追加語。名前・説明・英題から導けない読みだけを足す
@@ -212,16 +233,17 @@ const nightRecovery: ProgramConfig = {
 };
 
 /**
- * Morning Tuning & Energize — アルファからベータへ、朝の立ち上げ
+ * Morning Tuning & Energize — アルファからローベータへ、朝の立ち上げ
  * Carrier: 432Hz, Default: 10 min
  *
- * 4節目めとして追加。他の3つが「下げる／深める」方向なのに対し、これだけが
- * 朝いちばんに上げる向き——だから終わりを 10Hz へ戻さず、そのまま 20Hz まで
- * 送り出して終わる（覚めたまま一日へ渡すのが狙い）。
- *
- * ⚠ 尺と相位の切りどころは暫定（paramsProvisional）。一覧 xlsx
- * 「Morning Tuning & Energizeプログラム.xlsx」取り込みで確定させる。
+ * 4節目めとして追加。周波数は一覧「Morning Tuning & Energizeプログラム.xlsx」の
+ * 写し（lib/catalog/program-list.ts）——432Hz × 10Hz で同調させ、「音響テーマ」の
+ * 「10.0 Hz ➔ 15.0 Hz（アルファ波からローベータ波へのアセンション）」どおり
+ * 15Hz へ持ち上げて終える。他の3つが「下げる／深める」方向なのに対し、これだけが
+ * 朝いちばんに上げる向き——終わりを 10Hz へ戻さないのは、覚めたまま一日へ渡すため。
  */
+const morningTuningTimeline = planTimeline(PROGRAM_LIST["morning-tuning"].beat, 10);
+
 const morningTuning: ProgramConfig = {
   id: "morning-tuning",
   category: "default",
@@ -230,40 +252,10 @@ const morningTuning: ProgramConfig = {
   description: "アルファ→ベータ 432Hz で朝の覚醒",
   descriptionEn: "Wake up for the day: alpha → beta at 432Hz",
   icon: "🌅",
-  carrierFreq: 432,
-  defaultDuration: 10 * 60,
-  targetBeatFreq: 14.0,
-  paramsProvisional: true,
-  phases: [
-    {
-      name: "導入",
-      startTime: 0,
-      endTime: 2 * 60,
-      startBeatFreq: 10.0,
-      endBeatFreq: 10.0,
-    },
-    {
-      name: "覚醒",
-      startTime: 2 * 60,
-      endTime: 5 * 60,
-      startBeatFreq: 10.0,
-      endBeatFreq: 14.0,
-    },
-    {
-      name: "定着",
-      startTime: 5 * 60,
-      endTime: 8.5 * 60,
-      startBeatFreq: 14.0,
-      endBeatFreq: 14.0,
-    },
-    {
-      name: "送り出し",
-      startTime: 8.5 * 60,
-      endTime: 10 * 60,
-      startBeatFreq: 14.0,
-      endBeatFreq: 20.0,
-    },
-  ],
+  carrierFreq: playableCarrier(PROGRAM_LIST["morning-tuning"].carrier),
+  defaultDuration: morningTuningTimeline.duration,
+  targetBeatFreq: morningTuningTimeline.targetBeatFreq,
+  phases: morningTuningTimeline.phases,
 };
 
 export const PROGRAMS: ProgramConfig[] = [
@@ -363,12 +355,12 @@ export const ZODIAC_PROGRAMS: ProgramConfig[] = [
 
 // --- Catalog (Target / Energy) & cross-category lookup ---
 
-import { CATALOG_PROGRAMS } from "./catalog";
+import { CATALOG_PROGRAMS, PROGRAM_LIST, planTimeline, playableCarrier } from "./catalog";
 import { CATEGORY_LABEL, CATEGORY_LABEL_EN } from "./catalog/categories";
 import { assertCatalog } from "./catalog/invariants";
 import { buildSearchText, matchesQuery } from "./catalog/search";
 
-/** 全カテゴリの節目。デフォルト4 ＋ 星座118 ＋ カタログ55。 */
+/** 全カテゴリの節目。デフォルト4 ＋ 星座110 ＋ カタログ55＝169。 */
 export const ALL_PROGRAMS: ProgramConfig[] = [
   ...PROGRAMS,
   ...ZODIAC_PROGRAMS,
@@ -431,6 +423,7 @@ function searchTextOf(p: ProgramConfig): string {
     p.keywords,
     `${p.carrierFreq}Hz`,
     `${p.targetBeatFreq}Hz`,
+    ...(p.layers ?? []).map((l) => `${l.beatFreq}Hz`),
   ]);
   searchTextCache.set(p.id, built);
   return built;

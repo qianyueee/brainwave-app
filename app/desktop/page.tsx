@@ -23,7 +23,7 @@ import BaselineCheckButton from "@/components/mind/BaselineCheckButton";
 import { SourceStatusLine } from "@/components/mind/SourceDialog";
 import DesktopSourceDialog from "@/components/mind/DesktopSourceDialog";
 import SubjectSelector from "@/components/mind/SubjectSelector";
-import TargetHzInput from "@/components/mind/TargetHzInput";
+import InductionTargetLine from "@/components/mind/InductionTargetLine";
 import DesktopAccountButton from "@/components/mind/DesktopAccountButton";
 import { LanguageToggleButton } from "@/components/LanguageSwitch";
 import { useT } from "@/lib/i18n";
@@ -114,7 +114,7 @@ export default function DesktopPage() {
             <SubjectSelector />
           </div>
         </div>
-        <TargetHzInput />
+        <InductionTargetLine />
         <div className="flex gap-3">
           <div className="w-[42%] shrink-0">
             <BaselineCheckButton />

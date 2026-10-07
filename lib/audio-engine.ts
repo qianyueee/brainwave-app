@@ -1,5 +1,5 @@
 import { ProgramConfig } from "./programs";
-import { scheduleRamps } from "./ramp-scheduler";
+import { buildBeatGraph, DEFAULT_BEAT_CHANNEL_MODE, type BeatChannelMode, type BeatGraph } from "./beat-graph";
 import { getAudioContext } from "./audio-context";
 import { getAudioDestination } from "./keep-alive";
 import { getSharedAnalyser } from "./audio-analyser";
@@ -40,25 +40,12 @@ function introOf(buffer: AudioBuffer): Float32Array | null {
   return intro;
 }
 
-// Harmonic overtone config: [multiplier, gain]
-// Fundamental(1x) 0.82 + 2nd harmonic 0.12 + 3rd harmonic 0.06 = 1.0
-const HARMONICS: readonly [number, number][] = [
-  [1, 0.82],   // fundamental
-  [2, 0.12],   // 2nd harmonic — adds warmth
-  [3, 0.06],   // 3rd harmonic — subtle brightness
-];
-
 export class BinauralSession {
   private ctx: AudioContext;
-  private leftOsc: OscillatorNode | null = null;
-  private rightOsc: OscillatorNode | null = null;
-  private leftGain: GainNode | null = null;
-  private rightGain: GainNode | null = null;
-  private leftHarmonicOscs: OscillatorNode[] = [];
-  private leftHarmonicGains: GainNode[] = [];
-  private rightHarmonicOscs: OscillatorNode[] = [];
-  private rightHarmonicGains: GainNode[] = [];
-  private merger: ChannelMergerNode | null = null;
+  // The beat itself — oscillators, the stereo/mono routing (lib/beat-graph.ts).
+  private graph: BeatGraph | null = null;
+  // Beat volume (the Mixer slider), after the graph's stereo output.
+  private volumeGain: GainNode | null = null;
   // Start fade, after the merger and apart from the volume gains above. A
   // program with a music bed holds it at 0 — the beat runs silent — until the
   // track begins, then raises it along the track's own audible swell
@@ -121,8 +108,12 @@ export class BinauralSession {
    * `waitForMusic`: the program has a music bed — keep the beat silent until
    * playMusicBed starts the track (or MUSIC_WAIT_MS passes), then fade it in
    * with the music. Without it the beat starts at once, as it always has.
+   * `mode`: stereo (binaural) or mono (monaural) — see lib/beat-graph.ts.
    */
-  start(initialVolume = 1, opts: { waitForMusic?: boolean } = {}): void {
+  start(
+    initialVolume = 1,
+    opts: { waitForMusic?: boolean; mode?: BeatChannelMode } = {}
+  ): void {
     if (this._isPlaying) return;
 
     // Ensure context is running
@@ -131,76 +122,24 @@ export class BinauralSession {
     }
 
     const now = this.ctx.currentTime;
-    const carrier = this.program.carrierFreq;
-    const initBeat = this.program.phases[0].startBeatFreq;
     const vol = Math.max(0, Math.min(1, initialVolume));
 
-    // Create channel-level gain nodes with fade-in to target volume
-    this.leftGain = this.ctx.createGain();
-    this.rightGain = this.ctx.createGain();
-    this.leftGain.gain.setValueAtTime(0, now);
-    this.rightGain.gain.setValueAtTime(0, now);
-    this.leftGain.gain.linearRampToValueAtTime(vol, now + 0.05);
-    this.rightGain.gain.linearRampToValueAtTime(vol, now + 0.05);
-
-    // ChannelMergerNode: input 0 = left channel, input 1 = right channel
-    this.merger = this.ctx.createChannelMerger(2);
+    // graph (stereo out) → volume (50ms fade-in to the slider value) → start
+    // fade → analyser/destination
+    this.volumeGain = this.ctx.createGain();
+    this.volumeGain.gain.setValueAtTime(0, now);
+    this.volumeGain.gain.linearRampToValueAtTime(vol, now + 0.05);
     this.fadeGain = this.ctx.createGain();
     this.fadeGain.gain.setValueAtTime(opts.waitForMusic ? 0 : 1, now);
-    this.merger.connect(this.fadeGain);
+    this.volumeGain.connect(this.fadeGain);
     this.fadeGain.connect(getSharedAnalyser() ?? getAudioDestination());
 
-    // Create fundamental + harmonic oscillators for each channel
-    // Harmonics are at fixed carrier multiples (no beat offset) to keep binaural beat clean
-    this.leftHarmonicOscs = [];
-    this.leftHarmonicGains = [];
-    this.rightHarmonicOscs = [];
-    this.rightHarmonicGains = [];
-
-    for (const [mult, gain] of HARMONICS) {
-      // Left channel: harmonics at carrier * mult
-      const lOsc = this.ctx.createOscillator();
-      lOsc.type = "sine";
-      lOsc.frequency.setValueAtTime(carrier * mult, now);
-      const lGain = this.ctx.createGain();
-      lGain.gain.setValueAtTime(gain, now);
-      lOsc.connect(lGain);
-      lGain.connect(this.leftGain);
-      this.leftHarmonicOscs.push(lOsc);
-      this.leftHarmonicGains.push(lGain);
-
-      // Right channel: fundamental gets beat offset, harmonics are fixed
-      const rOsc = this.ctx.createOscillator();
-      rOsc.type = "sine";
-      if (mult === 1) {
-        // Fundamental: carrier + beat frequency (ramped)
-        rOsc.frequency.setValueAtTime(carrier + initBeat, now);
-      } else {
-        // Harmonics: fixed at carrier * mult (no beat)
-        rOsc.frequency.setValueAtTime(carrier * mult, now);
-      }
-      const rGain = this.ctx.createGain();
-      rGain.gain.setValueAtTime(gain, now);
-      rOsc.connect(rGain);
-      rGain.connect(this.rightGain);
-      this.rightHarmonicOscs.push(rOsc);
-      this.rightHarmonicGains.push(rGain);
-    }
-
-    // Keep references to fundamentals for external access
-    this.leftOsc = this.leftHarmonicOscs[0];
-    this.rightOsc = this.rightHarmonicOscs[0];
-
-    // Connect channel gains to merger
-    this.leftGain.connect(this.merger, 0, 0);
-    this.rightGain.connect(this.merger, 0, 1);
-
-    // Schedule frequency ramps on right fundamental oscillator only
-    scheduleRamps(this.rightOsc, carrier, this.program.phases, this.timeScale, now);
-
-    // Start all oscillators
-    for (const osc of this.leftHarmonicOscs) osc.start(now);
-    for (const osc of this.rightHarmonicOscs) osc.start(now);
+    this.graph = buildBeatGraph(this.ctx, this.program, {
+      timeScale: this.timeScale,
+      startAt: now,
+      mode: opts.mode ?? DEFAULT_BEAT_CHANNEL_MODE,
+    });
+    this.graph.output.connect(this.volumeGain);
 
     this.startTime = now;
     this._isPlaying = true;
@@ -270,16 +209,11 @@ export class BinauralSession {
     const now = this.ctx.currentTime;
     const fadeOut = 0.2;
 
-    // Fade out binaural
-    if (this.leftGain) {
-      this.leftGain.gain.cancelScheduledValues(now);
-      this.leftGain.gain.setValueAtTime(this.leftGain.gain.value, now);
-      this.leftGain.gain.linearRampToValueAtTime(0, now + fadeOut);
-    }
-    if (this.rightGain) {
-      this.rightGain.gain.cancelScheduledValues(now);
-      this.rightGain.gain.setValueAtTime(this.rightGain.gain.value, now);
-      this.rightGain.gain.linearRampToValueAtTime(0, now + fadeOut);
+    // Fade out the beat
+    if (this.volumeGain) {
+      this.volumeGain.gain.cancelScheduledValues(now);
+      this.volumeGain.gain.setValueAtTime(this.volumeGain.gain.value, now);
+      this.volumeGain.gain.linearRampToValueAtTime(0, now + fadeOut);
     }
 
     // Stop nature sound + music bed
@@ -289,26 +223,16 @@ export class BinauralSession {
     this.musicPlayer = null;
 
     // Stop and disconnect after fade-out
+    const graph = this.graph;
+    const volumeGain = this.volumeGain;
+    const fadeGain = this.fadeGain;
+    this.graph = null;
+    this.volumeGain = null;
+    this.fadeGain = null;
     setTimeout(() => {
-      for (const osc of this.leftHarmonicOscs) { osc.stop(); osc.disconnect(); }
-      for (const osc of this.rightHarmonicOscs) { osc.stop(); osc.disconnect(); }
-      for (const g of this.leftHarmonicGains) g.disconnect();
-      for (const g of this.rightHarmonicGains) g.disconnect();
-      this.leftGain?.disconnect();
-      this.rightGain?.disconnect();
-      this.merger?.disconnect();
-      this.fadeGain?.disconnect();
-
-      this.leftOsc = null;
-      this.rightOsc = null;
-      this.leftHarmonicOscs = [];
-      this.rightHarmonicOscs = [];
-      this.leftHarmonicGains = [];
-      this.rightHarmonicGains = [];
-      this.leftGain = null;
-      this.rightGain = null;
-      this.merger = null;
-      this.fadeGain = null;
+      graph?.dispose();
+      volumeGain?.disconnect();
+      fadeGain?.disconnect();
     }, fadeOut * 1000 + 50);
 
     this._isPlaying = false;
@@ -317,16 +241,16 @@ export class BinauralSession {
   setVolume(value: number): void {
     const v = Math.max(0, Math.min(1, value));
     const now = this.ctx.currentTime;
-    if (this.leftGain) {
-      this.leftGain.gain.cancelScheduledValues(now);
-      this.leftGain.gain.setValueAtTime(this.leftGain.gain.value, now);
-      this.leftGain.gain.setTargetAtTime(v, now, 0.02);
+    if (this.volumeGain) {
+      this.volumeGain.gain.cancelScheduledValues(now);
+      this.volumeGain.gain.setValueAtTime(this.volumeGain.gain.value, now);
+      this.volumeGain.gain.setTargetAtTime(v, now, 0.02);
     }
-    if (this.rightGain) {
-      this.rightGain.gain.cancelScheduledValues(now);
-      this.rightGain.gain.setValueAtTime(this.rightGain.gain.value, now);
-      this.rightGain.gain.setTargetAtTime(v, now, 0.02);
-    }
+  }
+
+  /** Switch stereo (binaural) ⇄ mono (monaural) while playing — no restart. */
+  setChannelMode(mode: BeatChannelMode): void {
+    this.graph?.setMode(mode);
   }
 
   /** Load and play a nature sound, looping until session stops */

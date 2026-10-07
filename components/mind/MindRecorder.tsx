@@ -11,6 +11,7 @@ import { isLowQuality, signalQualityPct } from "@/lib/brain-profile";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
 import { useCloudSyncStore } from "@/store/useCloudSyncStore";
 import { subjectDisplayName } from "@/lib/subject-groups";
+import { DEFAULT_TARGET_HZ, formatTargetHz } from "@/lib/mind/resonance";
 import { useLocale, useT } from "@/lib/i18n";
 import CloudSaveStatus from "./CloudSaveStatus";
 
@@ -215,6 +216,19 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
                     `測定時間 ${formatTime(finished.durationSec)}・集中 ${finished.avgAttention}・リラックス ${finished.avgMeditation}・ゾーン率 ${finished.flowRatioPct}%`,
                     `Duration ${formatTime(finished.durationSec)} · Focus ${finished.avgAttention} · Relaxation ${finished.avgMeditation} · Time in zone ${finished.flowRatioPct}%`
                   )}
+                </p>
+                {/* Rate の共鳴率をどの Hz で見るか。測定中にいちばん長く流れていた
+                    セッションの誘導周波数、無ければ既定（lib/mind/session-target.ts）。 */}
+                <p className="text-sm text-text-secondary">
+                  {finished.targetHz != null
+                    ? t(
+                        `誘導周波数 ${formatTargetHz(finished.targetHz)}Hz（測定中に流していたセッション）`,
+                        `Target frequency ${formatTargetHz(finished.targetHz)} Hz (from the session you were playing)`
+                      )
+                    : t(
+                        `誘導周波数 ${formatTargetHz(DEFAULT_TARGET_HZ)}Hz（既定）`,
+                        `Target frequency ${formatTargetHz(DEFAULT_TARGET_HZ)} Hz (default)`
+                      )}
                 </p>
 
                 {patchy && (

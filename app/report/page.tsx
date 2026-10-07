@@ -459,8 +459,8 @@ export default function ReportPage() {
                   {t(" ・ 測定日:", " · Measured:")}{" "}
                   {new Date(displayed.uploadedAt).toLocaleDateString(intlLocale(locale))}
                 </p>
-                {/* Rate の共鳴率をどの Hz で見たか。入力があった回だけ出す
-                    （無い回は既定の 40Hz で、これまでと同じ判定）。 */}
+                {/* Rate の共鳴率をどの Hz で見たか。セッションを流しながら測った回
+                    （以前の記録は手で入力した回）だけ出す——無い回は既定の 40Hz。 */}
                 {displayed.targetHz != null && (
                   <p className="text-xs text-text-muted text-center">
                     {t("誘導周波数", "Target frequency")}: {formatTargetHz(displayed.targetHz)}Hz

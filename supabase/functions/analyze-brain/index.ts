@@ -344,7 +344,7 @@ export function buildMessages(input: AnalysisInput): { system: string; user: str
     "- band_share_pct: average share (%) of 8 brainwave bands over the measurement, summing to about 100. With this kind of headband delta usually holds the largest share even when awake, so a large delta share alone does not mean drowsiness.",
     "- spectrum_1_50hz: relative amplitude per 1Hz from 1Hz up (largest = 100). Amplitude naturally falls as frequency rises. Values near 50Hz can be electrical noise from the mains; ignore them.",
     "- alpha_peak_hz: the strongest frequency between 8 and 13Hz (a personal alpha rhythm, typically 9-11Hz in adults).",
-    "- target_resonance: how much the target frequency stands out from its neighbours (1.0 = flat, 1.2 or more = a clear response). It only means something if a program at that beat frequency was playing; target_hz_set tells whether the person entered a target.",
+    "- target_resonance: how much the target frequency stands out from its neighbours (1.0 = flat, 1.2 or more = a clear response). It only means something if a program at that beat frequency was playing. target_hz_set is true when the target is the beat of the program that played during the measurement (on older records, a target the person typed in); false means no program was playing and the default 40Hz is shown.",
     "- theta_beta_ratio and slow_fast_ratio: balance of slow to fast waves (higher = more relaxed or drowsy, lower = more alert).",
     "- timeline (when present): the measurement split into equal stretches in time order, with average attention and relaxation (0-100, from the headset) and grouped band shares. Use it to describe how the state changed from start to end.",
     "",

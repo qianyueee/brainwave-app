@@ -20,7 +20,7 @@ import SourceDialog, { SourceStatusLine } from "@/components/mind/SourceDialog";
 import BluetoothSourceDialog from "@/components/mind/BluetoothSourceDialog";
 import DesktopSourceDialog from "@/components/mind/DesktopSourceDialog";
 import SubjectSelector from "@/components/mind/SubjectSelector";
-import TargetHzInput from "@/components/mind/TargetHzInput";
+import InductionTargetLine from "@/components/mind/InductionTargetLine";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 import { useT } from "@/lib/i18n";
@@ -113,10 +113,10 @@ export default function BrainPage() {
             <SubjectSelector />
           </div>
         </div>
-        {/* 誘導周波数は測定ボタンの前。開始した瞬間の値が測定へ焼き込まれ、
-            Rate の共鳴率をどの Hz で見るかを決めるので、押す前に目に入る
-            位置に置く（未入力なら従来どおり 40Hz 基準）。 */}
-        <TargetHzInput />
+        {/* 誘導周波数は測定ボタンの前。手で入れる欄は無く、流しているセッションの
+            誘導周波数（無ければ既定の 40Hz）がそのまま Rate の共鳴率の基準になる
+            ——何で判定されるかを、押す前に目に入る位置に置く。 */}
+        <InductionTargetLine />
         <div className="flex gap-3">
           <div className="w-[42%] shrink-0">
             <BaselineCheckButton />

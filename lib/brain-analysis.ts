@@ -36,9 +36,10 @@ export interface BrainAnalysisInput {
   durationSec: number | null;
   /** 装着が読めていた割合（0-100）。不明は null。 */
   qualityPct: number | null;
-  /** 誘導周波数（Hz）。未入力の測定は既定の 40Hz。 */
+  /** 誘導周波数（Hz）。セッション無しの測定は既定の 40Hz。 */
   targetHz: number;
-  /** 測定のときに誘導周波数を入力したか（false＝既定の 40Hz で見ている）。 */
+  /** 誘導周波数が分かっている測定か——セッションを流しながら測った（以前の記録は
+   *  手で入力した）。false＝既定の 40Hz で見ている。 */
   targetHzSet: boolean;
   indicators: BrainIndicators;
   /** 6指標の平均（画面の「総合」）。 */
