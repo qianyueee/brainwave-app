@@ -39,6 +39,8 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
   const beatVolume = useAppStore((s) => s.beatVolume);
   const natureSoundId = useAppStore((s) => s.natureSoundId);
   const natureVolume = useAppStore((s) => s.natureVolume);
+  // 書き出しもプレーヤーの「聴き方」どおり（モノラルを選んでいればモノラルビートで）。
+  const beatChannelMode = useAppStore((s) => s.beatChannelMode);
 
   // Synth data
   const layers = useSynthStore((s) => s.layers);
@@ -63,6 +65,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
         beatVolume,
         natureSoundId: natureSoundId || undefined,
         natureVolume,
+        mode: beatChannelMode,
         onProgress: (p) => {
           setProgress(p);
           if (p.status === "done") {
@@ -104,7 +107,7 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
     }
   }, [
     mode, duration, format, isExporting,
-    selectedProgramId, beatVolume, natureSoundId, natureVolume,
+    selectedProgramId, beatVolume, natureSoundId, natureVolume, beatChannelMode,
     layers, leftLayers, rightLayers, vibrato, isStereo, customPreset, onClose,
   ]);
 
@@ -128,6 +131,13 @@ export default function ExportDialog({ open, onClose, mode, customPreset }: Expo
         <h2 className="text-lg font-bold text-text-primary text-center">
           {t("音声エクスポート", "Export audio")}
         </h2>
+        {mode === "binaural" && (
+          <p className="-mt-3 text-sm text-text-secondary text-center">
+            {beatChannelMode === "mono"
+              ? t("聴き方：モノラル（プレーヤーの設定）", "Listening mode: mono (from the player)")
+              : t("聴き方：ステレオ（プレーヤーの設定）", "Listening mode: stereo (from the player)")}
+          </p>
+        )}
 
         {/* Duration selector - 2x2 grid */}
         <div>

@@ -1,5 +1,5 @@
 import { ProgramConfig, programName } from "./programs";
-import { scheduleRamps } from "./ramp-scheduler";
+import { buildBeatGraph, DEFAULT_BEAT_CHANNEL_MODE, type BeatChannelMode } from "./beat-graph";
 import type { SynthLayer, VibratoConfig, TremoloConfig } from "./synth-engine";
 import { NATURE_SOUNDS } from "./nature-player";
 import { getAudioBlob } from "./custom-audio-db";
@@ -101,83 +101,36 @@ async function mixNatureSound(
 
 // --- Binaural offline rendering ---
 
-// Harmonic overtone config matching real-time engine: [multiplier, gain]
-const HARMONICS: readonly [number, number][] = [
-  [1, 0.82],   // fundamental
-  [2, 0.12],   // 2nd harmonic — adds warmth
-  [3, 0.06],   // 3rd harmonic — subtle brightness
-];
-
+/**
+ * The beat goes through the same builder as live playback (lib/beat-graph.ts),
+ * so an export sounds like what the player plays — including the listening
+ * mode (stereo binaural / mono monaural) and any layered second beat.
+ */
 export async function renderBinauralOffline(
   program: ProgramConfig,
   duration: number,
   beatVolume: number,
   natureSoundId?: string,
   natureVolume?: number,
+  mode: BeatChannelMode = DEFAULT_BEAT_CHANNEL_MODE,
 ): Promise<AudioBuffer> {
   const sampleRate = 44100;
   const length = sampleRate * duration;
   const ctx = new OfflineAudioContext(2, length, sampleRate);
   const timeScale = duration / program.defaultDuration;
-  const carrier = program.carrierFreq;
-  const initBeat = program.phases[0].startBeatFreq;
 
-  // Gain nodes
+  // Volume: 50ms fade-in, 0.5s fade-out at the end
   const vol = Math.max(0, Math.min(1, beatVolume));
-  const leftGain = ctx.createGain();
-  const rightGain = ctx.createGain();
-  leftGain.gain.setValueAtTime(0, 0);
-  rightGain.gain.setValueAtTime(0, 0);
-  leftGain.gain.linearRampToValueAtTime(vol, 0.05);
-  rightGain.gain.linearRampToValueAtTime(vol, 0.05);
-
-  // Fade out at end
+  const volume = ctx.createGain();
+  volume.gain.setValueAtTime(0, 0);
+  volume.gain.linearRampToValueAtTime(vol, 0.05);
   const fadeOutStart = Math.max(0, duration - 0.5);
-  leftGain.gain.setValueAtTime(vol, fadeOutStart);
-  leftGain.gain.linearRampToValueAtTime(0, duration);
-  rightGain.gain.setValueAtTime(vol, fadeOutStart);
-  rightGain.gain.linearRampToValueAtTime(0, duration);
+  volume.gain.setValueAtTime(vol, fadeOutStart);
+  volume.gain.linearRampToValueAtTime(0, duration);
+  volume.connect(ctx.destination);
 
-  // Channel merger: L/R stereo
-  const merger = ctx.createChannelMerger(2);
-  leftGain.connect(merger, 0, 0);
-  rightGain.connect(merger, 0, 1);
-  merger.connect(ctx.destination);
-
-  // Create fundamental + harmonic oscillators matching real-time engine
-  let rightFundamental: OscillatorNode | null = null;
-
-  for (const [mult, harmonicGain] of HARMONICS) {
-    // Left channel: harmonics at carrier * mult
-    const lOsc = ctx.createOscillator();
-    lOsc.type = "sine";
-    lOsc.frequency.setValueAtTime(carrier * mult, 0);
-    const lGain = ctx.createGain();
-    lGain.gain.setValueAtTime(harmonicGain, 0);
-    lOsc.connect(lGain);
-    lGain.connect(leftGain);
-    lOsc.start(0);
-
-    // Right channel: fundamental gets beat offset, harmonics are fixed
-    const rOsc = ctx.createOscillator();
-    rOsc.type = "sine";
-    if (mult === 1) {
-      rOsc.frequency.setValueAtTime(carrier + initBeat, 0);
-      rightFundamental = rOsc;
-    } else {
-      rOsc.frequency.setValueAtTime(carrier * mult, 0);
-    }
-    const rGain = ctx.createGain();
-    rGain.gain.setValueAtTime(harmonicGain, 0);
-    rOsc.connect(rGain);
-    rGain.connect(rightGain);
-    rOsc.start(0);
-  }
-
-  // Schedule frequency ramps on right fundamental oscillator only
-  if (rightFundamental) {
-    scheduleRamps(rightFundamental, carrier, program.phases, timeScale, 0);
-  }
+  const graph = buildBeatGraph(ctx, program, { timeScale, startAt: 0, mode });
+  graph.output.connect(volume);
 
   // Optionally mix nature sound (built-in or custom)
   if (natureSoundId && natureVolume && natureVolume > 0) {
@@ -526,14 +479,16 @@ export async function exportBinaural(options: {
   beatVolume: number;
   natureSoundId?: string;
   natureVolume?: number;
+  /** The player's listening mode — stereo (binaural) or mono (monaural). */
+  mode?: BeatChannelMode;
   onProgress: (p: ExportProgress) => void;
 }): Promise<void> {
-  const { program, duration, format, beatVolume, natureSoundId, natureVolume, onProgress } = options;
+  const { program, duration, format, beatVolume, natureSoundId, natureVolume, mode, onProgress } = options;
 
   try {
     onProgress({ status: "rendering" });
     const buffer = await renderBinauralOffline(
-      program, duration, beatVolume, natureSoundId, natureVolume,
+      program, duration, beatVolume, natureSoundId, natureVolume, mode,
     );
 
     onProgress({ status: "encoding" });

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DEFAULT_BEAT_CHANNEL_MODE, type BeatChannelMode } from "@/lib/beat-graph";
 
 export interface SessionLog {
   id: string;
@@ -42,6 +43,13 @@ interface AppState {
   /** 星座プログラムの音楽ベッド音量 0-1（誘導ビートの下に敷く伴奏） */
   musicVolume: number;
   setMusicVolume: (v: number) => void;
+  /**
+   * 誘導ビートの聴き方（プレーヤーの「聴き方」）。stereo＝左右の耳に別の音を
+   * 流すバイノーラルビート（ヘッドホン向け）、mono＝2つの音を混ぜたモノラル
+   * ビート（スピーカーでも効く）。lib/beat-graph.ts。
+   */
+  beatChannelMode: BeatChannelMode;
+  setBeatChannelMode: (m: BeatChannelMode) => void;
   elapsed: number;
   setElapsed: (e: number) => void;
 
@@ -76,6 +84,8 @@ export const useAppStore = create<AppState>()(
       setNatureSoundId: (id) => set({ natureSoundId: id }),
       musicVolume: 0.6,
       setMusicVolume: (v) => set({ musicVolume: v }),
+      beatChannelMode: DEFAULT_BEAT_CHANNEL_MODE,
+      setBeatChannelMode: (m) => set({ beatChannelMode: m }),
       elapsed: 0,
       setElapsed: (e) => set({ elapsed: e }),
 
@@ -88,7 +98,8 @@ export const useAppStore = create<AppState>()(
     }),
     {
       // Plain localStorage on purpose (like useZodiacStore): program choice,
-      // timer and volumes are device preferences that must survive refreshes
+      // timer, volumes and the listening mode (headphones vs speakers is about
+      // this device) are device preferences that must survive refreshes
       // for logged-out users too. Runtime state (isPlaying/elapsed/
       // playingProgramId) and sessionLogs stay in memory.
       name: "app-playback",
@@ -99,6 +110,7 @@ export const useAppStore = create<AppState>()(
         musicVolume: s.musicVolume,
         natureVolume: s.natureVolume,
         natureSoundId: s.natureSoundId,
+        beatChannelMode: s.beatChannelMode,
       }),
     }
   )

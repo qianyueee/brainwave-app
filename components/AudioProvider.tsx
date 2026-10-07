@@ -339,7 +339,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       stopPolling();
 
       const session = new BinauralSession(program, duration);
-      const { beatVolume } = useAppStore.getState();
+      const { beatVolume, beatChannelMode } = useAppStore.getState();
       session.onEnd(() => {
         logPlayed(program.id, program.name, duration);
         stopSession();
@@ -347,8 +347,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
       // With a music bed the beat starts silent and fades in with the track
       // (playMusicBed below starts both); without one it starts at once.
+      // The listening mode (stereo binaural / mono monaural) is the player's
+      // setting; the Mixer switches a running session in place.
       const musicUrl = musicBedUrl(program.id);
-      session.start(beatVolume, { waitForMusic: musicUrl !== null });
+      session.start(beatVolume, { waitForMusic: musicUrl !== null, mode: beatChannelMode });
       sessionRef.current = session;
       setIsPlaying(true);
       setPlayingProgramId(program.id);

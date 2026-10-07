@@ -13,7 +13,7 @@ NeuroSync（ニューロシンク）— 基于个人脑波数据的移动端 Web
 - Framework: Next.js 16 (App Router, `output: "export"` 静态导出) + TypeScript (strict)
 - Styling: Tailwind CSS
 - Audio: Web Audio API（纯前端实时合成，不依赖后端）
-- State: Zustand (`useAppStore` without persist; `useSynthStore` with persist for presets)
+- State: Zustand (`useAppStore` persists playback prefs only〔下の「关键设计决策」〕; `useSynthStore` with persist for presets)
 - Charts: Recharts
 - AI 分析: DeepSeek（Supabase Edge Function `analyze-brain` 経由。キーは関数の Secrets にだけ。下の「AI 分析（DeepSeek）」）
 - Astronomy: astronomy-engine（太陽/月星座计算；仅在 `lib/zodiac.ts` 的 `getTodaySky` 内动态 import → 独立懒加载 chunk，禁止顶层静态 import）
@@ -54,7 +54,7 @@ brainwave-app/
 │   ├── history/page.tsx        # Sync History（日历〔日付タップで当日の明細＋**その日の振り返り**を書く〕/ セッション統計 / 脳波の記録〔ログイン必須〕/ 10秒チェックの記録〔認証ゲートの外＝未ログインでも見える〕；レポートで見る→/report。**選択〔測定者・測定データ・カレンダーの月と日〕は useHistorySelectionStore に持つ**＝/report から戻っても最新に飛ばず、見ていた記録が開いたまま）
 │   ├── settings/page.tsx       # Settings（账号〔下部に**表示言語**＝LanguageSwitch、未ログインでも切替可〕/ 管理入口 / 应用信息；菜单外，从首页齿轮进入）
 │   ├── tree/page.tsx           # Sync Tree：いまの木が**1本だけ大きく**立つ毎日のチェックイン画面（16段階ギャラリーは廃止）。大きな木＝components/SyncTreeWaterScene（**ダブルタップで水やり**：1回目で「もう一度タップで水やり」を出して 1.5 秒待ち、その間の2回目で水やり——350ms の厳密判定は 50〜60代の指に速すぎ、iOS は dblclick を安定して出さず VoiceOver の実行も1クリックで届くため。Enter/Space は1回で水やり。しずく・立ちのぼるきらめき・揺れ・段階替わりの「育つ」は CSS の1回きりアニメ）→ 育ち具合（目盛りの無い帯＋growthLevel で選ぶ言葉「育ちはじめました／すくすく／もうすぐ」・育てた木）→ 今日のおせわ（水やり 済み／まだ・リスニング まだ／育っています／今日はたっぷり。言葉と色は components/tree-care.ts でホームの状態バーと共有）→ 完成したら「新しい木を育てる」（ConfirmDialog）。**画面に数値を出さない**（プロダクト判断：％・ポイント・「+1」のような加算量・段階の番号は内部だけ。出す数字は育てた木の本数と「1日1回」「5分」という使い方だけ）。**ログイン中だけ**使える（未ログインはログイン誘導）。育てた木数はここだけ、段階名はホーム树卡と両方；菜单外，从首页树卡进入
-│   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音 / 定时器；菜单外，从节目卡进入。左上「戻る」＝履歴を1つ戻る〔来た画面へ〕、直接開いて戻り先が無いときは /session）
+│   ├── player/page.tsx         # Sync Sound 播放页（可视化 / 混音〔先頭に**聴き方**＝components/BeatChannelToggle：ステレオ＝バイノーラル／モノラル＝2音を混ぜたモノラルビート、再生中でも切替・端末に保存・書き出しも従う。lib/beat-graph.ts〕 / 定时器；菜单外，从节目卡进入。左上「戻る」＝履歴を1つ戻る〔来た画面へ〕、直接開いて戻り先が無いときは /session）
 │   ├── synth/page.tsx          # 合成器编辑页（仅管理员；多层振荡器 / 颤音 / 预设保存）
 │   ├── admin/page.tsx          # 管理面板（仅管理员／4 タブ：ユーザー・グループ・音源〔AudioStudio：新規作成/タイムライン・カスタムプログラム・シンセプリセット・配信中の取り下げ〕・配信〔ProgramAssigner：グループ割当〕）
 │   ├── desktop/page.tsx        # **旧い**デスクトップ測定アプリ（NeuroSyncMeasure.exe）が開いていた**単体画面**。Windows アプリ（完全版、NeuroSync.exe）はもう開かない（`/` から始まり、測定は /brain）——旧路由として残してあるだけ。中身は /brain と同構成、違いは3点：源が LocalSource（ローカルWS）／接続ダイアログが DesktopSourceDialog（配对码→COMポート選択）／取り込みを尋ねず**自動保存**（MindRecorder mode="autoSave"＋右上 DesktopAccountButton でログイン、下の「アカウント同期」参照）。ナビ・MiniPlayer 等の chrome は isDesktopRoute（lib/desktop.ts）守卫で全消し。导航に載せない（Pages 版にも無リンクで存在するが無害）
@@ -72,6 +72,7 @@ brainwave-app/
 ├── lib/
 │   ├── i18n.ts                 # 表示言語（ja/en、既定 ja、端末ごとに localStorage `app-locale`）。`useT()`→`t("日本語", "English")`／`useLocale()`／`translator(locale)`／`getLocale()`（描画外専用）／`intlLocale()`。下の「表示言語」参照
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
+│   ├── beat-graph.ts           # 誘導ビートの音の組み立て（BinauralSession と書き出し renderBinauralOffline が共用）：左右のバス→送り先4つのゲイン→ChannelMerger。ステレオ⇄モノラル（BeatChannelMode）はゲインを動かすだけ＝オシレーターを作り直さない。layers（2つ目のビート）もここ
 │   ├── synth-engine.ts         # SynthSession class（多层振荡器合成 + 颤音 / 颤振）
 │   ├── programs.ts             # 基础程序频率参数（从设计文档映射）+ ZODIAC_PROGRAMS（12星座节目，工厂生成，id 前缀 `zodiac-`，不并入 PROGRAMS）+ 跨分类的 ALL_PROGRAMS / programsByCategory / searchPrograms。`getProgramById` 是**全链路唯一收口**（player/Timer/Visualizer/MiniPlayer/ExportDialog/英雄卡全走它），已改为 Map 查表——总数 169，卡片每张都经 getAdjustedProgram 叫它一次，线性扫描会让搜索框每敲一个字产生数万次比较；优先顺 PROGRAMS→ZODIAC→CATALOG 以先勝ち保持
 │   ├── catalog/                # Sync Session 目录（Target 42／Energy 13）。**`lib/programs.ts` からは値として import しない**——向きは常に programs.ts → catalog の一方通行（型だけ `import type`）。逆向きの値 import を1本でも入れると ALL_PROGRAMS の組み立てが `undefined.map` で死に、型エラーではなく真っ白な画面になる
@@ -113,7 +114,7 @@ brainwave-app/
 │   ├── ramp-scheduler.ts       # 频率渐变调度器
 │   └── utils.ts                # formatTime, getCurrentPhaseInfo
 ├── store/
-│   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志）。`sessionLogs` は**この起動のあいだだけの流れ**（Sync Tree のリスニングを締める用）——残る再生の記録は usePlaybackHistoryStore
+│   ├── useAppStore.ts          # Zustand 全局状态（脑波程序选择 / 播放 / 日志 / ビートの聴き方 `beatChannelMode`〔stereo|mono、persist〕）。`sessionLogs` は**この起動のあいだだけの流れ**（Sync Tree のリスニングを締める用）——残る再生の記録は usePlaybackHistoryStore
 │   ├── useSynthStore.ts        # Zustand 合成器状态 + persist（仅 savedPresets 持久化）
 │   ├── useUserRecordsStore.ts  # 端末をまたぐ小さな記録の端末側（persist key `user-records`、素の localStorage＝未ログインでも続く）。**スコープ**で分けて持つ：`anon`＝ログインしていない間に書いたもの／`<userId>`＝そのアカウントのもの（書くと送信待ち）。いまのスコープ＝useCloudSyncStore.account（オフライン起動でも自分の宛て）。画面は `useRecordView()`＝ログイン中はアカウント∪anon（種類ごとのきまり）、ログアウト中は anon だけ。結びつきが外れたアカウントのスコープは送信待ちだけ残して捨てる（共用の端末で次の人に見えない）。旧キー（sync-journal / self-rating〔v1 だけ〕/ zodiac-sign / mind-subjects）は anon へ移して消す（フラグ無し・何度走っても同じ）
 │   ├── usePlaybackHistoryStore.ts # 再生の記録（1回1件 `playback:<UUID>`、ヒストリーのカレンダーと統計）。以前は useAppStore.sessionLogs（メモリだけ）で再読み込みのたびに消えていた。AudioProvider が addSessionLog の直後に recordPlayback。**アカウントの記録を useAppStore.sessionLogs に混ぜない**（聴いていない分まで Sync Tree が数える）
@@ -188,19 +189,20 @@ brainwave-app/
 
 本项目有两个独立的音频引擎，**互斥播放**（启动一个自动停止另一个）：
 
-#### 1. 脑波双耳节拍引擎 (`lib/audio-engine.ts`)
+#### 1. 脑波双耳节拍引擎 (`lib/audio-engine.ts` ＋ 音の組み立て `lib/beat-graph.ts`)
 ```
 AudioContext（全局单例，getAudioContext() 管理）
-├── OscillatorNode (左声道 carrier freq)
-│   → GainNode → ChannelMergerNode(input 0) ─┐
-├── OscillatorNode (右声道 carrier + beatFreq) │
-│   → GainNode → ChannelMergerNode(input 1) ─┤→ fadeGain（始まりの立ち上げ）→ analyser → destination
-├── AudioBufferSourceNode (自然音 loop)        │
-│   → GainNode ─────────────────────────────→ destination
+├── 左耳の音：carrier と倍音 2×・3×（＋layers の carrier）→ 左バス ─┐  送り先4つのゲイン
+├── 右耳の音：carrier+beat（相位で動く）と倍音（＋layers の carrier+beat）→ 右バス ─┤  stereo＝左→L・右→R
+│                                                                  │  mono  ＝(左+右)/2→L,R
+│      ChannelMergerNode → volumeGain（ビート音量）→ fadeGain（始まりの立ち上げ）→ analyser → destination
+├── AudioBufferSourceNode (自然音 loop) → GainNode → destination
 └── AudioBufferSourceNode (音楽ベッド loop)
     → fadeNode（始まりの立ち上げ）→ GainNode（音量）→ destination
 ```
 
+- **聴き方（`BeatChannelMode`）**：stereo＝バイノーラルビート（左右に別の音、ヘッドホンでないと効かない）／mono＝モノラルビート（2つの音を半分ずつ混ぜて両耳へ＝音そのものがうなる、スピーカーでも効く。半分ずつなのは山の高さを stereo と揃えるため）。切り替えは送り先のゲインを `setTargetAtTime(…, 0.03)` で動かすだけでオシレーターは作り直さない（再生中でも途切れない）。音楽ベッド・自然音はステレオのまま（曲は本物のステレオ）。書き出し（renderBinauralOffline）も同じ組み立てを通るので、聴いた音と書き出した音は同じ
+- **layers**（`ProgramConfig.layers`）：一覧が「10Hz×40Hz」「5Hz・40Hz重なり」と2つのビートを重ねる節目だけ。2つ目は主のキャリアの1オクターブ下で一定に鳴らす純音の組（同じキャリアに重ねると片耳で2音がぶつかり、狙っていない第3のうなりが出る）。片耳の合計が 1 を超えないようバスを `1/(1+0.82×層数)` に下げる
 #### 2. 自定义合成器引擎 (`lib/synth-engine.ts`)
 - 最多 8 层振荡器叠加，频率 20~10,000Hz
 - 音色：Soft（正弦波）/ Bright（锯齿波 + 低通滤波器）
@@ -259,7 +261,7 @@ AudioContext（全局单例，getAudioContext() 管理）
 - OscillatorNode 不可重用（stop 后必须重建），两个引擎都需处理节点生命周期
 - programs.ts 中的所有参数（载波频率、差频、时间轴）严格对照设计文档
 - timeScale = userDuration / defaultDuration，用于缩放所有 phase 时间点
-- `useAppStore` 启用 persist（普通 localStorage，key `app-playback`，未登录也生效）+ partialize：仅持久化 `selectedProgramId / timerDuration / beatVolume / musicVolume / natureVolume / natureSoundId`（默认音量：ビート 0.2・星座音乐 0.6）；sessionLogs 与运行态（isPlaying/elapsed/playingProgramId）仍只存内存（残る再生の記録は usePlaybackHistoryStore）。播放页整页挂 hydrated 守卫防 hydration mismatch
+- `useAppStore` 启用 persist（普通 localStorage，key `app-playback`，未登录也生效）+ partialize：仅持久化 `selectedProgramId / timerDuration / beatVolume / musicVolume / natureVolume / natureSoundId / beatChannelMode`（默认音量：ビート 0.2・星座音乐 0.6）；sessionLogs 与运行态（isPlaying/elapsed/playingProgramId）仍只存内存（残る再生の記録は usePlaybackHistoryStore）。播放页整页挂 hydrated 守卫防 hydration mismatch
 - `playingProgramId` = 实际在响的节目 id（音频真源），仅由 AudioProvider 的 start/stop 写入；显示端（/player 及其子组件、ExportDialog）一律用 `useDisplayProgramId()`（在响→真源，否则→选择），MiniPlayer 直接用真源——保证"听到的"和"看到的"永远一致
 - `useSynthStore` 启用 persist + partialize，仅持久化 `savedPresets`
 - `crypto.randomUUID` 在 HTTP 环境下不可用，需降级为 `Date.now().toString(36) + Math.random()`
