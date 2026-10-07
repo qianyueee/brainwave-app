@@ -37,9 +37,10 @@ export interface BrainProfile {
    */
   subject?: string;
   /**
-   * 測定のときに入力した誘導周波数（Hz、0.01刻み）。Rate の共鳴率をこの周波数で
-   * 見る。undefined＝未入力／アップロード／この項目より前の記録で、その場合は
-   * 既定の 40Hz（DEFAULT_TARGET_HZ）で判定する。
+   * 誘導周波数（Hz、0.01刻み）。Rate の共鳴率をこの周波数で見る。測定中に流して
+   * いたセッションの誘導周波数（lib/mind/session-target.ts。以前の記録では測定の
+   * ときに手で入力した値）。undefined＝セッション無し／アップロード／この項目より
+   * 前の記録で、その場合は既定の 40Hz（DEFAULT_TARGET_HZ）で判定する。
    */
   targetHz?: number;
   /**
