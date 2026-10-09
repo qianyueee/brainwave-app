@@ -72,7 +72,7 @@ brainwave-app/
 ├── lib/
 │   ├── i18n.ts                 # 表示言語（ja/en、既定 ja、端末ごとに localStorage `app-locale`）。`useT()`→`t("日本語", "English")`／`useLocale()`／`translator(locale)`／`getLocale()`（描画外専用）／`intlLocale()`。下の「表示言語」参照
 │   ├── audio-engine.ts         # 【核心】BinauralSession class + AudioContext 单例 (getAudioContext)
-│   ├── beat-graph.ts           # 誘導ビートの音の組み立て（BinauralSession と書き出し renderBinauralOffline が共用）：左右のバス→送り先4つのゲイン→ChannelMerger。ステレオ⇄モノラル（BeatChannelMode）はゲインを動かすだけ＝オシレーターを作り直さない。layers（2つ目のビート）と高八度の左右交互トレモロもここ
+│   ├── beat-graph.ts           # 誘導ビートの音の組み立て（BinauralSession と書き出し renderBinauralOffline が共用）：左右のバス→送り先4つのゲイン→ChannelMerger。ステレオ⇄モノラル（BeatChannelMode）はゲインを動かすだけ＝オシレーターを作り直さない。layers（2つ目のビート）と、基音⇄高八度の逆向きトレモロもここ
 │   ├── synth-engine.ts         # SynthSession class（多层振荡器合成 + 颤音 / 颤振）
 │   ├── programs.ts             # 基础程序频率参数（从设计文档映射）+ ZODIAC_PROGRAMS（12星座节目，工厂生成，id 前缀 `zodiac-`，不并入 PROGRAMS）+ 跨分类的 ALL_PROGRAMS / programsByCategory / searchPrograms。`getProgramById` 是**全链路唯一收口**（player/Timer/Visualizer/MiniPlayer/ExportDialog/英雄卡全走它），已改为 Map 查表——总数 169，卡片每张都经 getAdjustedProgram 叫它一次，线性扫描会让搜索框每敲一个字产生数万次比较；优先顺 PROGRAMS→ZODIAC→CATALOG 以先勝ち保持
 │   ├── catalog/                # Sync Session 目录（Target 42／Energy 13）。**`lib/programs.ts` からは値として import しない**——向きは常に programs.ts → catalog の一方通行（型だけ `import type`）。逆向きの値 import を1本でも入れると ALL_PROGRAMS の組み立てが `undefined.map` で死に、型エラーではなく真っ白な画面になる
@@ -193,9 +193,9 @@ brainwave-app/
 #### 1. 脑波双耳节拍引擎 (`lib/audio-engine.ts` ＋ 音の組み立て `lib/beat-graph.ts`)
 ```
 AudioContext（全局单例，getAudioContext() 管理）
-├── 左耳の音：carrier と倍音 2×・3×（＋layers の carrier）→ 左バス ─┐  送り先4つのゲイン
-├── 右耳の音：carrier+beat（相位で動く）と倍音（＋layers の carrier+beat）→ 右バス ─┤  stereo＝左→L・右→R
-├── 高八度：carrier×2（左右同じ高さ）→ 左ゲイン（＋LFO）／右ゲイン（−LFO）──────┤  ※送り先を通さず左右別々
+├── 左耳の音：carrier（＋LFO）と倍音 2×・3×（＋layers の carrier）→ 左バス ─┐  送り先4つのゲイン
+├── 右耳の音：carrier+beat（相位で動く・＋LFO）と倍音（＋layers の carrier+beat）→ 右バス ─┤  stereo＝左→L・右→R
+├── 高八度：carrier×2（−LFO）→ 左バスと右バスの両方へ ──────────────────┤  ※LFO＝ビート×1/4 の1本
 │                                                                  │  mono  ＝(左+右)/2→L,R
 │      ChannelMergerNode → volumeGain（ビート音量）→ fadeGain（始まりの立ち上げ）→ analyser → destination
 ├── AudioBufferSourceNode (自然音 loop) → GainNode → destination
@@ -203,8 +203,8 @@ AudioContext（全局单例，getAudioContext() 管理）
     → fadeNode（始まりの立ち上げ）→ GainNode（音量）→ destination
 ```
 - **聴き方（`BeatChannelMode`）**：stereo＝バイノーラルビート（左右に別の音、ヘッドホンでないと効かない）／mono＝モノラルビート（2つの音を半分ずつ混ぜて両耳へ＝音そのものがうなる、スピーカーでも効く。半分ずつなのは山の高さを stereo と揃えるため）。切り替えは送り先のゲインを `setTargetAtTime(…, 0.03)` で動かすだけでオシレーターは作り直さない（再生中でも途切れない）。音楽ベッド・自然音はステレオのまま（曲は本物のステレオ）。書き出し（renderBinauralOffline）も同じ組み立てを通るので、聴いた音と書き出した音は同じ
-- **layers**（`ProgramConfig.layers`）：一覧が「10Hz×40Hz」「5Hz・40Hz重なり」と2つのビートを重ねる節目だけ。2つ目は主のキャリアの1オクターブ下で一定に鳴らす純音の組（同じキャリアに重ねると片耳で2音がぶつかり、狙っていない第3のうなりが出る）。片耳の合計が 1 を超えないようバスを `1/(1+0.82×層数+0.3)` に下げる（0.3 は下の高八度）
-- **高八度と左右交互のトレモロ**：キャリア×2 の純音を1本、主の組の上に重ねる（重み 0.3＝トレモロの山で基音の約 -9dB）。左右とも同じ高さでビートは足さない＝うなりは今までどおり基音どうしの1つだけ。1つの LFO を左には＋・右には−で掛けるので、片耳が山のときもう片耳は谷（100%⇔30%＝約 10dB 差、若年層向け資料のアイソクロニックの推奨幅）で、音が左右を行き来する。LFO の速さは**いまのビート×1/4**（`TREMOLO_RATIO`）で、右の基音と同じ相位の曲線で動かす（`scheduleRamps` の `valueOf`）＝ビートが上下すれば一緒に動き、位相もビートのちょうど 1/4 に揃ったまま（40Hz→10Hz・10Hz→2.5Hz・1.5Hz→0.375Hz、ビート 0Hz の節目では揺れない）。**聴き方の送り先は通さない**——mono で左右を半分ずつ混ぜると逆向きの揺れが打ち消し合って消えるため、どちらの聴き方でも左右別々に merger へ送る
+- **layers**（`ProgramConfig.layers`）：一覧が「10Hz×40Hz」「5Hz・40Hz重なり」と2つのビートを重ねる節目だけ。2つ目は主のキャリアの1オクターブ下で一定に鳴らす純音の組（同じキャリアに重ねると片耳で2音がぶつかり、狙っていない第3のうなりが出る）。片耳の合計が 1 を超えないようバスを `1/(1.09+0.82×層数)` に下げる（1.09 は主の組＋高八度の山、下の項）
+- **基音⇄高八度の逆向きトレモロ**：キャリア×2 の純音（高八度）を1本、左右とも同じ高さで両方のバスへ重ねる（重み 0.3＝自分の山で基音の約 -9dB。ビートは足さない＝うなりは今までどおり基音どうしの1つだけ）。1つの LFO を**基音には＋・高八度には−**で掛ける＝基音が山のとき高八度は谷、高八度が山のとき基音は谷（どちらも 100%⇔30%、若年層向け資料のアイソクロニックの推奨幅）。基音の揺れは左右の耳で同じなので、左右の高さの差＝ビートは揺らさない。倍音・layers は揺らさない（2倍音は高八度と同じ高さだが一定）。LFO の速さは**いまのビート×1/4**（`TREMOLO_RATIO`）で、右の基音と同じ相位の曲線で動かす（`scheduleRamps` の `valueOf`）＝ビートが上下すれば一緒に動き、位相もビートのちょうど 1/4 に揃ったまま（40Hz→10Hz・10Hz→2.5Hz・1.5Hz→0.375Hz、ビート 0Hz の節目では揺れない）。逆向きなので2つは同時に山にならず、正規化の山は「基音の山＋高八度の谷」＝0.82+0.3×0.3（`swingPeak`）
 
 #### 2. 自定义合成器引擎 (`lib/synth-engine.ts`)
 - 最多 8 层振荡器叠加，频率 20~10,000Hz
