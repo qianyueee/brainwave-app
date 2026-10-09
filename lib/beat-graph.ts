@@ -19,6 +19,10 @@ import { scheduleRamps } from "./ramp-scheduler";
  * 切り替えは送り先の4つのゲインを動かすだけで、オシレーターは作り直さない
  * （作り直すとビートの位相と相位のスケジュールが途切れる）。再生中でも数十ミリ秒で
  * なめらかに移る。
+ *
+ * その上に高八度の音（キャリア×2）を1本重ね、左右交互のトレモロを掛ける——左の耳で
+ * 大きくなるとき右の耳では小さくなり、音が左右を行き来する。うなりは作らない
+ * （左右とも同じ高さ）ので、ビートは今までどおり基音どうしの1つだけ。
  */
 export type BeatChannelMode = "stereo" | "mono";
 
@@ -36,6 +40,28 @@ const HARMONICS: readonly (readonly [number, number])[] = [
 
 /** 重ねる組（ProgramConfig.layers）の純音の重み。主の組の基音と同じ。 */
 const LAYER_GAIN = 0.82;
+
+/**
+ * 高八度の音の重み（トレモロの山のとき）。基音を支える脇役：山で基音の約 -9dB、
+ * 谷で約 -19dB。倍音と同じく左右とも同じ高さで、ビートは足さない。
+ */
+const OCTAVE_GAIN = 0.3;
+
+/**
+ * トレモロの速さ＝いまのビート×この比。ビートと同じ相位の曲線で動くので、
+ * ビートが上がり下がりすればトレモロも一緒に動き、位相もビートのちょうど 1/4 に
+ * 揃ったまま（4拍で左右がひと巡り＝左右どちらかの山が2拍ごと、ずれていかない）。
+ * 1.5Hz（デルタ）→ 0.375Hz・10Hz（アルファ）→ 2.5Hz・40Hz（ガンマ）→ 10Hz。
+ * 1/2 だと 40Hz の節目で片耳 20Hz の揺れになり、揺れではなくザラつきに聞こえる。
+ */
+const TREMOLO_RATIO = 1 / 4;
+
+/**
+ * トレモロの谷の音量（山＝1）。100% ⇔ 30% を行き来する——音が消えきると
+ * 「ブツブツ」と刺激が強くなる（若年層向け音の周波数開発.docx のアイソクロニック
+ * の推奨と同じ幅）。左右が逆向きなので、片耳が山のときもう片耳は谷（約 10dB 差）。
+ */
+const TREMOLO_FLOOR = 0.3;
 
 /** 送り先のゲインの切り替えの速さ（時定数・秒）。 */
 const MODE_TIME_CONSTANT = 0.03;
@@ -65,8 +91,8 @@ export function buildBeatGraph(
   const { timeScale, startAt } = opts;
   const carrier = program.carrierFreq;
   const layers = program.layers ?? [];
-  // 重ねる組がある節目は、片耳の振幅の合計が 1 を超えないよう全体を下げる。
-  const busLevel = 1 / (1 + layers.length * LAYER_GAIN);
+  // 片耳の振幅の合計（主の組 1・重ねる組・高八度の山）が 1 を超えないよう全体を下げる。
+  const busLevel = 1 / (1 + layers.length * LAYER_GAIN + OCTAVE_GAIN);
 
   const oscillators: OscillatorNode[] = [];
   const nodes: AudioNode[] = [];
@@ -102,7 +128,7 @@ export function buildBeatGraph(
     if (mult === 1) rightFundamental = r;
   }
   if (rightFundamental) {
-    scheduleRamps(rightFundamental, carrier, program.phases, timeScale, startAt);
+    scheduleRamps(rightFundamental.frequency, program.phases, timeScale, startAt, (beat) => carrier + beat);
   }
 
   // 重ねる組：一定のビートの純音（倍音を足すと主の組の音とぶつかる）。
@@ -127,6 +153,36 @@ export function buildBeatGraph(
   const leftToRight = send(leftBus, 1, initial.cross);
   const rightToLeft = send(rightBus, 0, initial.cross);
   nodes.push(merger);
+
+  // 高八度：1つの音を左右へ分け、1つの LFO を左には＋、右には−で掛ける（LFO を
+  // 左右で2つ持つと少しずつずれていく）。聴き方の送り先は通さず左右別々に送る——
+  // mono の送り先で左右を半分ずつ混ぜると、逆向きの揺れが打ち消し合って消える。
+  // スピーカーでも左右のスピーカーの間を行き来する（1つのスピーカーでは揺れの無い
+  // 高八度になるだけ）。
+  const octave = ctx.createOscillator();
+  octave.type = "sine";
+  octave.frequency.setValueAtTime(carrier * 2, startAt);
+  oscillators.push(octave);
+  const lfo = ctx.createOscillator();
+  lfo.type = "sine";
+  scheduleRamps(lfo.frequency, program.phases, timeScale, startAt, (beat) => beat * TREMOLO_RATIO);
+  oscillators.push(lfo);
+  const octaveLevel = OCTAVE_GAIN * busLevel;
+  const center = (1 + TREMOLO_FLOOR) / 2;
+  const swing = (1 - TREMOLO_FLOOR) / 2;
+  const octaveSide = (channel: 0 | 1, sign: 1 | -1) => {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(octaveLevel * center, startAt);
+    const depth = ctx.createGain();
+    depth.gain.setValueAtTime(sign * octaveLevel * swing, startAt);
+    lfo.connect(depth);
+    depth.connect(g.gain);
+    octave.connect(g);
+    g.connect(merger, 0, channel);
+    nodes.push(g, depth);
+  };
+  octaveSide(0, 1);
+  octaveSide(1, -1);
 
   for (const osc of oscillators) osc.start(startAt);
 

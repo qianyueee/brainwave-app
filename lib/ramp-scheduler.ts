@@ -1,36 +1,39 @@
 import { FrequencyPhase } from "./programs";
 
 /**
- * Schedule frequency ramps on the right-channel oscillator.
+ * Schedule an AudioParam to follow the program's beat frequency along its
+ * phases: at every moment the param holds `valueOf(beat)`.
  *
- * Right ear frequency = carrierFreq + beatFreq
- * Left ear frequency  = carrierFreq (constant)
+ *   right-ear oscillator: (beat) => carrierFreq + beat   (left ear = carrier, constant)
+ *   octave tremolo LFO:   (beat) => beat × ratio
+ *
+ * `valueOf` must be linear in the beat — a linear ramp of the beat then stays
+ * a linear ramp of the param, so every follower moves in lockstep with it.
  *
  * Uses linearRampToValueAtTime for smooth, sample-accurate transitions.
  */
 export function scheduleRamps(
-  rightOscillator: OscillatorNode,
-  carrierFreq: number,
+  param: AudioParam,
   phases: FrequencyPhase[],
   timeScale: number,
-  audioContextCurrentTime: number
+  audioContextCurrentTime: number,
+  valueOf: (beat: number) => number
 ): void {
-  const freq = rightOscillator.frequency;
   const startAt = audioContextCurrentTime;
 
   // Cancel any previously scheduled ramps
-  freq.cancelScheduledValues(startAt);
+  param.cancelScheduledValues(startAt);
 
   for (const phase of phases) {
     const phaseStart = startAt + phase.startTime * timeScale;
     const phaseEnd = startAt + phase.endTime * timeScale;
 
     // Set value at the start of each phase
-    freq.setValueAtTime(carrierFreq + phase.startBeatFreq, phaseStart);
+    param.setValueAtTime(valueOf(phase.startBeatFreq), phaseStart);
 
     // Ramp to end value
     if (phase.startBeatFreq !== phase.endBeatFreq) {
-      freq.linearRampToValueAtTime(carrierFreq + phase.endBeatFreq, phaseEnd);
+      param.linearRampToValueAtTime(valueOf(phase.endBeatFreq), phaseEnd);
     }
   }
 }
