@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, BarChart3, Music, Timer } from "lucide-react";
 import { usePlaybackHistory } from "@/store/usePlaybackHistoryStore";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
@@ -42,6 +41,11 @@ const KIND_META: Record<DayRecordKind, { icon: typeof Music; color: string }> = 
  * 月カレンダー。日付をタップするとその日の記録（セッション／脳波測定／10秒
  * チェック）が下に開く。
  *
+ * Sync History で脳波の記録を選ぶのもこのカレンダー（測定者 → 測定データの下拉は
+ * Sync Report の「測定の比較」へ移した）：脳波測定のある日をタップするとその日の
+ * 最新の測定が、明細の測定をタップするとその1件が、ページの「脳波の記録」に出る
+ * （useHistorySelectionStore.recordId）。
+ *
  * ドットは2色のまま——セッション（accent）と脳波（primary）。10秒チェックに
  * 3色目を与えなかったのは、43px 角のセルに3つ並べると潰れるうえ、10秒チェックも
  * 脳波測定の一種なので「脳波の記録がある日」という意味は同じだから。どちらが
@@ -55,13 +59,16 @@ const KIND_META: Record<DayRecordKind, { icon: typeof Music; color: string }> = 
  * 月送りを付けたのは、タップできるのに今月しか見られないと先月の記録に手が
  * 届かないため。未来の月へは進めない（記録が存在し得ない）。
  */
-export default function SimpleCalendar() {
-  const router = useRouter();
+export default function SimpleCalendar({
+  onPickMeasurement,
+}: {
+  /** 明細の測定をタップした後に呼ぶ（ページが「脳波の記録」へスクロールする）。 */
+  onPickMeasurement?: () => void;
+} = {}) {
   const t = useT();
   const locale = useLocale();
   const sessionLogs = usePlaybackHistory();
   const measurements = useBrainProfileStore((s) => s.measurements);
-  const setViewingMeasurement = useBrainProfileStore((s) => s.setViewingMeasurement);
   const checks = useAllBaselineChecks();
   const journalEntries = useJournalStore((s) => s.entries);
 
@@ -80,6 +87,8 @@ export default function SimpleCalendar() {
   const setMonthOffset = useHistorySelectionStore((s) => s.setCalendarMonthOffset);
   const selectedKey = useHistorySelectionStore((s) => s.calendarDayKey);
   const setSelectedKey = useHistorySelectionStore((s) => s.setCalendarDayKey);
+  const recordId = useHistorySelectionStore((s) => s.recordId);
+  const setRecordId = useHistorySelectionStore((s) => s.setRecordId);
 
   const viewing = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   const year = viewing.getFullYear();
@@ -109,9 +118,19 @@ export default function SimpleCalendar() {
     [selectedKey, sessionLogs, measurements, checks, locale]
   );
 
-  const openOnReport = (uploadedAt: string) => {
-    setViewingMeasurement(uploadedAt);
-    router.push("/report");
+  // 日付を開くと、その日に脳波測定があれば最新の1件を「脳波の記録」に出す
+  // （無い日は今の表示のまま——振り返りを書きに来ただけかもしれない）。
+  const openDay = (key: string) => {
+    setSelectedKey(key);
+    const dayMeasurements = buildDayRecords({ sessionLogs, measurements, checks }, key, locale)
+      .filter((e) => e.uploadedAt);
+    const newest = dayMeasurements[dayMeasurements.length - 1];
+    if (newest?.uploadedAt) setRecordId(newest.uploadedAt);
+  };
+
+  const pickMeasurement = (uploadedAt: string) => {
+    setRecordId(uploadedAt);
+    onPickMeasurement?.();
   };
 
   const firstDay = new Date(year, month, 1).getDay();
@@ -182,7 +201,7 @@ export default function SimpleCalendar() {
           return (
             <button
               key={i}
-              onClick={() => setSelectedKey(isSelected ? null : key)}
+              onClick={() => (isSelected ? setSelectedKey(null) : openDay(key))}
               aria-pressed={isSelected}
               aria-label={
                 locale === "en"
@@ -304,14 +323,19 @@ export default function SimpleCalendar() {
                     )}
                   </>
                 );
+                const isShown = e.uploadedAt != null && e.uploadedAt === recordId;
                 return (
                   <li key={e.id}>
-                    {/* 測定はレポートで開ける。セッションと10秒チェックは
+                    {/* 測定はタップでページの「脳波の記録」に出す（レポートへは
+                        そこの「レポートで見る」から）。セッションと10秒チェックは
                         開く先が無いので、押せる見た目にしない。 */}
                     {e.uploadedAt ? (
                       <button
-                        onClick={() => openOnReport(e.uploadedAt!)}
-                        className="w-full flex items-center gap-3 min-h-14 px-3 rounded-2xl bg-navy text-left neu-raised-sm neu-press transition-transform"
+                        onClick={() => pickMeasurement(e.uploadedAt!)}
+                        aria-pressed={isShown}
+                        className={`w-full flex items-center gap-3 min-h-14 px-3 rounded-2xl bg-navy text-left border neu-raised-sm neu-press transition-transform ${
+                          isShown ? "border-primary" : "border-transparent"
+                        }`}
                       >
                         {row}
                       </button>

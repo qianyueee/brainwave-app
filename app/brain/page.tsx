@@ -28,9 +28,9 @@ import { useT } from "@/lib/i18n";
 /**
  * Sync Brain — the live EEG measurement page: mind map, brain art, band meters
  * and the 推移 trend, i.e. only what is happening *right now*. The saved
- * measurements are read elsewhere: 脳特性チャート and 測定の比較 (the per-record
- * 測定者 → 測定データ pickers) on Sync Report (/report), and the calendar on
- * Sync History (/history).
+ * measurements are read elsewhere: 脳特性チャート and 測定の比較 on Sync Report
+ * (/report), the per-record history (picked on the calendar) on Sync History
+ * (/history).
  *
  * Android アプリ（IS_ANDROID_APP）では、リアルタイムの出どころが PC ブリッジ
  * （ペアリングコード → RealtimeSource）ではなく、手元の Bluetooth で直接つないだ

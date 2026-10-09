@@ -60,9 +60,9 @@ const REPORT_TABS: {
  * measurement comparison (formerly Sync Compare). The two used to stack on one
  * long scroll; they are now two pages switched by tabs under the page title —
  * reading one measurement and comparing several are separate errands, and the
- * comparison list sat far below the fold. The comparison tab is also where the
- * records are browsed: the 測定者 → 測定データ pickers that used to live on
- * Sync History (components/MeasurementCompare). The 3 condition tiles share data and
+ * comparison list sat far below the fold. The comparison picks its records with
+ * the 測定者 → 測定データ pickers that used to live on Sync History
+ * (components/MeasurementCompare). The 3 condition tiles share data and
  * computation with the home tiles (same store, same computeBrainConditionMetrics),
  * so the numbers always agree.
  */
@@ -87,7 +87,7 @@ export default function ReportPage() {
     setHydrated(true);
   }, []);
 
-  // 既定は脳特性チャート — ヒストリーのカレンダーの「レポートで見る」やホームの
+  // 既定は脳特性チャート — ヒストリーの「レポートで見る」やホームの
   // 「詳細へ」はこの1件を読みに来る導線なので、そちらを先に見せる。
   const [tab, setTab] = useState<ReportTab>("profile");
 
@@ -95,27 +95,13 @@ export default function ReportPage() {
   // not in the chart, so the inline and fullscreen copies stay in sync.
   const [hiddenBands, setHiddenBands] = useState<BandKey[]>([]);
 
-  // Which measurement to show: a past one picked elsewhere — the history
-  // calendar, or the comparison tab (if it still exists) — otherwise the latest.
-  // `profile` is always the latest.
+  // Which measurement to show: a past one picked from the history page (if it
+  // still exists), otherwise the latest. `profile` is always the latest.
   const viewed = viewingUploadedAt
     ? measurements.find((m) => m.uploadedAt === viewingUploadedAt) ?? null
     : null;
   const displayed = viewed ?? profile;
   const isViewingPast = Boolean(viewed && profile && viewed.uploadedAt !== profile.uploadedAt);
-
-  // 測定の比較から1件のレポートへ。同じページのタブを替えるだけで、比較の選択は
-  // useCompareSelectionStore に残る——「測定の比較」タブに戻れば続きから見られる。
-  const viewReport = (uploadedAt: string) => {
-    setViewingMeasurement(uploadedAt);
-    setTab("profile");
-    window.scrollTo({ top: 0 });
-  };
-
-  const openCompare = () => {
-    setTab("compare");
-    window.scrollTo({ top: 0 });
-  };
 
   return (
     <div style={{ animation: "fade-in 0.3s ease-out" }}>
@@ -292,19 +278,18 @@ export default function ReportPage() {
               {/* AI（DeepSeek）による分析——大脳特性の読み解きなので、その真下に置く。 */}
               <BrainAiAnalysis measurement={displayed} />
 
-              {/* 記録の一覧は「測定の比較」タブ（測定者 → 測定データで選ぶ）。 */}
               {measurements.length > 0 && (
-                <button
-                  onClick={openCompare}
-                  className="block w-full min-h-12 text-sm text-primary text-center underline underline-offset-4 active:opacity-70"
+                <Link
+                  href="/history"
+                  className="block text-sm text-primary text-center underline underline-offset-4 active:opacity-70"
                 >
                   {t(
-                    `全 ${measurements.length} 件の測定記録を見る・比べる →`,
+                    `全 ${measurements.length} 件の測定記録を見る →`,
                     measurements.length === 1
-                      ? "See and compare your 1 measurement record →"
-                      : `See and compare all ${measurements.length} measurement records →`
+                      ? "See your 1 measurement record →"
+                      : `See all ${measurements.length} measurement records →`
                   )}
-                </button>
+                </Link>
               )}
               </div>
 
@@ -407,7 +392,7 @@ export default function ReportPage() {
           className="flex flex-col gap-6"
         >
           {measurements.length > 0 ? (
-            <MeasurementCompare onViewReport={viewReport} />
+            <MeasurementCompare />
           ) : (
             /* Empty state — 比較は測定が2件ないと始まらないので測定へ送る */
             <div className="bg-surface border border-surface-border rounded-3xl p-8 text-center neu-raised md:max-w-2xl md:mx-auto md:w-full">
