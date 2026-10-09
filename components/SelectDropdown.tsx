@@ -29,8 +29,8 @@ interface SelectDropdownProps {
 }
 
 /**
- * Neu-styled dropdown used for the 測定者 → 記録 two-step pickers on Sync Brain
- * (過去の測定) and Sync History (脳波の記録). Collapsed by default so a long
+ * Neu-styled dropdown used for the 測定者 → 測定データ pickers on Sync Report
+ * (測定の比較, components/MeasurementCompare). Collapsed by default so a long
  * history stays one glance tall, and the option list opens inline below the
  * button — the same pattern as the my-sign picker on the home card.
  *

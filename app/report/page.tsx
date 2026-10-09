@@ -4,17 +4,8 @@ import { useState, useEffect } from "react";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRefreshAccountViewsOnMount } from "@/lib/sync/account-views";
-import type { BrainProfile } from "@/lib/brain-profile";
 import { displayedSpectrum, type BandKey } from "@/lib/mind/types";
-import {
-  compositeScore,
-  scoreColor,
-  measurementLabel,
-  measurementTitle,
-  measurementSeriesLabel,
-  isGeneratedSessionTag,
-  sessionTagLabel,
-} from "@/lib/brain-measurements";
+import { sessionTagLabel } from "@/lib/brain-measurements";
 import { formatTargetHz } from "@/lib/mind/resonance";
 import { subjectDisplayName } from "@/lib/subject-groups";
 import { intlLocale, useLocale, useT, type LocalizedText } from "@/lib/i18n";
@@ -22,15 +13,14 @@ import BrainConditionMetrics from "@/components/BrainConditionMetrics";
 import BrainRadarChart from "@/components/BrainRadarChart";
 import BrainBandPie from "@/components/BrainBandPie";
 import BrainSpectrumChart from "@/components/BrainSpectrumChart";
-import BrainBandCompare from "@/components/BrainBandCompare";
 import BrainAiAnalysis from "@/components/BrainAiAnalysis";
-import BrainRadarCompare from "@/components/BrainRadarCompare";
+import MeasurementCompare from "@/components/MeasurementCompare";
 import Fullscreenable from "@/components/Fullscreenable";
 import IndicatorHelp from "@/components/IndicatorHelp";
 import EegUploader from "@/components/EegUploader";
 import SignalQualityBadge from "@/components/SignalQualityBadge";
 import { isLowQuality } from "@/lib/brain-profile";
-import { BrainCircuit, Lock, CheckSquare, Square, X, GitCompare, BarChart3 } from "lucide-react";
+import { BrainCircuit, Lock, GitCompare } from "lucide-react";
 import Link from "next/link";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
@@ -59,117 +49,20 @@ const REPORT_TABS: {
     label: { ja: "測定の比較", en: "Compare" },
     icon: GitCompare,
     lead: {
-      ja: "測定を選ぶと6指標と脳波バランスを表示します。2〜3件選ぶと並べて比較できます",
-      en: "Pick a measurement to see its 6 indicators and brainwave balance. Pick 2–3 to compare them side by side.",
+      ja: "測定者と測定データを選ぶと6指標と脳波バランスを表示します。比較する測定データを選ぶと並べて比較できます（3件まで）",
+      en: "Choose a person and a measurement to see its 6 indicators and brainwave balance. Add measurements to compare them side by side (up to 3).",
     },
   },
 ];
-
-function CompareCandidateRow({
-  m,
-  selected,
-  onToggle,
-  onView,
-}: {
-  m: BrainProfile;
-  selected: boolean;
-  onToggle: (uploadedAt: string) => void;
-  /** Open this one measurement on the 脳特性チャート tab. */
-  onView: (uploadedAt: string) => void;
-}) {
-  const t = useT();
-  const locale = useLocale();
-  // Only measurements with the 8-band balance can be compared (legacy records
-  // omit it). Every record can still be opened on its own report.
-  const selectable = Boolean(m.bands);
-  const total = compositeScore(m.indicators);
-  // 下に添える小さい行。日時は見出しがメモに入れ替わったときだけ——メモが
-  // 無ければ見出し自体が日時なので、同じ文字列を2度書かない。sessionTag も
-  // 取り込んだ測定では同じ日時の文字列になるため、違うとき（アップロードした
-  // ファイルの Tag 列）だけ添える。
-  const when = measurementLabel(m, locale);
-  const meta = [
-    m.note?.trim() ? when : null,
-    m.sessionTag && !isGeneratedSessionTag(m) ? m.sessionTag : null,
-  ]
-    .filter(Boolean)
-    .join(t("・", " · "));
-
-  return (
-    <div
-      className={`w-full bg-surface border rounded-3xl flex items-stretch neu-raised transition-colors ${
-        selected ? "border-primary" : "border-surface-border"
-      }`}
-    >
-      <button
-        onClick={() => onToggle(m.uploadedAt)}
-        disabled={!selectable}
-        aria-pressed={selectable ? selected : undefined}
-        aria-label={`${measurementTitle(m, locale)}${t("：", ": ")}${
-          selected ? t("選択を解除", "Deselect") : t("比較に選択", "Select to compare")
-        }`}
-        className={`min-w-0 flex-1 p-4 flex items-center gap-3 text-left rounded-l-3xl ${
-          selectable ? "neu-press" : "opacity-50"
-        }`}
-      >
-        {selectable && (
-          <span className="shrink-0 text-primary">
-            {selected ? <CheckSquare size={22} /> : <Square size={22} className="text-text-muted" />}
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          {/* 取り込みのときに書いたメモを見出しに、測定者名をその下に立てる。
-              同じ人の似た回が並ぶ一覧なので、まず本人の言葉と名前で拾えるように——
-              日時は小さく最後の行へ回す（無くさない、順位を下げるだけ）。 */}
-          <p className="text-base font-bold text-text-primary break-words">
-            {measurementTitle(m, locale)}
-          </p>
-          <p className="text-sm font-bold text-primary truncate">
-            {t("測定者", "Person")}:{" "}
-            {m.subject != null ? subjectDisplayName(m.subject, locale) : t("未設定", "Not set")}
-          </p>
-          {meta && <p className="text-xs text-text-muted truncate">{meta}</p>}
-          <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
-          {!selectable && (
-            <p className="text-xs text-text-muted mt-1">
-              {t("比較対象外（脳波バランスなし）", "Can't be compared (no brainwave balance)")}
-            </p>
-          )}
-        </div>
-        <div className="text-right shrink-0">
-          <p
-            className="text-xl font-mono font-bold tabular-nums"
-            style={{ color: scoreColor(total) }}
-          >
-            {total}
-          </p>
-          <p className="text-xs text-text-muted">{t("総合", "Overall")}</p>
-        </div>
-      </button>
-      {/* この1件のレポート（脳特性チャート）へ。選択の切り替えとは別のボタン——
-          行全体は比較の選択なので、同じ面を押し分けさせない。比較できない
-          （バランスの無い）記録でもレポートは読めるので、こちらは常に押せる。 */}
-      <button
-        onClick={() => onView(m.uploadedAt)}
-        aria-label={t(
-          `${measurementTitle(m, locale)}のレポートを見る`,
-          `View the report for ${measurementTitle(m, locale)}`
-        )}
-        className="shrink-0 w-16 flex flex-col items-center justify-center gap-1 border-l border-surface-border rounded-r-3xl text-primary active:opacity-60 transition-opacity"
-      >
-        <BarChart3 size={20} strokeWidth={1.75} />
-        <span className="text-xs font-bold">{t("レポート", "Report")}</span>
-      </button>
-    </div>
-  );
-}
 
 /**
  * Sync Report — the 脳特性チャート analysis (formerly on Sync Brain) and the
  * measurement comparison (formerly Sync Compare). The two used to stack on one
  * long scroll; they are now two pages switched by tabs under the page title —
  * reading one measurement and comparing several are separate errands, and the
- * comparison list sat far below the fold. The 3 condition tiles share data and
+ * comparison list sat far below the fold. The comparison tab is also where the
+ * records are browsed: the 測定者 → 測定データ pickers that used to live on
+ * Sync History (components/MeasurementCompare). The 3 condition tiles share data and
  * computation with the home tiles (same store, same computeBrainConditionMetrics),
  * so the numbers always agree.
  */
@@ -194,7 +87,7 @@ export default function ReportPage() {
     setHydrated(true);
   }, []);
 
-  // 既定は脳特性チャート — ヒストリーの「レポートで見る」やホームの
+  // 既定は脳特性チャート — ヒストリーのカレンダーの「レポートで見る」やホームの
   // 「詳細へ」はこの1件を読みに来る導線なので、そちらを先に見せる。
   const [tab, setTab] = useState<ReportTab>("profile");
 
@@ -202,114 +95,27 @@ export default function ReportPage() {
   // not in the chart, so the inline and fullscreen copies stay in sync.
   const [hiddenBands, setHiddenBands] = useState<BandKey[]>([]);
 
-  // Which measurement to show: a past one picked from the history page (if it
-  // still exists), otherwise the latest. `profile` is always the latest.
+  // Which measurement to show: a past one picked elsewhere — the history
+  // calendar, or the comparison tab (if it still exists) — otherwise the latest.
+  // `profile` is always the latest.
   const viewed = viewingUploadedAt
     ? measurements.find((m) => m.uploadedAt === viewingUploadedAt) ?? null
     : null;
   const displayed = viewed ?? profile;
   const isViewingPast = Boolean(viewed && profile && viewed.uploadedAt !== profile.uploadedAt);
 
-  // ── Comparison (the former Sync Compare page) ──
-  // Up to three measurements picked (by uploadedAt). Stale ids (measurements
-  // replaced out-of-band on an account switch) are ignored downstream —
-  // `picked` derives from the current measurements, so a stale selection
-  // never drives wrong feedback and ages out within a couple of picks.
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const toggleSelect = (id: string) =>
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-3)
-    );
-
-  // Newest first for the list
-  const ordered = [...measurements].reverse();
-
-  // The picked measurements (2–3), ordered oldest→newest for the chart.
-  const picked = selectedIds
-    .map((id) => measurements.find((m) => m.uploadedAt === id))
-    .filter((m): m is BrainProfile => Boolean(m?.bands))
-    .sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
-  const canCompare = picked.length >= 2;
-
-  // 比較の一覧から1件のレポートへ。同じページのタブを替えるだけなので、
-  // 比較の選択はそのまま残り、「測定の比較」タブに戻れば続きから見られる。
+  // 測定の比較から1件のレポートへ。同じページのタブを替えるだけで、比較の選択は
+  // useCompareSelectionStore に残る——「測定の比較」タブに戻れば続きから見られる。
   const viewReport = (uploadedAt: string) => {
     setViewingMeasurement(uploadedAt);
     setTab("profile");
     window.scrollTo({ top: 0 });
   };
 
-  // 1件だけ選んだときも同じ2枚（6指標・脳波バランス）を描く。選んだ瞬間に何も
-  // 出ないと「押しても反応がない」画面になるし、2件目を足したときに同じ枠へ
-  // 系列が1つ増えるだけなので、比較の読み方がそのまま続く。
-  const compareSection = picked.length > 0 && (
-    <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-base font-bold text-text-primary truncate">
-            {canCompare
-              ? t("測定の比較", "Compare measurements")
-              : measurementTitle(picked[0], locale)}
-          </p>
-          {!canCompare && (
-            <p className="text-xs text-text-muted">
-              {t("もう1件選ぶと並べて比較できます", "Pick one more to compare side by side")}
-            </p>
-          )}
-        </div>
-        <button
-          onClick={() => setSelectedIds([])}
-          aria-label={t("選択を解除", "Clear selection")}
-          className="shrink-0 w-12 h-12 rounded-lg bg-navy neu-raised-sm flex items-center justify-center text-text-secondary"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      <div>
-        <p className="text-sm font-medium text-text-secondary mb-1 text-center">
-          {t("6指標", "6 indicators")}
-        </p>
-        <Fullscreenable
-          title={
-            canCompare
-              ? t("6指標の比較", "Comparing the 6 indicators")
-              : t("6指標", "6 indicators")
-          }
-        >
-          <BrainRadarCompare
-            series={picked.map((m) => ({
-              indicators: m.indicators,
-              label: measurementSeriesLabel(m, locale),
-            }))}
-          />
-        </Fullscreenable>
-      </div>
-
-      {/* 8種類の脳波それぞれの割合を、測定ごとの棒で並べる（横＝波の種類、
-          縦＝%）。値はレポートの円グラフと同じ bands なので、1件のレポートと
-          数字が食い違わない。 */}
-      <div>
-        <p className="text-sm font-medium text-text-secondary mb-1 text-center">
-          {t("8種類の脳波バランス", "Brainwave balance (8 types)")}
-        </p>
-        <Fullscreenable
-          title={
-            canCompare
-              ? t("脳波バランスの比較", "Comparing brainwave balance")
-              : t("8種類の脳波バランス", "Brainwave balance (8 types)")
-          }
-        >
-          <BrainBandCompare
-            series={picked.map((m) => ({
-              bands: m.bands!,
-              label: measurementSeriesLabel(m, locale),
-            }))}
-          />
-        </Fullscreenable>
-      </div>
-    </div>
-  );
+  const openCompare = () => {
+    setTab("compare");
+    window.scrollTo({ top: 0 });
+  };
 
   return (
     <div style={{ animation: "fade-in 0.3s ease-out" }}>
@@ -486,18 +292,19 @@ export default function ReportPage() {
               {/* AI（DeepSeek）による分析——大脳特性の読み解きなので、その真下に置く。 */}
               <BrainAiAnalysis measurement={displayed} />
 
+              {/* 記録の一覧は「測定の比較」タブ（測定者 → 測定データで選ぶ）。 */}
               {measurements.length > 0 && (
-                <Link
-                  href="/history"
-                  className="block text-sm text-primary text-center underline underline-offset-4 active:opacity-70"
+                <button
+                  onClick={openCompare}
+                  className="block w-full min-h-12 text-sm text-primary text-center underline underline-offset-4 active:opacity-70"
                 >
                   {t(
-                    `全 ${measurements.length} 件の測定記録を見る →`,
+                    `全 ${measurements.length} 件の測定記録を見る・比べる →`,
                     measurements.length === 1
-                      ? "See your 1 measurement record →"
-                      : `See all ${measurements.length} measurement records →`
+                      ? "See and compare your 1 measurement record →"
+                      : `See and compare all ${measurements.length} measurement records →`
                   )}
-                </Link>
+                </button>
               )}
               </div>
 
@@ -600,22 +407,7 @@ export default function ReportPage() {
           className="flex flex-col gap-6"
         >
           {measurements.length > 0 ? (
-            /* Mobile: list then comparison below. Desktop: candidates | comparison. */
-            <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-              <div className="flex flex-col gap-3">
-                {ordered.map((m) => (
-                  <CompareCandidateRow
-                    key={m.uploadedAt}
-                    m={m}
-                    selected={selectedIds.includes(m.uploadedAt)}
-                    onToggle={toggleSelect}
-                    onView={viewReport}
-                  />
-                ))}
-              </div>
-
-              <div className="flex flex-col gap-6">{compareSection}</div>
-            </div>
+            <MeasurementCompare onViewReport={viewReport} />
           ) : (
             /* Empty state — 比較は測定が2件ないと始まらないので測定へ送る */
             <div className="bg-surface border border-surface-border rounded-3xl p-8 text-center neu-raised md:max-w-2xl md:mx-auto md:w-full">

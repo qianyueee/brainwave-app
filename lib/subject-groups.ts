@@ -1,7 +1,7 @@
 /**
  * Grouping records (mind-map sessions / 脳特性 measurements) by who they were
- * measured on, for the two-step 測定者 → 記録 pickers on Sync Brain and
- * Sync History.
+ * measured on, for the two-step 測定者 → 測定データ pickers in Sync Report's
+ * 測定の比較 (components/MeasurementCompare).
  *
  * Dependency-free pure functions: the two lists store the subject differently
  * (a session keeps `subjectId` + `subjectName`, a measurement keeps only the
