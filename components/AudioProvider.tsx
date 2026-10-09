@@ -16,6 +16,7 @@ import { isTimelineProgram, programName } from "@/lib/programs";
 import { getLocale, translator } from "@/lib/i18n";
 import { NaturePlayer } from "@/lib/nature-player";
 import { musicBedUrl } from "@/lib/zodiac-audio";
+import { isUnlimitedDuration } from "@/lib/session-length";
 import { getAudioBlob } from "@/lib/custom-audio-db";
 import { ensureBlobCached } from "@/lib/sync/custom-audios";
 import { startKeepAlive, stopKeepAlive, setMediaSessionHandlers, setMediaSessionPlaybackState, setKeepAliveOutputPaused } from "@/lib/keep-alive";
@@ -26,6 +27,7 @@ import { useCustomAudioStore } from "@/store/useCustomAudioStore";
 import { recordPlayback } from "@/store/usePlaybackHistoryStore";
 
 interface AudioContextValue {
+  /** duration は秒。UNLIMITED_DURATION（0）＝止めるまで鳴らす（lib/session-length.ts）。 */
   startSession: (program: ProgramConfig, duration: number) => void;
   stopSession: (opts?: { log?: boolean }) => void;
   /** 一時停止（ctx.suspend）— バイノーラル/カスタム/タイムライン再生が対象 */
@@ -65,7 +67,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const customEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customStartTimeRef = useRef<number>(0);
   // Custom-program duration only lived in the startCustomProgram closure before;
-  // pause/resume needs it to re-arm the wall-clock end timer.
+  // pause/resume needs it to re-arm the wall-clock end timer. Seconds;
+  // UNLIMITED_DURATION (0) = plays until stopped (lib/session-length.ts).
   const customDurationRef = useRef<number>(0);
   const customRemainingRef = useRef<number>(0);
   const customProgramRef = useRef<CustomProgram | null>(null);
@@ -165,11 +168,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
           timelineRef.current.elapsed
         );
       } else if (customProgramRef.current && synthRef.current?.isPlaying) {
-        const played = Math.min(
-          getAudioContext().currentTime - customStartTimeRef.current,
-          customDurationRef.current
+        const played = getAudioContext().currentTime - customStartTimeRef.current;
+        const limit = customDurationRef.current;
+        logPlayed(
+          customProgramRef.current.id,
+          customProgramRef.current.name,
+          isUnlimitedDuration(limit) ? played : Math.min(played, limit)
         );
-        logPlayed(customProgramRef.current.id, customProgramRef.current.name, played);
       }
     }
 
@@ -222,9 +227,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   }, [stopPolling, setIsPlaying, setPlayingProgramId, setElapsed, scheduleStopKeepAlive, clearPauseIntent, logPlayed]);
 
   // Arm/re-arm the custom-program auto-stop timer (initial start and resume).
+  // An unlimited session has none — it plays until stopped.
   const armCustomEndTimer = useCallback(
     (remainingSec: number) => {
       if (customEndTimerRef.current) clearTimeout(customEndTimerRef.current);
+      customEndTimerRef.current = null;
+      if (isUnlimitedDuration(customDurationRef.current)) return;
       customEndTimerRef.current = setTimeout(() => {
         const p = customProgramRef.current;
         if (p) logPlayed(p.id, p.name, customDurationRef.current);
@@ -554,8 +562,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       // user-paused (suspended) context is left untouched by the interval.
       pollRef.current = setInterval(() => {
         if (customProgramRef.current && synthRef.current?.isPlaying) {
-          const el = Math.min(ctx.currentTime - customStartTimeRef.current, duration);
-          setElapsed(el);
+          const played = ctx.currentTime - customStartTimeRef.current;
+          setElapsed(isUnlimitedDuration(duration) ? played : Math.min(played, duration));
         }
       }, 1000);
 

@@ -9,6 +9,7 @@ import { useAudio } from "@/components/AudioProvider";
 import { getProgramById, isCustomProgramId, programName } from "@/lib/programs";
 import { isDesktopRoute } from "@/lib/desktop";
 import { formatTime } from "@/lib/utils";
+import { isUnlimitedDuration } from "@/lib/session-length";
 import { useLocale, useT } from "@/lib/i18n";
 import { Play, Pause } from "lucide-react";
 
@@ -86,7 +87,9 @@ export default function MiniPlayer() {
       ? isPlaying
         ? t(`経過 ${formatTime(elapsed)}`, `${formatTime(elapsed)} elapsed`)
         : t("再生中", "Playing")
-      : t(`残り ${remaining}`, `${remaining} left`);
+      : isUnlimitedDuration(timerDuration)
+        ? t(`経過 ${formatTime(elapsed)}`, `${formatTime(elapsed)} elapsed`)
+        : t(`残り ${remaining}`, `${remaining} left`);
   const openTarget = synthOnly ? "/synth" : "/player";
   const openPlayer = () => router.push(openTarget);
 

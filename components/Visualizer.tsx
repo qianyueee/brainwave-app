@@ -8,6 +8,7 @@ import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { getProgramById, isCustomProgramId, phaseLabel, type CustomProgram } from "@/lib/programs";
 import { getCurrentPhaseInfo } from "@/lib/utils";
+import { sessionTimeline } from "@/lib/session-length";
 import { useLocale, useT } from "@/lib/i18n";
 import CymaticsCanvas from "@/components/CymaticsCanvas";
 
@@ -101,10 +102,11 @@ export default function Visualizer() {
     // A custom program's name is the user's own — shown as-is.
     label = customProgram?.name ?? t("カスタム", "Custom");
   } else {
-    const timeScale = program ? timerDuration / program.defaultDuration : 1;
-    const scaledElapsed = elapsed / timeScale;
-    const info = program
-      ? getCurrentPhaseInfo(program.phases, scaledElapsed)
+    // The same phases/scale the engine plays (an unlimited session drops the
+    // ending and holds the entrainment — lib/session-length.ts).
+    const timeline = program ? sessionTimeline(program, timerDuration) : null;
+    const info = timeline
+      ? getCurrentPhaseInfo(timeline.phases, elapsed / timeline.timeScale)
       : { phase: null, beatFreq: 0 };
     const sig = program?.targetBeatFreq ?? info.beatFreq;
     targetSym = symmetryForBeat(sig);

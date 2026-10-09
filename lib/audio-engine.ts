@@ -1,4 +1,5 @@
 import { ProgramConfig } from "./programs";
+import { isUnlimitedDuration, sessionTimeline } from "./session-length";
 import { buildBeatGraph, DEFAULT_BEAT_CHANNEL_MODE, type BeatChannelMode, type BeatGraph } from "./beat-graph";
 import { getAudioContext } from "./audio-context";
 import { getAudioDestination } from "./keep-alive";
@@ -63,7 +64,12 @@ export class BinauralSession {
   private _isPaused = false;
   private startTime = 0;
   private program: ProgramConfig;
+  // The phases actually played — the program's own, minus its ending when the
+  // session is unlimited (lib/session-length.ts).
+  private phases: ProgramConfig["phases"];
+  // Seconds; UNLIMITED_DURATION (0) = plays until stopped — no end timer.
   private duration: number;
+  private unlimited: boolean;
   private timeScale: number;
   private onEndCallback: (() => void) | null = null;
   private endTimer: ReturnType<typeof setTimeout> | null = null;
@@ -72,7 +78,10 @@ export class BinauralSession {
     this.ctx = getAudioContext();
     this.program = program;
     this.duration = duration;
-    this.timeScale = duration / program.defaultDuration;
+    this.unlimited = isUnlimitedDuration(duration);
+    const timeline = sessionTimeline(program, duration);
+    this.phases = timeline.phases;
+    this.timeScale = timeline.timeScale;
   }
 
   get isPlaying(): boolean {
@@ -85,7 +94,8 @@ export class BinauralSession {
 
   get elapsed(): number {
     if (!this._isPlaying) return 0;
-    return Math.min(this.ctx.currentTime - this.startTime, this.duration);
+    const played = this.ctx.currentTime - this.startTime;
+    return this.unlimited ? played : Math.min(played, this.duration);
   }
 
   get totalDuration(): number {
@@ -134,7 +144,7 @@ export class BinauralSession {
     this.volumeGain.connect(this.fadeGain);
     this.fadeGain.connect(getSharedAnalyser() ?? getAudioDestination());
 
-    this.graph = buildBeatGraph(this.ctx, this.program, {
+    this.graph = buildBeatGraph(this.ctx, { ...this.program, phases: this.phases }, {
       timeScale: this.timeScale,
       startAt: now,
       mode: opts.mode ?? DEFAULT_BEAT_CHANNEL_MODE,
@@ -151,11 +161,16 @@ export class BinauralSession {
       this.musicWaitTimer = setTimeout(() => this.releaseBeat(null), MUSIC_WAIT_MS);
     }
 
-    // Auto-stop at end of duration
+    // Auto-stop at end of duration (an unlimited session runs until stopped).
+    this.armEndTimer(this.duration);
+  }
+
+  private armEndTimer(remainingSec: number): void {
+    if (this.unlimited) return;
     this.endTimer = setTimeout(() => {
       this.stop();
       this.onEndCallback?.();
-    }, this.duration * 1000);
+    }, remainingSec * 1000);
   }
 
   /**
@@ -178,11 +193,7 @@ export class BinauralSession {
     if (!this._isPlaying || !this._isPaused) return;
     this._isPaused = false;
     this.ctx.resume();
-    const remaining = Math.max(0, this.duration - this.elapsed);
-    this.endTimer = setTimeout(() => {
-      this.stop();
-      this.onEndCallback?.();
-    }, remaining * 1000);
+    this.armEndTimer(Math.max(0, this.duration - this.elapsed));
   }
 
   stop(): void {

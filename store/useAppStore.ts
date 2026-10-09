@@ -2,6 +2,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { DEFAULT_BEAT_CHANNEL_MODE, type BeatChannelMode } from "@/lib/beat-graph";
 
+/**
+ * タイマーの既定（20分）。以前は 15 分だったが、タイマーの選択肢から 15 分を外して
+ * 「無制限」を入れた（components/Timer.tsx）——選べない値を既定にしておくと、どの
+ * ボタンも選ばれていない画面になる。
+ */
+const DEFAULT_TIMER_DURATION = 20 * 60;
+
 export interface SessionLog {
   id: string;
   programId: string;
@@ -32,7 +39,8 @@ interface AppState {
    */
   playingProgramId: string | null;
   setPlayingProgramId: (id: string | null) => void;
-  timerDuration: number; // seconds
+  /** 秒。UNLIMITED_DURATION（0）＝無制限（lib/session-length.ts）。 */
+  timerDuration: number;
   setTimerDuration: (d: number) => void;
   beatVolume: number; // 0-1
   setBeatVolume: (v: number) => void;
@@ -74,7 +82,7 @@ export const useAppStore = create<AppState>()(
       setIsPaused: (v) => set({ isPaused: v }),
       playingProgramId: null,
       setPlayingProgramId: (id) => set({ playingProgramId: id }),
-      timerDuration: 15 * 60,
+      timerDuration: DEFAULT_TIMER_DURATION,
       setTimerDuration: (d) => set({ timerDuration: d }),
       beatVolume: 0.2,
       setBeatVolume: (v) => set({ beatVolume: v }),
@@ -103,6 +111,15 @@ export const useAppStore = create<AppState>()(
       // for logged-out users too. Runtime state (isPlaying/elapsed/
       // playingProgramId) and sessionLogs stay in memory.
       name: "app-playback",
+      // v1：タイマーの 15 分が無くなった。端末に残っている 15 分は新しい既定へ。
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<AppState>;
+        if (version < 1 && state.timerDuration === 15 * 60) {
+          state.timerDuration = DEFAULT_TIMER_DURATION;
+        }
+        return state as AppState;
+      },
       partialize: (s) => ({
         selectedProgramId: s.selectedProgramId,
         timerDuration: s.timerDuration,

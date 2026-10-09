@@ -9,6 +9,7 @@ import { getAdjustedProgram } from "@/lib/brain-profile";
 import { isCustomProgramId } from "@/lib/programs";
 import { useBrainProfileStore } from "@/store/useBrainProfileStore";
 import { formatTime } from "@/lib/utils";
+import { isUnlimitedDuration } from "@/lib/session-length";
 import { useT } from "@/lib/i18n";
 import { Play, Pause, Square, ListMusic } from "lucide-react";
 
@@ -58,7 +59,13 @@ export default function PlaybackControls() {
     }
   };
 
+  // 無制限には「残り」が無い——止めるまでの経過時間を数え上げる。
+  const unlimited = isUnlimitedDuration(timerDuration);
   const remaining = Math.max(0, timerDuration - elapsed);
+  const idleLength = unlimited ? "∞" : formatTime(timerDuration);
+  const idleCaption = unlimited
+    ? t("セッション時間（無制限）", "Session length (no limit)")
+    : t("セッション時間", "Session length");
 
   // No resolvable program (e.g. a deleted/unfetched custom id): a dead play
   // button would fail silently — offer the way to pick a program instead.
@@ -66,10 +73,8 @@ export default function PlaybackControls() {
     return (
       <div className="flex flex-col items-center gap-4">
         <div className="text-center">
-          <p className="text-4xl font-mono text-text-primary tabular-nums">
-            {formatTime(timerDuration)}
-          </p>
-          <p className="text-sm text-text-secondary mt-1">{t("セッション時間", "Session length")}</p>
+          <p className="text-4xl font-mono text-text-primary tabular-nums">{idleLength}</p>
+          <p className="text-sm text-text-secondary mt-1">{idleCaption}</p>
         </div>
         {isCustom && publishedLoading ? (
           // The published list is being fetched (player page triggers it) —
@@ -95,14 +100,16 @@ export default function PlaybackControls() {
       {/* Time display */}
       <div className="text-center">
         <p className="text-4xl font-mono text-text-primary tabular-nums">
-          {formatTime(remaining)}
+          {!isPlaying ? idleLength : formatTime(unlimited ? elapsed : remaining)}
         </p>
         <p className="text-sm text-text-secondary mt-1">
           {isPlaying
             ? isPaused
               ? t("一時停止中", "Paused")
-              : t("残り時間", "Time left")
-            : t("セッション時間", "Session length")}
+              : unlimited
+                ? t("経過時間（無制限）", "Elapsed (no limit)")
+                : t("残り時間", "Time left")
+            : idleCaption}
         </p>
       </div>
 
