@@ -20,23 +20,25 @@ import { scheduleRamps } from "./ramp-scheduler";
  * （作り直すとビートの位相と相位のスケジュールが途切れる）。再生中でも数十ミリ秒で
  * なめらかに移る。
  *
- * その上に高八度の音（キャリア×2、左右とも同じ）を1本重ね、基音と高八度に同じ速さで
- * 逆向きのトレモロを掛ける——基音が山のとき高八度は谷、高八度が山のとき基音は谷で、
- * 音の重心が低い音と高い音を行き来する。基音の揺れは左右の耳で同じなので、左右の
- * 高さの差＝ビートはそのまま。高八度は左右とも同じ高さで、うなりは作らない。
+ * 主の組は基音（左 キャリア／右 キャリア＋ビート）と高八度（左 キャリア×2／
+ * 右 キャリア×2＋ビート）の2組——高八度も基音と同じビートだけ左右がずれ、同じ速さの
+ * うなりが1オクターブ上にもう1つ鳴る。この2組に同じ速さで逆向きのトレモロを掛ける：
+ * 基音が山のとき高八度は谷、高八度が山のとき基音は谷で、音の重心が低い音と高い音を
+ * 行き来する。揺れは左右の耳で同じなので、左右の高さの差＝ビートは揺らさない。
  */
 export type BeatChannelMode = "stereo" | "mono";
 
 export const DEFAULT_BEAT_CHANNEL_MODE: BeatChannelMode = "stereo";
 
-/**
- * 主の組の音色：基音 0.82 ＋ 2倍音 0.12 ＋ 3倍音 0.06 ＝ 1.0。
- * 倍音は左右とも同じ高さ（ビートを足さない）——うなりは基音どうしだけで作る。
- * トレモロを掛けるのは基音だけで、倍音は揺らさない。
- */
+/** 主の組の基音の重み（トレモロの山のとき）。 */
 const FUNDAMENTAL_GAIN = 0.82;
+
+/**
+ * 揺らさない倍音 [倍率, 重み]。左右とも同じ高さ（ビートを足さない）。2倍音の座は
+ * 高八度が持つ——左右同じ高さの2倍音を残すと、右耳で高八度（キャリア×2＋ビート）と
+ * ぶつかって片耳だけのうなりが出る。
+ */
 const OVERTONES: readonly (readonly [number, number])[] = [
-  [2, 0.12], // 2nd harmonic — adds warmth
   [3, 0.06], // 3rd harmonic — subtle brightness
 ];
 
@@ -44,20 +46,18 @@ const OVERTONES: readonly (readonly [number, number])[] = [
 const LAYER_GAIN = 0.82;
 
 /**
- * 高八度の音の重み（トレモロの山のとき）。基音を支える脇役：自分の山で基音の約 -9dB。
- * 2倍音と同じ高さに重なるが、2倍音は揺らさないので、揺れはこの音の分だけ。
+ * 高八度の組の重み（トレモロの山のとき）。基音を支える脇役：自分の山で基音の約 -9dB。
  */
 const OCTAVE_GAIN = 0.3;
 
 /**
  * トレモロの速さ＝いまのビート×この比（基音も高八度も同じ速さ）。ビートと同じ相位の
  * 曲線で動くので、ビートが上がり下がりすればトレモロも一緒に動き、位相もビートの
- * ちょうど 1/4 に揃ったまま（4拍でひと巡り＝基音の山と高八度の山が2拍ごとに
+ * ちょうど 1/8 に揃ったまま（8拍でひと巡り＝基音の山と高八度の山が4拍ごとに
  * 入れ替わる、ずれていかない）。
- * 1.5Hz（デルタ）→ 0.375Hz・10Hz（アルファ）→ 2.5Hz・40Hz（ガンマ）→ 10Hz。
- * 1/2 だと 40Hz の節目で 20Hz の揺れになり、揺れではなくザラつきに聞こえる。
+ * 1.5Hz（デルタ）→ 0.19Hz（約5秒でひと巡り）・10Hz（アルファ）→ 1.25Hz・40Hz（ガンマ）→ 5Hz。
  */
-const TREMOLO_RATIO = 1 / 4;
+const TREMOLO_RATIO = 1 / 8;
 
 /**
  * トレモロの谷の音量（山＝1）。基音も高八度も 100% ⇔ 30% を行き来する——音が
@@ -115,14 +115,14 @@ export function buildBeatGraph(
   const leftBus = bus();
   const rightBus = bus();
 
-  const tone = (freq: number, weight: number, ...to: GainNode[]) => {
+  const tone = (freq: number, weight: number, to: GainNode) => {
     const osc = ctx.createOscillator();
     osc.type = "sine";
     osc.frequency.setValueAtTime(freq, startAt);
     const g = ctx.createGain();
     g.gain.setValueAtTime(weight, startAt);
     osc.connect(g);
-    for (const dest of to) g.connect(dest);
+    g.connect(to);
     oscillators.push(osc);
     nodes.push(g);
     return { osc, gain: g };
@@ -132,21 +132,23 @@ export function buildBeatGraph(
   const center = (1 + TREMOLO_FLOOR) / 2;
   const swing = (1 - TREMOLO_FLOOR) / 2;
 
-  // 主の組の基音。右だけがキャリア＋ビートで、相位に沿って動く。
+  // 主の組：基音と高八度。どちらも右だけが＋ビートで、相位に沿って動く。
   const initBeat = program.phases[0]?.startBeatFreq ?? program.targetBeatFreq;
-  const leftFundamental = tone(carrier, FUNDAMENTAL_GAIN * center, leftBus);
-  const rightFundamental = tone(carrier + initBeat, FUNDAMENTAL_GAIN * center, rightBus);
-  scheduleRamps(rightFundamental.osc.frequency, program.phases, timeScale, startAt, (beat) => carrier + beat);
+  const beatPair = (freq: number, weight: number): [GainNode, GainNode] => {
+    const left = tone(freq, weight, leftBus);
+    const right = tone(freq + initBeat, weight, rightBus);
+    scheduleRamps(right.osc.frequency, program.phases, timeScale, startAt, (beat) => freq + beat);
+    return [left.gain, right.gain];
+  };
+  const fundamental = beatPair(carrier, FUNDAMENTAL_GAIN * center);
+  const octave = beatPair(carrier * 2, OCTAVE_GAIN * center);
   for (const [mult, weight] of OVERTONES) {
     tone(carrier * mult, weight, leftBus);
     tone(carrier * mult, weight, rightBus);
   }
 
-  // 高八度：左右とも同じ1本を両方のバスへ（mono で左右を混ぜても同じ音のまま）。
-  const octave = tone(carrier * 2, OCTAVE_GAIN * center, leftBus, rightBus);
-
   // 1つの LFO を基音には＋、高八度には−で掛ける（LFO を2つ持つと少しずつずれていく）。
-  // 基音は左右の耳に同じ揺れ——左右の高さの差＝ビートは揺らさない。
+  // 左右の耳には同じ揺れ——左右の高さの差＝ビートは揺らさない。
   const lfo = ctx.createOscillator();
   lfo.type = "sine";
   scheduleRamps(lfo.frequency, program.phases, timeScale, startAt, (beat) => beat * TREMOLO_RATIO);
@@ -158,8 +160,8 @@ export function buildBeatGraph(
     for (const g of gains) depth.connect(g.gain);
     nodes.push(depth);
   };
-  wobble(FUNDAMENTAL_GAIN * swing, leftFundamental.gain, rightFundamental.gain);
-  wobble(-OCTAVE_GAIN * swing, octave.gain);
+  wobble(FUNDAMENTAL_GAIN * swing, ...fundamental);
+  wobble(-OCTAVE_GAIN * swing, ...octave);
 
   // 重ねる組：一定のビートの純音（倍音を足すと主の組の音とぶつかる）。
   for (const layer of layers) {
