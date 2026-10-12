@@ -47,9 +47,7 @@ export default function WaterMandalaHero() {
   const effectiveKey = hydrated ? selectedSign ?? heroKey ?? null : null;
   const sign = effectiveKey ? getZodiacSign(effectiveKey) : undefined;
 
-  // 未選択で空から借りた星座は、借りた天体とは比べない（自分と自分の比較で毎日「活性」になる）
-  const signFrom = selectedSign ? null : night ? "moon" : "sun";
-  const rec = sign ? dailyRecommendation(sky, sign, now, locale, signFrom) : null;
+  const rec = sign ? dailyRecommendation(sky, sign, now, locale) : null;
   const program = rec ? getProgramById(rec.programId) : undefined;
 
   const handlePlay = () => {
