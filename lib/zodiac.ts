@@ -340,12 +340,18 @@ export interface DailyRecommendation {
  * どの星座を選んでも音色は変わり、ビートだけが天体と時間帯で日替わりする。
  * 文言（tagLabel・reason・advice）は locale の言語で返す。選ぶ節目は言語に
  * よらず同じ。
+ *
+ * signFrom＝sign が空から借りたもの（マイ星座が未選択で、昼は太陽・夜は月の
+ * 星座を代わりに使っている）ならその天体。その天体との比較は自分と自分を
+ * 比べることになり必ず「同じ」＝毎日同じ活性に落ちるので、もう一方の天体
+ * だけで判定する。
  */
 export function dailyRecommendation(
   sky: TodaySky | null,
   sign: ZodiacSign,
   now: Date = new Date(),
-  locale: Locale = "ja"
+  locale: Locale = "ja",
+  signFrom: "sun" | "moon" | null = null
 ): DailyRecommendation {
   const userIndex = ZODIAC_KEYS.indexOf(sign.key);
   const en = locale === "en";
@@ -366,6 +372,9 @@ export function dailyRecommendation(
   const userEl = elementOf(userIndex);
   const sunEl = elementOf(sky.sunIndex);
   const moonEl = elementOf(sky.moonIndex);
+  // 空から借りた星座は、借りた天体とは比べない（null＝その天体の比較は無し）
+  const sunRel = signFrom === "sun" ? null : relationOf(userEl, sunEl);
+  const moonRel = signFrom === "moon" ? null : relationOf(userEl, moonEl);
   const hour = now.getHours();
   const isNight = hour < 6 || hour >= 18;
   const isLateNight = hour >= 22 || hour < 6;
@@ -395,9 +404,9 @@ export function dailyRecommendation(
         ? "The Moon is in a Water sign: a good time to let your feelings loosen"
         : "月が「水」のエレメントに滞在し、感情をほどくのに良い時間のため";
     }
-  } else if (relationOf(userEl, sunEl) === "same" || relationOf(userEl, moonEl) === "same") {
+  } else if (sunRel === "same" || moonRel === "same") {
     tag = "activation";
-    const sunTrigger = relationOf(userEl, sunEl) === "same";
+    const sunTrigger = sunRel === "same";
     beat = sunTrigger ? 40 : 20; // 太陽起因=ガンマ / 月起因=ハイベータ
     reason = en
       ? sunTrigger
@@ -406,12 +415,9 @@ export function dailyRecommendation(
       : sunTrigger
         ? `今日の太陽があなたと同じ「${ELEMENT_JA[userEl].name}」の属性にあるため（意識的活力）`
         : `今日の月があなたと同じ「${ELEMENT_JA[userEl].name}」の属性にあるため（内面的モチベーション）`;
-  } else if (
-    relationOf(userEl, sunEl) === "harmony" ||
-    relationOf(userEl, moonEl) === "harmony"
-  ) {
+  } else if (sunRel === "harmony" || moonRel === "harmony") {
     tag = "flow";
-    const sunTrigger = relationOf(userEl, sunEl) === "harmony";
+    const sunTrigger = sunRel === "harmony";
     beat = sunTrigger ? 12 : 10; // 太陽起因=ハイアルファ / 月起因=ミッドアルファ
     const elIndex = sunTrigger ? sunEl : moonEl;
     const el = ELEMENT_JA[elIndex].name;

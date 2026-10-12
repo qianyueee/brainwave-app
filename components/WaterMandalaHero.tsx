@@ -5,16 +5,15 @@ import { useZodiacStore } from "@/store/useZodiacStore";
 import {
   ZODIAC_SIGNS,
   getZodiacSign,
-  getTodaySky,
   isNightNow,
   dailyRecommendation,
   zodiacName,
-  type TodaySky,
 } from "@/lib/zodiac";
 import { getProgramById, programName } from "@/lib/programs";
 import { useLocale, useT } from "@/lib/i18n";
 import WaterMandala from "@/components/WaterMandala";
 import { usePlayProgram } from "@/components/usePlayProgram";
+import { useTodaySky } from "@/components/useTodaySky";
 import { Play } from "lucide-react";
 
 /** Fixed deep-water gradient — the mandala floats on dark water in every theme. */
@@ -39,30 +38,18 @@ export default function WaterMandalaHero() {
     setHydrated(true);
   }, []);
 
-  const [sky, setSky] = useState<TodaySky | null>(null);
-  const [skyFailed, setSkyFailed] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    getTodaySky()
-      .then((s) => {
-        if (!cancelled) setSky(s);
-      })
-      .catch(() => {
-        if (!cancelled) setSkyFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { sky, failed: skyFailed, now } = useTodaySky();
 
   // Same fallback chain as the home card: saved sign, else today's hero sign
   // (sun by day / moon by night). Reading the clock is client-only here too.
-  const night = isNightNow();
+  const night = isNightNow(now);
   const heroKey = sky ? ZODIAC_SIGNS[night ? sky.moonIndex : sky.sunIndex].key : undefined;
   const effectiveKey = hydrated ? selectedSign ?? heroKey ?? null : null;
   const sign = effectiveKey ? getZodiacSign(effectiveKey) : undefined;
 
-  const rec = sign ? dailyRecommendation(sky, sign, new Date(), locale) : null;
+  // 未選択で空から借りた星座は、借りた天体とは比べない（自分と自分の比較で毎日「活性」になる）
+  const signFrom = selectedSign ? null : night ? "moon" : "sun";
+  const rec = sign ? dailyRecommendation(sky, sign, now, locale, signFrom) : null;
   const program = rec ? getProgramById(rec.programId) : undefined;
 
   const handlePlay = () => {
