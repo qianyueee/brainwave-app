@@ -23,18 +23,21 @@ import Timer from "@/components/Timer";
 import Mixer from "@/components/Mixer";
 import ExportDialog from "@/components/ExportDialog";
 import { BareColumn } from "@/components/PageColumn";
+import PageHeader from "@/components/PageHeader";
 import { ArrowLeft, Download } from "lucide-react";
 
 /**
- * 見出しの1行目：左に「戻る」、中央に Sync Sound。右の空きは戻るボタンと同じ幅
- * で、Sync Sound を画面の中央に保つためのもの。番組名と説明は長くなるので、
- * この行には入れず下の段で幅いっぱいに使う。
+ * 「戻る」。このページは菜单外で、プログラムのカード（Session・ホーム）や
+ * ミニプレーヤーから入ってくる。戻り先は来た画面そのものなので履歴を1つ戻る
+ * ——リロードやブックマークで直接開いたときは戻る先が無いので、プログラムの
+ * 一覧（Session）へ。再生は止めない：ほかの画面へ移るときと同じく、下の
+ * ミニプレーヤーが引き継ぐ。
  *
- * このページは菜单外で、プログラムのカード（Session・ホーム）やミニプレーヤー
- * から入ってくる。戻り先は来た画面そのものなので履歴を1つ戻る——リロードや
- * ブックマークで直接開いたときは戻る先が無いので、プログラムの一覧（Session）へ。
+ * 矢印だけにしない：左上のメニューのボタンと同じ形の四角が並ぶと、押せば
+ * 戻れる物に見えない。文字で「戻る」と書き、見出しの帯（PageHeader、sticky）に
+ * 載せて、ミキサーまで下へ送っても常に同じ場所で押せるようにする。
  */
-function PlayerTopRow() {
+function BackButton() {
   const router = useRouter();
   const t = useT();
   const goBack = () => {
@@ -42,19 +45,13 @@ function PlayerTopRow() {
     else router.push("/session");
   };
   return (
-    <div className="flex items-center gap-3">
-      <button
-        onClick={goBack}
-        aria-label={t("戻る", "Back")}
-        className="w-12 h-12 rounded-xl bg-navy neu-raised-sm flex items-center justify-center text-text-secondary active:scale-95 shrink-0"
-      >
-        <ArrowLeft size={20} />
-      </button>
-      <p className="min-w-0 flex-1 text-center text-xs font-bold text-primary tracking-wider">
-        Sync Sound
-      </p>
-      <div className="w-12 shrink-0" aria-hidden="true" />
-    </div>
+    <button
+      onClick={goBack}
+      className="min-h-12 pl-3 pr-4 rounded-xl bg-navy neu-raised-sm flex items-center gap-1.5 text-base font-bold text-text-primary active:scale-95 shrink-0"
+    >
+      <ArrowLeft size={20} className="text-primary" />
+      {t("戻る", "Back")}
+    </button>
   );
 }
 
@@ -129,34 +126,28 @@ export default function PlayerPage() {
   const canExport = isTimeline ? false : isCustom ? !!customProgram : !!program;
   const exportMode = isCustom ? "synth" : "binaural";
 
-  // Skeleton before hydration: keep the page frame, hide store-derived content.
-  if (!hydrated) {
-    return (
-      <BareColumn>
-        <div className="flex flex-col gap-6 pt-6">
-          <PlayerTopRow />
-        </div>
-      </BareColumn>
-    );
-  }
+  // The header (with 戻る) is the same before and after hydration; only the
+  // store-derived content below waits for the client store.
+  const header = <PageHeader title="Sync Sound" leading={<BackButton />} />;
+
+  if (!hydrated) return header;
 
   return (
+    <>
+    {header}
     <BareColumn>
     <div className="flex flex-col gap-6 pt-6" style={{ animation: "fade-in 0.3s ease-out" }}>
-      {/* Back + program name */}
-      <div className="flex flex-col gap-1">
-      <PlayerTopRow />
+      {/* Program name — the page title (Sync Sound) is in the header band */}
       <div className="text-center">
-        <h1 className="text-xl font-bold text-text-primary">
+        <h2 className="text-xl font-bold text-text-primary">
           {displayName ??
             (publishedLoading
               ? t("読み込み中…", "Loading…")
               : t("プログラムを選択", "Choose a program"))}
-        </h1>
+        </h2>
         <p className="text-sm text-text-secondary mt-1">
           {displayDesc}
         </p>
-      </div>
       </div>
 
       {/* Mobile: single column. Desktop: visualizer+controls | timer/mixer side by side. */}
@@ -209,5 +200,6 @@ export default function PlayerPage() {
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} mode={exportMode} customPreset={customProgram?.preset} />
     </div>
     </BareColumn>
+    </>
   );
 }

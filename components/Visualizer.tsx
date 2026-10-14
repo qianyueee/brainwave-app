@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Maximize2 } from "lucide-react";
+import { ArrowLeft, Maximize2 } from "lucide-react";
 import { useAppStore, useDisplayProgramId } from "@/store/useAppStore";
 import { useSynthStore } from "@/store/useSynthStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
@@ -172,6 +172,19 @@ export default function Visualizer() {
             className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-8"
             style={{ backgroundColor: "#04060d", animation: "fade-in 0.25s ease-out" }}
           >
+            {/* どこをタップしても戻れるが、それは画面に書いてあるだけで押す物が
+                見えない。再生画面の見出しと同じ「戻る」を左上に置く。 */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFullscreen(false);
+              }}
+              className="absolute top-4 left-4 min-h-12 pl-3 pr-4 rounded-xl bg-white/10 flex items-center gap-1.5 text-base font-bold text-white active:scale-95"
+            >
+              <ArrowLeft size={20} />
+              {t("戻る", "Back")}
+            </button>
             <CymaticsCanvas
               {...params}
               className="rounded-full"
