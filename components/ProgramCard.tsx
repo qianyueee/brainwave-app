@@ -58,22 +58,25 @@ export default function ProgramCard({ program, breathe = true }: ProgramCardProp
   const emoji = !LucideIcon && program.icon ? program.icon : null;
   const FallbackIcon = CATEGORY_ICONS[program.category ?? "default"] ?? Waves;
 
+  // 一覧は数十枚続くので1枚を詰めてある：余白 12px・アイコン 44px・角丸 16px
+  // （以前は 16px・56px・24px で 1 枚 90px → いまは約 66px）。文字は詰めない
+  // ——名前は本文の 16px のまま、押せる高さも 48px を大きく超えている。
   return (
     <button
       onClick={handleClick}
-      className={`w-full bg-surface border border-surface-border rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform${
+      className={`w-full bg-surface border border-surface-border rounded-2xl px-3 py-2.5 flex items-center gap-3 text-left neu-raised neu-press transition-transform${
         breathe ? " breathe" : ""
       }`}
     >
-      <div className="w-14 h-14 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
+      <div className="w-11 h-11 rounded-xl bg-navy neu-inset flex items-center justify-center shrink-0">
         {LucideIcon ? (
-          <LucideIcon size={26} className="text-primary" strokeWidth={1.5} />
+          <LucideIcon size={22} className="text-primary" strokeWidth={1.5} />
         ) : emoji ? (
-          <span className="text-2xl leading-none" aria-hidden>
+          <span className="text-xl leading-none" aria-hidden>
             {emoji}
           </span>
         ) : (
-          <FallbackIcon size={26} className="text-primary" strokeWidth={1.5} />
+          <FallbackIcon size={22} className="text-primary" strokeWidth={1.5} />
         )}
       </div>
       {/* 名前と「周波数・長さ」の2行だけ。説明文は落とした——3節目とも名前で
@@ -84,7 +87,7 @@ export default function ProgramCard({ program, breathe = true }: ProgramCardProp
         <p className="text-base font-bold text-text-primary truncate">
           {programName(program, locale)}
         </p>
-        <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <p className="text-xs text-text-muted">
             {t(`${carrier}Hz・${displayMinutes}分`, `${carrier}Hz · ${displayMinutes} min`)}
           </p>
@@ -102,7 +105,7 @@ export default function ProgramCard({ program, breathe = true }: ProgramCardProp
           )}
         </div>
       </div>
-      <ChevronRight size={20} className="text-text-muted shrink-0" />
+      <ChevronRight size={18} className="text-text-muted shrink-0" />
     </button>
   );
 }

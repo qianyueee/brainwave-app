@@ -40,10 +40,14 @@ const TAB_ICONS: Record<ProgramCategory, typeof Waves> = {
   astro: Stars,
 };
 
-/** 一覧の器。モバイルは1列、デスクトップは2列（カードが横長なので2列で収まる）。 */
+/**
+ * 一覧の器。モバイルは1列、デスクトップは2列（カードが横長なので2列で収まる）。
+ * 3列にはしない——名前が長い節目（「低気圧不調・寒暖差・季節性の落ち込み」など
+ * 20字前後）が2列でやっと1行に収まる幅なので、3列だと多くが「…」で切れる。
+ */
 function CardGrid({ programs }: { programs: ProgramConfig[] }) {
   return (
-    <div className="flex flex-col gap-3 md:grid md:grid-cols-2 md:gap-3">
+    <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-2.5">
       {programs.map((p) => (
         <ProgramCard key={p.id} program={p} breathe={false} />
       ))}

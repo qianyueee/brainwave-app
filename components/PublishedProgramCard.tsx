@@ -41,33 +41,37 @@ export default function PublishedProgramCard({
 
   const displayMinutes = Math.round(program.defaultDuration / 60);
 
+  // カタログのカード（ProgramCard）と同じ詰めた寸法：余白 12px・アイコン 44px・
+  // 角丸 16px。Sync Session では小さな窓の中でスクロールして並ぶので、1枚が
+  // 低いほど窓に多く入る。
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }}
-      className={`w-full bg-surface border border-surface-border rounded-3xl p-4 flex items-center gap-4 text-left neu-raised neu-press transition-transform cursor-pointer${breathe ? " breathe" : ""}`}
+      className={`w-full bg-surface border border-surface-border rounded-2xl px-3 py-2.5 flex items-center gap-3 text-left neu-raised neu-press transition-transform cursor-pointer${breathe ? " breathe" : ""}`}
     >
-      <div className="w-14 h-14 rounded-2xl bg-navy neu-inset flex items-center justify-center shrink-0">
-        <Waves size={26} className="text-success" strokeWidth={1.5} />
+      <div className="w-11 h-11 rounded-xl bg-navy neu-inset flex items-center justify-center shrink-0">
+        <Waves size={22} className="text-success" strokeWidth={1.5} />
       </div>
       {/* 配信ぶんは名前が「Subliminal-41.7…」のように機械的なことが多いので、
-          説明文は残す（3節目と違い、名前だけでは中身が読めない）。「公開済み」
-          は名前の隣から足元の行へ——長い名前を badge が押し潰さなくなる。 */}
+          説明文は残す（3節目と違い、名前だけでは中身が読めない）。ただし2行で
+          切る——全文は再生画面に出る。長さは名前の行の右端へ寄せて行を1つ減らし、
+          「公開済み」の札は外した：並ぶ場所の見出しが「配信プログラム」「配信中の
+          プログラム」なので、どの1枚にも同じことを書き足すだけだった。 */}
       <div className="flex-1 min-w-0">
-        <p className="text-base font-bold text-text-primary truncate">{program.name}</p>
-        <p className="text-sm text-text-secondary mt-0.5">
-          {program.description}
-        </p>
-        <div className="mt-1 flex items-center gap-2 flex-wrap">
-          <p className="text-xs text-text-muted">
-            {t(`${displayMinutes}分`, `${displayMinutes} min`)}
+        <div className="flex items-baseline gap-2">
+          <p className="min-w-0 flex-1 text-base font-bold text-text-primary truncate">
+            {program.name}
           </p>
-          <span className="text-xs font-bold text-success bg-success/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-            {t("公開済み", "Published")}
+          <span className="shrink-0 text-xs text-text-muted">
+            {t(`${displayMinutes}分`, `${displayMinutes} min`)}
           </span>
         </div>
+        {program.description && (
+          <p className="text-sm text-text-secondary line-clamp-2">{program.description}</p>
+        )}
       </div>
       {manage && isAdmin && (
         <button

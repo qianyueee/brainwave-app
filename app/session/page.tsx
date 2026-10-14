@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import PublishedProgramCard from "@/components/PublishedProgramCard";
 import CatalogSection from "@/components/CatalogSection";
+import ScrollWindow from "@/components/ScrollWindow";
 import { useAdminStore } from "@/store/useAdminStore";
 import { usePublishedProgramsStore } from "@/store/usePublishedProgramsStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -20,14 +21,22 @@ import PageHeader from "@/components/PageHeader";
  * 一覧を上段の2列グリッドの片側に入れず、幅いっぱいの段として下に置いてある：
  * 節目が170件あるので、半分の幅に押し込むとカードが縦に延々と続く筒になる。
  *
- * 上段の右（配信プログラム）はデスクトップでは左の水マンダラと同じ大きさの枠に
- * 収め、はみ出す分は枠の中でスクロールさせる——件数が増えても左右の釣り合いが
- * 崩れず、下の一覧が押し下げられない。枠を `absolute inset-0` にして行の高さの
- * 計算から外すのがミソ：行の高さは左のカードだけで決まり、右の枠はそれに合わせて
- * 伸び縮みする。スマホは縦に積むだけなので、枠も付けず・枠の中で止めずに従来
- * どおり全部並べる：枠と沈んだ面を重ねると 390px 幅でカードの文字の欄が 1/4 狭く
- * なり、入れ子のスクロールは指で触れた場所でページと一覧のどちらが動くか変わる。
- * そのため枠の2要素はスマホでは `contents`（箱を持たず、中身だけが親の列に並ぶ）。
+ * 上段の右（配信プログラム）は小さな窓（ScrollWindow、沈んだ面）に並べ、
+ * はみ出す分は窓の中だけでスクロールさせる——件数が増えても下の一覧が押し下げ
+ * られない。
+ *
+ * デスクトップでは窓を、左の水マンダラと同じ大きさの枠（見出し＋窓）に収める。
+ * 枠を `absolute inset-0` にして行の高さの計算から外すのがミソ：行の高さは左の
+ * カードだけで決まり、右の枠はそれに合わせて伸び縮みする。
+ *
+ * スマホは縦に積むので、窓の高さを画面の半分弱で止める（max-h）。カード3枚ほどが
+ * 見え、窓の外にもページを送るための面が十分に残る——入れ子のスクロールは、
+ * 指で触れた場所でページと一覧のどちらが動くかが変わるので、窓を大きくしすぎない。
+ * 窓の端まで送ったあとの次のひと送りはページへ渡す（overscroll-behavior は既定の
+ * まま。contain にすると窓の上で指が止まって見える）。スマホでは外側の枠を
+ * `contents` で消し、見出しと窓だけを親の列に並べる：枠と窓を重ねると 360〜390px
+ * 幅でカードの文字の欄が 1/4 狭くなり、配信プログラムの機械的な長い名前
+ * （「Subliminal-41.7Hz α」など）が切れる。
  *
  * 音源をつくる・公開する管理者向けの操作（カスタムプログラム、合成器の新規
  * 作成、公開／取り下げ）はここには置かない——管理パネルの「音源」タブに集約
@@ -93,15 +102,28 @@ export default function SessionPage() {
           aria-label={t("配信プログラム", "Shared programs")}
           className="contents md:absolute md:inset-0 md:flex md:flex-col md:gap-4 md:p-5 md:rounded-3xl md:bg-surface md:border md:border-surface-border neu-raised"
         >
-          <p className="text-sm text-text-secondary">{t("配信プログラム", "Shared programs")}</p>
-          {/* 左の水マンダラの窓と同じ「沈んだ面」。デスクトップではこの中だけが
-              スクロールする（scroll-thin＝細いスクロールバー）。カードの呼吸は
-              止める——膨らんだ分が枠で切れるので。 */}
-          <div className="contents md:flex md:flex-col md:gap-3 md:flex-1 md:min-h-0 md:overflow-y-auto md:p-3 md:rounded-2xl md:bg-navy neu-inset scroll-thin">
+          {/* 件数も出す：窓に入りきらないとき、いくつあるのかが先に分かる。
+              英語は数字だけ（「Shared programs 8 programs」と重なるので、
+              目録のタブ「Target 42」と同じ書き方にする）。 */}
+          <p className="text-sm text-text-secondary">
+            {t("配信プログラム", "Shared programs")}
+            <span className="ml-2 text-xs text-text-muted">
+              {t(`${visiblePrograms.length}件`, `${visiblePrograms.length}`)}
+            </span>
+          </p>
+          {/* 左の水マンダラの窓と同じ「沈んだ面」。この中だけがスクロールする
+              （scroll-thin＝細いスクロールバー）。スマホは max-h で止め（外側の
+              枠は contents で消えるので、見出しと窓が直接ページに並ぶ）、
+              デスクトップは枠の残りいっぱいに伸ばす。カードの呼吸は止める
+              ——膨らんだ分が窓で切れるので。 */}
+          <ScrollWindow
+            className="md:flex-1 md:min-h-0 md:flex md:flex-col"
+            scrollClassName="max-h-[min(19rem,45svh)] p-2 md:max-h-none md:flex-1 md:min-h-0 md:p-3"
+          >
             {visiblePrograms.map((program) => (
               <PublishedProgramCard key={program.id} program={program} breathe={false} />
             ))}
-          </div>
+          </ScrollWindow>
         </section>
       )}
 
