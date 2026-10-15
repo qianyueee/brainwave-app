@@ -5,17 +5,16 @@ import { useZodiacStore } from "@/store/useZodiacStore";
 import {
   ZODIAC_SIGNS,
   getZodiacSign,
-  getTodaySky,
   isNightNow,
   dailyRecommendation,
   zodiacName,
-  type TodaySky,
 } from "@/lib/zodiac";
 import { getProgramById, programName } from "@/lib/programs";
 import { useLocale, useT } from "@/lib/i18n";
 import ZodiacSignPicker from "@/components/ZodiacSignPicker";
 import ZodiacConstellation from "@/components/ZodiacConstellation";
 import { usePlayProgram } from "@/components/usePlayProgram";
+import { useTodaySky } from "@/components/useTodaySky";
 import { Sun, Moon, ChevronDown, Play } from "lucide-react";
 
 /**
@@ -52,27 +51,13 @@ export default function ZodiacSyncCard() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const [sky, setSky] = useState<TodaySky | null>(null);
-  const [skyFailed, setSkyFailed] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    getTodaySky()
-      .then((s) => {
-        if (!cancelled) setSky(s);
-      })
-      .catch(() => {
-        if (!cancelled) setSkyFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { sky, failed: skyFailed, now } = useTodaySky();
 
   // Hero = today's sign in the sky right now: sun by day, moon by night
   // (same 6:00/18:00 boundaries as the time-of-day theme). Only meaningful
   // once `sky` resolves, which happens client-side — so reading the clock
   // inline can't cause an SSR mismatch.
-  const night = isNightNow();
+  const night = isNightNow(now);
   const heroSign = sky ? ZODIAC_SIGNS[night ? sky.moonIndex : sky.sunIndex] : undefined;
   const sunSign = sky ? ZODIAC_SIGNS[sky.sunIndex] : undefined;
   const moonSign = sky ? ZODIAC_SIGNS[sky.moonIndex] : undefined;
@@ -87,7 +72,7 @@ export default function ZodiacSyncCard() {
   // while the guided beat varies daily with the sun/moon elements, weekday
   // and time of day (§5 matrix) — so the recommendation changes with the sky.
   // The wording (tag / reason / advice) comes back in the display language.
-  const rec = sign ? dailyRecommendation(sky, sign, new Date(), locale) : null;
+  const rec = sign ? dailyRecommendation(sky, sign, now, locale) : null;
   const program = rec ? getProgramById(rec.programId) : undefined;
 
   const handleSelect = (key: (typeof ZODIAC_SIGNS)[number]["key"]) => {
