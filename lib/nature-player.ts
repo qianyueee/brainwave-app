@@ -35,35 +35,180 @@ function remember(url: string, buffer: AudioBuffer): void {
   }
 }
 
-// Loads in flight, so a play pressed while a preload is still running waits
-// for it instead of fetching and decoding the same track a second time.
-const loading = new Map<string, Promise<AudioBuffer>>();
+/**
+ * A download that receives nothing for this long is given up. A phone that
+ * changes networks, or a connection that goes quiet, can leave a fetch hanging
+ * without ever failing — and since a play waits for the load already in
+ * flight, one hung download used to keep that track's music away until the
+ * page was reloaded. A slow download still delivers bytes and is never cut.
+ */
+const STALL_MS = 15_000;
+// Without a readable body (not expected in the browsers we support) progress
+// can't be watched, so the whole body gets one longer allowance instead.
+const BODY_WITHOUT_STREAM_MS = 60_000;
 
-async function fetchBytes(url: string): Promise<ArrayBuffer> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${response.status} ${url}`);
-  return response.arrayBuffer();
+/**
+ * Why a track could not be loaded. The music bed retries the transient kinds
+ * for as long as the session plays (lib/audio-engine.ts).
+ */
+export class AudioLoadError extends Error {
+  constructor(
+    readonly kind: "network" | "http" | "decode",
+    readonly status: number | null,
+    message: string
+  ) {
+    super(message);
+    this.name = "AudioLoadError";
+  }
+
+  /** No connection, a stalled download, or a server hiccup — worth trying again. */
+  get transient(): boolean {
+    if (this.kind === "network") return true;
+    if (this.kind === "http") return this.status === 408 || this.status === 429 || (this.status ?? 0) >= 500;
+    return false;
+  }
 }
 
-function load(url: string, decoder: BaseAudioContext): Promise<AudioBuffer> {
-  const promise = fetchBytes(url)
-    .then((bytes) => decoder.decodeAudioData(bytes))
+async function fetchBytes(url: string, controller: AbortController): Promise<ArrayBuffer> {
+  let stalled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const watch = (ms = STALL_MS) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      stalled = true;
+      controller.abort();
+    }, ms);
+  };
+  watch();
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new AudioLoadError("http", response.status, `${response.status} ${url}`);
+    if (!response.body) {
+      watch(BODY_WITHOUT_STREAM_MS);
+      return await response.arrayBuffer();
+    }
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    for (;;) {
+      watch();
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      size += value.byteLength;
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes.buffer;
+  } catch (err) {
+    if (err instanceof AudioLoadError) throw err;
+    // Abandoned by everyone who wanted it (see release) — not a failure.
+    if (controller.signal.aborted && !stalled) throw err;
+    throw new AudioLoadError("network", null, `${stalled ? "stalled" : String(err)} ${url}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function decode(decoder: BaseAudioContext, bytes: ArrayBuffer): Promise<AudioBuffer> {
+  try {
+    return await decoder.decodeAudioData(bytes);
+  } catch (err) {
+    // A track that decodes on a desktop can still fail on a phone for lack of
+    // memory. Let go of the decoded tracks kept for replays (one that is
+    // playing stays alive through its own source node) so a retry has room.
+    bufferCache.clear();
+    throw new AudioLoadError("decode", null, String(err));
+  }
+}
+
+/**
+ * A fetch + decode in flight. A play pressed while a preload is still running
+ * waits for it instead of fetching and decoding the same track a second time.
+ * `users` counts who is waiting for it (the player page's preload, a session);
+ * when the last one stops waiting, the download is abandoned.
+ */
+interface Load {
+  promise: Promise<AudioBuffer>;
+  controller: AbortController;
+  users: number;
+  settled: boolean;
+}
+
+const loading = new Map<string, Load>();
+
+function startLoad(url: string, decoder: BaseAudioContext): Load {
+  const controller = new AbortController();
+  const promise = fetchBytes(url, controller)
+    .then((bytes) => decode(decoder, bytes))
     .then((buffer) => {
       remember(url, buffer);
       return buffer;
     });
-  loading.set(url, promise);
+  const entry: Load = { promise, controller, users: 0, settled: false };
+  loading.set(url, entry);
+  // A failed load is forgotten; the next attempt starts afresh.
   const forget = () => {
-    if (loading.get(url) === promise) loading.delete(url);
+    entry.settled = true;
+    if (loading.get(url) === entry) loading.delete(url);
   };
   promise.then(forget, forget);
-  return promise;
+  return entry;
+}
+
+function release(entry: Load): void {
+  entry.users--;
+  // Only the download can be cut short; a decode already under way finishes
+  // and its track is kept for later.
+  if (entry.users <= 0 && !entry.settled) entry.controller.abort();
+}
+
+function abortError(): Error {
+  return new DOMException("The load was stopped", "AbortError");
+}
+
+/** Wait for `entry` as one of its users, until it settles or `signal` aborts. */
+function waitFor(entry: Load, signal?: AbortSignal): Promise<AudioBuffer> {
+  if (signal?.aborted) return Promise.reject(abortError());
+  entry.users++;
+  return new Promise<AudioBuffer>((resolve, reject) => {
+    let waiting = true;
+    const stopWaiting = () => {
+      if (!waiting) return false;
+      waiting = false;
+      signal?.removeEventListener("abort", onAbort);
+      release(entry);
+      return true;
+    };
+    const onAbort = () => {
+      if (stopWaiting()) reject(abortError());
+    };
+    signal?.addEventListener("abort", onAbort);
+    entry.promise.then(
+      (buffer) => {
+        if (stopWaiting()) resolve(buffer);
+      },
+      (err) => {
+        if (stopWaiting()) reject(err);
+      }
+    );
+  });
 }
 
 // Preloads decode on an offline context: no realtime AudioContext exists
 // before the first tap (autoplay rules), and a buffer decoded offline plays
 // in the realtime one as is. 48kHz is the tracks' own rate — no resampling.
 let offlineDecoder: OfflineAudioContext | null = null;
+
+// The preload the player page asked for last. Only one is kept going: the
+// program now on screen is the one about to be played, and the tracks of the
+// programs looked at before it would only take bandwidth (and the decoder,
+// which works through one track at a time) away from it.
+let preloading: Load | null = null;
 
 /**
  * Fetch and decode a track before the play button is pressed (the player
@@ -72,18 +217,41 @@ let offlineDecoder: OfflineAudioContext | null = null;
  * (lib/music-intro.ts) — done ahead, pressing play starts both at once.
  */
 export function preloadAudio(url: string): void {
-  if (bufferCache.has(url) || loading.has(url)) return;
+  const previous = preloading;
+  if (previous && loading.get(url) === previous) return;
+  if (previous) {
+    preloading = null;
+    release(previous); // abandoned unless a session is waiting for it too
+  }
+  if (bufferCache.has(url)) return;
   if (typeof OfflineAudioContext === "undefined") return;
   try {
     offlineDecoder ??= new OfflineAudioContext(2, 1, 48000);
   } catch {
     return;
   }
-  // A failed preload is forgotten (see load); playback just tries again.
-  load(url, offlineDecoder).catch(() => {});
+  const entry = loading.get(url) ?? startLoad(url, offlineDecoder);
+  entry.users++;
+  preloading = entry;
+  // Done either way; a failed preload is forgotten and playback tries again.
+  const done = () => {
+    if (preloading !== entry) return;
+    preloading = null;
+    release(entry);
+  };
+  entry.promise.then(done, done);
 }
 
-export async function loadAudioBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer> {
+/**
+ * The decoded track at `url`: from the cache, from the load already in flight,
+ * or fetched and decoded now. `signal` stops waiting (a session that ended);
+ * the download itself goes on only while someone else still waits for it.
+ */
+export async function loadAudioBuffer(
+  ctx: AudioContext,
+  url: string,
+  signal?: AbortSignal
+): Promise<AudioBuffer> {
   const cached = bufferCache.get(url);
   if (cached) {
     remember(url, cached);
@@ -92,12 +260,15 @@ export async function loadAudioBuffer(ctx: AudioContext, url: string): Promise<A
   const inFlight = loading.get(url);
   if (inFlight) {
     try {
-      return await inFlight;
-    } catch {
+      return await waitFor(inFlight, signal);
+    } catch (err) {
+      if (signal?.aborted) throw err;
       // The preload failed (network); fetch again below.
     }
+    const loaded = bufferCache.get(url);
+    if (loaded) return loaded;
   }
-  return load(url, ctx);
+  return waitFor(loading.get(url) ?? startLoad(url, ctx), signal);
 }
 
 export class NaturePlayer {
@@ -153,7 +324,11 @@ export class NaturePlayer {
       const gain = this.gainNode;
       const fade = this.fadeNode;
       setTimeout(() => {
-        src?.stop();
+        try {
+          src?.stop();
+        } catch {
+          // Never started — nothing to stop, but still disconnect below.
+        }
         src?.disconnect();
         fade?.disconnect();
         gain?.disconnect();
@@ -208,7 +383,10 @@ export class NaturePlayer {
     this.source.loop = true;
 
     this.fadeNode = this.ctx.createGain();
-    this.fadeNode.gain.setValueAtTime(0, now);
+    // Hold at 0 from no later than the curve's start: an event inside the
+    // curve's span is an overlap the engine may reject, and then the track
+    // never starts.
+    this.fadeNode.gain.setValueAtTime(0, Math.min(now, fadeIn.at));
     this.fadeNode.gain.setValueCurveAtTime(fadeIn.curve, fadeIn.at, fadeIn.duration);
 
     this.gainNode = this.ctx.createGain();

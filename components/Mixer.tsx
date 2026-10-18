@@ -28,6 +28,15 @@ export default function Mixer() {
   const isCustom = isCustomProgramId(programId);
   // Every built-in and catalog program ships a music bed; custom ones don't.
   const hasMusic = hasMusicBed(programId);
+  const musicStatus = useAppStore((s) => s.musicStatus);
+  const musicNote =
+    musicStatus === "late"
+      ? t("曲を読み込んでいます…", "Loading the music…")
+      : musicStatus === "retrying"
+        ? t("曲を読み込めません。自動で読み込み直します", "Couldn't load the music. Trying again…")
+        : musicStatus === "failed"
+          ? t("曲を読み込めませんでした。ビートだけで続けます", "Couldn't load the music. The beat plays without it.")
+          : null;
 
   const handleBeatVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
@@ -114,6 +123,16 @@ export default function Mixer() {
             onChange={handleMusicVolume}
             className="w-full"
           />
+          {/* While the music is missing, say why — otherwise a beat without
+              its music reads as a broken player. Silent on a normal start. */}
+          {isPlaying && musicNote && (
+            <p
+              role="status"
+              className={`text-sm ${musicStatus === "failed" ? "text-warning" : "text-text-secondary"}`}
+            >
+              {musicNote}
+            </p>
+          )}
         </div>
       )}
 

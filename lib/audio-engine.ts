@@ -4,7 +4,7 @@ import { buildBeatGraph, DEFAULT_BEAT_CHANNEL_MODE, type BeatChannelMode, type B
 import { getAudioContext } from "./audio-context";
 import { getAudioDestination } from "./keep-alive";
 import { getSharedAnalyser } from "./audio-analyser";
-import { NaturePlayer, loadAudioBuffer } from "./nature-player";
+import { AudioLoadError, NaturePlayer, loadAudioBuffer } from "./nature-player";
 import {
   MUSIC_WAIT_MS,
   START_FADE_SEC,
@@ -25,8 +25,51 @@ export interface SessionState {
   totalDuration: number;
 }
 
+/**
+ * Where the music bed of a playing session stands (the Mixer shows it while
+ * the music is missing):
+ * - loading: first load under way, the beat still waits for it (≤ MUSIC_WAIT_MS)
+ * - late: still loading, the beat has started without it
+ * - retrying: a load failed; tried again until it works or the session ends
+ * - failed: the track itself could not be loaded (missing, undecodable)
+ * - playing: the music is on
+ */
+export type MusicBedStatus = "loading" | "late" | "retrying" | "failed" | "playing";
+
 // How far ahead the start fade is scheduled, so it never lands in the past.
 const START_LEAD_SEC = 0.05;
+
+// Waits between music bed loads that failed. A dropped connection or a
+// stalled download is tried again for as long as the session plays (a session
+// runs 5–30 minutes or without end, and a hiccup in its first seconds used to
+// leave all of it beat-only). A failed try costs next to nothing, so the waits
+// stay short enough that the music follows soon after the connection does.
+const MUSIC_RETRY_MS = [2_000, 4_000, 8_000, 15_000, 30_000];
+// A track that isn't there (404) or won't decode is not a passing fault: a
+// couple of tries, then the session goes on with the beat alone.
+const MUSIC_TRIES_IF_NOT_TRANSIENT = 3;
+
+/** How long to wait before load attempt `failed + 1`; null = give up. */
+function musicRetryDelay(err: unknown, failed: number): number | null {
+  const transient = err instanceof AudioLoadError && err.transient;
+  if (!transient && failed >= MUSIC_TRIES_IF_NOT_TRANSIENT) return null;
+  return MUSIC_RETRY_MS[Math.min(failed, MUSIC_RETRY_MS.length) - 1];
+}
+
+/** Resolves after `ms`, or as soon as the device is back online, or on abort. */
+function waitToRetry(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      window.removeEventListener("online", done);
+      signal.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    window.addEventListener("online", done);
+    signal.addEventListener("abort", done);
+  });
+}
 
 // Each track's measured opening swell. bufferCache hands back the same
 // AudioBuffer for a replay, so a track is measured once while it is cached.
@@ -60,6 +103,12 @@ export class BinauralSession {
   // Zodiac music bed — a separate looped layer, independent of the nature sound
   // so a user can run both (music under the beat, rain on top) at once.
   private musicPlayer: NaturePlayer | null = null;
+  // Ends the music bed's loading (and its retries) when the session stops.
+  private musicAbort: AbortController | null = null;
+  // The music slider's value — moving it while the track loads must count.
+  private musicVolume = 1;
+  private musicStatus: MusicBedStatus | null = null;
+  private onMusicStatusCallback: ((status: MusicBedStatus) => void) | null = null;
   private _isPlaying = false;
   private _isPaused = false;
   private startTime = 0;
@@ -114,6 +163,17 @@ export class BinauralSession {
     this.onEndCallback = callback;
   }
 
+  /** Follow the music bed's status (see MusicBedStatus). */
+  onMusicStatus(callback: (status: MusicBedStatus) => void): void {
+    this.onMusicStatusCallback = callback;
+  }
+
+  private setMusicStatus(status: MusicBedStatus): void {
+    if (this.musicStatus === status) return;
+    this.musicStatus = status;
+    this.onMusicStatusCallback?.(status);
+  }
+
   /**
    * `waitForMusic`: the program has a music bed — keep the beat silent until
    * playMusicBed starts the track (or MUSIC_WAIT_MS passes), then fade it in
@@ -158,7 +218,10 @@ export class BinauralSession {
       this.waitingForMusic = true;
       // The track is late (slow network): raise the beat alone; the music
       // still fades in with the same curve when it arrives.
-      this.musicWaitTimer = setTimeout(() => this.releaseBeat(null), MUSIC_WAIT_MS);
+      this.musicWaitTimer = setTimeout(() => {
+        this.releaseBeat(null);
+        if (this.musicStatus === "loading") this.setMusicStatus("late");
+      }, MUSIC_WAIT_MS);
     }
 
     // Auto-stop at end of duration (an unlimited session runs until stopped).
@@ -227,11 +290,10 @@ export class BinauralSession {
       this.volumeGain.gain.linearRampToValueAtTime(0, now + fadeOut);
     }
 
-    // Stop nature sound + music bed
+    // Stop nature sound + music bed (and any load of it still going)
     this.naturePlayer?.stop();
     this.naturePlayer = null;
-    this.musicPlayer?.stop();
-    this.musicPlayer = null;
+    this.stopMusicBed();
 
     // Stop and disconnect after fade-out
     const graph = this.graph;
@@ -310,36 +372,68 @@ export class BinauralSession {
    * The track starts with a START_FADE_SEC fade, and a beat still waiting for
    * it (start's `waitForMusic`) starts at the same instant, following what the
    * listener hears: the track's own recorded swell times that fade.
+   *
+   * A load that fails (no connection, a stalled download, a server error) is
+   * tried again while the session plays; the beat doesn't wait for the retries,
+   * and the music fades in whenever it arrives. Rejects only when the track
+   * itself can't be had (see musicRetryDelay).
    */
   async playMusicBed(url: string, volume: number): Promise<void> {
     this.stopMusicBed();
     if (!this._isPlaying) return;
+    this.musicVolume = volume;
     const player = new NaturePlayer();
     this.musicPlayer = player;
-    let buffer: AudioBuffer;
-    try {
-      buffer = await loadAudioBuffer(this.ctx, url);
-    } catch (err) {
-      // No music is coming — don't keep the beat waiting for it.
-      this.releaseBeat(null);
-      throw err;
+    const abort = new AbortController();
+    this.musicAbort = abort;
+    // A stop() (or a newer playMusicBed) while loading ends this one — don't
+    // leave an orphan looping after the session ended.
+    const current = () => !abort.signal.aborted && this.musicPlayer === player && this._isPlaying;
+    this.setMusicStatus(this.waitingForMusic ? "loading" : "late");
+
+    let buffer: AudioBuffer | null = null;
+    for (let failed = 0; !buffer; ) {
+      try {
+        buffer = await loadAudioBuffer(this.ctx, url, abort.signal);
+      } catch (err) {
+        if (!current()) return;
+        failed++;
+        // No music yet — don't keep the beat waiting for it.
+        this.releaseBeat(null);
+        const delay = musicRetryDelay(err, failed);
+        if (delay === null) {
+          this.setMusicStatus("failed");
+          throw err;
+        }
+        this.setMusicStatus("retrying");
+        console.warn(`[audio-engine] music bed load failed (try ${failed}), retrying:`, err);
+        await waitToRetry(delay, abort.signal);
+        if (!current()) return;
+      }
     }
-    // A stop() during the fetch/decode above would have cleared the ref —
-    // don't leave an orphan looping after the session ended.
-    if (this.musicPlayer !== player || !this._isPlaying) return;
+    if (!current()) return;
+    // Everything slow comes before reading the clock: measuring the intro can
+    // take tens of milliseconds on a phone, and the start time must still be
+    // ahead of the clock when it is scheduled.
+    const intro = this.waitingForMusic ? introOf(buffer) : null;
+    const fade = startFadeCurve();
     const at = this.ctx.currentTime + START_LEAD_SEC;
-    if (this.waitingForMusic) this.releaseBeat(introOf(buffer), at);
-    player.playBuffer(buffer, volume, { at, curve: startFadeCurve(), duration: START_FADE_SEC });
+    if (this.waitingForMusic) this.releaseBeat(intro, at);
+    player.playBuffer(buffer, this.musicVolume, { at, curve: fade, duration: START_FADE_SEC });
+    this.setMusicStatus("playing");
   }
 
-  /** Stop the music bed with fade-out */
+  /** Stop the music bed with fade-out (and stop loading it) */
   stopMusicBed(): void {
+    this.musicAbort?.abort();
+    this.musicAbort = null;
     this.musicPlayer?.stop();
     this.musicPlayer = null;
   }
 
   /** Adjust music bed volume (0-1) */
   setMusicVolume(value: number): void {
+    this.musicVolume = value;
     this.musicPlayer?.setVolume(value);
   }
 

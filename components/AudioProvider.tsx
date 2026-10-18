@@ -79,6 +79,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const setIsPaused = useAppStore((s) => s.setIsPaused);
   const setPlayingProgramId = useAppStore((s) => s.setPlayingProgramId);
   const setElapsed = useAppStore((s) => s.setElapsed);
+  const setMusicStatus = useAppStore((s) => s.setMusicStatus);
   const addSessionLog = useAppStore((s) => s.addSessionLog);
 
   const keepAliveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -221,10 +222,11 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     setIsPlaying(false);
     setPlayingProgramId(null);
     setElapsed(0);
+    setMusicStatus(null);
     if (!synthRef.current?.isPlaying && !customProgramRef.current) {
       scheduleStopKeepAlive();
     }
-  }, [stopPolling, setIsPlaying, setPlayingProgramId, setElapsed, scheduleStopKeepAlive, clearPauseIntent, logPlayed]);
+  }, [stopPolling, setIsPlaying, setPlayingProgramId, setElapsed, setMusicStatus, scheduleStopKeepAlive, clearPauseIntent, logPlayed]);
 
   // Arm/re-arm the custom-program auto-stop timer (initial start and resume).
   // An unlimited session has none — it plays until stopped.
@@ -352,6 +354,11 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         logPlayed(program.id, program.name, duration);
         stopSession();
       });
+      // Whether the music has come yet (the Mixer says so while it hasn't).
+      setMusicStatus(null);
+      session.onMusicStatus((status) => {
+        if (sessionRef.current === session) setMusicStatus(status);
+      });
 
       // With a music bed the beat starts silent and fades in with the track
       // (playMusicBed below starts both); without one it starts at once.
@@ -382,7 +389,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
       // Every built-in and catalog program carries a music bed; the beat
       // above it is still the synthesised one, since the tracks hold no
-      // entrainment themselves.
+      // entrainment themselves. A load that fails is retried by the session
+      // while it plays; this rejects only when the track can't be had at all.
       if (musicUrl) {
         session.playMusicBed(musicUrl, musicVolume).catch((err) => {
           console.error("[audio-provider] music bed failed:", err);
@@ -395,7 +403,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }
       }, 1000);
     },
-    [cancelStopKeepAlive, clearPauseIntent, stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setPlayingProgramId, setElapsed, logPlayed, playCustomAudio, pauseSession, resumeSession]
+    [cancelStopKeepAlive, clearPauseIntent, stopPolling, stopSession, stopSynth, stopCustomProgram, setIsPlaying, setPlayingProgramId, setElapsed, setMusicStatus, logPlayed, playCustomAudio, pauseSession, resumeSession]
   );
 
   const startSynth = useCallback(

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { DEFAULT_BEAT_CHANNEL_MODE, type BeatChannelMode } from "@/lib/beat-graph";
+import type { MusicBedStatus } from "@/lib/audio-engine";
 
 /**
  * タイマーの既定（20分）。以前は 15 分だったが、タイマーの選択肢から 15 分を外して
@@ -52,6 +53,13 @@ interface AppState {
   musicVolume: number;
   setMusicVolume: (v: number) => void;
   /**
+   * 鳴っているセッションの曲の様子（読み込み中・読み込み直し中…、
+   * lib/audio-engine.ts の MusicBedStatus）。曲の無い節目・止まっている間は null。
+   * AudioProvider だけが書く。Mixer が「曲がまだ鳴らない理由」を出すのに使う。
+   */
+  musicStatus: MusicBedStatus | null;
+  setMusicStatus: (s: MusicBedStatus | null) => void;
+  /**
    * 誘導ビートの聴き方（プレーヤーの「聴き方」）。stereo＝左右の耳に別の音を
    * 流すバイノーラルビート（ヘッドホン向け）、mono＝2つの音を混ぜたモノラル
    * ビート（スピーカーでも効く）。lib/beat-graph.ts。
@@ -92,6 +100,8 @@ export const useAppStore = create<AppState>()(
       setNatureSoundId: (id) => set({ natureSoundId: id }),
       musicVolume: 0.6,
       setMusicVolume: (v) => set({ musicVolume: v }),
+      musicStatus: null,
+      setMusicStatus: (s) => set({ musicStatus: s }),
       beatChannelMode: DEFAULT_BEAT_CHANNEL_MODE,
       setBeatChannelMode: (m) => set({ beatChannelMode: m }),
       elapsed: 0,
@@ -109,7 +119,7 @@ export const useAppStore = create<AppState>()(
       // timer, volumes and the listening mode (headphones vs speakers is about
       // this device) are device preferences that must survive refreshes
       // for logged-out users too. Runtime state (isPlaying/elapsed/
-      // playingProgramId) and sessionLogs stay in memory.
+      // playingProgramId/musicStatus) and sessionLogs stay in memory.
       name: "app-playback",
       // v1：タイマーの 15 分が無くなった。端末に残っている 15 分は新しい既定へ。
       version: 1,
