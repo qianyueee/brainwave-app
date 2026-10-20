@@ -1,6 +1,6 @@
 /**
  * 端末をまたいで同じにする小さな記録（振り返り・再生の記録・感コンディション・
- * 測定者・マイ星座）の合わせ方。**純関数だけ・型以外の import なし**——node で
+ * 測定者・マイ星座・マイフォルダ）の合わせ方。**純関数だけ・型以外の import なし**——node で
  * 直接確かめられる（scripts/check-records.mjs）。
  *
  * きまり（アカウント側は supabase/migrations/005_user_records.sql が同じことをする）：
@@ -18,9 +18,16 @@
  *   出す（どの端末でも同じ星座）。アカウントにまだ値が無ければ端末の値をそのまま
  *   引き継ぐ（尋ねない）。
  * - 測定者は名前の一覧。重ねて出し、アカウントに無い名前は引き継ぐ（尋ねない）。
+ * - マイフォルダ（Sync Session のお気に入り）はプログラム1つにつき1件。測定者と同じく
+ *   重ねて出し、アカウントに無いものは引き継ぐ。外すと墓標——別の端末で入れたものと
+ *   外したものは「新しい方が勝つ」で決まる（一覧を1件に丸ごと持つと、2台で別々に
+ *   入れたとき片方が消える）。
+ *
+ * アカウント側の表は種類を一覧で縛らない（005 の CHECK は名前の形だけ）ので、種類を
+ * 足しても SQL は要らない。古い版のアプリは知らない種類の行を読み飛ばす（records.ts）。
  */
 
-export const RECORD_KINDS = ["journal", "playback", "self_rating", "subject", "setting"] as const;
+export const RECORD_KINDS = ["journal", "playback", "self_rating", "subject", "setting", "favorite"] as const;
 export type RecordKind = (typeof RECORD_KINDS)[number];
 
 export function isRecordKind(v: unknown): v is RecordKind {
@@ -39,6 +46,7 @@ export const KIND_RULES: Record<RecordKind, { display: "union" | "account"; adop
   self_rating: { display: "account", adopt: "auto" },
   setting: { display: "account", adopt: "auto" },
   subject: { display: "union", adopt: "auto" },
+  favorite: { display: "union", adopt: "auto" },
 };
 
 export type RecordData = Record<string, unknown>;
@@ -373,6 +381,36 @@ export function subjectKey(name: string): string | null {
   const n = normalizeSubjectName(name);
   if (!n || n.length > 100) return null;
   return `subject:${n}`;
+}
+
+const FAVORITE_PREFIX = "favorite:";
+
+/**
+ * マイフォルダ：プログラムの id（内蔵・カタログ・星座の節目、配信プログラムの
+ * `custom-…`）→ "favorite:<id>"。アカウント側の CHECK（キーは 128 文字まで）を
+ * 超える id と空の id は null。
+ */
+export function favoriteKey(programId: string): string | null {
+  if (!programId) return null;
+  const key = FAVORITE_PREFIX + programId;
+  return key.length <= 128 ? key : null;
+}
+
+/**
+ * マイフォルダの中身（画面に出す記録＝viewOf の結果から）。**入れた順**（古い順）——
+ * フォルダに挟んでいくのと同じで、前から入っていたものの位置が動かない。並べ替えの
+ * 時刻は記録の updatedAt（外して入れ直すと新しく入れたことになり、末尾へ）。同じ
+ * 時刻はキー順にして、どの端末でも同じ並びにする。
+ */
+export function favoriteIdsOf(view: RecordMap): string[] {
+  const rows: { id: string; key: string; at: number }[] = [];
+  for (const [key, r] of Object.entries(view)) {
+    if (r.kind !== "favorite" || r.deleted || !key.startsWith(FAVORITE_PREFIX)) continue;
+    const id = key.slice(FAVORITE_PREFIX.length);
+    if (id) rows.push({ id, key, at: ms(r.updatedAt) });
+  }
+  rows.sort((a, b) => a.at - b.at || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return rows.map((r) => r.id);
 }
 
 export function keyKind(key: string): RecordKind | null {

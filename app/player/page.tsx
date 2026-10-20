@@ -22,6 +22,7 @@ import PlaybackControls from "@/components/PlaybackControls";
 import Timer from "@/components/Timer";
 import Mixer from "@/components/Mixer";
 import ExportDialog from "@/components/ExportDialog";
+import FavoriteButton from "@/components/FavoriteButton";
 import { BareColumn } from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
 import { ArrowLeft, Download } from "lucide-react";
@@ -122,6 +123,12 @@ export default function PlayerPage() {
     ? customProgram?.description
     : program && programDescription(program, locale);
 
+  // マイフォルダに入れられるのは、Sync Session に並ぶもの＝内蔵・カタログ・星座の
+  // 節目と配信プログラム。管理者が合成器で作っただけの（配信していない）節目は
+  // Session に出ないので、入れても見つけられない——ボタンを出さない。
+  const canFavorite =
+    !!program || (isCustom && publishedPrograms.some((p) => p.id === programId));
+
   // Timeline export is not supported yet (single-config export only).
   const canExport = isTimeline ? false : isCustom ? !!customProgram : !!program;
   const exportMode = isCustom ? "synth" : "binaural";
@@ -155,6 +162,13 @@ export default function PlayerPage() {
         <div className="flex flex-col gap-6">
           <Visualizer />
           <PlaybackControls />
+          {/* 聴いてみて気に入ったら、ここからマイフォルダへ（Sync Session の
+              カードの ♡ と同じ）。何が起きるかを文字で書く。再生ボタンの下に
+              置く——名前の下に置くと、そのぶん再生ボタンが押し下げられて、
+              小さめのスマホでは下のナビに隠れる。 */}
+          {canFavorite && (
+            <FavoriteButton variant="labeled" programId={programId} className="self-center" />
+          )}
         </div>
 
         <div className="flex flex-col gap-6">

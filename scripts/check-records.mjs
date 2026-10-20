@@ -4,6 +4,7 @@
  * テストランナーが無いので、ここで決まりごとを1つずつ確かめる：
  * - 書き換え・消去・読み直し・送信済みの印・「保存する／しない」・画面に出す一覧
  * - 日付キー（端末は月 0 始まり、アカウントは YYYY-MM-DD）の往復
+ * - マイフォルダ（お気に入り）：キー・並び（入れた順）・引き継ぎ・2台で別々に入れた分が両方残ること
  * - 2台の端末とアカウント（supabase/migrations/005_user_records.sql のトリガと同じ
  *   「新しい方が勝つ・未来の時刻は丸める」をメモリで再現）を行き来させ、オフラインの
  *   書き換え・時計のずれ・削除のあとで、どちらの端末も同じ内容に落ち着くこと
@@ -18,6 +19,8 @@ import {
   countAskable,
   dayKeyOfJournalKey,
   dirtyRecords,
+  favoriteIdsOf,
+  favoriteKey,
   fillGaps,
   journalKey,
   markPushed,
@@ -278,6 +281,45 @@ check("subjectKey: NFKC・前後の空白を畳む、空は null", () => {
   assert.equal(subjectKey("   "), null);
 });
 
+// ── マイフォルダ ──
+
+check("favoriteKey: プログラムの id そのまま、空と長すぎる id は null（アカウントのキーは 128 文字まで）", () => {
+  assert.equal(favoriteKey("reset-deep"), "favorite:reset-deep");
+  assert.equal(favoriteKey("custom-lx2k9a0.123"), "favorite:custom-lx2k9a0.123");
+  assert.equal(favoriteKey(""), null);
+  assert.equal(favoriteKey("x".repeat(119)).length, 128);
+  assert.equal(favoriteKey("x".repeat(120)), null);
+});
+
+check("favoriteIdsOf: 入れた順（古い順）、同じ時刻はキー順。墓標・ほかの種類は数えない", () => {
+  const fav = (at, extra) => ({ kind: "favorite", data: {}, updatedAt: iso(at), ...extra });
+  const view = {
+    "favorite:target-b": fav("10:02:00"),
+    "favorite:zodiac-aries": fav("10:01:00"),
+    "favorite:target-a": fav("10:01:00"),
+    "favorite:gone": fav("09:00:00", { deleted: true }),
+    "setting:zodiac": { kind: "setting", data: { sign: "leo" }, updatedAt: iso("08:00:00") },
+  };
+  assert.deepEqual(favoriteIdsOf(view), ["target-a", "zodiac-aries", "target-b"]);
+});
+
+check("マイフォルダ：ログイン前に入れた分はアカウントに無いものだけ黙って引き継ぐ（外した印は上書きしない）", () => {
+  const user = {
+    "favorite:clarity-focus": { kind: "favorite", data: {}, updatedAt: iso("08:00:00"), deleted: true },
+  };
+  const anon = {
+    "favorite:reset-deep": { kind: "favorite", data: { programId: "reset-deep" }, updatedAt: iso("09:00:00") },
+    "favorite:clarity-focus": { kind: "favorite", data: { programId: "clarity-focus" }, updatedAt: iso("07:00:00") },
+  };
+  assert.deepEqual(countAskable(user, anon), {}); // 「保存しますか？」には出さない
+  const r = fillGaps(user, anon);
+  assert.equal(r.user["favorite:reset-deep"].dirty, true);
+  assert.equal(r.user["favorite:clarity-focus"].deleted, true);
+  assert.equal(r.anon["favorite:reset-deep"].localOnly, true);
+  // 画面はアカウント ∪ 端末（新しい方）：外した印の方が新しいので出ない
+  assert.deepEqual(favoriteIdsOf(viewOf(r.user, r.anon)), ["reset-deep"]);
+});
+
 // ── 2台の端末とアカウント ──
 
 /** supabase/migrations/005 のトリガと同じ：古い書き込みは捨てる・未来は now+5分に丸める。 */
@@ -392,6 +434,42 @@ check("2台：書き換え・オフライン・削除・時計のずれのあと
   const keysOf = (d) => JSON.stringify(Object.keys(d.view()).sort());
   assert.equal(keysOf(a), keysOf(b));
   assert.equal(keysOf(b), keysOf(c));
+});
+
+check("マイフォルダ：2台で別々に入れた分は両方残り、外したものはもう1台からも消える", () => {
+  let t = T("12:00:00").getTime();
+  const clock = () => t;
+  const server = makeServer(clock);
+  const a = makeDevice(0, clock);
+  const b = makeDevice(-60_000, clock); // B は時計が1分遅れている
+  const ids = (d) => favoriteIdsOf(d.view());
+
+  // それぞれオフラインで入れる（一覧を1件で持っていたら、片方が消えるところ）
+  a.put("favorite:reset-deep", { programId: "reset-deep" });
+  t += 60_000;
+  b.put("favorite:target-gamma-peak-focus", { programId: "target-gamma-peak-focus" });
+  t += 60_000;
+  a.put("favorite:zodiac-aries", { programId: "zodiac-aries" });
+  a.sync(server);
+  b.sync(server);
+  a.sync(server);
+  assert.deepEqual(ids(a), ["reset-deep", "target-gamma-peak-focus", "zodiac-aries"]);
+  assert.deepEqual(ids(b), ids(a));
+
+  // B で外す → A からも消える。A が古い版を送り直しても戻らない（墓標）
+  t += 60_000;
+  b.remove("favorite:reset-deep");
+  b.sync(server);
+  server.upsert([{ key: "favorite:reset-deep", kind: "favorite", data: { programId: "reset-deep" }, deleted: false, updatedAt: iso("12:00:00") }]);
+  a.sync(server);
+  assert.deepEqual(ids(a), ["target-gamma-peak-focus", "zodiac-aries"]);
+
+  // 入れ直すと新しく入れたことになり、末尾へ
+  t += 60_000;
+  a.put("favorite:reset-deep", { programId: "reset-deep" });
+  a.sync(server);
+  b.sync(server);
+  assert.deepEqual(ids(b), ["target-gamma-peak-focus", "zodiac-aries", "reset-deep"]);
 });
 
 console.log(`check:records OK（${passed} 件）`);

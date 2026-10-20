@@ -12,11 +12,16 @@ import { ArrowRight, User } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import PageColumn from "@/components/PageColumn";
 import PageHeader from "@/components/PageHeader";
+import type { CustomProgram } from "@/lib/programs";
+
+/** hydration まで渡す空の一覧（毎回 [] を作ると一覧側の memo が毎回組み直しになる）。 */
+const NO_PROGRAMS: readonly CustomProgram[] = [];
 
 /**
  * Sync Session — 聴くための画面。上段は今日の星座周波数の水マンダラと、
- * グループに配信されたプログラム。下段は Sync Sound の一覧——デフォルト /
- * Target / Energy / Astro の4タブと、全カテゴリ横断の検索（CatalogSection）。
+ * グループに配信されたプログラム。下段は Sync Sound の一覧——マイフォルダ
+ * （カードの ♡ で入れたお気に入り）とデフォルト / Target / Energy / Astro の
+ * タブ、全カテゴリ横断の検索（CatalogSection）。
  *
  * 一覧を上段の2列グリッドの片側に入れず、幅いっぱいの段として下に置いてある：
  * 節目が170件あるので、半分の幅に押し込むとカードが縦に延々と続く筒になる。
@@ -157,12 +162,14 @@ export default function SessionPage() {
       </div>
       </div>
 
-      {/* Sync Sound の一覧。幅いっぱいの段（上の理由はファイル冒頭）。 */}
+      {/* Sync Sound の一覧。幅いっぱいの段（上の理由はファイル冒頭）。先頭の
+          タブがマイフォルダ（♡ で入れたもの）——配信プログラムも入れられるので、
+          いま見えている配信の一覧を渡して引き当てさせる。 */}
       <div className="flex flex-col gap-3">
         <p className="text-sm text-text-secondary">
           {t("Sync Sound｜脳波同期サウンド", "Sync Sound · Brainwave sync sounds")}
         </p>
-        <CatalogSection />
+        <CatalogSection sharedPrograms={hydrated ? visiblePrograms : NO_PROGRAMS} />
       </div>
       </PageColumn>
     </div>
