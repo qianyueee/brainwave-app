@@ -49,8 +49,8 @@ const REPORT_TABS: {
     label: { ja: "測定の比較", en: "Compare" },
     icon: GitCompare,
     lead: {
-      ja: "測定者と測定データを選ぶと6指標と脳波バランスを表示します。比較する測定データを選ぶと並べて比較できます（3件まで）",
-      en: "Choose a person and a measurement to see its 6 indicators and brainwave balance. Add measurements to compare them side by side (up to 3).",
+      ja: "測定者と測定データを選ぶと6指標と脳波バランスを表示します。比較する測定データを選ぶと並べて比較でき、AIが違いを読み解きます（3件まで）",
+      en: "Choose a person and a measurement to see its 6 indicators and brainwave balance. Add measurements (up to 3) to compare them side by side and have AI explain the differences.",
     },
   },
 ];

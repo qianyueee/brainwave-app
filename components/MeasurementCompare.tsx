@@ -24,6 +24,7 @@ import { useLocale, useT } from "@/lib/i18n";
 import SelectDropdown, { type SelectOption } from "@/components/SelectDropdown";
 import BrainRadarCompare from "@/components/BrainRadarCompare";
 import BrainBandCompare from "@/components/BrainBandCompare";
+import BrainAiCompare from "@/components/BrainAiCompare";
 import Fullscreenable from "@/components/Fullscreenable";
 import { CalendarClock, GitCompare, User } from "lucide-react";
 
@@ -39,9 +40,10 @@ const NO_PICK = "__no_pick__";
  *   → 測定データを選択（その人の1件。既定は最新）
  *   → 比較する測定データ（任意）→ 3件目（任意）
  *
- * 1件なら6指標と脳波バランス、2〜3件なら同じ2枚に並べて比較。推移グラフと
- * 1件ずつのカード（6指標・メモ・レポートへ・削除）は Sync History に残してある
- * ——ヒストリーではカレンダーで記録を選ぶ。
+ * 1件なら6指標と脳波バランス、2〜3件なら同じ2枚に並べて比較し、その下に
+ * 「AIによる比較分析」（BrainAiCompare）。推移グラフと1件ずつのカード（6指標・
+ * メモ・レポートへ・削除）は Sync History に残してある——ヒストリーではカレンダーで
+ * 記録を選ぶ。
  *
  * 選択は useCompareSelectionStore（ページの外）に持つ。
  */
@@ -145,9 +147,13 @@ export default function MeasurementCompare() {
   const withBands = series.filter((m) => m.bands);
 
   return (
-    // Mobile: pickers, then the comparison below. Desktop: pickers | comparison.
-    <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
-      <div className="flex flex-col gap-3">
+    // Mobile: pickers → comparison → AI comparison, one column. Desktop: the
+    // comparison card spans both rows on the right, and the AI comparison sits
+    // under the pickers on the left. Row 2 is `1fr` so the tall comparison card
+    // stretches that row, not row 1 — otherwise the AI card would start below
+    // the comparison's full height and leave a gap under the pickers.
+    <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:grid-rows-[auto_1fr] md:gap-6 md:items-start">
+      <div className="flex flex-col gap-3 md:col-start-1 md:row-start-1">
         {/* Step 1 — whose records. Hidden while every record belongs to the
             same person: there is nothing to separate yet. */}
         {groups.length > 1 && (
@@ -191,7 +197,7 @@ export default function MeasurementCompare() {
         )}
       </div>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 md:col-start-2 md:row-start-1 md:row-span-2">
         {series.length > 0 && (
           <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-4">
             <div className="min-w-0">
@@ -278,8 +284,15 @@ export default function MeasurementCompare() {
             </div>
           </div>
         )}
-
       </div>
+
+      {/* 2件以上を選んだら、AI が違いを言葉にする（1件の読み解きは脳特性チャートの
+          「AIによる分析」）。 */}
+      {canCompare && (
+        <div className="md:col-start-1 md:row-start-2">
+          <BrainAiCompare measurements={series} />
+        </div>
+      )}
     </div>
   );
 }
