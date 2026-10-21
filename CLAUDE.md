@@ -505,7 +505,13 @@ BrainLink ─RFCOMM(SPP)─> BrainLinkPlugin（Java：バイトを約50msごと�
     同じ順で NowPlaying（前面サービス mediaPlayback＋MediaSession 通知）へも渡す。着信・他アプリで
     一時停止（一時的なら再開）、イヤホンが抜けたら一時停止。AudioProvider は無変更。
     **`startForeground` は起動ごとに1回だけ**、以後の描き直しは同じ ID への `notify`——一時停止・再開は
-    後台で起きる（着信・イヤホン）ので、繰り返しの `startForeground` は Android 12+ で拒まれて落ちる
+    後台で起きる（着信・イヤホン）ので、繰り返しの `startForeground` は Android 12+ で拒まれて落ちる。
+    **音声フォーカスは WebView も取る**：keep-alive の audio 要素のために Chromium も取りに来て、しかも
+    音が聞こえ始める瞬間まで遅らせる＝サービスが取った直後に同じアプリの WebView に取られ、ほかのアプリと
+    区別できない LOSS が届く（以前はこれで、再生して1秒ほどで一時停止・再開してもまた停止していた）。
+    サービスは再生・再開（`show`／`setState("playing")`）から 15 秒以内の最初の LOSS だけ取り返して止めない
+    （Chromium は MediaStream の再生ではフォーカスを失っても何もしない）。**audio 要素を play() し直したら
+    必ず "playing" を渡す**（開始・再開は AudioProvider、画面に戻ったときの再生し直しは keep-alive.ts）
   - ダウンロード：`downloadBlob` が「ダウンロード」フォルダへ保存（DownloadsPlugin、1MB ずつ）。
     保存し終えてから resolve するので書き出しの「完了」も保存後
   - Google ログイン：Custom Tab＋PKCE＋独自スキームで戻す（lib/mind/desktop-google-auth.ts を
