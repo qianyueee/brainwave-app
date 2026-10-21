@@ -188,6 +188,11 @@ function onVisibilityChange(): void {
     // stutters on some mobile browsers (see setKeepAliveOutputPaused).
     if (audioEl && audioEl.paused && !isUserPaused()) {
       audioEl.play().catch(() => {});
+      // Android: the restarted element makes the WebView take audio focus
+      // again once it is audible — say "playing" so the service knows the
+      // loss is ours (NowPlayingService.OWN_WEBVIEW_FOCUS_WINDOW_MS), as
+      // after every other play().
+      withNowPlaying((m) => m.nowPlayingSetState("playing"));
     }
   }
 }

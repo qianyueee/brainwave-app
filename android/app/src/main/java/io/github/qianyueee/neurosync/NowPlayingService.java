@@ -21,6 +21,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 
 /**
  * 再生中だけ動く前面サービス（foregroundServiceType="mediaPlayback"）。
@@ -44,6 +45,10 @@ import android.os.Looper;
  * - イヤホン／ヘッドホンが抜けた（AUDIO_BECOMING_NOISY）→ 一時停止（バイノーラル
  *   ビートが急にスピーカーから鳴り出さないように）
  * どれも JS の pauseSession / resumeSession を呼ぶだけで、音には直接触らない。
+ *
+ * ただしフォーカスは同じアプリの WebView も取りに来る（音が聞こえ始めたとき）。それは
+ * ほかのアプリに取られたのと区別できないので、再生・再開の直後の1回は取り返して止めない
+ * （{@link #OWN_WEBVIEW_FOCUS_WINDOW_MS}）。
  *
  * スレッド：show / setPlaying / hide はプラグインのスレッドから呼ばれ、サービス
  * 自身の処理はすべてメインスレッドで行う（static の状態は volatile）。
@@ -74,6 +79,8 @@ public class NowPlayingService extends Service {
     private static volatile String artist = "NeuroSync";
     private static volatile String album = "Binaural Beats";
     private static volatile boolean playing = true;
+    /** JS が音を出し直した（再生・再開）。次の render が {@link #ownWebViewFocusUntil} を張って消す。 */
+    private static volatile boolean soundRestarted = false;
 
     // 通知のボタンと通知チャンネル（端末の設定に出る）の名前。画面の表示言語（日本語／
     // 英語）で JS から届く。届かない（古い画面の）ときは日本語のまま。
@@ -90,11 +97,42 @@ public class NowPlayingService extends Service {
     private boolean hasFocus = false;
     private boolean resumeOnFocusGain = false;
 
+    /**
+     * 再生・再開のあと、AUDIOFOCUS_LOSS を「自分の WebView に取られた」とみなす時間。
+     *
+     * 音は WebView の keep-alive の audio 要素（lib/keep-alive.ts）から出ていて、Chromium は
+     * その要素のために自分でも音声フォーカスを取る。しかも Android の Chromium は、その要求を
+     * 音が聞こえ始める瞬間まで遅らせる（無音の再生でほかのアプリのフォーカスを奪わないため）。
+     * だから再生・再開のたびに、このサービスがフォーカスを取った少し後で、同じアプリの WebView が
+     * それを取っていく。システムから見れば、ほかのアプリに取られたのと同じ LOSS が届く——以前は
+     * ここで一時停止していたので、再生を押すと1〜2秒で一時停止になり、再開してもまたすぐ止まった。
+     *
+     * Chromium はその要素（MediaStream の再生）ではフォーカスを失っても何もしないので、この間の
+     * 最初の1回だけはフォーカスを取り返して再生を続ける。以後はこのサービスがフォーカスを持ち、
+     * 着信・ほかのアプリの再生は今までどおりここに届く。着信などの一時的な喪失（LOSS_TRANSIENT）は
+     * この間でも今までどおり一時停止する。
+     *
+     * 見込みが外れる場合：WebView のほうが先に取っていた（このサービスが後から取り返した）なら
+     * LOSS は来ず、見込みが残る。その間にほかのアプリが再生を始めると1回だけ取り返してしまう
+     * （そのアプリが止まる。もう一度そちらで再生すれば、こちらが一時停止する）。
+     *
+     * WebView が取りに来るのは音が聞こえ始めたとき。始まりは曲を待つ間ビートが鳴らず
+     * （lib/music-intro.ts の MUSIC_WAIT_MS＝最長 2.5 秒）、その後も曲の頭が無音に近ければ
+     * ビートはそれをなぞって小さく始まる（MAX_FOLLOW_SEC＝10 秒で必ず満量）。合わせて 12.5 秒に
+     * 余裕を見て 15 秒。たいていは1秒以内に来る。
+     */
+    private static final long OWN_WEBVIEW_FOCUS_WINDOW_MS = 15_000L;
+    /** この時刻（elapsedRealtime）までの最初の LOSS は自分の WebView のもの。0 = 見込みなし。 */
+    private long ownWebViewFocusUntil = 0L;
+
     private final AudioManager.OnAudioFocusChangeListener focusListener = (change) -> {
         switch (change) {
             case AudioManager.AUDIOFOCUS_LOSS:
                 hasFocus = false;
                 resumeOnFocusGain = false;
+                if (playing && reclaimFromOwnWebView()) {
+                    break;
+                }
                 if (playing) {
                     dispatch("pause");
                 }
@@ -147,6 +185,7 @@ public class NowPlayingService extends Service {
         artist = newArtist;
         album = newAlbum;
         playing = true;
+        soundRestarted = true;
         requested = true;
         Intent intent = new Intent(context, NowPlayingService.class).setAction(ACTION_UPDATE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -158,6 +197,9 @@ public class NowPlayingService extends Service {
 
     /** 再生／一時停止の表示を切り替える（音は JS 側が止め・再開する）。 */
     static void setPlaying(boolean isPlaying) {
+        if (isPlaying) {
+            soundRestarted = true;
+        }
         playing = isPlaying;
         MAIN.post(() -> {
             NowPlayingService s = instance;
@@ -322,6 +364,21 @@ public class NowPlayingService extends Service {
         hasFocus = false;
     }
 
+    /**
+     * 再生・再開から {@link #OWN_WEBVIEW_FOCUS_WINDOW_MS} 以内の最初の LOSS なら、自分の WebView に
+     * 取られたものとしてフォーカスを取り返す（一時停止しない）。取り返したら true。
+     * 見込みは1回で使い切る——2回目の LOSS は本当にほかのアプリのもの。
+     */
+    private boolean reclaimFromOwnWebView() {
+        boolean expected = ownWebViewFocusUntil != 0L && SystemClock.elapsedRealtime() <= ownWebViewFocusUntil;
+        ownWebViewFocusUntil = 0L;
+        if (!expected) {
+            return false;
+        }
+        requestFocus();
+        return true;
+    }
+
     private void dispatch(String action) {
         ActionListener l = listener;
         if (l != null) {
@@ -335,6 +392,11 @@ public class NowPlayingService extends Service {
         }
         boolean isPlaying = playing;
         if (isPlaying) {
+            if (soundRestarted) {
+                // WebView がこれから（音が聞こえ始めたら）フォーカスを取りに来る。
+                soundRestarted = false;
+                ownWebViewFocusUntil = SystemClock.elapsedRealtime() + OWN_WEBVIEW_FOCUS_WINDOW_MS;
+            }
             requestFocus();
         }
         session.setMetadata(
