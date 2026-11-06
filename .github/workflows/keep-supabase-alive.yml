@@ -13,6 +13,10 @@ on:
   schedule:
     # 4時間おき。毎時0分は GitHub が混んで遅れたり飛ばされたりするので 23 分にずらす
     - cron: '23 */4 * * *'
+  # このファイルを変えたら、その場で1回走らせて確かめる
+  push:
+    paths:
+      - .github/workflows/keep-supabase-alive.yml
   workflow_dispatch:
 
 permissions: {}
