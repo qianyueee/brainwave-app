@@ -1,29 +1,63 @@
 name: Keep Supabase Alive
 
+# Supabase の無料プランは、この1週間にデータベースの利用が「足りない」プロジェクトを止める
+# （公式の目安は「1日に数回のリクエスト」で、正確な閾値は公開されていない）。
+# 以前は1日1回・1クエリで、毎回 200 で成功していたのに 2026-11 に停止の予告メールが来た
+# ＝足りないと数えられた。そこで4時間おきに、アプリが実際に読む表へ3回クエリを送る（1日に約18回）。
+# 公開リポジトリなので Actions の分数はかからない。
+#
+# 注意：公開リポジトリでは main に60日間コミットが無いと、GitHub がこの schedule を自動で止める。
+# 止まったら Actions → Keep Supabase Alive → Enable workflow で再開する。
+
 on:
   schedule:
-    - cron: '0 0 * * *' # Daily
+    # 4時間おき。毎時0分は GitHub が混んで遅れたり飛ばされたりするので 23 分にずらす
+    - cron: '23 */4 * * *'
+  # このファイルを変えたら、その場で1回走らせて確かめる
+  push:
+    paths:
+      - .github/workflows/keep-supabase-alive.yml
   workflow_dispatch:
+
+permissions: {}
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Ping Supabase
+      - name: Query Supabase
         env:
           SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
+          set -euo pipefail
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
             echo "::error::NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY repository variable is not set"
             exit 1
           fi
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${SUPABASE_URL}/rest/v1/published_programs?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
-          echo "Response status: $STATUS"
-          if [ "$STATUS" -ge 400 ]; then
-            echo "::warning::Supabase ping failed with status $STATUS"
-            exit 1
-          fi
+
+          # 1回分のクエリ。2xx 以外（通信できない・止まっている・鍵が違う）はジョブを失敗させる
+          # ＝GitHub から失敗のメールが届く。
+          query() {
+            local path="$1" status
+            rm -f body.json
+            status=$(curl -sS -o body.json -w '%{http_code}' --max-time 20 \
+              --retry 3 --retry-all-errors --retry-delay 10 \
+              -H "apikey: ${SUPABASE_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+              "${SUPABASE_URL%/}/rest/v1/${path}") || true
+            echo "GET /rest/v1/${path} -> ${status:-none}"
+            case "$status" in
+              2??) ;;
+              *)
+                echo "::error::Supabase keep-alive query failed (status ${status:-none}): $(head -c 300 body.json 2>/dev/null || true)"
+                exit 1
+                ;;
+            esac
+          }
+
+          # published_programs は誰でも読める表（Sync Session が開くたびに読む一覧と同じ）
+          query "published_programs?select=*&order=sort_order.asc"
+          query "published_programs?select=id&limit=1"
+          query "published_programs?select=id,sort_order&order=sort_order.desc&limit=5"
