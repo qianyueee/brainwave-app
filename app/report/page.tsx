@@ -49,8 +49,8 @@ const REPORT_TABS: {
     label: { ja: "測定の比較", en: "Compare" },
     icon: GitCompare,
     lead: {
-      ja: "測定者と測定データを選ぶと6指標と脳波バランスを表示します。比較する測定データを選ぶと並べて比較でき、AIが違いを読み解きます（3件まで）",
-      en: "Choose a person and a measurement to see its 6 indicators and brainwave balance. Add measurements (up to 3) to compare them side by side and have AI explain the differences.",
+      ja: "一覧で測定データをチェックすると6指標と脳波バランスを表示します。2〜3件チェックすると並べて比較でき、AIが違いを読み解きます",
+      en: "Tick measurements in the list to see their 6 indicators and brainwave balance. Tick 2 or 3 to compare them side by side and have AI explain the differences.",
     },
   },
 ];
@@ -61,7 +61,7 @@ const REPORT_TABS: {
  * long scroll; they are now two pages switched by tabs under the page title —
  * reading one measurement and comparing several are separate errands, and the
  * comparison list sat far below the fold. The comparison picks its records with
- * the 測定者 → 測定データ pickers that used to live on Sync History
+ * a 測定者 dropdown and one list where 1〜3 measurements are ticked
  * (components/MeasurementCompare). The 3 condition tiles share data and
  * computation with the home tiles (same store, same computeBrainConditionMetrics),
  * so the numbers always agree.

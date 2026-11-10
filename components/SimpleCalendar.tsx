@@ -41,7 +41,7 @@ const KIND_META: Record<DayRecordKind, { icon: typeof Music; color: string }> = 
  * 月カレンダー。日付をタップするとその日の記録（セッション／脳波測定／10秒
  * チェック）が下に開く。
  *
- * Sync History で脳波の記録を選ぶのもこのカレンダー（測定者 → 測定データの下拉は
+ * Sync History で脳波の記録を選ぶのもこのカレンダー（測定者 → 測定データの選択は
  * Sync Report の「測定の比較」へ移した）：脳波測定のある日をタップするとその日の
  * 最新の測定が、明細の測定をタップするとその1件が、ページの「脳波の記録」に出る
  * （useHistorySelectionStore.recordId）。

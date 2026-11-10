@@ -29,8 +29,9 @@ interface SelectDropdownProps {
 }
 
 /**
- * Neu-styled dropdown used for the 測定者 → 測定データ pickers on Sync Report
- * (測定の比較, components/MeasurementCompare). Collapsed by default so a long
+ * Neu-styled dropdown used for the 測定者 picker on Sync Report (測定の比較,
+ * components/MeasurementCompare; the measurements themselves are ticked in one
+ * list, components/MultiSelectList). Collapsed by default so a long
  * history stays one glance tall, and the option list opens inline below the
  * button — the same pattern as the my-sign picker on the home card.
  *

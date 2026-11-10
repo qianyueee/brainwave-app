@@ -7,11 +7,13 @@ import type { BrainProfile } from "@/lib/brain-profile";
 import {
   compositeScore,
   scoreColor,
+  isGeneratedSessionTag,
   measurementLabel,
   measurementTitle,
   measurementSeriesLabel,
   sessionTagLabel,
 } from "@/lib/brain-measurements";
+import { COMPARISON_MAX } from "@/lib/brain-analysis";
 import {
   ALL_SUBJECTS,
   NO_SUBJECT_NAME,
@@ -22,28 +24,27 @@ import {
 } from "@/lib/subject-groups";
 import { useLocale, useT } from "@/lib/i18n";
 import SelectDropdown, { type SelectOption } from "@/components/SelectDropdown";
+import MultiSelectList from "@/components/MultiSelectList";
 import BrainRadarCompare from "@/components/BrainRadarCompare";
 import BrainBandCompare from "@/components/BrainBandCompare";
 import BrainAiCompare from "@/components/BrainAiCompare";
 import Fullscreenable from "@/components/Fullscreenable";
-import { CalendarClock, GitCompare, User } from "lucide-react";
-
-/** 「比べない」の選択肢の値（記録の id＝ISO の日時とは重ならない）。 */
-const NO_PICK = "__no_pick__";
+import { User } from "lucide-react";
 
 /**
- * Sync Report「測定の比較」の中身。以前は Sync History の「脳波の記録」にあった
- * 測定者 → 測定データの下拉を、比較の選び方として使う（チェックボックスの一覧の
- * 代わり）：
+ * Sync Report「測定の比較」の中身：
  *
- *   測定者を選択（2人以上のときだけ。2人以上なら「全員」も）
- *   → 測定データを選択（その人の1件。既定は最新）
- *   → 比較する測定データ（任意）→ 3件目（任意）
+ *   測定者を選択（下拉。2人以上のときだけ。2人以上なら「全員」も）
+ *   → その人の測定の一覧から、比べたい測定を 1〜3件チェックする（既定は最新1件）
  *
  * 1件なら6指標と脳波バランス、2〜3件なら同じ2枚に並べて比較し、その下に
  * 「AIによる比較分析」（BrainAiCompare）。推移グラフと1件ずつのカード（6指標・
  * メモ・レポートへ・削除）は Sync History に残してある——ヒストリーではカレンダーで
  * 記録を選ぶ。
+ *
+ * 以前は「測定データを選択」→「比較する測定データ」→「3件目」と下拉を3つ
+ * 開き直して選んでいた。比べる測定を足すたびに別の一覧を開くのは手間なので、
+ * 1つの一覧で何件でも（3件まで）チェックする形にした（MultiSelectList）。
  *
  * 選択は useCompareSelectionStore（ページの外）に持つ。
  */
@@ -60,7 +61,7 @@ export default function MeasurementCompare() {
   // Newest first for the pickers (`measurements` is oldest→newest).
   const ordered = [...measurements].reverse();
 
-  // ── 測定者 → 測定データ ──
+  // ── 測定者 → 測定の一覧 ──
   // Grouped by the name stored on each record (a measurement keeps the name, not
   // an id, so it stays readable after a rename), most recently measured first.
   const groups = subjectGroups(ordered, (m) => ({ key: m.subject, name: m.subject }));
@@ -68,34 +69,29 @@ export default function MeasurementCompare() {
   const activeKey = resolveSubjectKey(subjectKey, groups, subject?.name);
   const showAll = activeKey === ALL_SUBJECTS;
 
-  // Newest first for the dropdowns.
+  // Newest first for the list.
   const orderedForSubject = activeKey
     ? ordered.filter((m) => matchesSubject({ key: m.subject }, activeKey))
     : [];
 
-  // 選んだ測定（[0]＝主の1件）。消えた記録・別の測定者の記録は外し、何も残らなければ
-  // その測定者の最新。
+  // チェックした測定。消えた記録・別の測定者の記録は外す。まだ何も触っていない
+  // （null）か、選んでいた記録がどれも消えたときはその測定者の最新1件——開いた
+  // ときに何も出ない画面にしない。本人が全部外したとき（[]）だけは何も選ばない。
   const byId = new Map(orderedForSubject.map((m) => [m.uploadedAt, m]));
   const picks: BrainProfile[] = [];
-  for (const id of ids) {
+  for (const id of ids ?? []) {
     const m = byId.get(id);
     if (m && !picks.includes(m)) picks.push(m);
   }
-  if (picks.length === 0 && orderedForSubject[0]) picks.push(orderedForSubject[0]);
+  if (picks.length === 0 && ids?.length !== 0 && orderedForSubject[0]) {
+    picks.push(orderedForSubject[0]);
+  }
   const pickedIds = picks.map((m) => m.uploadedAt);
-  const primary = picks[0] ?? null;
 
-  /** index 番目を選び直す（null＝外す。後ろの測定は1つ前へ詰める）。 */
-  const setPick = (index: number, id: string | null) => {
-    if (id === null) {
-      setIds(pickedIds.filter((_, i) => i !== index));
-      return;
-    }
-    const next = [...pickedIds];
-    next[index] = id;
-    // 同じ測定が2か所に入らないように——主の1件に比べる側の測定を選んだら、
-    // 比べる側からは外す。
-    setIds(next.filter((x, i) => x !== id || i === index));
+  /** 一覧の1行をタップ：選んでいなければ足し（3件まで）、選んでいれば外す。 */
+  const togglePick = (id: string) => {
+    if (pickedIds.includes(id)) setIds(pickedIds.filter((x) => x !== id));
+    else if (pickedIds.length < COMPARISON_MAX) setIds([...pickedIds, id]);
   };
 
   const recordCount = (n: number) => t(`${n}件`, n === 1 ? "1 record" : `${n} records`);
@@ -116,35 +112,45 @@ export default function MeasurementCompare() {
       : []),
   ];
 
-  // メモがあれば見出しに立て、無ければ既定の日時ラベル。日時は detail の
-  // sessionTag が持っているので、見出しがメモに入れ替わっても「いつの回か」は消えない。
+  // 1行目：メモがあればメモ、無ければ日時。2行目：見出しに出ていないことだけ——
+  // 「全員」のときの測定者、見出しがメモのときの日時、アップロードしたファイルの
+  // Tag 列・ファイル名。取り込んだ測定の sessionTag は日時そのものなので、メモの
+  // 無い回に2行目へ同じ日時を繰り返さない。
   const recordOption = (m: BrainProfile): SelectOption => {
     const total = compositeScore(m.indicators);
     const note = m.note?.trim();
-    const tag = sessionTagLabel(m, locale);
-    const who = subjectDisplayName(m.subject ?? NO_SUBJECT_NAME, locale);
+    const detail = [
+      showAll ? subjectDisplayName(m.subject ?? NO_SUBJECT_NAME, locale) : null,
+      note ? measurementLabel(m, locale) : null,
+      m.sessionTag && !isGeneratedSessionTag(m) ? sessionTagLabel(m, locale) : null,
+    ]
+      .filter(Boolean)
+      .join(t("・", " · "));
     return {
       value: m.uploadedAt,
       label: note || measurementLabel(m, locale),
-      detail: showAll ? `${who}${t("・", " · ")}${tag}` : tag,
+      detail: detail || undefined,
       trailing: String(total),
       trailingColor: scoreColor(total),
     };
   };
-  const primaryOptions = orderedForSubject.map(recordOption);
-  // 比べる側の選択肢：先頭に「比べない」、ほかの欄で選んでいる測定は出さない。
-  const compareOptions = (index: number, noneLabel: string): SelectOption[] => [
-    { value: NO_PICK, label: noneLabel },
-    ...orderedForSubject
-      .filter((m) => !pickedIds.some((id, i) => i !== index && id === m.uploadedAt))
-      .map(recordOption),
-  ];
+  const recordOptions = orderedForSubject.map(recordOption);
 
   // The picked measurements, ordered oldest→newest for the charts.
   const series = [...picks].sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
   const canCompare = series.length >= 2;
   // 脳波バランスは bands のある記録だけ（以前の記録には無い）。6指標はどの記録にもある。
   const withBands = series.filter((m) => m.bands);
+
+  // 一覧の下の1行。上限に来て選んでいない行が押せなくなったときだけ、なぜかを言う
+  // （1件のときの「もう1件選ぶと〜」は比較のカードの見出しの下に出る）。
+  const listHint =
+    picks.length >= COMPARISON_MAX && orderedForSubject.length > COMPARISON_MAX
+      ? t(
+          `${COMPARISON_MAX}件まで選べます。別の測定を選ぶときは、どれかのチェックを外してください。`,
+          `You can choose up to ${COMPARISON_MAX}. To choose a different one, untick one first.`
+        )
+      : null;
 
   return (
     // Mobile: pickers → comparison → AI comparison, one column. Desktop: the
@@ -166,38 +172,37 @@ export default function MeasurementCompare() {
           />
         )}
 
-        {/* Step 2 — which of that person's measurements. */}
-        <SelectDropdown
-          caption={t("測定データを選択", "Choose a measurement")}
-          icon={<CalendarClock size={18} strokeWidth={1.5} />}
-          value={primary?.uploadedAt ?? null}
-          options={primaryOptions}
-          onChange={(v) => setPick(0, v)}
-          placeholder={t("測定記録がありません", "No measurement records")}
+        {/* Step 2 — tick 1〜3 of that person's measurements in one list. The
+            box scrolls on its own: four rows and the top of a fifth on a phone
+            (a box that ends exactly between two rows looks complete), more on
+            desktop where the chart sits beside it. */}
+        <MultiSelectList
+          caption={t(
+            `測定データを選択（${COMPARISON_MAX}件まで）`,
+            `Choose measurements (up to ${COMPARISON_MAX})`
+          )}
+          options={recordOptions}
+          values={pickedIds}
+          onToggle={togglePick}
+          max={COMPARISON_MAX}
+          hint={listHint}
+          scrollClassName="max-h-[min(20rem,44svh)] md:max-h-[26rem]"
         />
-
-        {/* Step 3 — what to set beside it (optional, up to two more). */}
-        {orderedForSubject.length >= 2 && (
-          <SelectDropdown
-            caption={t("比較する測定データ（任意）", "Compare with (optional)")}
-            icon={<GitCompare size={18} strokeWidth={1.5} />}
-            value={pickedIds[1] ?? NO_PICK}
-            options={compareOptions(1, t("比較しない", "Don't compare"))}
-            onChange={(v) => setPick(1, v === NO_PICK ? null : v)}
-          />
-        )}
-        {picks.length >= 2 && orderedForSubject.length >= 3 && (
-          <SelectDropdown
-            caption={t("3件目の測定データ（任意）", "A third measurement (optional)")}
-            icon={<GitCompare size={18} strokeWidth={1.5} />}
-            value={pickedIds[2] ?? NO_PICK}
-            options={compareOptions(2, t("選ばない", "None"))}
-            onChange={(v) => setPick(2, v === NO_PICK ? null : v)}
-          />
-        )}
       </div>
 
       <div className="flex flex-col gap-6 md:col-start-2 md:row-start-1 md:row-span-2">
+        {series.length === 0 && (
+          // 本人が全部のチェックを外したとき。空けたままにすると、比較の場所が
+          // 消えただけに見えるので、ここに何が出るのかを書いておく。
+          <div className="bg-surface border border-surface-border rounded-3xl p-6 neu-raised text-center">
+            <p className="text-base text-text-secondary">
+              {t(
+                `一覧から測定データを選ぶと、ここに6指標と脳波バランスが出ます。2〜${COMPARISON_MAX}件選ぶと並べて比較できます。`,
+                `Choose measurements from the list to see their 6 indicators and brainwave balance here. Choose 2 to ${COMPARISON_MAX} to compare them side by side.`
+              )}
+            </p>
+          </div>
+        )}
         {series.length > 0 && (
           <div className="bg-surface border border-surface-border rounded-3xl p-4 neu-raised flex flex-col gap-4">
             <div className="min-w-0">
@@ -210,8 +215,8 @@ export default function MeasurementCompare() {
                 <p className="text-xs text-text-muted">
                   {orderedForSubject.length >= 2
                     ? t(
-                        "「比較する測定データ」を選ぶと並べて比較できます",
-                        "Choose “Compare with” to see them side by side"
+                        "一覧でもう1件チェックすると、並べて比較できます",
+                        "Tick one more in the list to compare them side by side"
                       )
                     : t(
                         "もう1件測定すると並べて比較できます",
