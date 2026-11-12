@@ -30,6 +30,12 @@ import {
 } from "@/lib/brain-profile";
 import { useAppStore } from "./useAppStore";
 import { dominantTargetHz, inductionTargetOf, targetKeyOf } from "@/lib/mind/session-target";
+import {
+  emptyPlayback,
+  finishPlayback,
+  type MeasurementPlayback,
+} from "@/lib/mind/measurement-playback";
+import { tallyCurrentPlayback } from "@/lib/mind/playing-program";
 
 export type MindSourceKind = "demo" | "realtime";
 
@@ -66,11 +72,15 @@ export interface MindSessionSummary {
    *  Undefined on recordings made before subjects existed. */
   subjectId?: string;
   subjectName?: string;
-  /** 誘導周波数（Hz、0.01刻み）。Rate の共鳴率をこの周波数で見る。測定中に流して
-   *  いたセッションの誘導周波数（いちばん長く流れていたもの、lib/mind/session-target.ts）。
-   *  セッションを流していなければ undefined＝既定の 40Hz で判定する。この仕組みより
-   *  前の記録では、測定のときに手で入力した値。 */
+  /** 誘導周波数（Hz、0.01刻み）。Rate の共鳴率をこの周波数で見る。測定中にプレーヤーに
+   *  入っていたセッションの誘導周波数（一時停止中も含めていちばん長かったもの、
+   *  lib/mind/session-target.ts）。何も入っていなければ undefined＝既定の 40Hz で判定する。
+   *  この仕組みより前の記録では、測定のときに手で入力した値。 */
   targetHz?: number;
+  /** 測定中にプレーヤーに何が入っていたか（どの節目を何秒再生・一時停止していたか、
+   *  何も流していなかった秒。lib/mind/measurement-playback.ts）。この項目より前の
+   *  記録には無い（＝分からない）。 */
+  playback?: MeasurementPlayback;
   /** アカウントへ保存するか・保存済みか（lib/sync/cloud-mark.ts）。デスクトップ
    *  測定アプリの自動保存だけが書く。/brain の回は取り込み（useImportSession）が
    *  別経路で送るので undefined のまま。 */
@@ -151,6 +161,9 @@ interface MindState {
    *  その測定の誘導周波数にする——測定を始めてから再生しても、途中で節目を替えても、
    *  測定の大半で流れていた音で判定できるように。 */
   recordingTargetSeconds: Record<string, number>;
+  /** 録音中の1秒ごとに、プレーヤーに入っていた節目と再生・一時停止を数えた内訳
+   *  （止めたときに測定の playback になる）。 */
+  recordingPlayback: MeasurementPlayback;
   /** 録音中に合成データ（EegSample.synthetic）が1秒でも混ざったか。混ざった測定は
    *  source を "demo" として残す——実測と区別しないと、テストの数字がアカウントの
    *  脳特性の推移に紛れ込む。 */
@@ -198,6 +211,7 @@ export const useMindStore = create<MindState>()(
       recordingFlowCount: 0,
       recordingSubject: null,
       recordingTargetSeconds: {},
+      recordingPlayback: emptyPlayback(),
       recordingSynthetic: false,
       sessions: [],
       pairingCode: "",
@@ -224,6 +238,7 @@ export const useMindStore = create<MindState>()(
           recordingFlowCount: 0,
           recordingSubject: null,
           recordingTargetSeconds: {},
+          recordingPlayback: emptyPlayback(),
           recordingSynthetic: false,
         }),
 
@@ -258,6 +273,7 @@ export const useMindStore = create<MindState>()(
           let recordingFlowCount = state.recordingFlowCount;
           let recordingSynthetic = state.recordingSynthetic;
           let recordingTargetSeconds = state.recordingTargetSeconds;
+          let recordingPlayback = state.recordingPlayback;
           if (state.isRecording) {
             recordingSamples = [...state.recordingSamples, s];
             if (s.synthetic) recordingSynthetic = true;
@@ -267,6 +283,8 @@ export const useMindStore = create<MindState>()(
               ...recordingTargetSeconds,
               [key]: (recordingTargetSeconds[key] ?? 0) + 1,
             };
+            // 同じ1秒に、プレーヤーに入っていた節目（再生中／一時停止中）か「何も無し」を数える。
+            recordingPlayback = tallyCurrentPlayback(recordingPlayback);
             const eff = boostedPosition(s.attention, s.meditation, zoneBoost);
             if (getQuadrant(eff.attention, eff.meditation) === "flow") {
               recordingFlowCount += 1;
@@ -283,6 +301,7 @@ export const useMindStore = create<MindState>()(
             recordingFlowCount,
             recordingSynthetic,
             recordingTargetSeconds,
+            recordingPlayback,
           };
         }),
 
@@ -296,6 +315,7 @@ export const useMindStore = create<MindState>()(
           recordingFlowCount: 0,
           recordingSubject: subject ?? null,
           recordingTargetSeconds: {},
+          recordingPlayback: emptyPlayback(),
           recordingSynthetic: false,
           gammaBaseline: 0,
         }),
@@ -307,6 +327,7 @@ export const useMindStore = create<MindState>()(
           recordingFlowCount,
           recordingSubject,
           recordingTargetSeconds,
+          recordingPlayback,
           recordingSynthetic,
           sourceKind,
           sessions,
@@ -320,6 +341,7 @@ export const useMindStore = create<MindState>()(
             recordingFlowCount: 0,
             recordingSubject: null,
             recordingTargetSeconds: {},
+            recordingPlayback: emptyPlayback(),
             recordingSynthetic: false,
           });
           return null;
@@ -353,6 +375,7 @@ export const useMindStore = create<MindState>()(
           subjectId: recordingSubject?.id,
           subjectName: recordingSubject?.name,
           targetHz: dominantTargetHz(recordingTargetSeconds),
+          playback: finishPlayback(recordingPlayback),
           indicators: computeIndicators(rows),
           bands: computeBandPowers(rows),
           timeline: computeTimeline(rows),
@@ -379,6 +402,7 @@ export const useMindStore = create<MindState>()(
           recordingFlowCount: 0,
           recordingSubject: null,
           recordingTargetSeconds: {},
+          recordingPlayback: emptyPlayback(),
           recordingSynthetic: false,
           // A recording the headset never read is not a measurement — every
           // indicator is 0 for lack of data. Return it so the UI can say so,

@@ -52,5 +52,7 @@ export function measurementFromSession(s: MindSessionSummary): BrainProfile | nu
     subject: s.subjectName,
     // Rate の共鳴率をどの周波数で見るかは測定ごとの条件（無ければ既定の 40Hz）。
     targetHz: s.targetHz,
+    // 測定中にプレーヤーに何が入っていたか（どの節目を再生・一時停止していたか）。
+    playback: s.playback,
   };
 }

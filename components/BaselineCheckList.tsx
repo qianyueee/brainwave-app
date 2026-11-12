@@ -11,6 +11,7 @@ import {
 import { BASELINE_MEASURE_SEC, rateMethodLabel } from "@/lib/mind/baseline";
 import { scoreColor } from "@/lib/brain-measurements";
 import { subjectDisplayName } from "@/lib/subject-groups";
+import { describePlayback } from "@/lib/mind/playback-label";
 import { intlLocale, useLocale, useT, type Locale } from "@/lib/i18n";
 
 /** 最初に見せる件数。これ以上は「全 N 件を表示」で開く。 */
@@ -46,6 +47,8 @@ function CheckRow({ c, onDelete }: { c: BaselineCheck; onDelete: (id: string) =>
   ]
     .filter(Boolean)
     .join(t("・", " · "));
+  // 計測中に流していたプログラム（再生中／一時停止中／なし）。この項目より前の記録は null。
+  const playbackText = describePlayback(c.playback, locale);
 
   return (
     <div className="bg-surface border border-surface-border rounded-3xl p-4 flex flex-col gap-2 neu-raised">
@@ -104,6 +107,11 @@ function CheckRow({ c, onDelete }: { c: BaselineCheck; onDelete: (id: string) =>
       </div>
 
       <p className="text-xs text-text-muted">{detail}</p>
+      {playbackText && (
+        <p className="text-xs text-text-muted">
+          {t("プログラム", "Program")}: {playbackText}
+        </p>
+      )}
     </div>
   );
 }
