@@ -112,18 +112,23 @@ async function invokeAnalyzeBrain(
       const res = error.context as Response;
       // 関数がまだ無い（デプロイ前）は 404。
       if (res.status === 404) throw new AnalysisError("not_configured");
-      let reply: { error?: unknown; kind?: unknown } | null;
+      let reply: { error?: unknown; kind?: unknown; v?: unknown } | null;
       try {
-        reply = (await res.json()) as { error?: unknown; kind?: unknown } | null;
+        reply = (await res.json()) as { error?: unknown; kind?: unknown; v?: unknown } | null;
       } catch {
         reply = null;
       }
       const code = reply?.error;
       // 比較分析を知らない（貼り直す前の）関数は、比較の本文を見知らぬ項目 kind の
-      // せいで bad_input と断る。比較を知っている関数の比較の返事には必ず
-      // kind:"compare" が付くので、付いていない bad_input は「比較の窓口はまだ準備中」。
-      if (compare && code === "bad_input" && reply?.kind !== "compare") {
-        throw new AnalysisError("not_configured");
+      // せいで bad_input と断る。施術前後（版 2）を知らない関数は、版 2 の本文を見知らぬ
+      // 項目 program のせいで断り、返事に受け付ける版 v が無い。どちらも「比較の窓口は
+      // まだ準備中」——新しい関数の比較の返事には必ず kind:"compare" と v が付く。
+      if (compare && code === "bad_input") {
+        const sent = (body as BrainComparisonInput).v;
+        const accepts = typeof reply?.v === "number" && reply.v >= sent;
+        if (reply?.kind !== "compare" || (sent > 1 && !accepts)) {
+          throw new AnalysisError("not_configured");
+        }
       }
       throw new AnalysisError(
         code !== undefined ? toAnalysisErrorCode(code) : res.status === 401 ? "unauthorized" : "upstream"
