@@ -12,6 +12,7 @@ import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
 import { useCloudSyncStore } from "@/store/useCloudSyncStore";
 import { subjectDisplayName } from "@/lib/subject-groups";
 import { DEFAULT_TARGET_HZ, formatTargetHz } from "@/lib/mind/resonance";
+import { describePlayback } from "@/lib/mind/playback-label";
 import { useLocale, useT } from "@/lib/i18n";
 import CloudSaveStatus from "./CloudSaveStatus";
 
@@ -119,6 +120,8 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
     ? signalQualityPct(usableSec, finished.durationSec)
     : undefined;
   const patchy = !!finished && !unusable && isLowQuality(qualityPct);
+  // 測定中にプレーヤーに入っていたプログラム（再生中／一時停止中／なし）。
+  const playbackText = finished ? describePlayback(finished.playback, locale) : null;
 
   return (
     <>
@@ -217,19 +220,26 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
                     `Duration ${formatTime(finished.durationSec)} · Focus ${finished.avgAttention} · Relaxation ${finished.avgMeditation} · Time in zone ${finished.flowRatioPct}%`
                   )}
                 </p>
-                {/* Rate の共鳴率をどの Hz で見るか。測定中にいちばん長く流れていた
-                    セッションの誘導周波数、無ければ既定（lib/mind/session-target.ts）。 */}
+                {/* Rate の共鳴率をどの Hz で見るか。測定中にいちばん長くプレーヤーに
+                    入っていた（一時停止中も含む）セッションの誘導周波数、無ければ既定
+                    （lib/mind/session-target.ts）。 */}
                 <p className="text-sm text-text-secondary">
                   {finished.targetHz != null
                     ? t(
-                        `誘導周波数 ${formatTargetHz(finished.targetHz)}Hz（測定中に流していたセッション）`,
-                        `Target frequency ${formatTargetHz(finished.targetHz)} Hz (from the session you were playing)`
+                        `誘導周波数 ${formatTargetHz(finished.targetHz)}Hz（測定中のセッション）`,
+                        `Target frequency ${formatTargetHz(finished.targetHz)} Hz (from the session during the measurement)`
                       )
                     : t(
                         `誘導周波数 ${formatTargetHz(DEFAULT_TARGET_HZ)}Hz（既定）`,
                         `Target frequency ${formatTargetHz(DEFAULT_TARGET_HZ)} Hz (default)`
                       )}
                 </p>
+                {/* 測定中に流していたプログラム。記録にも残り、ヒストリー・レポートに出る。 */}
+                {playbackText && (
+                  <p className="text-sm text-text-secondary">
+                    {t(`プログラム: ${playbackText}`, `Program: ${playbackText}`)}
+                  </p>
+                )}
 
                 {patchy && (
                   <p className="text-sm text-warning">

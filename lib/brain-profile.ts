@@ -1,6 +1,7 @@
 import type { ProgramConfig, FrequencyPhase } from "./programs";
 import { getProgramById } from "./programs";
 import type { BandPowers } from "./mind/types";
+import type { MeasurementPlayback } from "./mind/measurement-playback";
 import { POOR_SIGNAL_LIMIT } from "./mind/types";
 import { getLocale, translator } from "./i18n";
 
@@ -37,12 +38,18 @@ export interface BrainProfile {
    */
   subject?: string;
   /**
-   * 誘導周波数（Hz、0.01刻み）。Rate の共鳴率をこの周波数で見る。測定中に流して
-   * いたセッションの誘導周波数（lib/mind/session-target.ts。以前の記録では測定の
-   * ときに手で入力した値）。undefined＝セッション無し／アップロード／この項目より
-   * 前の記録で、その場合は既定の 40Hz（DEFAULT_TARGET_HZ）で判定する。
+   * 誘導周波数（Hz、0.01刻み）。Rate の共鳴率をこの周波数で見る。測定中にプレーヤーに
+   * 入っていたセッション（一時停止中も含む）の誘導周波数（lib/mind/session-target.ts。
+   * 以前の記録では測定のときに手で入力した値）。undefined＝セッション無し／アップロード／
+   * この項目より前の記録で、その場合は既定の 40Hz（DEFAULT_TARGET_HZ）で判定する。
    */
   targetHz?: number;
+  /**
+   * 測定中にプレーヤーに何が入っていたか：どの節目（プログラム）を何秒再生・一時停止
+   * していたか、何も流していなかった秒（lib/mind/measurement-playback.ts）。測定から
+   * 取り込んだ記録だけが持つ。undefined＝分からない（アップロード・この項目より前の記録）。
+   */
+  playback?: MeasurementPlayback;
   /**
    * 測定の途中でどう変わったか（前半→後半）。AI 分析が「測定中の変化」を語る
    * ための要約で、測り終えた時点で1秒ごとの行から作る（行そのものは残さない）。

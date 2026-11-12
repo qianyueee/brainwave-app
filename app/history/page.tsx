@@ -20,6 +20,7 @@ import {
   subjectGroups,
 } from "@/lib/subject-groups";
 import { sessionTagLabel } from "@/lib/brain-measurements";
+import { describePlayback } from "@/lib/mind/playback-label";
 import { intlLocale, useLocale, useT, type Locale } from "@/lib/i18n";
 import SimpleCalendar from "@/components/SimpleCalendar";
 import BrainTrendChart from "@/components/BrainTrendChart";
@@ -79,6 +80,8 @@ function MeasurementDetail({
   const [draft, setDraft] = useState("");
   const total = compositeScore(m.indicators);
   const date = new Date(m.uploadedAt);
+  // 測定中に流していたプログラム（再生中／一時停止中／なし）。分からない記録は null。
+  const playbackText = describePlayback(m.playback, locale);
 
   return (
     <div
@@ -100,6 +103,11 @@ function MeasurementDetail({
             </p>
           )}
           <p className="text-sm text-text-secondary truncate">{sessionTagLabel(m, locale)}</p>
+          {playbackText && (
+            <p className="text-sm text-text-secondary break-words">
+              {t("プログラム", "Program")}: {playbackText}
+            </p>
+          )}
           <SignalQualityBadge qualityPct={m.qualityPct} className="mt-1" />
         </div>
         <div className="text-right shrink-0">

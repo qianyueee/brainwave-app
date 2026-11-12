@@ -17,6 +17,13 @@ import {
   type BaselinePhase,
 } from "@/lib/mind/baseline";
 import { scoreColor } from "@/lib/brain-measurements";
+import {
+  emptyPlayback,
+  finishPlayback,
+  type MeasurementPlayback,
+} from "@/lib/mind/measurement-playback";
+import { tallyCurrentPlayback } from "@/lib/mind/playing-program";
+import { describePlayback } from "@/lib/mind/playback-label";
 import { useLocale, useT } from "@/lib/i18n";
 
 /**
@@ -42,6 +49,8 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
   /** 現フェーズの残り秒（カウントダウン表示用）。 */
   const [remain, setRemain] = useState(0);
   const [result, setResult] = useState<ReturnType<typeof computeBaselineScores> | null>(null);
+  /** 計測した10秒にプレーヤーに何が入っていたか（結果と一緒に決まり、保存する記録に載る）。 */
+  const [resultPlayback, setResultPlayback] = useState<MeasurementPlayback | null>(null);
   /** 保存した記録の id（null＝未保存）。保存は明示操作——測ったものが全部残るとは
    *  限らない（練習・装着確認・話しかけられた回）ので、残すかどうかは本人が決める。 */
   const [savedId, setSavedId] = useState<string | null>(null);
@@ -51,6 +60,8 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
   // カウントダウンのアニメーションと競合するので ref に貯める。
   const openRef = useRef<EegSample[]>([]);
   const closeRef = useRef<EegSample[]>([]);
+  /** 計測した各秒に、プレーヤーに何が入っていたか（記録の playback になる）。 */
+  const playbackRef = useRef<MeasurementPlayback>(emptyPlayback());
   const phaseRef = useRef<BaselinePhase>("idle");
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -110,7 +121,9 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
     clearTimers();
     openRef.current = [];
     closeRef.current = [];
+    playbackRef.current = emptyPlayback();
     setResult(null);
+    setResultPlayback(null);
     setSavedId(null);
 
     const { countdownSec, openSec, closeSec } = BASELINE_PROTOCOL;
@@ -145,6 +158,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
           setRemain(0);
           // 結果は出すだけ。保存は下の handleSave（明示操作）が行う。
           setResult(computeBaselineScores(openRef.current, closeRef.current));
+          setResultPlayback(finishPlayback(playbackRef.current));
         },
         (countdownSec + openSec + closeSec) * 1000
       )
@@ -169,6 +183,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
         source: synthetic ? "demo" : sourceKind,
         subjectId: subject?.id,
         subjectName: subject?.name,
+        playback: resultPlayback ?? undefined,
       },
       // ログインしている（していた）アカウントにも載せる。載せてよい実測かは
       // ストアが判断する。
@@ -188,12 +203,16 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
       lastTs = s.ts;
       if (phaseRef.current === "open") openRef.current.push(s);
       else if (phaseRef.current === "close") closeRef.current.push(s);
+      else return;
+      // 同じ1秒に、プレーヤーに入っていた節目（再生中／一時停止中）か「何も無し」を数える。
+      playbackRef.current = tallyCurrentPlayback(playbackRef.current);
     });
   }, []);
 
   useEffect(() => clearTimers, [clearTimers]);
 
   const running = phase === "countdown" || phase === "open" || phase === "close";
+  const resultPlaybackText = resultPlayback ? describePlayback(resultPlayback, locale) : null;
 
   return (
     <div
@@ -391,6 +410,12 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                         " · Demo data (kept separate from real measurements)"
                       )}
                   </p>
+                  {/* 計測中に流していたプログラム。保存すると記録にも残る。 */}
+                  {resultPlaybackText && (
+                    <p className="text-xs text-text-muted">
+                      {t(`プログラム: ${resultPlaybackText}`, `Program: ${resultPlaybackText}`)}
+                    </p>
+                  )}
                 </div>
               </>
             )}

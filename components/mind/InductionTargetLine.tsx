@@ -11,10 +11,11 @@ import { useLocale, useT } from "@/lib/i18n";
 /**
  * いまの誘導周波数（Rate の共鳴率をどの Hz で見るか）の表示。手で入れる欄は無い
  * ——Sync Session で流しているセッションの誘導周波数がそのまま基準になり、何も
- * 流していなければ既定の 40Hz（lib/mind/session-target.ts）。
+ * 流していなければ既定の 40Hz（lib/mind/session-target.ts）。一時停止中も、
+ * プレーヤーにセッションが残っている（下にミニプレーヤーが出ている）間はその周波数。
  *
- * 測定に記録されるのは「測定中にいちばん長く流れていた」周波数なので、測定を
- * 始めてからセッションを再生しても、途中で替えても、その測定の大半の音で判定される。
+ * 測定に記録されるのは「測定中にいちばん長かった」周波数なので、測定を始めてから
+ * セッションを再生しても、途中で替えても、その測定の大半の時間の値で判定される。
  */
 export default function InductionTargetLine() {
   const t = useT();
@@ -31,11 +32,17 @@ export default function InductionTargetLine() {
   if (target.source === "session") {
     const program = getProgramById(target.programId);
     const name = program ? programName(program, locale) : "";
-    detail = t(
-      `再生中のセッション「${name}」の誘導周波数です。Rate の共鳴率をこの周波数で判定します。`,
-      `The target frequency of “${name}”, which is playing now. Rate is scored by resonance at this frequency.`
-    );
+    detail = target.paused
+      ? t(
+          `一時停止中のセッション「${name}」の誘導周波数です。プレーヤーにこのセッションが残っている間は、この周波数で Rate の共鳴率を判定します。`,
+          `The target frequency of “${name}”, which is paused. While it stays in the player, Rate is scored by resonance at this frequency.`
+        )
+      : t(
+          `再生中のセッション「${name}」の誘導周波数です。Rate の共鳴率をこの周波数で判定します。`,
+          `The target frequency of “${name}”, which is playing now. Rate is scored by resonance at this frequency.`
+        );
   } else if (target.source === "unmeasurable") {
+    const which = target.paused ? t("一時停止中の", "paused") : t("再生中の", "playing");
     detail =
       target.programHz == null
         ? t(
@@ -44,18 +51,13 @@ export default function InductionTargetLine() {
           )
         : target.programHz <= 0
           ? t(
-              `再生中のセッションにはうなりが無いので、既定の ${defaultHz}Hz で判定します。`,
-              `The playing session has no beat, so the default ${defaultHz} Hz is used.`
+              `${which}セッションにはうなりが無いので、既定の ${defaultHz}Hz で判定します。`,
+              `The ${which} session has no beat, so the default ${defaultHz} Hz is used.`
             )
           : t(
-              `再生中のセッションの誘導周波数（${target.programHz}Hz）は脳波計で読める範囲（${TARGET_HZ_MIN}〜${TARGET_HZ_MAX}Hz）の外なので、既定の ${defaultHz}Hz で判定します。`,
-              `The playing session's frequency (${target.programHz} Hz) is outside what the headset can read (${TARGET_HZ_MIN}–${TARGET_HZ_MAX} Hz), so the default ${defaultHz} Hz is used.`
+              `${which}セッションの誘導周波数（${target.programHz}Hz）は脳波計で読める範囲（${TARGET_HZ_MIN}〜${TARGET_HZ_MAX}Hz）の外なので、既定の ${defaultHz}Hz で判定します。`,
+              `The ${which} session's frequency (${target.programHz} Hz) is outside what the headset can read (${TARGET_HZ_MIN}–${TARGET_HZ_MAX} Hz), so the default ${defaultHz} Hz is used.`
             );
-  } else if (target.paused) {
-    detail = t(
-      `セッションが一時停止中なので、既定の ${defaultHz}Hz で判定します。`,
-      `The session is paused, so the default ${defaultHz} Hz is used.`
-    );
   } else {
     detail = t(
       `セッションを再生していないので、既定の ${defaultHz}Hz で判定します。再生しながら測ると、そのセッションの誘導周波数で判定します。`,
@@ -79,8 +81,8 @@ export default function InductionTargetLine() {
       {isRecording && (
         <p className="text-xs text-text-muted">
           {t(
-            "測定中にいちばん長く流れていた周波数が、この測定に記録されます。",
-            "The frequency that plays longest during the measurement is recorded with it."
+            "測定中にいちばん長かった周波数と、再生・一時停止していたセッションが、この測定に記録されます。",
+            "The frequency in effect for most of the measurement, and the session that was playing or paused, are recorded with it."
           )}
         </p>
       )}

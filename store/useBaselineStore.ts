@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BaselineRateMethod } from "@/lib/mind/baseline";
 import type { MindSourceKind } from "@/store/useMindStore";
+import type { MeasurementPlayback } from "@/lib/mind/measurement-playback";
 import { isCheckUploadable, markOwner, needsUpload, type CloudMark } from "@/lib/sync/cloud-mark";
 import { listBaselineChecks } from "@/lib/sync/baseline-checks";
 
@@ -43,6 +44,12 @@ export interface BaselineCheck {
   source: MindSourceKind;
   subjectId?: string;
   subjectName?: string;
+  /**
+   * 計測中（開眼・閉眼の10秒）にプレーヤーに何が入っていたか——どの節目を再生・
+   * 一時停止していたか、何も流していなかったか（lib/mind/measurement-playback.ts）。
+   * この項目より前の記録には無い（＝分からない）。
+   */
+  playback?: MeasurementPlayback;
   /**
    * アカウントへ保存するか・保存済みか（lib/sync/cloud-mark.ts）。端末ローカルの
    * 状態なのでクラウドには持っていかない。チェックは後から書き換えないので版は常に 0。
