@@ -27,12 +27,24 @@
  * Dashboard のエディタに1ファイルで貼れて、node でもそのまま読めるように、
  * supabase-js も使わず REST（/auth/v1/user・PostgREST）を直接呼ぶ。
  *
+ * ■ 施術前・施術後（比較分析）
+ * 比較分析の本文（版 2）には、測定ごとに「測定中にプレーヤーにプログラムが入って
+ * いた秒」も載る（program）。プログラムを流さずに測った回＝施術前、流しながら
+ * （一時停止中も）測った回＝施術後として、同じ人の施術前→施術後の組を作り
+ * （beforeAfterPairs。決まりは lib/before-after.ts と同じ）、AI にその変化を
+ * 「施術前と施術後」（beforeAfter）として書いてもらう。版 1 の本文（作り直す前の
+ * APK・exe）もそのまま受け付ける——施術前後の節が無いだけ。
+ *
  * デプロイ手順は同じフォルダの README.md。
  */
 
 export const INPUT_VERSION = 1;
-/** 比較分析の本文の版（1件の分析とは別に数える）。 */
-export const COMPARE_INPUT_VERSION = 1;
+/**
+ * 比較分析の本文の版（1件の分析とは別に数える）。2＝測定中のプレーヤー（program）つき。
+ * 1 も受け付ける（施術前後より前のアプリ）。比較分析の失敗にはこの版を添えて返す——
+ * 画面は版の無い bad_input を「この窓口はまだ施術前後を知らない＝準備中」と読む。
+ */
+export const COMPARE_INPUT_VERSION = 2;
 /** 比較できる測定の数（画面の「測定の比較」と同じ 2〜3件）。 */
 export const COMPARE_MIN = 2;
 export const COMPARE_MAX = 3;
@@ -126,6 +138,16 @@ export interface AnalysisContent {
 
 // ─── 比較分析の受け取る形（lib/brain-analysis.ts の BrainComparisonInput と同じ） ──
 
+/** 測定中のプレーヤー（秒、全節目の合計）。lib/before-after.ts の ProgramSeconds と同じ。 */
+export interface CompareProgram {
+  /** プログラムを再生していた秒。 */
+  playingSec: number;
+  /** プログラムが入ったまま一時停止していた秒。 */
+  pausedSec: number;
+  /** 何も入っていなかった秒。 */
+  noneSec: number;
+}
+
 /** 比べる1件。数値の項目は1件の分析と同じ意味・同じ範囲。 */
 export interface CompareMeasurement {
   /** 測定のキー。DB の照合と組のキーにだけ使う（プロンプトには入れない）。 */
@@ -148,9 +170,12 @@ export interface CompareMeasurement {
   condition: Condition;
   bands: Bands | null;
   features: Features;
+  /** 測定中のプレーヤー。null＝分からない（版 1 の本文・この項目より前の記録）。 */
+  program: CompareProgram | null;
 }
 
 export interface CompareInput {
+  /** 1 か 2（COMPARE_INPUT_VERSION）。保存の input_version にもこの値を書く。 */
   v: number;
   kind: "compare";
   locale: Locale;
@@ -160,10 +185,14 @@ export interface CompareInput {
 
 export interface CompareContent {
   summary: string;
+  /** 施術前と施術後（組があるときだけ書かせる。無ければ空）。 */
+  beforeAfter: string[];
   differences: string[];
   strengths: string[];
   cautions: string[];
   suggestions: string[];
+  /** beforeAfter が比べた組（測定のキー）。画面が「施術前 … → 施術後 …」を添える。 */
+  pairs: { before: string; after: string }[];
 }
 
 class Invalid extends Error {}
@@ -322,6 +351,20 @@ const COMPARE_MEASUREMENT_KEYS = [
   "features",
 ] as const;
 
+/** 版 2 は測定ごとに program（null 可）を必ず持つ。 */
+const COMPARE_MEASUREMENT_KEYS_V2 = [...COMPARE_MEASUREMENT_KEYS, "program"] as const;
+
+/** 版 2 の program。null＝分からない。項目が無い（undefined）・形が違うものは断る。 */
+function programOf(v: unknown): CompareProgram | null {
+  if (v === null) return null;
+  const p = obj(v, ["playingSec", "pausedSec", "noneSec"]);
+  return {
+    playingSec: int(p.playingSec, 0, 86_400),
+    pausedSec: int(p.pausedSec, 0, 86_400),
+    noneSec: int(p.noneSec, 0, 86_400),
+  };
+}
+
 /** 本文が比較分析の依頼か（`kind: "compare"`）。形の検査は validateCompareInput。 */
 export function isCompareBody(body: unknown): boolean {
   return (
@@ -336,7 +379,9 @@ export function isCompareBody(body: unknown): boolean {
 export function validateCompareInput(body: unknown): CompareInput | null {
   try {
     const o = obj(body, ["v", "kind", "locale", "measurements"]);
-    if (o.v !== COMPARE_INPUT_VERSION || o.kind !== "compare") throw new Invalid();
+    if ((o.v !== 1 && o.v !== COMPARE_INPUT_VERSION) || o.kind !== "compare") throw new Invalid();
+    const v = o.v === 1 ? 1 : COMPARE_INPUT_VERSION;
+    const withProgram = v === COMPARE_INPUT_VERSION;
     if (o.locale !== "ja" && o.locale !== "en") throw new Invalid();
     if (
       !Array.isArray(o.measurements) ||
@@ -347,7 +392,7 @@ export function validateCompareInput(body: unknown): CompareInput | null {
     }
 
     const measurements: CompareMeasurement[] = o.measurements.map((x) => {
-      const m = obj(x, COMPARE_MEASUREMENT_KEYS);
+      const m = obj(x, withProgram ? COMPARE_MEASUREMENT_KEYS_V2 : COMPARE_MEASUREMENT_KEYS);
       // 測定のキー。空白は入らない（toISOString の書式。組のキーは空白でつなぐ）。
       if (typeof m.uploadedAt !== "string" || !/^[\x21-\x7E]{1,64}$/.test(m.uploadedAt)) {
         throw new Invalid();
@@ -370,6 +415,7 @@ export function validateCompareInput(body: unknown): CompareInput | null {
         condition: conditionOf(m.condition),
         bands: m.bands === null ? null : bands(m.bands),
         features: featuresOf(m.features),
+        program: withProgram ? programOf(m.program) : null,
       };
     });
 
@@ -386,7 +432,7 @@ export function validateCompareInput(body: unknown): CompareInput | null {
       if (m.person === people) people++;
     });
 
-    return { v: COMPARE_INPUT_VERSION, kind: "compare", locale: o.locale, measurements };
+    return { v, kind: "compare", locale: o.locale, measurements };
   } catch (e) {
     if (e instanceof Invalid) return null;
     throw e;
@@ -399,6 +445,51 @@ export function validateCompareInput(body: unknown): CompareInput | null {
  */
 export function comboKey(uploadedAts: readonly string[]): string {
   return uploadedAts.join(" ");
+}
+
+// ─── 施術前・施術後（lib/before-after.ts と同じ決まり） ─────────────────────────
+
+/**
+ * 測定中のプレーヤー：none＝流していない／partly＝測定の半分未満だけ入っていた／
+ * playing・paused＝半分以上入っていて、再生と一時停止の長い方。null＝分からない。
+ */
+export type ProgramState = "none" | "partly" | "playing" | "paused";
+
+export function programState(p: CompareProgram | null): ProgramState | null {
+  if (!p) return null;
+  const loaded = p.playingSec + p.pausedSec;
+  if (loaded + p.noneSec <= 0) return null;
+  if (loaded <= 0) return "none";
+  if (loaded < p.noneSec) return "partly";
+  return p.playingSec >= p.pausedSec ? "playing" : "paused";
+}
+
+/** 施術前＝プログラムを流さずに測った回、施術後＝流しながら（一時停止中も）測った回。 */
+function beforeAfterRole(p: CompareProgram | null): "before" | "after" | null {
+  const s = programState(p);
+  return s === "none" ? "before" : s === "playing" || s === "paused" ? "after" : null;
+}
+
+/**
+ * 施術前と施術後の組（[施術前の位置, 施術後の位置]、測定は古い順）。施術後の測定それぞれに、
+ * 同じ人の、それより前でいちばん新しい施術前の測定を合わせる。施術前が施術後より後なら
+ * 組まない（プログラムを流し終えてから測った回は「流していない」と記録されるため）。
+ */
+export function beforeAfterPairs(
+  ms: readonly Pick<CompareMeasurement, "program" | "person">[]
+): [number, number][] {
+  const roles = ms.map((m) => beforeAfterRole(m.program));
+  const pairs: [number, number][] = [];
+  ms.forEach((m, j) => {
+    if (roles[j] !== "after") return;
+    for (let i = j - 1; i >= 0; i--) {
+      if (roles[i] === "before" && ms[i].person === m.person) {
+        pairs.push([i, j]);
+        return;
+      }
+    }
+  });
+  return pairs;
 }
 
 // ─── プロンプト ───────────────────────────────────────────────────────────────
@@ -636,13 +727,80 @@ export function compareLabels(ms: readonly CompareMeasurement[], L: Locale): str
 
 const diff = (a: number | null, b: number | null) => (a == null || b == null ? null : b - a);
 
-/** 比較分析の system と user。差（いちばん新しい − いちばん古い）はここで計算して渡す。 */
+/** 2件の差（b − a）。スコアは丸めてから引く（画面に出る整数どうしの差）。 */
+function differenceOf(a: CompareMeasurement, b: CompareMeasurement, L: Locale) {
+  const indicators: Record<string, number> = {};
+  for (const k of INDICATOR_KEYS) {
+    indicators[INDICATOR_LABELS[k][L]] = Math.round(b.indicators[k]) - Math.round(a.indicators[k]);
+  }
+  const condition: Record<string, number | null> = {};
+  for (const k of CONDITION_KEYS) {
+    const x = a.condition[k];
+    const y = b.condition[k];
+    condition[CONDITION_LABELS[k][L]] = diff(x == null ? null : Math.round(x), y == null ? null : Math.round(y));
+  }
+  let bandShares: Record<string, number> | null = null;
+  if (a.bands && b.bands) {
+    bandShares = {};
+    for (const k of BAND_KEYS) bandShares[bandName(k, L)] = r1(r1(b.bands[k]) - r1(a.bands[k]));
+  }
+  return {
+    overall_score: Math.round(b.composite) - Math.round(a.composite),
+    indicators,
+    condition,
+    band_share_pct: bandShares,
+  };
+}
+
+/** a から b まで何分か（端末の暦日と時刻から。夏時間の切り替わりの1時間は気にしない）。 */
+function minutesBetween(a: CompareMeasurement, b: CompareMeasurement): number {
+  return Math.max(0, (b.dayIndex - a.dayIndex) * 1440 + b.hour * 60 + b.minute - (a.hour * 60 + a.minute));
+}
+
+const PROGRAM_STATE_GUIDE =
+  '- program_during_measurement: whether a sound program was loaded in the app\'s player during the measurement. "none" = no program; "playing" = a program played for most of the measurement; "paused" = a program stayed loaded but was mostly paused (typically right after listening to it); "partly" = a program was loaded for less than half of the measurement; null = not recorded (an older measurement).';
+
+const BEFORE_AFTER_GUIDE =
+  "- before_after: each pair names its before and after measurements by label; minutes_between is the time from the before measurement to the after one; difference_after_minus_before is the after measurement minus the before one, for each score and share (positive = higher after the session); null when either value is missing.";
+
+/** 施術前と施術後の組があるときの決まり。 */
+function beforeAfterRules(L: Locale, multiple: boolean): string[] {
+  const names = L === "ja" ? "「施術前」 and 「施術後」" : '"before the session" and "after the session"';
+  return [
+    `- before_after pairs a measurement taken with no program (before the session) with a later measurement of the same person taken with a program loaded (after the session). Here the session simply means listening to a sound program; it is not medical treatment. In beforeAfter, describe how the state changed from before to after the session, using difference_after_minus_before rather than doing your own arithmetic. Call the two measurements ${names}${multiple ? ", adding the label because there is more than one pair" : ""}.`,
+    '- In beforeAfter, put the most meaningful changes first. When the after measurement has target_hz_set true, its target_hz is the beat of the program used: relate the change to what that beat aims at when it helps (below 4Hz deep rest and sleep, 4-8Hz deep relaxation, 8-13Hz calm alertness, 13-30Hz active focus, 30Hz and above sharp focus). Use soft words such as "seems" or "may": one session is not proof, and sitting quietly for a while also changes brainwaves.',
+    "- If minutes_between is more than about 180, add that the day's condition may also play a part.",
+    "- Begin the summary with the before-and-after change. Keep the before-and-after changes in beforeAfter; do not repeat them in differences or strengths.",
+  ];
+}
+
+/**
+ * 比較分析の system と user。差（いちばん新しい − いちばん古い、施術前→施術後）はここで
+ * 計算して渡す。版 2 の本文は測定中のプレーヤー（program_during_measurement）も渡し、
+ * 施術前と施術後の組（beforeAfterPairs）があれば beforeAfter を書かせる。
+ */
 export function buildCompareMessages(input: CompareInput): { system: string; user: string } {
   const L = input.locale;
   const ms = input.measurements;
   const samePerson = ms.every((m) => m.person === 0);
   const labels = compareLabels(ms, L);
   const example = L === "ja" ? `「${labels[0]}の測定」` : `"the ${labels[0]} measurement"`;
+  const withProgram = input.v >= 2;
+  const pairs = beforeAfterPairs(ms);
+  const hasPairs = pairs.length > 0;
+
+  const responseKeys = [
+    '"summary": string (2-3 sentences: the overall picture of how the measurements differ)',
+    ...(hasPairs
+      ? ['"beforeAfter": [1-4 short strings: how the state changed from before to after the session, one change each]']
+      : []),
+    hasPairs
+      ? '"differences": [0-4 short strings: other notable differences not already in beforeAfter, each naming the measurements it is about; leave it empty if there are none]'
+      : '"differences": [1-4 short strings: the most notable differences, each naming the measurements it is about]',
+    `"strengths": [0-3 short strings: ${samePerson ? "what improved toward the newest measurement" : "what each person did well"}]`,
+    '"cautions": [0-3 short strings: what to keep an eye on, kindly]',
+    SUGGESTIONS_SPEC,
+  ];
 
   const system = [
     `You compare ${ms.length === 2 ? "TWO" : "THREE"} brainwave measurements for NeuroSync, a self-care app that plays binaural-beat programs and measures brainwaves with a consumer single-channel EEG headband (BrainLink / NeuroSky).`,
@@ -655,37 +813,23 @@ export function buildCompareMessages(input: CompareInput): { system: string; use
     `- Refer to each measurement by its label, for example ${example}.`,
     "- The measurements are listed oldest first. When same_person is true, read the differences as change over time, from the oldest to the newest. When same_person is false, they belong to different people (the person numbers tell them apart; names are not shared): compare them side by side, do not call a difference an improvement or a decline, and never refer to anyone by person number.",
     "- For changes, use difference_last_minus_first rather than doing your own arithmetic. A difference of about 5 points or less is ordinary day-to-day variation: do not over-interpret it.",
-    "- Brainwaves also shift with the time of day, sleep and the situation. When the measurements were taken at quite different times of day, or with different programs playing (target_hz / target_hz_set differ), say so gently instead of treating every difference as a lasting change.",
+    `- Brainwaves also shift with the time of day, sleep and the situation. When the measurements were taken at quite different times of day, or with different programs playing (target_hz / target_hz_set differ), say so gently instead of treating every difference as a lasting change.${hasPairs ? " Within a before_after pair, the program is the very thing being compared." : ""}`,
+    ...(hasPairs ? beforeAfterRules(L, pairs.length > 1) : []),
     "- If a measurement's signal_quality_pct is below 60, say in cautions that the headset fit was unstable for that measurement and its reading is a rough guide.",
     PLAIN_TEXT_RULE,
     "",
     "How to read the data:",
     ...readingGuide(L, false),
     "- days_after_first: calendar days after the oldest measurement (0 = the same day).",
+    ...(withProgram ? [PROGRAM_STATE_GUIDE] : []),
     "- difference_last_minus_first: the newest measurement minus the oldest, for each score and share (positive = higher in the newest); null when either value is missing.",
+    ...(hasPairs ? [BEFORE_AFTER_GUIDE] : []),
     "",
     "Respond with a single json object with exactly these keys:",
-    `{"summary": string (2-3 sentences: the overall picture of how the measurements differ), "differences": [1-4 short strings: the most notable differences, each naming the measurements it is about], "strengths": [0-3 short strings: ${samePerson ? "what improved toward the newest measurement" : "what each person did well"}], "cautions": [0-3 short strings: what to keep an eye on, kindly], ${SUGGESTIONS_SPEC}}`,
+    `{${responseKeys.join(", ")}}`,
   ].join("\n");
 
-  const first = ms[0];
-  const last = ms[ms.length - 1];
-  const indDiff: Record<string, number> = {};
-  for (const k of INDICATOR_KEYS) {
-    indDiff[INDICATOR_LABELS[k][L]] = Math.round(last.indicators[k]) - Math.round(first.indicators[k]);
-  }
-  const condDiff: Record<string, number | null> = {};
-  for (const k of CONDITION_KEYS) {
-    const a = first.condition[k];
-    const b = last.condition[k];
-    condDiff[CONDITION_LABELS[k][L]] = diff(a == null ? null : Math.round(a), b == null ? null : Math.round(b));
-  }
-  let bandDiff: Record<string, number> | null = null;
-  if (first.bands && last.bands) {
-    bandDiff = {};
-    for (const k of BAND_KEYS) bandDiff[bandName(k, L)] = r1(r1(last.bands[k]) - r1(first.bands[k]));
-  }
-
+  const states = ms.map((m) => programState(m.program));
   const data = {
     same_person: samePerson,
     measurements: ms.map((m, i) => ({
@@ -693,14 +837,20 @@ export function buildCompareMessages(input: CompareInput): { system: string; use
       days_after_first: m.dayIndex,
       time_of_day: timeOfDayText(m.hour),
       ...(samePerson ? {} : { person: m.person + 1 }),
+      ...(withProgram ? { program_during_measurement: states[i] } : {}),
       ...measurementData(m, L),
     })),
-    difference_last_minus_first: {
-      overall_score: Math.round(last.composite) - Math.round(first.composite),
-      indicators: indDiff,
-      condition: condDiff,
-      band_share_pct: bandDiff,
-    },
+    difference_last_minus_first: differenceOf(ms[0], ms[ms.length - 1], L),
+    ...(hasPairs
+      ? {
+          before_after: pairs.map(([i, j]) => ({
+            before: labels[i],
+            after: labels[j],
+            minutes_between: minutesBetween(ms[i], ms[j]),
+            difference_after_minus_before: differenceOf(ms[i], ms[j], L),
+          })),
+        }
+      : {}),
   };
 
   const user = `Measurements to compare (json):\n${JSON.stringify(data)}`;
@@ -759,18 +909,26 @@ export function parseContent(raw: unknown, hasTimeline: boolean): AnalysisConten
   };
 }
 
-/** 比較分析の返事 → 保存する形。総評が無ければ null。 */
-export function parseCompareContent(raw: unknown): CompareContent | null {
+/**
+ * 比較分析の返事 → 保存する形。総評が無ければ null。`pairs`＝施術前と施術後の組（測定の
+ * キー）。組があるときだけ beforeAfter を読み、組も一緒に残す。
+ */
+export function parseCompareContent(
+  raw: unknown,
+  pairs: readonly { before: string; after: string }[] = []
+): CompareContent | null {
   const c = parseObject(raw);
   if (!c) return null;
   const summary = clip(c.summary, MAX_SUMMARY);
   if (!summary) return null;
   return {
     summary,
+    beforeAfter: pairs.length ? clipList(c.beforeAfter, MAX_DIFFERENCES) : [],
     differences: clipList(c.differences, MAX_DIFFERENCES),
     strengths: clipList(c.strengths),
     cautions: clipList(c.cautions),
     suggestions: clipList(c.suggestions),
+    pairs: pairs.map((p) => ({ before: p.before, after: p.after })),
   };
 }
 
@@ -796,12 +954,13 @@ function json(status: number, body: unknown): Response {
 const fail = (status: number, error: ErrorCode) => json(status, { error });
 
 /**
- * 比較分析の失敗には `kind: "compare"` を添える。比較分析を知らない古い関数は
- * 比較の本文を（見知らぬ項目 kind があるので）bad_input で断るので、画面は
- * kind の無い bad_input を「この窓口はまだ比較できない＝準備中」と読む
- * （lib/sync/brain-analyses.ts）。
+ * 比較分析の失敗には `kind: "compare"` と受け付ける本文の版 `v` を添える。比較分析を
+ * 知らない古い関数は比較の本文を（見知らぬ項目 kind があるので）kind の無い bad_input で、
+ * 施術前後（版 2）を知らない関数は版 2 の本文を v の無い bad_input で断るので、画面は
+ * どちらも「この窓口はまだ準備中」と読む（lib/sync/brain-analyses.ts）。
  */
-const failCompare = (status: number, error: ErrorCode) => json(status, { error, kind: "compare" });
+const failCompare = (status: number, error: ErrorCode) =>
+  json(status, { error, kind: "compare", v: COMPARE_INPUT_VERSION });
 
 /**
  * 1件の要求に答える。想定外の例外もここで受け止め、CORS 付きの 500 として返す——
@@ -1022,10 +1181,13 @@ async function compareFlow(input: CompareInput, ctx: Ctx): Promise<Response> {
   const claimed = await claimDaily(ctx, failCompare);
   if (claimed) return claimed;
 
-  // ── DeepSeek ──（主な違いが1つ多いぶん、少し長めに書かせる）
-  const asked = await askDeepSeek(ctx, buildCompareMessages(input), 1500);
+  // 施術前と施術後の組（測定のキー）。保存して、画面が「施術前 … → 施術後 …」を添える。
+  const pairs = beforeAfterPairs(input.measurements).map(([i, j]) => ({ before: keys[i], after: keys[j] }));
+
+  // ── DeepSeek ──（主な違いが1つ多いぶん、少し長めに。施術前と施術後の節があればさらに）
+  const asked = await askDeepSeek(ctx, buildCompareMessages(input), pairs.length ? 2000 : 1500);
   if (!asked.ok) return failCompare(502, "upstream");
-  const content = parseCompareContent(asked.content);
+  const content = parseCompareContent(asked.content, pairs);
   if (!content) return failCompare(502, "upstream");
 
   // ── 保存（同じ組の分析し直しは置き換え） ──
@@ -1041,7 +1203,7 @@ async function compareFlow(input: CompareInput, ctx: Ctx): Promise<Response> {
       locale: input.locale,
       model: ctx.model,
       content,
-      input_version: COMPARE_INPUT_VERSION,
+      input_version: input.v,
       created_at: new Date().toISOString(),
     }),
   });

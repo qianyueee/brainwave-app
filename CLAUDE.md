@@ -91,7 +91,8 @@ brainwave-app/
 │   ├── zodiac-audio.ts         # 音乐床垫映射（program id → brainwave-sounds 内のパス → `musicUrl`。星座＝`Astroプログラム/<星座> (<載波>Hz)_<TAG>_<beat>Hz.mp3`〔納品時の名前、空白の有無まで星座ごとに違うので表で持つ〕、デフォルト4＝表、Target/Energy＝`lib/catalog/music.ts`；缺失差频就近取用）。曲の無い id は `musicBedUrl` が null＝`hasMusicBed` が**嘘をつかない**——Mixer の音楽スライダーは出ず、カードに「ビートのみ」が付く
 │   ├── sync-tree.ts            # Sync Tree の成長モデル（**純関数・import なし**＝node で直接確かめられる）。ルール：水やり 1日1回 +1／プログラムを5分聴くごとに +2・1日 +5 まで（2+2+1）＝1日最大 +6／13 で次の段階（16段階、大樹＝195）／大樹から 7（計 202）で完成→植え替えで育てた木 +1。**状態は保存せず出来事（水やり・リスニング・植え替え）を畳む**（foldTreeEvents：時刻順・202 で頭打ち・植え替えは 202 のときだけ数える、完成日＝202 に届いた日。並べ替えは Date.parse——端末の `…Z` と DB の `…+00:00` が混ざる）。日付は treeDayKey（ローカル YYYY-MM-DD。dayKeyOf の0始まり月とは別物）。リスニング積算 trackListening（新しい再生の最初のサンプルは起点・巻き戻りは数えない・数えてよくない間は積まない・持ち主が替われば端数を捨てる）。growthLevel＝いまの区間（次の段階まで／大樹から完成まで）の進み具合を early/middle/near の3つにぼかす——画面は数値の代わりにこれで言葉を選ぶ。**点数は行に持たずここで決める**——定数を変えると過去の木も数え直される。绘画在 components/SyncTreeArt.tsx（SyncTreeFigure＝樹本体／SyncTreeScene＝空に立つ樹の風景、/tree の大きな木が使う／treeCanopy＝しずくを落とす樹冠，手描きの光の樹）；/tree の大きな木の背景为四态 --tree-* 变量（lib/theme.ts 的 TREE_SKY_SUNRISE/NOON/DUSK/NIGHT：day=日の出の淡桃〜珊瑚、afternoon=真昼のミント、evening=宵の淡紫、midnight=星空。明るい3つは**ページの色相をそのまま**借り、中間の b をページ地に近い明るさに置く＝カードが地から生えて見える。朝と昼は明るさの段（0.91→0.5前後）も共通——差は色相だけが語る；宵はページ地そのものが一段暗いので段ごと下げる（0.80→0.42）。深い星空は真夜中だけ——ページも暗い時間帯なので、カードの明暗が替わるのはページと同じ 0時・6時。树本体配色不随主题变）
 │   ├── brain-measurements.ts   # 测定记录纯函数辅助（compositeScore / scoreColor / measurementLabel）
-│   ├── brain-analysis.ts       # AI 分析の送る形と返る形：buildAnalysisInput（記録→**数値だけ**の束。メモ・測定者名・sessionTag は送らない）／BrainAnalysisContent／normalizeAnalysis。比較分析は buildComparisonInput（2〜3件→数値と日時〔月日時分・最初からの日数〕だけ、測定者は名前ではなく出てきた順の番号 person）／comparisonKeys（古い順＝保存の uploaded_a/b/c の並び）／normalizeComparison。形は supabase/functions/analyze-brain の validateInput・validateCompareInput と同じに保つ（変えたら両方と版を上げる）
+│   ├── brain-analysis.ts       # AI 分析の送る形と返る形：buildAnalysisInput（記録→**数値だけ**の束。メモ・測定者名・sessionTag は送らない）／BrainAnalysisContent／normalizeAnalysis。比較分析は buildComparisonInput（2〜3件→数値と日時〔月日時分・最初からの日数〕だけ、測定者は名前ではなく出てきた順の番号 person。**版 2** は測定ごとに測定中のプレーヤーの秒 `program`〔再生・一時停止・何も無し、全節目の合計。プログラムの名前は送らない〕も添える——選んだどれにもプレーヤーの記録が無ければ版 1 の形で送る＝施術前後を知らない関数でもそういう比較は動く）／comparisonBeforeAfter（施術前→施術後の組、下の before-after.ts）／comparisonKeys（古い順＝保存の uploaded_a/b/c の並び）／normalizeComparison。形は supabase/functions/analyze-brain の validateInput・validateCompareInput と同じに保つ（変えたら両方と版を上げる）
+│   ├── before-after.ts         # 施術前・施術後（AI 比較分析）の決まり（**純関数・型以外 import しない**）：プログラムを流さずに測った回＝施術前、流しながら（一時停止中も＝一覧の「♪X」が付く回）測った回＝施術後、途中だけ・分からない回はどちらでもない（programState / beforeAfterRole）。施術後ごとに、同じ人の、それより前でいちばん新しい施術前と組む（beforeAfterPairs）——施術前が後なら組まない（流し終えてプレーヤーが空になってから測った回は「流していない」と記録されるので）。サーバー（analyze-brain の同名の関数）と同じ決まりで、`pnpm check:analysis` が突き合わせる
 │   ├── journal.ts              # その日の振り返り（日誌）の語彙：5段階の調子 MOOD_SCALE（絵文字＋**必ず言葉も**——50〜60代には表情の描き分けが読み取りにくい）/ moodColor（token を返す。生の色名はテーマ4種のどれかで必ず浮く）/ JOURNAL_TEXT_MAX
 │   ├── day-records.ts          # カレンダーの当日明細（buildDayRecords / recordedDayKeys / dayKeyOf）。再生ログ＋取り込んだ脳波測定＋10秒チェックの3出どころを時刻順に1本へ畳む純関数。UI から切り出してあるのは脳波測定がログイン必須ストア（per-user persist）でブラウザから仕込めないため——純関数なら3種すべて実コードで検証できる。描画は components/SimpleCalendar
 │   ├── brain-metrics.ts        # 脳コンディション3指標（Rate/Clarity/Reset，副标题为日文说明，数据不足为 null）。**セッション由来**＝computeBrainConditionMetrics（入定速度×共鳴率）／**非セッション由来**＝computeBaselineConditionMetrics（下の baseline.ts が算出済みの値を変換するだけ）。共鳴率を見る周波数は**その測定の誘導周波数**（`BrainProfile.targetHz`＝測定中にプレーヤーに入っていた〔一時停止中も含む〕セッションの誘導周波数）、無ければ既定の 40Hz＝`DEFAULT_TARGET_HZ`（従来と同じ判定）
@@ -139,7 +140,7 @@ brainwave-app/
 ├── scripts/build-android.mjs   # `pnpm build:android`：basePath 空＋NEXT_PUBLIC_APP_PLATFORM=android＋音源の取り先＋Web 版と同じ Supabase env（CI で無ければ失敗）→ android-web/（剔除 sounds/）＋ WebView 更新案内ページ → 残留・焼き込みを確認 → cap sync
 ├── scripts/check-thinkgear.mjs # `pnpm check:thinkgear`：lib/mind/thinkgear.ts と bridge/thinkgear.py の突き合わせ
 ├── scripts/check-records.mjs   # `pnpm check:records`：lib/sync/record-merge.ts の自己点検（005 のトリガを真似たメモリ内サーバで3台の収束まで）
-├── scripts/check-analysis.mjs  # `pnpm check:analysis`：Edge Function analyze-brain の自己点検（fetch を替え玉にして認証・保存済みか・間隔・回数・DeepSeek・保存まで通す。比較分析も同じく、007 が無いとき・測定が消えたときまで）
+├── scripts/check-analysis.mjs  # `pnpm check:analysis`：Edge Function analyze-brain の自己点検（fetch を替え玉にして認証・保存済みか・間隔・回数・DeepSeek・保存まで通す。比較分析も同じく、007 が無いとき・測定が消えたときまで。施術前・施術後〔版 2 の program・版 1 も通すこと・組の作り方を lib/before-after.ts と突き合わせ・プロンプトの before_after〕も）
 ├── capacitor.config.ts         # Android アプリの設定（appId・origin は配布後に変えない。ピンチズーム有効・最低 WebView 111・SystemBars native）
 ├── android/                    # Capacitor の Android プロジェクト（Java、コミットする）。自前のプラグイン：AppChrome / NowPlaying（＋前面サービス）/ Downloads / BrainLink、WebView の補い：ExportRouteWebViewClient（/brain → brain.html）/ LocalizedChromeClient。配布・署名鍵・確認リストは android/README.md
 ├── supabase/migrations/        # 手で SQL Editor に流す（CLI 設定なし）。001 管理者・グループ／002 ユーザー同期（旧 user_brain_profile＝1ユーザー1 JSONB）／**003 account_sync＝1記録1行の user_brain_measurements・user_baseline_checks＋旧表から移行＋旧表を読み取り・削除専用に**／**004 sync_tree＝Sync Tree の出来事 user_tree_events（1件1行・追記のみ。キーの形で1日の上限を守る）**／**005 user_records＝端末をまたぐ小さな記録（振り返り・再生の記録・感コンディション・測定者・マイ星座）の汎用表（新しい方が勝つトリガ・墓標・本人の行だけ）**／**006 brain_analyses＝AI 分析 user_brain_analyses（1測定1行・測定を外部キーで参照して一緒に消える・書くのは関数だけ）＋1日の回数 user_ai_usage／claim_ai_analysis()（service_role だけ）**／**007 brain_comparisons＝AI 比較分析 user_brain_comparisons（比べた組ごとに1行。主キーは combo＝キーを古い順に半角空白でつないだ列〔2件の組は uploaded_c が NULL で主キーに入れられないため〕・2〜3件をそれぞれ外部キーで参照してどれか1件消せば一緒に消える・書くのは関数だけ。1日の回数は 006 と分け合う）**
@@ -430,7 +431,8 @@ Sync Tree の出来事 ───────────────────
 Sync Report の大脳特性の真下「AIによる分析」（components/BrainAiAnalysis）。表示中の測定を DeepSeek が読み解き、
 総評・良いところ・気をつけたい点・測定中の変化・おすすめ を返す。結果はアカウントに1測定1件（三端で同じものが出る）。
 
-「測定の比較」で2〜3件を選ぶと、選択の下に「AIによる比較分析」（components/BrainAiCompare）が出る。総評・主な違い・
+「測定の比較」で2〜3件を選ぶと、選択の下に「AIによる比較分析」（components/BrainAiCompare）が出る。総評・
+**施術前と施術後**（プログラムを流さずに測った回と流しながら測った回が両方あるときだけ）・主な違い・
 良くなった点（測定者が全員同じ人なら古い→新しいの変化、違う人どうしなら「それぞれの良いところ」）・気をつけたい点・
 おすすめ を返し、結果はアカウントに組ごとに1件。カードの形（読み込み中・分析中・失敗・言語の食い違い・作成日時・
 「医療的な診断ではありません」）は2つとも components/AiAnalysisCard。
@@ -462,9 +464,20 @@ BrainAiCompare ─buildComparisonInput（kind:"compare"、数値と日時だけ�
   名前の代わりに出てきた順の番号（person、0 始まり）。ラベル（「10月3日 21:00」）・最初→最後の差・同じ人かどうかは
   関数が数値から組む。組のキーは古い順（toISOString の文字列順＝時刻順）で、同じ測定の組は選んだ順番が違っても
   1行（007 の CHECK も古い順を縛る）。
+- **施術前・施術後**（比較の版 2、2026-11）：測定ごとに「測定中にプレーヤーにプログラムが入っていた秒」（記録の
+  `playback`）を送り、関数が lib/before-after.ts と同じ決まりで「施術前（流していない）→ 施術後（流しながら・一時停止中も）」
+  の組を作る（同じ人・施術前が先）。組があれば data に `program_during_measurement`・`before_after`（ラベル・間の分・
+  施術後 − 施術前の差）を足し、AI に `beforeAfter`（1〜4）を書かせ、ほかの節と重ねないよう頼む（2件だけなら主な違いは
+  空でよい）。プロンプトでは「施術＝音のプログラムを聴くこと、医療ではない」と断り、施術後の誘導周波数（target_hz_set
+  のとき）がねらう方向（4Hz 未満＝深い休息…30Hz 以上＝鋭い集中）に沿って「〜のようです」で語らせる。組は測定のキーで
+  content.pairs に残し、画面は「施術前と施術後」の見出しの下に「施術前 日時 → 施術後 日時・♪プログラム」を添える。
+  選んだ測定に組があるのに分析に節が無い（以前に作った分析）ときは「もう一度分析すると〜」と添える。関数は版 1 も
+  受け付ける（作り直す前の APK・exe）——その比較は以前と同じプロンプト。
 - **古い関数への備え**：比較の本文を比較を知らない関数が受けると、見知らぬ項目 `kind` で bad_input を返す。そこで
   比較分析の失敗には必ず `kind: "compare"` を添え、画面は kind の無い bad_input を「準備中」と読む——Web が関数の
-  更新より先に出ても「アプリが古い」とは言わない。007 が無いとき（関数は新しいが表が無い）も「準備中」。
+  更新より先に出ても「アプリが古い」とは言わない。007 が無いとき（関数は新しいが表が無い）も「準備中」。同じく
+  施術前後を知らない関数は版 2 の本文を（見知らぬ項目 `program` で）断るので、新しい関数は比較の失敗に受け付ける版
+  `v` も添え、画面は版 2 を送って v の無い bad_input を「準備中」と読む。
 - **測定中の変化**は `BrainProfile.timeline`（lib/brain-profile.ts の computeTimeline：1秒ごとの行を最大10区間・
   1区間30秒以上に分け、読めた割合・注意/リラックスの平均・8種の割合）から。測り終えた時点（useMindStore の stop・
   EegUploader）で作り、記録の JSONB にそのまま載る（移行不要）。これより前の記録・60秒未満の測定には無く、
@@ -473,6 +486,8 @@ BrainAiCompare ─buildComparisonInput（kind:"compare"、数値と日時だけ�
   Secrets に DEEPSEEK_API_KEY（任意で DEEPSEEK_MODEL、既定 deepseek-chat）→ ③Web をデプロイ → ④APK・exe を作り直す。
   先に Web が出てもボタンが「準備中」と言うだけ。比較分析は ①SQL Editor で 007 を実行 → ②`index.ts` を**全文**貼り直して
   Deploy（Secrets は増えない）→ Web・APK・exe は上と同じ。どちらが先でも比較のボタンが「準備中」と言うだけ。
+  施術前・施術後は `index.ts` の貼り直しだけ（SQL・Secrets は増えない）。**関数を先に**——新しい関数は版 1 も受け付ける
+  ので、古い Web・APK・exe もそのまま動く。Web が先に出ると、プレーヤーの記録がある測定を含む比較だけが「準備中」になる。
 
 ### Android アプリ（Capacitor）
 

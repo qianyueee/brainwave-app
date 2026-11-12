@@ -3,6 +3,8 @@ import { compositeScore } from "./brain-measurements";
 import { computeBrainConditionMetrics } from "./brain-metrics";
 import { DEFAULT_TARGET_HZ, resonanceRatioAt } from "./mind/resonance";
 import { displayedSpectrum, type BandPowers } from "./mind/types";
+import { readPlayback } from "./mind/measurement-playback";
+import { beforeAfterPairs, type ProgramSeconds } from "./before-after";
 import type { Locale } from "./i18n";
 
 /**
@@ -20,6 +22,8 @@ import type { Locale } from "./i18n";
  * になるから。メモ・測定者名・sessionTag は**送らない**（本人の言葉と名前を
  * 第三者に渡さない、そして自由文がプロンプトに混ざらない）。比較分析で測定を
  * 名指すラベル（「10月1日 07:15の測定」）も、送った日時の数字からサーバーが組む。
+ * 比較分析の「施術前と施術後」も同じで、送るのは測定中にプレーヤーにプログラムが
+ * 入っていた秒だけ（プログラムの名前は送らない。lib/before-after.ts）。
  *
  * ■ 形は2か所で同じに保つ
  * サーバー側の検査（supabase/functions/analyze-brain/index.ts の validateInput /
@@ -177,8 +181,13 @@ export function buildAnalysisInput(m: BrainProfile, locale: Locale): BrainAnalys
 
 // ─── 比較分析（Sync Report「測定の比較」） ───────────────────────────────────
 
-/** 比較分析の送る形の版（1件の分析とは別に数える）。 */
-export const COMPARISON_INPUT_VERSION = 1;
+/**
+ * 比較分析の送る形の版（1件の分析とは別に数える）。2＝測定ごとに測定中のプレーヤー
+ * （program）を添える。選んだ測定のどれにもプレーヤーの記録が無ければ（PR #30 より前の
+ * 記録・アップロード）、以前の版 1 の形で送る——施術前後を知らない関数でも、そういう
+ * 比較はそのまま分析できる。
+ */
+export const COMPARISON_INPUT_VERSION = 2;
 /** 比べられる測定の数（画面の「測定の比較」と同じ 2〜3件）。 */
 export const COMPARISON_MIN = 2;
 export const COMPARISON_MAX = 3;
@@ -202,10 +211,16 @@ export interface BrainComparisonMeasurement extends MeasurementNumbers {
    * 別の人どうしを比べられるので、AI が人の違いを「変化」と読まないために。
    */
   person: number;
+  /**
+   * 版 2 だけ：測定中のプレーヤー（秒、全節目の合計）。サーバーはこれで施術前
+   * （流していない）と施術後（流しながら・一時停止中も）を分ける。null＝分からない。
+   */
+  program?: ProgramSeconds | null;
 }
 
 export interface BrainComparisonInput {
-  v: typeof COMPARISON_INPUT_VERSION;
+  /** 2（COMPARISON_INPUT_VERSION）。プレーヤーの記録がどれにも無ければ 1（program を持たない）。 */
+  v: 1 | typeof COMPARISON_INPUT_VERSION;
   kind: "compare";
   locale: Locale;
   /** 古い順（キーの並び順）。 */
@@ -229,20 +244,44 @@ function localDayNumber(d: Date): number {
   return Math.round(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86_400_000);
 }
 
+/** 秒の項目（サーバーの範囲は整数 0〜86400）。 */
+const seconds = (v: number) => Math.min(86_400, Math.max(0, Math.round(v)));
+
+/** 測定中のプレーヤー（記録の playback）→ 送る秒。記録が無い・壊れていれば null。 */
+function programSeconds(m: BrainProfile): ProgramSeconds | null {
+  const p = readPlayback(m.playback);
+  if (!p) return null;
+  return {
+    playingSec: seconds(p.programs.reduce((sum, x) => sum + x.playingSec, 0)),
+    pausedSec: seconds(p.programs.reduce((sum, x) => sum + x.pausedSec, 0)),
+    noneSec: seconds(p.noneSec),
+  };
+}
+
+/**
+ * 古い順に並べ、測定者の番号を振る（送る形の person と同じ数え方）。アップロードの
+ * 記録・測定者より前の記録（subject 無し）は「名前の無い人」1人として数える。
+ */
+function comparisonOrder(ms: readonly BrainProfile[]) {
+  const people: string[] = [];
+  return [...ms].sort(byKey).map((m) => {
+    const who = m.subject ?? "";
+    if (!people.includes(who)) people.push(who);
+    return { m, person: people.indexOf(who), program: programSeconds(m) };
+  });
+}
+
 /** 選んだ測定（2〜3件、順不同）→ 送る数値の束。 */
 export function buildComparisonInput(ms: readonly BrainProfile[], locale: Locale): BrainComparisonInput {
-  const sorted = [...ms].sort(byKey);
-  const firstDay = localDayNumber(new Date(sorted[0].uploadedAt));
-  const people: string[] = [];
+  const sorted = comparisonOrder(ms);
+  const firstDay = localDayNumber(new Date(sorted[0].m.uploadedAt));
+  const withProgram = sorted.some((x) => x.program !== null);
   return {
-    v: COMPARISON_INPUT_VERSION,
+    v: withProgram ? COMPARISON_INPUT_VERSION : 1,
     kind: "compare",
     locale,
-    measurements: sorted.map((m) => {
+    measurements: sorted.map(({ m, person, program }) => {
       const at = new Date(m.uploadedAt);
-      // アップロードの記録・測定者より前の記録（subject 無し）は「名前の無い人」1人として数える。
-      const who = m.subject ?? "";
-      if (!people.includes(who)) people.push(who);
       return {
         uploadedAt: m.uploadedAt,
         month: at.getMonth() + 1,
@@ -250,11 +289,30 @@ export function buildComparisonInput(ms: readonly BrainProfile[], locale: Locale
         hour: at.getHours(),
         minute: at.getMinutes(),
         dayIndex: localDayNumber(at) - firstDay,
-        person: people.indexOf(who),
+        person,
         ...measurementNumbers(m),
+        ...(withProgram ? { program } : {}),
       };
     }),
   };
+}
+
+/** 施術前と施術後の組（測定のキー）。保存された比較分析の pairs と同じ形。 */
+export interface BeforeAfterPair {
+  before: string;
+  after: string;
+}
+
+/**
+ * 選んだ測定のうち、施術前と施術後として比べる組（lib/before-after.ts の決まり＝
+ * サーバーと同じ）。画面が分析の前に「施術前と施術後もまとめます」と伝えるのに使う。
+ */
+export function comparisonBeforeAfter(ms: readonly BrainProfile[]): BeforeAfterPair[] {
+  const sorted = comparisonOrder(ms);
+  return beforeAfterPairs(sorted).map(([i, j]) => ({
+    before: sorted[i].m.uploadedAt,
+    after: sorted[j].m.uploadedAt,
+  }));
 }
 
 // ─── 返ってくるもの ─────────────────────────────────────────────────────────
@@ -288,6 +346,13 @@ export interface BrainAnalysis {
 export interface BrainComparisonContent {
   /** 総評（2〜3文）。 */
   summary: string;
+  /**
+   * 施術前と施術後（0〜4）。施術前（プログラムを流さずに測った回）と施術後（流しながら
+   * 測った回）の組があるときだけ。この項目より前の分析には無い（空）。
+   */
+  beforeAfter: string[];
+  /** beforeAfter が比べた組（測定のキー、比べた測定のどれか）。 */
+  pairs: BeforeAfterPair[];
   /** 主な違い（0〜4）。 */
   differences: string[];
   /** 良くなった点（別の人どうしなら、それぞれの良いところ）（0〜3）。 */
@@ -344,6 +409,21 @@ export function toAnalysisErrorCode(v: unknown): AnalysisErrorCode {
 const strings = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : [];
 
+/** 保存された組のうち、比べた測定のキーどうしのものだけ。 */
+function pairsOf(v: unknown, keys: readonly string[]): BeforeAfterPair[] {
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((x) => {
+    if (typeof x !== "object" || x === null) return [];
+    const { before, after } = x as Record<string, unknown>;
+    return typeof before === "string" &&
+      typeof after === "string" &&
+      keys.includes(before) &&
+      keys.includes(after)
+      ? [{ before, after }]
+      : [];
+  });
+}
+
 /**
  * DB の行（snake_case）→ BrainAnalysis。形の崩れた行は null（画面は「まだ分析して
  * いない」と同じに扱う——壊れた文章を出すより、もう一度分析してもらうほうがよい）。
@@ -377,13 +457,16 @@ export function normalizeComparison(row: unknown): BrainComparison | null {
   if (typeof r.uploaded_a !== "string" || typeof r.uploaded_b !== "string") return null;
   if (typeof c !== "object" || c === null) return null;
   if (typeof c.summary !== "string" || c.summary.trim() === "") return null;
+  const keys = [r.uploaded_a, r.uploaded_b, ...(typeof r.uploaded_c === "string" ? [r.uploaded_c] : [])];
   return {
-    keys: [r.uploaded_a, r.uploaded_b, ...(typeof r.uploaded_c === "string" ? [r.uploaded_c] : [])],
+    keys,
     locale: r.locale === "en" ? "en" : "ja",
     model: typeof r.model === "string" ? r.model : "",
     createdAt: typeof r.created_at === "string" ? r.created_at : "",
     content: {
       summary: c.summary,
+      beforeAfter: strings(c.beforeAfter),
+      pairs: pairsOf(c.pairs, keys),
       differences: strings(c.differences),
       strengths: strings(c.strengths),
       cautions: strings(c.cautions),
