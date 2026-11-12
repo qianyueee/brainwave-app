@@ -12,6 +12,7 @@
     "check:records": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-records.mjs",
     "check:analysis": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-analysis.mjs",
     "check:programs": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-program-lists.mjs",
+    "check:listening": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-listening.mjs",
     "start": "next start",
     "lint": "eslint"
   },
