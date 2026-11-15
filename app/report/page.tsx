@@ -8,6 +8,7 @@ import { displayedSpectrum, type BandKey } from "@/lib/mind/types";
 import { sessionTagLabel } from "@/lib/brain-measurements";
 import { formatTargetHz } from "@/lib/mind/resonance";
 import { describePlayback } from "@/lib/mind/playback-label";
+import { treatmentPhaseCaption, treatmentPhaseTag } from "@/lib/treatment-phase-label";
 import { subjectDisplayName } from "@/lib/subject-groups";
 import { intlLocale, useLocale, useT, type LocalizedText } from "@/lib/i18n";
 import BrainConditionMetrics from "@/components/BrainConditionMetrics";
@@ -105,6 +106,8 @@ export default function ReportPage() {
   // 測定中に流していたプログラム（再生中／一時停止中／なし）。この項目より前の記録・
   // ファイルのアップロードは分からないので null（欄ごと出さない）。
   const playbackText = displayed ? describePlayback(displayed.playback, locale) : null;
+  // 施術のタイミング（選んだ回だけ。選び直しはヒストリーの記録カード）。
+  const phaseText = displayed ? treatmentPhaseTag(displayed.treatmentPhase, locale) : null;
   const isViewingPast = Boolean(viewed && profile && viewed.uploadedAt !== profile.uploadedAt);
 
   return (
@@ -265,6 +268,11 @@ export default function ReportPage() {
                 {playbackText && (
                   <p className="text-xs text-text-muted text-center">
                     {t("プログラム", "Program")}: {playbackText}
+                  </p>
+                )}
+                {phaseText && (
+                  <p className="text-xs text-text-muted text-center">
+                    {treatmentPhaseCaption(locale)}: {phaseText}
                   </p>
                 )}
                 {displayed.qualityPct !== undefined && (

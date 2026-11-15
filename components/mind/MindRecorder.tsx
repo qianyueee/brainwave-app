@@ -5,7 +5,7 @@ import { Play, Square, X } from "lucide-react";
 import { useMindStore, canReceiveData, type MindSessionSummary } from "@/store/useMindStore";
 import { useImportSession } from "./useImportSession";
 import { sessionLabel } from "@/lib/mind/session-record";
-import { syncNoteFromSession } from "@/lib/mind/note-sync";
+import { syncNoteFromSession, syncPhaseFromSession } from "@/lib/mind/note-sync";
 import { formatTime } from "@/lib/utils";
 import { isLowQuality, signalQualityPct } from "@/lib/brain-profile";
 import { useSubjectStore, activeSubject } from "@/store/useSubjectStore";
@@ -13,8 +13,10 @@ import { useCloudSyncStore } from "@/store/useCloudSyncStore";
 import { subjectDisplayName } from "@/lib/subject-groups";
 import { DEFAULT_TARGET_HZ, formatTargetHz } from "@/lib/mind/resonance";
 import { describePlayback } from "@/lib/mind/playback-label";
+import type { TreatmentPhase } from "@/lib/before-after";
 import { useLocale, useT } from "@/lib/i18n";
 import CloudSaveStatus from "./CloudSaveStatus";
+import TreatmentPhasePicker from "@/components/TreatmentPhasePicker";
 
 /**
  * Record start/stop button for the mind-map top bar. When a measurement
@@ -27,7 +29,8 @@ import CloudSaveStatus from "./CloudSaveStatus";
  *   未ログインなら「ログインして保存」。/report は単体アプリに無いので遷移しない。
  *
  * メモは dismiss 経由なのでどちらでも保存される（autoSave では版が進み、書いた
- * メモ付きでもう一度送られる）。
+ * メモ付きでもう一度送られる）。施術のタイミング（施術前・施術中・施術後、任意）も
+ * メモと同じ扱いで、ここで選ぶ（AI 比較分析が使う。lib/before-after.ts）。
  */
 export default function MindRecorder({ mode = "import" }: { mode?: "import" | "autoSave" }) {
   const t = useT();
@@ -44,6 +47,8 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
   const [finished, setFinished] = useState<MindSessionSummary | null>(null);
   /** 任意メモ。空欄なら既定（日時ラベル）のまま。 */
   const [note, setNote] = useState("");
+  /** 施術のタイミング（任意）。選ばなければ記録に残さない。 */
+  const [phase, setPhase] = useState<TreatmentPhase | undefined>(undefined);
   const { importSession, statusFor } = useImportSession();
 
   /**
@@ -58,9 +63,22 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
     return trimmed;
   };
 
+  /**
+   * 施術のタイミングもメモと同じく測定そのものに属するので、どの出口からでも残す。
+   * 取り込んだ後（ログインを待って取り込む場合も）記録に写るように、先に測定へ書く。
+   */
+  const commitPhase = (s: MindSessionSummary) => {
+    if (phase !== s.treatmentPhase) {
+      syncPhaseFromSession({ id: s.id, startedAt: s.startedAt }, phase);
+    }
+  };
+
   /** ダイアログを閉じる全経路の共通出口（× / 背景タップ / Esc / あとで）。 */
   const dismiss = () => {
-    if (finished) commitNote(finished);
+    if (finished) {
+      commitNote(finished);
+      commitPhase(finished);
+    }
     setFinished(null);
   };
 
@@ -86,6 +104,7 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
     // all-zero import.
     if (summary) {
       setNote(summary.note ?? "");
+      setPhase(summary.treatmentPhase);
       setFinished(summary);
     }
   };
@@ -98,6 +117,8 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
         const trimmed = note.trim();
         if (trimmed)
           syncNoteFromSession({ id: finished.id, startedAt: finished.startedAt }, trimmed);
+        if (phase !== finished.treatmentPhase)
+          syncPhaseFromSession({ id: finished.id, startedAt: finished.startedAt }, phase);
         setFinished(null);
       }
     };
@@ -108,7 +129,7 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [finished, note]);
+  }, [finished, note, phase]);
 
   const importStatus = finished ? statusFor(finished.id) : "idle";
   // Older sessions predate usableSec; treat them as usable so nothing regresses.
@@ -250,6 +271,18 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
                   </p>
                 )}
 
+                {/* 施術のタイミング（任意）。施術の前・最中・後のどれに測ったかは、測った
+                    本人にしか分からない（プレーヤーの状態だけでは、流し終えてから測った回と
+                    流す前の回を見分けられない）。AI 比較分析が施術による変化をまとめるときに使う。 */}
+                <TreatmentPhasePicker
+                  value={phase}
+                  onChange={setPhase}
+                  hint={t(
+                    "選んでおくと、AIによる比較分析で施術による変化として読み取ります",
+                    "If you choose one, the AI comparison reads it as a change across the session"
+                  )}
+                />
+
                 {/* 任意メモ。測定直後にしか思い出せないこと（何をした後か、
                     体調、場所）を、記録と同じ画面で残せるようにする。入れて
                     おくと「過去の測定」の一覧がこの一文で並ぶので、日時だけの
@@ -343,7 +376,12 @@ export default function MindRecorder({ mode = "import" }: { mode?: "import" | "a
                     // note をコピーして持つので、順序が逆だとメモ無しの
                     // レコードが出来上がる。
                     const trimmed = commitNote(finished);
-                    importSession({ ...finished, note: trimmed || finished.note });
+                    commitPhase(finished);
+                    importSession({
+                      ...finished,
+                      note: trimmed || finished.note,
+                      treatmentPhase: phase,
+                    });
                   }}
                   disabled={importStatus === "busy" || importStatus === "waitingCloud"}
                   className="flex-1 min-h-[52px] rounded-2xl bg-primary text-on-primary text-base font-bold neu-raised-sm neu-press transition-transform disabled:opacity-60"

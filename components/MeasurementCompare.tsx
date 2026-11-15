@@ -15,6 +15,7 @@ import {
 } from "@/lib/brain-measurements";
 import { COMPARISON_MAX } from "@/lib/brain-analysis";
 import { mainProgramLabel } from "@/lib/mind/playback-label";
+import { treatmentPhaseTag } from "@/lib/treatment-phase-label";
 import {
   ALL_SUBJECTS,
   NO_SUBJECT_NAME,
@@ -115,8 +116,9 @@ export default function MeasurementCompare() {
 
   // 1行目：メモがあればメモ、無ければ日時。2行目：見出しに出ていないことだけ——
   // 「全員」のときの測定者、見出しがメモのときの日時、アップロードしたファイルの
-  // Tag 列・ファイル名、測定中に主に流していたプログラム（♪付き）。取り込んだ測定の
-  // sessionTag は日時そのものなので、メモの無い回に2行目へ同じ日時を繰り返さない。
+  // Tag 列・ファイル名、施術のタイミング（選んだ回だけ）、測定中に主に流していた
+  // プログラム（♪付き）。取り込んだ測定の sessionTag は日時そのものなので、メモの
+  // 無い回に2行目へ同じ日時を繰り返さない。
   const recordOption = (m: BrainProfile): SelectOption => {
     const total = compositeScore(m.indicators);
     const note = m.note?.trim();
@@ -124,6 +126,7 @@ export default function MeasurementCompare() {
       showAll ? subjectDisplayName(m.subject ?? NO_SUBJECT_NAME, locale) : null,
       note ? measurementLabel(m, locale) : null,
       m.sessionTag && !isGeneratedSessionTag(m) ? sessionTagLabel(m, locale) : null,
+      treatmentPhaseTag(m.treatmentPhase, locale),
       mainProgramLabel(m.playback, locale),
     ]
       .filter(Boolean)

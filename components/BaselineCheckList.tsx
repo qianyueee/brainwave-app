@@ -12,6 +12,7 @@ import { BASELINE_MEASURE_SEC, rateMethodLabel } from "@/lib/mind/baseline";
 import { scoreColor } from "@/lib/brain-measurements";
 import { subjectDisplayName } from "@/lib/subject-groups";
 import { describePlayback } from "@/lib/mind/playback-label";
+import { treatmentPhaseTag } from "@/lib/treatment-phase-label";
 import { intlLocale, useLocale, useT, type Locale } from "@/lib/i18n";
 
 /** 最初に見せる件数。これ以上は「全 N 件を表示」で開く。 */
@@ -58,6 +59,8 @@ function CheckRow({ c, onDelete }: { c: BaselineCheck; onDelete: (id: string) =>
           <p className="text-xs text-text-muted">
             {[
               c.subjectName && subjectDisplayName(c.subjectName, locale),
+              // 施術のタイミング（選んだ回だけ）。
+              treatmentPhaseTag(c.treatmentPhase, locale),
               // デモで取った回は必ずそう見せる（実測と並ぶ場所なので）。
               c.source === "demo" ? t("デモデータ", "Demo data") : null,
             ]

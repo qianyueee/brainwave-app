@@ -6,13 +6,16 @@ import type { BrainProfile } from "@/lib/brain-profile";
 import {
   COMPARISON_MIN,
   buildComparisonInput,
-  comparisonBeforeAfter,
   comparisonKeys,
-  type BeforeAfterPair,
+  comparisonTreatmentPairs,
+  samePairs,
   type BrainComparisonContent,
+  type CurrentTreatmentPair,
+  type TreatmentPair,
 } from "@/lib/brain-analysis";
 import { measurementLabel } from "@/lib/brain-measurements";
 import { mainProgramLabel } from "@/lib/mind/playback-label";
+import { treatmentPhaseLabel, treatmentPhasesTitle } from "@/lib/treatment-phase-label";
 import { useLocale, useT } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 import {
@@ -22,26 +25,24 @@ import {
 } from "@/store/useBrainAnalysisStore";
 import AiAnalysisCard, { AiList, AiSection } from "@/components/AiAnalysisCard";
 
+/** 英語の見出し（"Before and after the session"）を文の途中に入れる。 */
+const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+
 /**
- * 「施術前 11月12日 10:00 → 施術後 11月12日 10:30・♪リセット＆ディープ」——AI が施術前と
- * 施術後として比べた組（保存された pairs）。どの測定がどちらかを本文の前に示す。
+ * 「施術前 11月12日 10:00 → 施術中 11月12日 10:20・♪リセット＆ディープ」——AI が施術の
+ * 時点どうしとして比べた組（保存された pairs）。どの測定がどの時点かを本文の前に示す。
  */
-function PairCaption({ pairs, measurements }: { pairs: BeforeAfterPair[]; measurements: BrainProfile[] }) {
+function PairCaption({ pairs, measurements }: { pairs: TreatmentPair[]; measurements: BrainProfile[] }) {
   const t = useT();
   const locale = useLocale();
   const lines = pairs.flatMap((p) => {
-    const before = measurements.find((m) => m.uploadedAt === p.before);
-    const after = measurements.find((m) => m.uploadedAt === p.after);
-    if (!before || !after) return [];
-    const program = mainProgramLabel(after.playback, locale);
-    const b = measurementLabel(before, locale);
-    const a = measurementLabel(after, locale);
-    return [
-      t(
-        `施術前 ${b} → 施術後 ${a}${program ? `・${program}` : ""}`,
-        `Before: ${b} → After: ${a}${program ? ` · ${program}` : ""}`
-      ),
-    ];
+    const from = measurements.find((m) => m.uploadedAt === p.from);
+    const to = measurements.find((m) => m.uploadedAt === p.to);
+    if (!from || !to) return [];
+    const program = mainProgramLabel(to.playback, locale);
+    const a = `${treatmentPhaseLabel(p.fromPhase, locale, { short: true })} ${measurementLabel(from, locale)}`;
+    const b = `${treatmentPhaseLabel(p.toPhase, locale, { short: true })} ${measurementLabel(to, locale)}`;
+    return [t(`${a} → ${b}${program ? `・${program}` : ""}`, `${a} → ${b}${program ? ` · ${program}` : ""}`)];
   });
   if (lines.length === 0) return null;
   return (
@@ -59,33 +60,51 @@ function ComparisonBody({
   content,
   samePerson,
   measurements,
-  expectBeforeAfter,
+  currentPairs,
 }: {
   content: BrainComparisonContent;
   samePerson: boolean;
   measurements: BrainProfile[];
-  /** 選んだ測定に施術前と施術後の組がある（いまのアプリの決まりで）。 */
-  expectBeforeAfter: boolean;
+  /** いまの記録で組んだ施術の時点どうしの組（lib/before-after.ts の決まり）。 */
+  currentPairs: CurrentTreatmentPair[];
 }) {
   const t = useT();
+  const locale = useLocale();
+  const hasSection = content.beforeAfter.length > 0;
+  // 見出しは比べた時点で：「施術前と施術後」「施術前と施術中」「施術前・施術中・施術後」。
+  // 組が読めない（保存の形が崩れた）ときは施術前後と呼ぶ（以前の分析と同じ）。
+  const savedPhases = content.pairs.flatMap((p) => [p.fromPhase, p.toPhase]);
+  const sectionTitle = treatmentPhasesTitle(
+    savedPhases.length ? savedPhases : ["before", "after"],
+    locale
+  );
   return (
     <div className="flex flex-col gap-4">
-      {/* 施術前後の節より前に作った分析（または関数が施術前後を知らないとき）。 */}
-      {expectBeforeAfter && content.beforeAfter.length === 0 && (
+      {/* 施術の節より前に作った分析（または関数が施術の時点を知らないとき）。 */}
+      {currentPairs.length > 0 && !hasSection && (
         <p className="text-sm text-text-secondary bg-navy rounded-xl px-3 py-2">
           {t(
-            "もう一度分析すると、施術前と施術後の比較も入ります。",
-            "Analyze again to add the before-and-after comparison."
+            "もう一度分析すると、施術による変化の比較も入ります。",
+            "Analyze again to add how things changed across the session."
+          )}
+        </p>
+      )}
+      {/* 分析した後に施術のタイミングを選び直した（または組み方が変わった）。 */}
+      {hasSection && !samePairs(content.pairs, currentPairs) && (
+        <p className="text-sm text-text-secondary bg-navy rounded-xl px-3 py-2">
+          {t(
+            "施術のタイミングの組み合わせが、分析した時と変わっています。もう一度分析すると、いまの組み合わせで比べ直します。",
+            "The session timings have changed since this analysis. Analyze again to compare them as they are now."
           )}
         </p>
       )}
       <AiSection title={t("総評", "Overview")}>
         <p className="text-base text-text-primary">{content.summary}</p>
       </AiSection>
-      {content.beforeAfter.length > 0 && (
-        // プログラムを流さずに測った回（施術前）→ 流しながら測った回（施術後）。
-        // 組は関数が決めて保存したもの（lib/before-after.ts と同じ決まり）。
-        <AiSection title={t("施術前と施術後", "Before and after the session")}>
+      {hasSection && (
+        // 施術前→施術中・施術後、施術中→施術後。組は関数が決めて保存したもの
+        // （lib/before-after.ts と同じ決まり）。
+        <AiSection title={sectionTitle}>
           <PairCaption pairs={content.pairs} measurements={measurements} />
           <AiList items={content.beforeAfter} />
         </AiSection>
@@ -129,9 +148,9 @@ function ComparisonBody({
  * どれか1件の測定を消すと、その組の分析も一緒に消える（migration 007）。
  *
  * 送るのは数値と日時だけ（lib/brain-analysis.ts の buildComparisonInput）。メモと
- * 名前は送らない。測定中にプレーヤーにプログラムが入っていた秒も送り、プログラムを
- * 流さずに測った回（施術前）と流しながら測った回（施術後）があれば、AI がその変化を
- * 「施術前と施術後」にまとめる（lib/before-after.ts）。
+ * 名前は送らない。測った人が選んだ施術のタイミングと、測定中にプレーヤーにプログラムが
+ * 入っていた秒も送り、施術前・施術中・施術後の測定があれば、AI がその変化を
+ * 「施術前と施術後」などの節にまとめる（lib/before-after.ts）。
  */
 export default function BrainAiCompare({ measurements }: { measurements: BrainProfile[] }) {
   const t = useT();
@@ -157,8 +176,11 @@ export default function BrainAiCompare({ measurements }: { measurements: BrainPr
   // 測定者の無い記録（アップロード・測定者より前の記録）は「名前の無い人」1人として
   // 数える——送る形の person と同じ数え方。
   const samePerson = new Set(measurements.map((m) => m.subject ?? "")).size === 1;
-  // プログラムを流さずに測った回と、流しながら測った回が両方あるか（同じ人で、施術前が先）。
-  const expectBeforeAfter = comparisonBeforeAfter(measurements).length > 0;
+  // 施術の時点どうしの組（同じ人で、早い時点が先）。選んだタイミングが無い回は
+  // プレーヤーの状態から推し量る——そのときは分析の前に読み方を書いておく。
+  const currentPairs = comparisonTreatmentPairs(measurements);
+  const pairedPhases = currentPairs.flatMap((p) => [p.fromPhase, p.toPhase]);
+  const guessed = currentPairs.some((p) => p.guessed);
 
   return (
     <AiAnalysisCard
@@ -169,11 +191,17 @@ export default function BrainAiCompare({ measurements }: { measurements: BrainPr
           "選んだ測定の数値をAI（DeepSeek）が見比べて、違いを分かりやすい言葉でまとめます。メモや名前は送りません。",
           "The AI (DeepSeek) compares the numbers of the chosen measurements and sums up the differences in plain words. Your notes and names are not sent."
         ) +
-        (expectBeforeAfter
+        (currentPairs.length > 0
           ? t(
-              "プログラムを流さずに測った回を「施術前」、流しながら（一時停止中も含む）測った回を「施術後」として、その変化もまとめます。",
-              " A measurement taken without a program counts as \"before the session\" and one taken with a program playing (or paused) as \"after\", and that change is summed up too."
-            )
+              `${treatmentPhasesTitle(pairedPhases, locale)}の変化もまとめます。`,
+              ` It also sums up the change ${lowerFirst(treatmentPhasesTitle(pairedPhases, locale))}.`
+            ) +
+            (guessed
+              ? t(
+                  "施術のタイミングを選んでいない回は、プログラムを流さずに測った回を施術前、流しながら測った回を施術中、一時停止したまま測った回を施術後とみなします。",
+                  " For a measurement without a chosen timing, one taken without a program counts as before the session, one with a program playing as during, and one with a program paused as after."
+                )
+              : "")
           : "")
       }
       runLabel={t("AIで比較分析する", "Compare with AI")}
@@ -183,7 +211,7 @@ export default function BrainAiCompare({ measurements }: { measurements: BrainPr
           content={comparison.content}
           samePerson={samePerson}
           measurements={measurements}
-          expectBeforeAfter={expectBeforeAfter}
+          currentPairs={currentPairs}
         />
       )}
       errorText={{

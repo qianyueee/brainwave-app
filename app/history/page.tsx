@@ -29,7 +29,9 @@ import Fullscreenable from "@/components/Fullscreenable";
 import EegUploader from "@/components/EegUploader";
 import SignalQualityBadge from "@/components/SignalQualityBadge";
 import BaselineCheckList from "@/components/BaselineCheckList";
-import { syncNoteFromMeasurement } from "@/lib/mind/note-sync";
+import { syncNoteFromMeasurement, syncPhaseFromMeasurement } from "@/lib/mind/note-sync";
+import { readTreatmentPhase } from "@/lib/before-after";
+import TreatmentPhasePicker from "@/components/TreatmentPhasePicker";
 import { formatTreeDate } from "@/lib/sync-tree";
 import { useSyncTreeView } from "@/store/useSyncTreeStore";
 import { Trash2, BrainCircuit, Lock, BarChart3, Pencil, StickyNote, TreeDeciduous, ChevronRight } from "lucide-react";
@@ -124,6 +126,13 @@ function MeasurementDetail({
       <Fullscreenable title={measurementLabel(m, locale)}>
         <BrainRadarChart indicators={m.indicators} size="small" showScores />
       </Fullscreenable>
+
+      {/* 施術のタイミング。測り終えたときに選び忘れた・選び間違えた回、この項目より前の
+          記録も、ここで選べる（AI 比較分析が使う。lib/before-after.ts）。 */}
+      <TreatmentPhasePicker
+        value={readTreatmentPhase(m.treatmentPhase)}
+        onChange={(p) => syncPhaseFromMeasurement(m.uploadedAt, p)}
+      />
 
       {/* Memo — kept in sync with the mind-map session's memo. */}
       {editingNote ? (

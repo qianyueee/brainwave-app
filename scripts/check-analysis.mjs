@@ -11,9 +11,10 @@
  *  5. 比較分析（kind:"compare"）：validateCompareInput（buildComparisonInput の形・
  *     古い順・人の番号）・buildCompareMessages（ラベル・差の計算・人が違うとき）・
  *     parseCompareContent・handle の流れ（組のキー・a/b/c・失敗に kind と版を添える）
- *  6. 施術前・施術後（比較分析の版 2）：program の検査・版 1 も通すこと・programState /
- *     beforeAfterPairs（lib/before-after.ts と突き合わせる）・プロンプトの before_after と
- *     beforeAfter・返事の読み取りと組の保存
+ *  6. 施術前・施術中・施術後（比較分析の版 2・3）：program と phase の検査・版 1・2 も
+ *     通すこと・programState / inferredPhase / treatmentPairs（lib/before-after.ts と
+ *     突き合わせる）・選んだ時点が推し量りより先・プロンプトの treatment_comparisons と
+ *     beforeAfter・返事の読み取りと組（時点つき）の保存
  *
  * 関数は依存なし（fetch だけ）で書いてあるので、node 22 がそのまま .ts を読める
  * （check-records.mjs と同じ）。Deno.serve は Deno のときだけ走る。
@@ -33,7 +34,9 @@ import {
   parseContent,
   parseCompareContent,
   programState,
-  beforeAfterPairs,
+  inferredPhase,
+  treatmentPhaseOf,
+  treatmentPairs,
   handle,
 } from "../supabase/functions/analyze-brain/index.ts";
 import * as clientBeforeAfter from "../lib/before-after.ts";
@@ -439,8 +442,10 @@ function compareMeasurement(i, over = {}) {
     condition: { ...base.condition, reset: 60 - 5 * i },
     bands: bands(45 - 2 * i),
     features: base.features,
-    // 版 2 は測定ごとに必ず持つ（null＝分からない）。
+    // 版 2・3 は測定ごとに必ず持つ（null＝分からない）。
     program: null,
+    // 版 3 は測定ごとに必ず持つ（null＝選んでいない）。
+    phase: null,
     ...over,
   };
 }
@@ -455,12 +460,24 @@ function compareFixture(n = 2, over = {}) {
   };
 }
 
-/** 版 1 の本文（施術前後より前のアプリ。program を持たない）。 */
+/** 版 1 の本文（施術前後より前のアプリ。program も phase も持たない）。 */
 function compareFixtureV1(n = 2, over = {}) {
   const f = compareFixture(n, { v: 1, ...over });
   f.measurements = f.measurements.map((m) => {
     const copy = { ...m };
     delete copy.program;
+    delete copy.phase;
+    return copy;
+  });
+  return f;
+}
+
+/** 版 2 の本文（施術のタイミングより前のアプリ。phase を持たない）。 */
+function compareFixtureV2(n = 2, over = {}) {
+  const f = compareFixture(n, { v: 2, ...over });
+  f.measurements = f.measurements.map((m) => {
+    const copy = { ...m };
+    delete copy.phase;
     return copy;
   });
   return f;
@@ -730,9 +747,9 @@ await check("保存の外部キー違反（その間に測定が消された）�
   }
 });
 
-// ─── 施術前・施術後（比較分析の版 2） ───────────────────────────────────────────
+// ─── 施術前・施術中・施術後（比較分析の版 2・3） ─────────────────────────────────
 
-console.log("施術前・施術後");
+console.log("施術前・施術中・施術後");
 
 /** 測定中のプレーヤー（秒）。10分の測定。 */
 const PROGRAM = {
@@ -742,9 +759,9 @@ const PROGRAM = {
   paused: { playingSec: 30, pausedSec: 570, noneSec: 0 },
 };
 const AFTER_KEY = "2026-10-01T01:30:00.000Z";
-const PAIRS = [{ before: KEYS[0], after: AFTER_KEY }];
+const PAIRS = [{ from: KEYS[0], to: AFTER_KEY, fromPhase: "before", toPhase: "after" }];
 
-/** 同じ日の 10:00 にプログラム無しで測り、10:30 に 7.83Hz のプログラムを一時停止したまま測った。 */
+/** 同じ日の 10:00 にプログラム無しで測り、10:30 に 7.83Hz のプログラムを一時停止したまま測った（版 2）。 */
 function beforeAfterFixture(locale = "ja") {
   const after = compareMeasurement(1, {
     uploadedAt: AFTER_KEY,
@@ -757,13 +774,47 @@ function beforeAfterFixture(locale = "ja") {
     program: PROGRAM.paused,
   });
   after.indicators = { ...after.indicators, relaxationDepth: 82 };
-  return {
-    v: COMPARE_INPUT_VERSION,
-    kind: "compare",
-    locale,
-    measurements: [compareMeasurement(0, { program: PROGRAM.none }), after],
-  };
+  const f = compareFixtureV2(2, { locale });
+  f.measurements = [compareMeasurement(0, { program: PROGRAM.none }), after];
+  f.measurements.forEach((m) => delete m.phase);
+  return f;
 }
+
+/**
+ * 同じ日に、施術前（10:00・プログラム無し）・施術中（10:20・40Hz を再生中）・施術後
+ * （10:45・流し終えてプレーヤーは空）を選んで測った（版 3）。施術後はプレーヤーだけ
+ * 見ると「流していない」——選んだタイミングが推し量りより先に効くことを確かめる。
+ */
+const DURING_KEY = "2026-10-01T01:20:00.000Z";
+const LATE_KEY = "2026-10-01T01:45:00.000Z";
+function sessionFixture(locale = "ja") {
+  const before = compareMeasurement(0, { program: PROGRAM.none, phase: "before" });
+  const during = compareMeasurement(1, {
+    uploadedAt: DURING_KEY,
+    day: 1,
+    hour: 10,
+    minute: 20,
+    dayIndex: 0,
+    targetHz: 40,
+    targetHzSet: true,
+    program: PROGRAM.playing,
+    phase: "during",
+  });
+  during.indicators = { ...during.indicators, focusIntensity: 80 };
+  const after = compareMeasurement(2, {
+    uploadedAt: LATE_KEY,
+    day: 1,
+    hour: 10,
+    minute: 45,
+    dayIndex: 0,
+    program: PROGRAM.none,
+    phase: "after",
+  });
+  after.indicators = { ...after.indicators, focusIntensity: 74 };
+  return { v: COMPARE_INPUT_VERSION, kind: "compare", locale, measurements: [before, during, after] };
+}
+
+const dataOf = (user) => JSON.parse(user.slice(user.indexOf("{")));
 
 await check("programState：流していない・途中だけ・再生・一時停止・分からない", () => {
   assert.equal(programState(PROGRAM.none), "none");
@@ -775,23 +826,58 @@ await check("programState：流していない・途中だけ・再生・一時�
   assert.equal(programState(null), null);
 });
 
-await check("beforeAfterPairs：施術後ごとに、同じ人のそれより前でいちばん新しい施術前", () => {
-  const at = (program, person = 0) => ({ program, person });
+await check("推し量り：流していない＝施術前・再生中＝施術中・一時停止＝施術後・途中だけ／分からない＝null", () => {
+  assert.equal(inferredPhase(PROGRAM.none), "before");
+  assert.equal(inferredPhase(PROGRAM.playing), "during");
+  assert.equal(inferredPhase(PROGRAM.paused), "after");
+  assert.equal(inferredPhase(PROGRAM.partly), null);
+  assert.equal(inferredPhase(null), null);
+  // 選んだ時点が先。
+  assert.equal(treatmentPhaseOf({ phase: "after", program: PROGRAM.none }), "after");
+  assert.equal(treatmentPhaseOf({ phase: null, program: PROGRAM.playing }), "during");
+  assert.equal(treatmentPhaseOf({ phase: "before", program: null }), "before");
+});
+
+await check("treatmentPairs：施術中・施術後ごとに同じ人の直前の施術前、無ければ施術後は直前の施術中", () => {
+  const at = (phase, person = 0, program = null) => ({ phase, program, person });
+  assert.deepEqual(treatmentPairs([at("before"), at("after")]), [[0, 1]]);
+  assert.deepEqual(treatmentPairs([at("before"), at("during")]), [[0, 1]]);
+  assert.deepEqual(treatmentPairs([at("during"), at("after")]), [[0, 1]], "施術前が無ければ施術中→施術後");
+  assert.deepEqual(treatmentPairs([at("before"), at("during"), at("after")]), [[0, 1], [0, 2]], "どちらも施術前と比べる");
+  assert.deepEqual(treatmentPairs([at("before"), at("before"), at("after")]), [[1, 2]], "いちばん新しい施術前");
+  assert.deepEqual(treatmentPairs([at("before"), at("after"), at("after")]), [[0, 1], [0, 2]]);
+  assert.deepEqual(treatmentPairs([at("during"), at("after"), at("after")]), [[0, 1], [0, 2]]);
+  assert.deepEqual(treatmentPairs([at("before"), at("during"), at("during")]), [[0, 1], [0, 2]]);
+  assert.deepEqual(treatmentPairs([at("after"), at("before")]), [], "後から測った施術前とは組まない");
+  assert.deepEqual(treatmentPairs([at("after"), at("during")]), [], "施術中は施術前としか組まない");
+  assert.deepEqual(treatmentPairs([at("during"), at("during")]), []);
+  assert.deepEqual(treatmentPairs([at("before"), at("before")]), []);
+  assert.deepEqual(treatmentPairs([at("during"), at("before"), at("after")]), [[1, 2]]);
+  assert.deepEqual(treatmentPairs([at("before"), at("after", 1)]), [], "別の人とは組まない");
+  assert.deepEqual(treatmentPairs([at("before"), at("after", 1), at("after")]), [[0, 2]]);
+  assert.deepEqual(treatmentPairs([at(null), at("after")]), [], "分からない回は組まない");
+});
+
+await check("treatmentPairs：選んでいない回はプレーヤーから推し量る（以前の版 2 の組み方を含む）", () => {
+  const at = (program, person = 0, phase = null) => ({ phase, program, person });
   const { none, partly, playing, paused } = PROGRAM;
-  assert.deepEqual(beforeAfterPairs([at(none), at(paused)]), [[0, 1]]);
-  assert.deepEqual(beforeAfterPairs([at(none), at(playing), at(paused)]), [[0, 1], [0, 2]]);
-  assert.deepEqual(beforeAfterPairs([at(none), at(none), at(playing)]), [[1, 2]]);
-  assert.deepEqual(beforeAfterPairs([at(playing), at(none)]), [], "施術前が後なら組まない（流し終えてから測った回）");
-  assert.deepEqual(beforeAfterPairs([at(playing), at(none), at(paused)]), [[1, 2]]);
-  assert.deepEqual(beforeAfterPairs([at(none), at(playing, 1)]), [], "別の人とは組まない");
-  assert.deepEqual(beforeAfterPairs([at(none), at(playing, 1), at(paused)]), [[0, 2]]);
-  assert.deepEqual(beforeAfterPairs([at(partly), at(playing)]), [], "途中だけ流した回は施術前にしない");
-  assert.deepEqual(beforeAfterPairs([at(none), at(partly)]), [], "途中だけ流した回は施術後にしない");
-  assert.deepEqual(beforeAfterPairs([at(null), at(playing)]), [], "分からない回は組まない");
+  assert.deepEqual(treatmentPairs([at(none), at(paused)]), [[0, 1]], "流さず→一時停止＝施術前→施術後");
+  assert.deepEqual(treatmentPairs([at(none), at(playing)]), [[0, 1]], "流さず→再生中＝施術前→施術中");
+  assert.deepEqual(treatmentPairs([at(none), at(playing), at(paused)]), [[0, 1], [0, 2]]);
+  assert.deepEqual(treatmentPairs([at(none), at(none), at(playing)]), [[1, 2]]);
+  assert.deepEqual(treatmentPairs([at(playing), at(none)]), [], "施術前が後なら組まない（流し終えてから測った回）");
+  assert.deepEqual(treatmentPairs([at(playing), at(paused)]), [[0, 1]], "再生中→一時停止＝施術中→施術後");
+  assert.deepEqual(treatmentPairs([at(partly), at(playing)]), [], "途中だけ流した回は施術前にしない");
+  assert.deepEqual(treatmentPairs([at(none), at(partly)]), [], "途中だけ流した回は組まない");
+  // 選んだ時点が推し量りより先：流し終えてから測った回（プレーヤーは空）を施術後と選んだ。
+  assert.deepEqual(treatmentPairs([at(none, 0, "before"), at(none, 0, "after")]), [[0, 1]]);
+  assert.deepEqual(treatmentPairs([at(playing, 0, "before"), at(none, 0, "after")]), [[0, 1]]);
+  // 選んだ回と選んでいない回が混ざってもよい。
+  assert.deepEqual(treatmentPairs([at(none), at(playing, 0, "during"), at(none, 0, "after")]), [[0, 1], [0, 2]]);
 });
 
 await check("画面の決まり（lib/before-after.ts）とサーバーの決まりが同じ", () => {
-  const states = [
+  const programs = [
     null,
     PROGRAM.none,
     PROGRAM.partly,
@@ -799,133 +885,245 @@ await check("画面の決まり（lib/before-after.ts）とサーバーの決ま
     PROGRAM.paused,
     { playingSec: 0, pausedSec: 0, noneSec: 0 },
   ];
-  for (const p of states) assert.equal(clientBeforeAfter.programState(p), programState(p));
+  const phases = [null, "before", "during", "after"];
+  for (const p of programs) {
+    assert.equal(clientBeforeAfter.programState(p), programState(p));
+    assert.equal(clientBeforeAfter.inferredPhase(p), inferredPhase(p));
+  }
+  const states = programs.flatMap((program) => phases.map((phase) => ({ program, phase })));
   // 2〜3件・人の番号のあらゆる並びで、組が一致する。
   const people = [[0, 0], [0, 1], [0, 0, 0], [0, 0, 1], [0, 1, 0], [0, 1, 1], [0, 1, 2]];
   let n = 0;
   for (const ps of people) {
     const idx = ps.map(() => 0);
     for (;;) {
-      const ms = ps.map((person, i) => ({ program: states[idx[i]], person }));
-      assert.deepEqual(clientBeforeAfter.beforeAfterPairs(ms), beforeAfterPairs(ms));
+      const ms = ps.map((person, i) => ({ ...states[idx[i]], person }));
+      assert.deepEqual(clientBeforeAfter.treatmentPairs(ms), treatmentPairs(ms));
       n++;
       let k = 0;
       while (k < idx.length && ++idx[k] === states.length) idx[k++] = 0;
       if (k === idx.length) break;
     }
   }
-  assert.equal(n, 2 * 36 + 5 * 216);
+  const s = states.length;
+  assert.equal(n, 2 * s ** 2 + 5 * s ** 3);
 });
 
-await check("版 2：program を通す（null＝分からない）", () => {
+await check("版 3：phase を通す（null＝選んでいない）・program も一緒に", () => {
+  const v = validateCompareInput(sessionFixture());
+  assert.equal(v.v, 3);
+  assert.deepEqual(v.measurements.map((m) => m.phase), ["before", "during", "after"]);
+  assert.deepEqual(v.measurements[1].program, PROGRAM.playing);
+  assert.equal(validateCompareInput(compareFixture()).measurements[0].phase, null);
+});
+
+await check("版 2 もそのまま通す（作り直す前の APK・exe）。phase は選んでいない扱い", () => {
   const v = validateCompareInput(beforeAfterFixture());
   assert.equal(v.v, 2);
   assert.deepEqual(v.measurements[0].program, PROGRAM.none);
   assert.deepEqual(v.measurements[1].program, PROGRAM.paused);
-  assert.equal(validateCompareInput(compareFixture()).measurements[0].program, null);
+  assert.ok(v.measurements.every((m) => m.phase === null));
 });
 
-await check("版 1 もそのまま通す（作り直す前の APK・exe）。program は分からない扱い", () => {
+await check("版 1 もそのまま通す。program も phase も分からない扱い", () => {
   const v = validateCompareInput(compareFixtureV1(3));
   assert.equal(v.v, 1);
-  assert.ok(v.measurements.every((m) => m.program === null));
+  assert.ok(v.measurements.every((m) => m.program === null && m.phase === null));
 });
 
 const programRejects = {
-  "版 2 で program が無い": (() => {
+  "版 3 で program が無い": (() => {
     const f = compareFixture();
     delete f.measurements[0].program;
     return f;
   })(),
-  "版 1 で program がある": compareFixture(2, { v: 1 }),
+  "版 3 で phase が無い": (() => {
+    const f = compareFixture();
+    delete f.measurements[1].phase;
+    return f;
+  })(),
+  "版 2 で phase がある": compareFixture(2, { v: 2 }),
+  "版 2 で program が無い": (() => {
+    const f = compareFixtureV2();
+    delete f.measurements[0].program;
+    return f;
+  })(),
+  "版 1 で program がある": (() => {
+    const f = compareFixtureV1();
+    f.measurements[0].program = null;
+    return f;
+  })(),
   "program に知らない項目（名前）": compareWith(0, { program: { ...PROGRAM.none, name: "リセット＆ディープ" } }),
   "program の秒が負": compareWith(0, { program: { ...PROGRAM.none, noneSec: -1 } }),
   "program の秒が小数": compareWith(0, { program: { ...PROGRAM.none, noneSec: 1.5 } }),
   "program の秒が1日を超える": compareWith(0, { program: { ...PROGRAM.none, noneSec: 86_401 } }),
   "program の項目が足りない": compareWith(0, { program: { playingSec: 0, noneSec: 600 } }),
   "program が文字列": compareWith(0, { program: "playing" }),
-  "版 3": compareFixture(2, { v: 3 }),
+  "phase が知らない値": compareWith(0, { phase: "middle" }),
+  "phase が日本語": compareWith(0, { phase: "施術前" }),
+  "phase が空文字": compareWith(0, { phase: "" }),
+  "phase が数": compareWith(0, { phase: 0 }),
+  "版 4": compareFixture(2, { v: 4 }),
 };
 for (const [name, body] of Object.entries(programRejects)) {
   await check(`断る：${name}`, () => assert.equal(validateCompareInput(body), null));
 }
 
-await check("施術前→施術後（日本語）：組・分・差（施術後 − 施術前）・呼び方・beforeAfter を頼む", () => {
+await check("施術前→施術後（版 2・日本語）：推し量った組・分・差・呼び方・beforeAfter を頼む", () => {
   const { system, user } = buildCompareMessages(validateCompareInput(beforeAfterFixture()));
-  assert.match(system, /「施術前」 and 「施術後」/);
+  assert.match(system, /Call the measurements by their point of the session: 「施術前」 and 「施術後」\./);
   assert.match(system, /it is not medical treatment/);
-  assert.match(system, /"beforeAfter": \[1-4 short strings/);
+  assert.match(system, /"beforeAfter": \[1-4 short strings: how the state changed across the session/);
   assert.match(system, /other notable differences not already in beforeAfter/);
-  assert.match(system, /Begin the summary with the before-and-after change/);
+  assert.match(system, /Begin the summary with the change across the session/);
   assert.match(system, /program_during_measurement/);
-  assert.ok(!system.includes("adding the label"), "組が1つならラベルは要らない");
-  const data = JSON.parse(user.slice(user.indexOf("{")));
+  assert.match(system, /treatment_phase_chosen/);
+  assert.ok(!system.includes("adding the label"), "時点が重ならなければラベルは要らない");
+  assert.ok(!system.includes('A "during" measurement'), "施術中が無ければその説明は要らない");
+  const data = dataOf(user);
   assert.deepEqual(
-    data.measurements.map((m) => m.program_during_measurement),
-    ["none", "paused"]
+    data.measurements.map((m) => [m.program_during_measurement, m.treatment_phase, m.treatment_phase_chosen]),
+    [
+      ["none", "before", false],
+      ["paused", "after", false],
+    ]
   );
   assert.equal(data.measurements[1].target_hz, 7.83);
-  assert.equal(data.before_after.length, 1);
-  const ba = data.before_after[0];
-  assert.equal(ba.before, "10月1日 10:00");
-  assert.equal(ba.after, "10月1日 10:30");
-  assert.equal(ba.minutes_between, 30);
-  assert.equal(ba.difference_after_minus_before.indicators["リラックスの深さ"], 12);
-  assert.equal(ba.difference_after_minus_before.overall_score, 1);
-  assert.equal(ba.difference_after_minus_before.band_share_pct["δ波 (1-4Hz)"], -2);
+  assert.equal(data.treatment_comparisons.length, 1);
+  const tc = data.treatment_comparisons[0];
+  assert.deepEqual([tc.from, tc.from_phase, tc.to, tc.to_phase], ["10月1日 10:00", "before", "10月1日 10:30", "after"]);
+  assert.equal(tc.minutes_between, 30);
+  assert.equal(tc.difference_to_minus_from.indicators["リラックスの深さ"], 12);
+  assert.equal(tc.difference_to_minus_from.overall_score, 1);
+  assert.equal(tc.difference_to_minus_from.band_share_pct["δ波 (1-4Hz)"], -2);
   // 2件なら最初→最後の差と同じ。
-  assert.deepEqual(data.difference_last_minus_first, ba.difference_after_minus_before);
+  assert.deepEqual(data.difference_last_minus_first, tc.difference_to_minus_from);
   for (const k of [KEYS[0], AFTER_KEY]) assert.ok(!user.includes(k), "測定のキーはプロンプトに入れない");
 });
 
 await check("施術前→施術後（英語）：before the session / after the session", () => {
   const { system } = buildCompareMessages(validateCompareInput(beforeAfterFixture("en")));
   assert.match(system, /"before the session" and "after the session"/);
-  assert.ok(!system.includes("施術"));
+  assert.ok(!system.includes("施術前"));
 });
 
-await check("組が2つ（施術前・再生中・一時停止）：ラベルを添えるよう頼む", () => {
-  const f = compareFixture(3);
-  f.measurements[0].program = PROGRAM.none;
-  f.measurements[1].program = PROGRAM.playing;
-  f.measurements[2].program = PROGRAM.paused;
-  const { system, user } = buildCompareMessages(validateCompareInput(f));
-  assert.match(system, /adding the label because there is more than one pair/);
-  const data = JSON.parse(user.slice(user.indexOf("{")));
+await check("施術前・施術中・施術後を選んだ（版 3）：施術前と比べた2組・選んだ印・施術中の説明", () => {
+  const { system, user } = buildCompareMessages(validateCompareInput(sessionFixture()));
+  assert.match(system, /「施術前」, 「施術中」 and 「施術後」\./);
+  assert.match(system, /A "during" measurement shows the state while the session was still going on; an "after" measurement shows what remained once it was over\./);
+  assert.ok(!system.includes("adding the label"));
+  const data = dataOf(user);
   assert.deepEqual(
-    data.before_after.map((p) => [p.before, p.after]),
+    data.measurements.map((m) => [m.treatment_phase, m.treatment_phase_chosen]),
+    [
+      ["before", true],
+      ["during", true],
+      ["after", true],
+    ]
+  );
+  // 施術後はプレーヤーが空（流し終えた後）でも、選んだとおり施術後。
+  assert.equal(data.measurements[2].program_during_measurement, "none");
+  assert.deepEqual(
+    data.treatment_comparisons.map((c) => [c.from_phase, c.to_phase, c.minutes_between]),
+    [
+      ["before", "during", 20],
+      ["before", "after", 45],
+    ]
+  );
+  assert.equal(data.treatment_comparisons[0].difference_to_minus_from.indicators["集中の強さ"], 20);
+  assert.equal(data.treatment_comparisons[1].difference_to_minus_from.indicators["集中の強さ"], 14);
+});
+
+await check("施術中→施術後だけ：その1組・施術中の説明に施術後も", () => {
+  const f = compareFixture(2);
+  f.measurements[0].phase = "during";
+  f.measurements[1].phase = "after";
+  const { system, user } = buildCompareMessages(validateCompareInput(f));
+  assert.match(system, /「施術中」 and 「施術後」\./);
+  const data = dataOf(user);
+  assert.deepEqual(data.treatment_comparisons.map((c) => [c.from_phase, c.to_phase]), [["during", "after"]]);
+});
+
+await check("同じ時点の測定が2件（施術前・施術後・施術後）：ラベルを添えるよう頼む", () => {
+  const f = compareFixture(3);
+  f.measurements[0].phase = "before";
+  f.measurements[1].phase = "after";
+  f.measurements[2].phase = "after";
+  const { system, user } = buildCompareMessages(validateCompareInput(f));
+  assert.match(system, /adding the label because more than one measurement shares a point/);
+  const data = dataOf(user);
+  assert.deepEqual(
+    data.treatment_comparisons.map((c) => [c.from, c.to]),
     [
       ["10月1日 10:00", "10月5日 21:30"],
       ["10月1日 10:00", "10月8日 07:15"],
     ]
   );
-  assert.equal(data.before_after[1].minutes_between, 7 * 1440 + 7 * 60 + 15 - 10 * 60);
+  assert.equal(data.treatment_comparisons[1].minutes_between, 7 * 1440 + 7 * 60 + 15 - 10 * 60);
 });
 
-await check("組が無い（版 2）：プレーヤーの状態だけ渡し、beforeAfter は頼まない", () => {
-  const f = compareFixture(2);
+await check("推し量りの組（版 2：流さず・再生中・一時停止）：施術前と比べた2組・ラベルは要らない", () => {
+  const f = compareFixtureV2(3);
+  f.measurements[0].program = PROGRAM.none;
+  f.measurements[1].program = PROGRAM.playing;
+  f.measurements[2].program = PROGRAM.paused;
+  const { system, user } = buildCompareMessages(validateCompareInput(f));
+  assert.ok(!system.includes("adding the label"));
+  const data = dataOf(user);
+  assert.deepEqual(
+    data.treatment_comparisons.map((c) => [c.from_phase, c.to_phase]),
+    [
+      ["before", "during"],
+      ["before", "after"],
+    ]
+  );
+});
+
+await check("組が無い：プレーヤーの状態だけ渡し、組にならない推し量りは時点として渡さない", () => {
+  const f = compareFixtureV2(2);
   f.measurements[0].program = PROGRAM.playing;
   f.measurements[1].program = PROGRAM.none;
   const { system, user } = buildCompareMessages(validateCompareInput(f));
   assert.ok(!system.includes("beforeAfter"));
-  assert.ok(!system.includes("before_after"));
+  assert.ok(!system.includes("treatment_comparisons"));
   assert.match(system, /program_during_measurement/);
   assert.match(system, /"differences": \[1-4 short strings/);
-  const data = JSON.parse(user.slice(user.indexOf("{")));
+  const data = dataOf(user);
   assert.deepEqual(
-    data.measurements.map((m) => m.program_during_measurement),
-    ["playing", "none"]
+    data.measurements.map((m) => [m.program_during_measurement, m.treatment_phase, "treatment_phase_chosen" in m]),
+    [
+      ["playing", null, false],
+      ["none", null, false],
+    ]
   );
-  assert.ok(!("before_after" in data));
+  assert.ok(!("treatment_comparisons" in data));
 });
 
-await check("版 1：プレーヤーの項目を出さない（以前と同じプロンプト）", () => {
+await check("組が無くても、選んだ時点は渡す", () => {
+  const f = compareFixture(2);
+  f.measurements[0].phase = "after";
+  f.measurements[1].phase = "before";
+  const { system, user } = buildCompareMessages(validateCompareInput(f));
+  assert.ok(!system.includes("treatment_comparisons"));
+  const data = dataOf(user);
+  assert.deepEqual(
+    data.measurements.map((m) => [m.treatment_phase, m.treatment_phase_chosen]),
+    [
+      ["after", true],
+      ["before", true],
+    ]
+  );
+});
+
+await check("版 1：プレーヤー・時点の項目を出さない（以前と同じプロンプト）", () => {
   const { system, user } = buildCompareMessages(validateCompareInput(compareFixtureV1(2)));
-  assert.ok(!system.includes("program_during_measurement"));
-  assert.ok(!user.includes("program_during_measurement"));
+  for (const k of ["program_during_measurement", "treatment_phase", "treatment_comparisons"]) {
+    assert.ok(!system.includes(k), k);
+    assert.ok(!user.includes(k), k);
+  }
 });
 
-await check("返事：組があるときだけ beforeAfter を読み（4つまで）、組を残す", () => {
+await check("返事：組があるときだけ beforeAfter を読み（4つまで）、組を時点つきで残す", () => {
   const raw = JSON.stringify({ ...compareReply, beforeAfter: ["一", "**二**", "三", "四", "五"] });
   const c = parseCompareContent(raw, PAIRS);
   assert.deepEqual(c.beforeAfter, ["一", "二", "三", "四"]);
@@ -935,7 +1133,7 @@ await check("返事：組があるときだけ beforeAfter を読み（4つま�
   assert.deepEqual(none.pairs, []);
 });
 
-await check("成功（施術前→施術後）：組を測定のキーで保存・版 2・長めに書かせる", async () => {
+await check("成功（版 2・施術前→施術後）：組を時点つきで保存・版 2・長めに書かせる", async () => {
   const content = JSON.stringify({ ...compareReply, beforeAfter: ["リラックスの深さが上がりました"] });
   const { f, calls } = fakeFetch({ deepseek: { status: 200, content } });
   const r = await handle(post(beforeAfterFixture()), ENV, f);
@@ -948,13 +1146,36 @@ await check("成功（施術前→施術後）：組を測定のキーで保存�
   assert.equal(JSON.parse(calls.find((c) => c.url.includes("deepseek")).init.body).max_tokens, 2000);
 });
 
-await check("版 1 の本文：版 1 で保存・施術前後の節は無い", async () => {
+await check("成功（版 3・施術前・施術中・施術後）：2組を時点つきで保存・版 3", async () => {
+  const content = JSON.stringify({ ...compareReply, beforeAfter: ["施術中は集中の強さが上がりました"] });
+  const { f } = fakeFetch({ deepseek: { status: 200, content } });
+  const r = await handle(post(sessionFixture()), ENV, f);
+  assert.equal(r.status, 200);
+  const { comparison } = await r.json();
+  assert.equal(comparison.input_version, 3);
+  assert.equal(comparison.combo, `${KEYS[0]} ${DURING_KEY} ${LATE_KEY}`);
+  assert.deepEqual(comparison.content.pairs, [
+    { from: KEYS[0], to: DURING_KEY, fromPhase: "before", toPhase: "during" },
+    { from: KEYS[0], to: LATE_KEY, fromPhase: "before", toPhase: "after" },
+  ]);
+});
+
+await check("版 1 の本文：版 1 で保存・施術の節は無い", async () => {
   const { f, calls } = fakeFetch({ deepseek: compareDeepseek });
   const { comparison } = await (await handle(post(compareFixtureV1(2)), ENV, f)).json();
   assert.equal(comparison.input_version, 1);
   assert.deepEqual(comparison.content.beforeAfter, []);
   assert.deepEqual(comparison.content.pairs, []);
   assert.equal(JSON.parse(calls.find((c) => c.url.includes("deepseek")).init.body).max_tokens, 1500);
+});
+
+await check("版 3 を知らない関数の返事を画面が「準備中」と読めるよう、失敗には版 3 を添える", async () => {
+  const body = sessionFixture();
+  body.measurements[0].phase = "middle";
+  const { f } = fakeFetch({});
+  const r = await handle(post(body), ENV, f);
+  assert.equal(r.status, 400);
+  assert.deepEqual(await r.json(), { error: "bad_input", kind: "compare", v: 3 });
 });
 
 console.log(`\n${passed} checks passed`);
