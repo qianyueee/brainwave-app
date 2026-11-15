@@ -15,24 +15,39 @@ import { isTreeComplete, treeStage, treeStageName } from "@/lib/sync-tree";
 import { useLocale, useT, type LocalizedText } from "@/lib/i18n";
 import { useSyncTreeView, type SyncTreeView } from "@/store/useSyncTreeStore";
 import { CARE_TONE_CLASS, listenCare, waterCare, type CareStatus } from "@/components/tree-care";
+import ListeningRecord from "@/components/ListeningRecord";
 
 /**
- * Sync Tree — ホームの状態バー。
+ * Sync Tree — ホームの状態バー（上半分）とリスニング記録（下半分）。
  *
  * 木の絵はここには出さない（大きな木は /tree）。ホームを開いて読みたいのは
- * 「いまの段階」と「今日のおせわが済んだか」の2つなので、1行目＝ラベルと段階名、
- * 2行目＝今日の水やり・リスニングの具合、だけの小さなカードにしてある。
- * カード全体が /tree へのリンクで、水やりはそこでする。
+ * 「いまの段階」と「今日のおせわが済んだか」の2つなので、上半分は1行目＝ラベルと
+ * 段階名、2行目＝今日の水やり・リスニングの具合、だけにしてある。上半分が /tree への
+ * リンクで、水やりはそこでする。
  *
- * **数値は出さない**（lib/sync-tree.ts）——段階名と、/tree の「今日のおせわ」と
- * 同じ言葉（components/tree-care.ts）だけ。育ちきった木には水をやれないので、
- * そのときは水やり・リスニングの代わりに「育ちきりました」を出す。
+ * 下半分は連続記録（N日連続・N週連続）とリスニング目標（今日・今週の分）
+ * （components/ListeningRecord）で、ヒストリーへのリンク。1枚のカードに2つのリンクを
+ * 線で分けて**並べる**（入れ子にはしない）。どちらにも右端に「›」があり、押すと
+ * その半分だけ色が変わる。
+ *
+ * **木の数値は出さない**（lib/sync-tree.ts）——上半分は段階名と、/tree の「今日の
+ * おせわ」と同じ言葉（components/tree-care.ts）だけ。下半分の日数・分は聴いた量
+ * そのもので、木のポイントではない。育ちきった木には水をやれないので、そのときは
+ * 水やり・リスニングの代わりに「育ちきりました」を出す。
  *
  * 木はログイン中だけの機能（store/useSyncTreeStore）。表示できないあいだは
  * 2行目を状況のひと言に置き換え、段階名は出さない（読み込み中に「星の種」を
  * 出すと、木がリセットされたように見える）。どの状態でも2行のままにして、
- * 読み込みが終わったときに下のカードが押し下げられないようにしてある。
+ * 読み込みが終わったときに下のカードが押し下げられないようにしてある。リスニング
+ * 記録は再生の記録（端末にも残る）から出すので、ログインしていなくても出す。
  */
+
+/**
+ * カードの上下それぞれのリンク。押したときはその半分だけ色を変える——以前のように
+ * カードごと縮めると、もう一方の半分まで押したように見える。
+ */
+const HALF_LINK =
+  "block transition-colors hover:bg-navy/30 active:bg-navy/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent";
 
 /** 表示できないあいだ、2行目に出すひと言。 */
 const WAITING_TEXT: Record<Exclude<SyncTreeView, "ready">, LocalizedText> = {
@@ -88,23 +103,24 @@ export default function SyncTreeCard() {
   }
 
   return (
-    <Link
-      href="/tree"
-      className="block bg-surface border border-surface-border rounded-3xl p-4 neu-raised active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-    >
-      <span className="flex items-center gap-2 min-h-7">
-        <TreeDeciduous size={18} strokeWidth={1.5} className="shrink-0 text-accent" aria-hidden="true" />
-        <span className="flex-1 text-sm text-text-secondary">Sync Tree</span>
-        {ready && (
-          <span className="text-lg font-bold text-text-primary">
-            {treeStageName(treeStage(fold.points), locale)}
-          </span>
-        )}
-        <ChevronRight size={20} className="shrink-0 text-text-muted" aria-hidden="true" />
-      </span>
-      <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 min-h-6 text-sm">
-        {status}
-      </span>
-    </Link>
+    <div className="bg-surface border border-surface-border rounded-3xl neu-raised overflow-hidden">
+      <Link href="/tree" className={`${HALF_LINK} px-4 pt-4 pb-3`}>
+        <span className="flex items-center gap-2 min-h-7">
+          <TreeDeciduous size={18} strokeWidth={1.5} className="shrink-0 text-accent" aria-hidden="true" />
+          <span className="flex-1 text-sm text-text-secondary">Sync Tree</span>
+          {ready && (
+            <span className="text-lg font-bold text-text-primary">
+              {treeStageName(treeStage(fold.points), locale)}
+            </span>
+          )}
+          <ChevronRight size={20} className="shrink-0 text-text-muted" aria-hidden="true" />
+        </span>
+        <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 min-h-6 text-sm">
+          {status}
+        </span>
+      </Link>
+      <span aria-hidden="true" className="block mx-4 border-t border-surface-border" />
+      <ListeningRecord className={`${HALF_LINK} px-4 pt-3 pb-4`} />
+    </div>
   );
 }
