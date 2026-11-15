@@ -589,6 +589,16 @@ input[type="range"]:disabled::-moz-range-thumb {
   animation: heart-pop 0.4s ease-out both;
 }
 
+/* Sync Partner の「返事を書いています」：3つの点が順に浮く（SyncPartnerCard が
+   点ごとに animation-delay をずらす）。 */
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+.typing-dot {
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   @keyframes wave-flow {
     from, to { transform: translate3d(0, 0, 0); }
@@ -649,5 +659,10 @@ input[type="range"]:disabled::-moz-range-thumb {
   /* ♡ は塗りが変わるだけで、入ったことは伝わる */
   @keyframes heart-pop {
     0%, 100% { transform: none; }
+  }
+  /* 「返事を書いています」：点は動かさず、濃さだけ移る */
+  @keyframes typing-dot {
+    0%, 60%, 100% { opacity: 0.35; transform: none; }
+    30% { opacity: 1; transform: none; }
   }
 }
