@@ -11,6 +11,10 @@
  *     失敗）は画面が先頭の1件をそのまま出す（lib/partner-lines.ts の決まった台詞）
  *   - 関数へ送る形（PartnerInput / buildPartnerInput）。利用者が書いたひと言のほかは、
  *     決まった語彙と数だけ——プロンプトは関数が組む
+ *   - つらい気持ちの言葉（looksLikeCrisis）。画面は送る前に確かめ、関数も確かめる
+ *
+ * 会話そのものは端末にその日（朝 5 時から翌朝 4:59 まで＝partnerDayKey）のぶんだけ残す
+ * （store/usePartnerChatStore.ts）。関数も DB も会話を残さない。
  *
  * 形を変えたら関数の validateInput も同じに直し、両方の版（PARTNER_INPUT_VERSION /
  * INPUT_VERSION）を上げて `pnpm check:partner`。
@@ -62,6 +66,17 @@ export function partnerSlot(hour: number): PartnerSlot {
 /** 帰宅後のうち、眠る前の時間（22:00〜翌 4:59）。おすすめが眠りのプログラムに替わる。 */
 export function isLateNight(hour: number): boolean {
   return hour >= 22 || hour < 5;
+}
+
+/**
+ * 会話のひとまとまり：時間帯の「帰宅後」を 22 時で2つに分けたもの。替わると新しい挨拶から
+ * 始まる（22 時を過ぎてカードを見ると、眠る前のおすすめに替わっている）。
+ */
+export type PartnerPhase = PartnerSlot | "lateNight";
+
+export function partnerPhase(hour: number): PartnerPhase {
+  const slot = partnerSlot(hour);
+  return slot === "evening" && isLateNight(hour) ? "lateNight" : slot;
 }
 
 // ─── 気分 ─────────────────────────────────────────────────────────────────────
@@ -251,8 +266,38 @@ export function buildPartnerInput(args: {
   };
 }
 
-/** 端末の暦日（YYYY-MM-DD）。会話は端末にその日のぶんだけ残す。 */
-export function partnerDayKey(d: Date): string {
+// ─── 日付 ─────────────────────────────────────────────────────────────────────
+
+/** 端末の暦日（YYYY-MM-DD）。1日の回数を使い切った日の印に使う（関数は日本時間の暦日で数える）。 */
+export function calendarDayKey(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/**
+ * 会話を残す1日：朝 5:00 から翌朝 4:59 まで。端末にはこの1日のぶんだけ残す。暦日で
+ * 区切らないのは、帰宅後の会話（〜翌 4:59）が真夜中に消えないように。5 時間前の暦日を
+ * 年・月・日・時から組み直して求める（ミリ秒を引くと夏時間の日に1時間ずれる）。
+ */
+export function partnerDayKey(d: Date): string {
+  return calendarDayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() - 5, d.getMinutes()));
+}
+
+// ─── つらい気持ちを打ち明けられたとき ──────────────────────────────────────────
+//
+// 「死にたい」などはっきりした言葉には、AI に渡さずに決まった文（lib/partner-lines.ts の
+// CARE_LINE）で答える。画面は送る前にここで確かめる——通信できないとき・回数を使い切った
+// ときも同じ返事になり、その言葉は端末から出ない。関数（looksLikeCrisis・CARE_REPLY）も
+// 同じものを持つ（古い画面・ほかの呼び手のため）。2つは check:partner が突き合わせる。
+// 慣用句の「死ぬほど疲れた」は拾わない。
+
+const CRISIS_PATTERNS: readonly RegExp[] = [
+  /死にた[いくか]|しにたい|シニタイ|死んでしまいたい|死のうと|死んだ(方|ほう)が(まし|楽|いい)|消えてしまいたい|消えたい|消えたくな|消えたくて|キエタイ|いなくなりたい|自殺|じさつ|生きていたくない|生きてたくない|生きるのがつら|生きるのが辛|生きてる意味|生きている意味|自分を傷つけ|リストカット|リスカ|首を吊|飛び降りた[いく]|飛び降りよう/,
+  /\b(kill(ing)? myself|suicid\w*|(want|wish) to die|wanna die|end(ing)? my life|end it all|hurt(ing)? myself|harm(ing)? myself|self[- ]harm\w*|no reason to live|better off dead|wish i (was|were) dead|(don't|do not|dont) want to (live|be alive))\b/i,
+];
+
+export function looksLikeCrisis(message: string): boolean {
+  // 全角・半角カナは NFKC でそろえ、曲がったアポストロフィ（don’t）はまっすぐに。
+  const s = message.normalize("NFKC").replace(/[‘’]/g, "'");
+  return CRISIS_PATTERNS.some((p) => p.test(s));
 }

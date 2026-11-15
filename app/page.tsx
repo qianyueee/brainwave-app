@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import ZodiacSyncCard from "@/components/ZodiacSyncCard";
 import BrainConditionCard from "@/components/BrainConditionCard";
 import SyncTreeCard from "@/components/SyncTreeCard";
+import SyncPartnerCard from "@/components/SyncPartnerCard";
 import { User, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useAdminStore } from "@/store/useAdminStore";
 import { useRefreshAccountViewsOnMount } from "@/lib/sync/account-views";
 import { useT } from "@/lib/i18n";
 import PageColumn from "@/components/PageColumn";
@@ -16,6 +18,10 @@ import AccountSaveBanner from "@/components/AccountSaveBanner";
  * ホーム。スマホは上から 星空カード（今日のおすすめ＋開始）→ Sync Tree の状態バー →
  * 脳コンディション（測定3値＋毎日の自己評価）の3ブロック。デスクトップは
  * 左列＝Tree＋コンディション、右列＝星空。
+ *
+ * 管理者には Sync Tree の下に Sync Partner（話し相手、components/SyncPartnerCard）も出す。
+ * そのときデスクトップは 左列＝Tree＋Partner、右列＝星空、その下に コンディションを
+ * 幅いっぱいで。
  *
  * 星空カードはページの見出し「今日の星空・宇宙周波数で即座に調律」そのもので、
  * スマホでは開いた最初の画面に開始ボタンまで入るよう先頭に置く（2026-11 Zane の
@@ -37,6 +43,9 @@ export default function HomePage() {
   const authLoading = useAuthStore((s) => s.loading);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
   const isLoggedIn = !!user;
+  // Sync Partner（話し相手）はまず管理者にだけ出す——AI の返事の口調と回数・費用を
+  // 確かめてから全員に開く。出さない間は従来の並びのまま。
+  const showPartner = useAdminStore((s) => s.isAdmin);
   const t = useT();
   // 脳コンディションカードはデスクトップ測定アプリで測った記録も読む。
   useRefreshAccountViewsOnMount();
@@ -99,11 +108,12 @@ export default function HomePage() {
       {/* ログインした端末に、アカウントへまだ保存していない記録があれば尋ねる（無ければ何も出ない）。 */}
       <AccountSaveBanner />
 
-      {/* モバイルは1カラムで DOM の順のまま 星空 → Sync Tree → 脳コンディション。
-          デスクトップは 左（Tree＋コンディション）｜右（星空）の2カラムで、
-          行列を明示指定している（order だけではグリッドが行方向に流れてしまい、
-          意図しない位置に回り込む）。DOM を並べ替えずに order で星空を先頭へ
-          出すと、スマホの読み上げ・Tab の順が見た目と食い違う。 */}
+      {/* モバイルは1カラムで DOM の順のまま 星空 → Sync Tree →（Sync Partner）→
+          脳コンディション。デスクトップは 左（Tree＋コンディション）｜右（星空）の
+          2カラムで、Sync Partner を出すときは 左（Tree＋Partner）｜右（星空）の下に
+          コンディションを幅いっぱいで置く。行列を明示指定している（order だけでは
+          グリッドが行方向に流れてしまい、意図しない位置に回り込む）。DOM を並べ替えずに
+          order で星空を先頭へ出すと、スマホの読み上げ・Tab の順が見た目と食い違う。 */}
       <div className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
         {/* スマホでは先頭——ページの見出し「今日の星空・宇宙周波数で即座に調律」の
             カードで、開いた最初の画面に「この音でセッションを開始する」まで入る
@@ -124,8 +134,17 @@ export default function HomePage() {
           <SyncTreeCard />
         </div>
 
+        {/* 話し相手：時間帯に合わせてひと言かけ、セッションを1つすすめる
+            （朝＝今日の星のプログラム／午後＝気分を尋ねて／帰宅後＝ゆるめる・眠る）。
+            星空カードが「今日の空」から勧めるのに対し、こちらは「いまの自分」から勧める。 */}
+        {showPartner && (
+          <div className="md:col-start-1 md:row-start-2">
+            <SyncPartnerCard />
+          </div>
+        )}
+
         {/* 測定3値（自動算出）＋ 毎日の自己評価スライダー */}
-        <div className="md:col-start-1 md:row-start-2">
+        <div className={showPartner ? "md:col-span-2 md:row-start-3" : "md:col-start-1 md:row-start-2"}>
           <BrainConditionCard />
         </div>
       </div>

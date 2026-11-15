@@ -13,11 +13,13 @@
  *  6. buildMessages：system の書き出しが毎回同じ（共通の決まり＋一覧）・役と時間帯の指示・
  *     利用者の言葉は user の json の値にだけ・聴いた習慣は帰宅後だけ
  *  7. parseReply：長さの切り方・記号落とし・プログラムの id と返事の文を食い違わせない
- *  8. looksLikeCrisis：はっきりした言葉は拾い、慣用句は拾わない
+ *  8. looksLikeCrisis：はっきりした言葉は拾い、慣用句は拾わない。画面と関数は1字も違わない
  *  9. handle：fetch を差し替えて関数の流れを通す（認証・形・つらい気持ち・回数・DeepSeek）。
  *     鍵が行き先を取り違えないことも
+ * 10. 決まった台詞（lib/partner-lines.ts、AI を使えないとき）：役 × 種類 × 日英がそろい、
+ *     プログラムを勧める台詞にだけ名前が1つ入り、役の一人称を出さず、返事の長さに収まる
  *
- * 関数と lib/partner.ts は node 22 がそのまま読める。lib/programs.ts は拡張子なしの相対 import
+ * 関数と lib/partner.ts・lib/partner-lines.ts は node 22 がそのまま読める。lib/programs.ts は拡張子なしの相対 import
  * （Next の書き方）で目録を読むので、このスクリプトの中でだけ .ts を補う resolve フックを入れる。
  */
 import assert from "node:assert/strict";
@@ -43,6 +45,7 @@ export async function resolve(specifier, context, next) {
 
 const fn = await import("../supabase/functions/sync-partner/index.ts");
 const client = await import("../lib/partner.ts");
+const lines = await import("../lib/partner-lines.ts");
 const { ALL_PROGRAMS, getProgramById, programName, programDescription } = await import("../lib/programs.ts");
 const { ZODIAC_SIGNS, MODULAR_BEATS, dailyRecommendation, zodiacNameEn } = await import("../lib/zodiac.ts");
 
@@ -241,6 +244,32 @@ await check("時間帯（0〜23時）と境目", () => {
   assert.equal(slots, "eeeeemmmmmmmaaaaaaeeeeee");
   const late = Array.from({ length: 24 }, (_, h) => (client.isLateNight(h) ? "L" : ".")).join("");
   assert.equal(late, "LLLLL.................LL");
+});
+
+await check("会話のひとまとまり（画面だけ）：朝・午後・帰宅後・眠る前", () => {
+  const code = { morning: "m", afternoon: "a", evening: "e", lateNight: "L" };
+  const phases = Array.from({ length: 24 }, (_, h) => code[client.partnerPhase(h)]).join("");
+  assert.equal(phases, "LLLLLmmmmmmmaaaaaaeeeeLL");
+  for (let h = 0; h < 24; h++) {
+    // 時間帯（関数が挨拶を決める）とずれない：眠る前は帰宅後の一部
+    const phase = client.partnerPhase(h);
+    assert.equal(phase === "lateNight" ? "evening" : phase, fn.slotOf(h), `${h}時`);
+  }
+});
+
+await check("会話を残す1日は朝 5:00 で替わる（暦日は 0:00）", () => {
+  const day = (y, mo, d, h, mi = 0) => client.partnerDayKey(new Date(y, mo, d, h, mi));
+  assert.equal(day(2026, 10, 15, 5, 0), "2026-11-15");
+  assert.equal(day(2026, 10, 15, 23, 59), "2026-11-15");
+  assert.equal(day(2026, 10, 16, 0, 30), "2026-11-15");
+  assert.equal(day(2026, 10, 16, 4, 59), "2026-11-15");
+  assert.equal(day(2026, 10, 16, 5, 0), "2026-11-16");
+  // 月・年・うるう年の変わり目
+  assert.equal(day(2026, 0, 1, 4, 59), "2025-12-31");
+  assert.equal(day(2026, 2, 1, 3), "2026-02-28");
+  assert.equal(day(2028, 2, 1, 3), "2028-02-29");
+  assert.equal(client.calendarDayKey(new Date(2026, 0, 1, 4, 59)), "2026-01-01");
+  assert.equal(client.calendarDayKey(new Date(2026, 10, 5, 12)), "2026-11-05");
 });
 
 await check("役の名前（画面の ROLE_NAME）＝関数の役の設定の名前", () => {
@@ -694,7 +723,10 @@ await check("はっきりした言葉は拾う（日英・全角・半角カナ�
     "I don’t want to live anymore",
     "Ｉ　ｗａｎｔ　ｔｏ　ｄｉｅ",
   ];
-  for (const s of yes) assert.equal(fn.looksLikeCrisis(s), true, s);
+  for (const s of yes) {
+    assert.equal(fn.looksLikeCrisis(s), true, s);
+    assert.equal(client.looksLikeCrisis(s), true, `画面：${s}`);
+  }
 });
 
 await check("慣用句やふつうの言葉は拾わない", () => {
@@ -712,14 +744,37 @@ await check("慣用句やふつうの言葉は拾わない", () => {
     "deadline today",
     "I'm dead tired",
   ];
-  for (const s of no) assert.equal(fn.looksLikeCrisis(s), false, s);
+  for (const s of no) {
+    assert.equal(fn.looksLikeCrisis(s), false, s);
+    assert.equal(client.looksLikeCrisis(s), false, `画面：${s}`);
+  }
+  // 画面のボタンの言葉（気分・「眠い」の続き・チップ）は決して拾わない
+  for (const L of LOCALES) {
+    for (const m of client.PARTNER_MOODS) assert.equal(client.looksLikeCrisis(client.MOOD_LABEL[m][L]), false);
+    for (const c of client.SLEEPY_CHOICES) assert.equal(client.looksLikeCrisis(client.SLEEPY_LABEL[c][L]), false);
+  }
 });
 
-await check("決まった文は相談窓口の番号を載せ、日英とも AI だと断る", () => {
+await check("画面（lib/partner.ts）と関数の言葉の一覧・確かめ方は1字も違わない", () => {
+  const block = (path) => {
+    const src = readFileSync(new URL(path, import.meta.url), "utf8");
+    const patterns = src.match(/const CRISIS_PATTERNS: readonly RegExp\[\] = \[\n[\s\S]*?\n\];/);
+    const body = src.match(/export function looksLikeCrisis\(message: string\): boolean \{\n[\s\S]*?\n\}/);
+    assert.ok(patterns && body, path);
+    return `${patterns[0]}\n${body[0]}`;
+  };
+  assert.equal(block("../lib/partner.ts"), block("../supabase/functions/sync-partner/index.ts"));
+});
+
+await check("決まった文は相談窓口の番号を載せ、日英とも AI だと断る（画面の CARE_LINE と同じ文）", () => {
   for (const L of LOCALES) {
     assert.match(fn.CARE_REPLY[L], /0120-279-338/);
     assert.match(fn.CARE_REPLY[L], /AI/);
+    assert.equal(lines.CARE_LINE[L], fn.CARE_REPLY[L], L);
+    // 画面は番号を電話のリンクにする：文の中にちょうど1回、tel: は同じ数字
+    assert.equal(lines.CARE_LINE[L].split(lines.CARE_PHONE.text).length, 2, L);
   }
+  assert.equal(lines.CARE_PHONE.tel, `tel:${lines.CARE_PHONE.text.replace(/-/g, "")}`);
 });
 
 // ─── 9. handle ────────────────────────────────────────────────────────────────
@@ -964,6 +1019,114 @@ await check("想定外の例外は CORS 付きの 500", async () => {
   } finally {
     console.error = original;
   }
+});
+
+// ─── 10. 決まった台詞 ─────────────────────────────────────────────────────────
+
+console.log("決まった台詞（lib/partner-lines.ts）");
+
+const LINE_KINDS = [
+  "morning",
+  "afternoon",
+  "evening",
+  "lateNight",
+  "energetic",
+  "normal",
+  "tired",
+  "irritated",
+  "focus",
+  "sleepyAsk",
+  "sleepyNap",
+  "sleepyWake",
+  "another",
+  "noMore",
+  "thanks",
+  "sorry",
+  "capped",
+];
+
+await check(`役 ${client.PARTNER_ROLES.length} × 種類 ${LINE_KINDS.length} × 日英がそろっている`, () => {
+  assert.deepEqual(Object.keys(lines.FIXED_LINES).sort(), [...client.PARTNER_ROLES].sort());
+  for (const r of client.PARTNER_ROLES) {
+    assert.deepEqual(Object.keys(lines.FIXED_LINES[r]).sort(), [...LINE_KINDS].sort(), r);
+    for (const k of LINE_KINDS) {
+      for (const L of LOCALES) {
+        const s = lines.FIXED_LINES[r][k][L];
+        assert.equal(typeof s, "string", `${r}.${k}.${L}`);
+        assert.equal(s, s.trim(), `${r}.${k}.${L}`);
+        assert.ok(s.length > 0, `${r}.${k}.${L}`);
+        // 関数の返事と同じく、改行・強調・絵文字は入れない
+        assert.doesNotMatch(s, /[\n*]|\p{Extended_Pictographic}/u, `${r}.${k}.${L}`);
+      }
+    }
+  }
+});
+
+await check("プログラムの名前 {p} は勧める台詞にだけ、ちょうど1回", () => {
+  for (const r of client.PARTNER_ROLES) {
+    for (const k of LINE_KINDS) {
+      for (const L of LOCALES) {
+        const n = lines.FIXED_LINES[r][k][L].split("{p}").length - 1;
+        assert.equal(n, lines.LINES_WITH_PROGRAM.includes(k) ? 1 : 0, `${r}.${k}.${L}`);
+      }
+    }
+  }
+});
+
+await check("名前は日本語『』・英語 \"\" で入る。勧めない台詞はそのまま", () => {
+  assert.equal(
+    lines.fixedLine("girlfriend", "another", "ja", "リセット＆ディープ"),
+    lines.FIXED_LINES.girlfriend.another.ja.replace("{p}", "『リセット＆ディープ』")
+  );
+  assert.equal(lines.fixedLine("pet", "another", "en", "Reset & Deep"), 'Then how about "Reset & Deep"?');
+  // 名前に $& などが入っていても、置き換えの記号として読まない
+  assert.equal(lines.fixedLine("pet", "another", "en", "A $& B"), 'Then how about "A $& B"?');
+  assert.equal(lines.fixedLine("boyfriend", "thanks", "ja"), lines.FIXED_LINES.boyfriend.thanks.ja);
+});
+
+await check("役の一人称（わたし・僕・ボク など）を台詞に出さない——役ごとに違うので AI に任せる", () => {
+  for (const r of client.PARTNER_ROLES) {
+    for (const k of LINE_KINDS) {
+      assert.doesNotMatch(lines.FIXED_LINES[r][k].ja, /わたし|私|あたし|僕|ボク|ぼく|俺|オレ/, `${r}.${k}`);
+    }
+  }
+});
+
+await check("長さは関数の返事の上限に収まる（いちばん長い名前を入れても）", () => {
+  const longest = (L) =>
+    ALL_PROGRAMS.map((p) => programName(p, L)).reduce((a, b) => (b.length > a.length ? b : a), "");
+  for (const r of client.PARTNER_ROLES) {
+    for (const k of LINE_KINDS) {
+      for (const L of LOCALES) {
+        const s = lines.fixedLine(r, k, L, longest(L));
+        assert.ok(s.length <= fn.MAX_REPLY[L], `${r}.${k}.${L}：${s.length} 字`);
+      }
+    }
+  }
+});
+
+await check("気分・「眠い」の続き・時間帯から選ぶ台詞", () => {
+  for (const m of client.PARTNER_MOODS) {
+    const k = lines.moodLineKind(m);
+    assert.equal(k, m === "sleepy" ? "sleepyAsk" : m);
+    assert.ok(LINE_KINDS.includes(k));
+    // 「眠い」のほかは、気分を聞いたらすぐ勧める
+    assert.equal(lines.LINES_WITH_PROGRAM.includes(k), m !== "sleepy", m);
+  }
+  assert.equal(lines.sleepyLineKind("nap"), "sleepyNap");
+  assert.equal(lines.sleepyLineKind("wake"), "sleepyWake");
+  for (let h = 0; h < 24; h++) {
+    const k = lines.openingLineKind(client.partnerPhase(h));
+    assert.ok(LINE_KINDS.includes(k), `${h}時`);
+    // 開口一番：午後は気分を尋ねる（勧めない）、ほかの時間帯は候補の先頭を勧める
+    assert.equal(lines.LINES_WITH_PROGRAM.includes(k), client.partnerSlot(h) !== "afternoon", `${h}時`);
+    if (client.partnerSlot(h) !== "afternoon") {
+      const ids = client.partnerCandidates({ hour: h, weekday: 3, mood: null, skyProgramId: "zodiac-aries" });
+      assert.ok(ids.length > 0 && getProgramById(ids[0]), `${h}時`);
+    }
+  }
+  // 「眠い」の続きで勧めるプログラムはアプリにある
+  for (const c of client.SLEEPY_CHOICES) assert.ok(getProgramById(client.sleepyProgramId(c)), c);
 });
 
 console.log(`\n${passed} checks passed`);

@@ -371,6 +371,9 @@ export const SELF_RATING_KEY = "self_rating:latest";
 
 export const ZODIAC_KEY = "setting:zodiac";
 
+/** ホームの話し相手（Sync Partner）の役。store/usePartnerStore.ts。 */
+export const PARTNER_KEY = "setting:partner";
+
 /** 測定者名の正規化（NFKC・前後の空白）。キーにも表示にもこれを使う。 */
 export function normalizeSubjectName(name: string): string {
   return name.normalize("NFKC").trim();
