@@ -85,12 +85,16 @@ export default function ZodiacSyncCard() {
     playProgram(program);
   };
 
-  // 縦の下限。今日の一言を本文として抱えたぶん中身が増えたので、以前の 600px
-  // ほど床を上げなくても詰まって見えない。デスクトップは page.tsx 側で2行
+  // 縦の下限 480px。スマホではホームの先頭に置くので、開いた最初の画面に開始
+  // ボタンまで入る高さにする——幅 390 の iPhone の Safari で、見出しと下のナビを
+  // 除いた残りが約 500px（以前の 540px だとボタンが画面の下で切れた）。中身そのものは
+  // 幅 360〜430 で 433〜483px（今日の一言と理由の長さしだい）なので、床を中身と
+  // ほぼ同じにしておけば、空の計算が終わって中身が入っても高さがほとんど変わらず、
+  // 下の Sync Tree カードが押し下げられない。デスクトップは page.tsx 側で2行
   // ぶち抜きにしてあるので h-full で左列の高さをそのまま受け、min-h は左列が
   // 短いときの床としてだけ効かせる。
   return (
-    <div className="sky-surface relative flex flex-col min-h-[540px] md:min-h-[480px] md:h-full rounded-3xl overflow-hidden border border-surface-border neu-raised breathe-soft">
+    <div className="sky-surface relative flex flex-col min-h-[480px] md:h-full rounded-3xl overflow-hidden border border-surface-border neu-raised breathe-soft">
       {/* Breathing halo — the luminous part of the motion, warm by day */}
       <div className="sky-halo sky-glow absolute inset-0" />
 
