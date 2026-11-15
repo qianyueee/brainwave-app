@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 import type { BaselineRateMethod } from "@/lib/mind/baseline";
 import type { MindSourceKind } from "@/store/useMindStore";
 import type { MeasurementPlayback } from "@/lib/mind/measurement-playback";
+import type { TreatmentPhase } from "@/lib/before-after";
 import { isCheckUploadable, markOwner, needsUpload, type CloudMark } from "@/lib/sync/cloud-mark";
 import { listBaselineChecks } from "@/lib/sync/baseline-checks";
 
@@ -50,6 +51,11 @@ export interface BaselineCheck {
    * この項目より前の記録には無い（＝分からない）。
    */
   playback?: MeasurementPlayback;
+  /**
+   * 施術のタイミング（施術前・施術中・施術後）。結果の画面で保存する前に選ぶ（任意。
+   * lib/before-after.ts）。undefined＝選んでいない。
+   */
+  treatmentPhase?: TreatmentPhase;
   /**
    * アカウントへ保存するか・保存済みか（lib/sync/cloud-mark.ts）。端末ローカルの
    * 状態なのでクラウドには持っていかない。チェックは後から書き換えないので版は常に 0。

@@ -4,7 +4,13 @@ import { computeBrainConditionMetrics } from "./brain-metrics";
 import { DEFAULT_TARGET_HZ, resonanceRatioAt } from "./mind/resonance";
 import { displayedSpectrum, type BandPowers } from "./mind/types";
 import { readPlayback } from "./mind/measurement-playback";
-import { beforeAfterPairs, type ProgramSeconds } from "./before-after";
+import {
+  readTreatmentPhase,
+  treatmentPairs,
+  treatmentPhaseOf,
+  type ProgramSeconds,
+  type TreatmentPhase,
+} from "./before-after";
 import type { Locale } from "./i18n";
 
 /**
@@ -22,8 +28,9 @@ import type { Locale } from "./i18n";
  * になるから。メモ・測定者名・sessionTag は**送らない**（本人の言葉と名前を
  * 第三者に渡さない、そして自由文がプロンプトに混ざらない）。比較分析で測定を
  * 名指すラベル（「10月1日 07:15の測定」）も、送った日時の数字からサーバーが組む。
- * 比較分析の「施術前と施術後」も同じで、送るのは測定中にプレーヤーにプログラムが
- * 入っていた秒だけ（プログラムの名前は送らない。lib/before-after.ts）。
+ * 比較分析の「施術前・施術中・施術後」も同じで、送るのは測った人が選んだ施術の
+ * タイミングと、測定中にプレーヤーにプログラムが入っていた秒だけ（プログラムの名前は
+ * 送らない。lib/before-after.ts）。
  *
  * ■ 形は2か所で同じに保つ
  * サーバー側の検査（supabase/functions/analyze-brain/index.ts の validateInput /
@@ -182,12 +189,15 @@ export function buildAnalysisInput(m: BrainProfile, locale: Locale): BrainAnalys
 // ─── 比較分析（Sync Report「測定の比較」） ───────────────────────────────────
 
 /**
- * 比較分析の送る形の版（1件の分析とは別に数える）。2＝測定ごとに測定中のプレーヤー
- * （program）を添える。選んだ測定のどれにもプレーヤーの記録が無ければ（PR #30 より前の
- * 記録・アップロード）、以前の版 1 の形で送る——施術前後を知らない関数でも、そういう
- * 比較はそのまま分析できる。
+ * 比較分析の送る形の版（1件の分析とは別に数える）。
+ *   1＝数値と日時だけ
+ *   2＝測定ごとに測定中のプレーヤー（program）を添える
+ *   3＝さらに測った人が選んだ施術のタイミング（phase）を添える
+ * 送るのは、選んだ測定が持っている情報を運べるいちばん古い版——施術のタイミングを選んだ
+ * 記録が無ければ版 2、プレーヤーの記録も無ければ（PR #30 より前の記録・アップロード）版 1。
+ * 関数の更新が遅れても、新しい情報を持たない比較はそのまま分析できる。
  */
-export const COMPARISON_INPUT_VERSION = 2;
+export const COMPARISON_INPUT_VERSION = 3;
 /** 比べられる測定の数（画面の「測定の比較」と同じ 2〜3件）。 */
 export const COMPARISON_MIN = 2;
 export const COMPARISON_MAX = 3;
@@ -212,15 +222,18 @@ export interface BrainComparisonMeasurement extends MeasurementNumbers {
    */
   person: number;
   /**
-   * 版 2 だけ：測定中のプレーヤー（秒、全節目の合計）。サーバーはこれで施術前
-   * （流していない）と施術後（流しながら・一時停止中も）を分ける。null＝分からない。
+   * 版 2・3：測定中のプレーヤー（秒、全節目の合計）。施術のタイミングを選んでいない回は、
+   * サーバーがこれで施術前（流していない）・施術中（流しながら）・施術後（一時停止したまま）
+   * を推し量る。null＝分からない。
    */
   program?: ProgramSeconds | null;
+  /** 版 3 だけ：測った人が選んだ施術のタイミング。null＝選んでいない。 */
+  phase?: TreatmentPhase | null;
 }
 
 export interface BrainComparisonInput {
-  /** 2（COMPARISON_INPUT_VERSION）。プレーヤーの記録がどれにも無ければ 1（program を持たない）。 */
-  v: 1 | typeof COMPARISON_INPUT_VERSION;
+  /** 3（COMPARISON_INPUT_VERSION）・2（phase を持たない）・1（program も持たない）。 */
+  v: 1 | 2 | typeof COMPARISON_INPUT_VERSION;
   kind: "compare";
   locale: Locale;
   /** 古い順（キーの並び順）。 */
@@ -267,7 +280,12 @@ function comparisonOrder(ms: readonly BrainProfile[]) {
   return [...ms].sort(byKey).map((m) => {
     const who = m.subject ?? "";
     if (!people.includes(who)) people.push(who);
-    return { m, person: people.indexOf(who), program: programSeconds(m) };
+    return {
+      m,
+      person: people.indexOf(who),
+      program: programSeconds(m),
+      phase: readTreatmentPhase(m.treatmentPhase) ?? null,
+    };
   });
 }
 
@@ -275,12 +293,13 @@ function comparisonOrder(ms: readonly BrainProfile[]) {
 export function buildComparisonInput(ms: readonly BrainProfile[], locale: Locale): BrainComparisonInput {
   const sorted = comparisonOrder(ms);
   const firstDay = localDayNumber(new Date(sorted[0].m.uploadedAt));
-  const withProgram = sorted.some((x) => x.program !== null);
+  const withPhase = sorted.some((x) => x.phase !== null);
+  const withProgram = withPhase || sorted.some((x) => x.program !== null);
   return {
-    v: withProgram ? COMPARISON_INPUT_VERSION : 1,
+    v: withPhase ? COMPARISON_INPUT_VERSION : withProgram ? 2 : 1,
     kind: "compare",
     locale,
-    measurements: sorted.map(({ m, person, program }) => {
+    measurements: sorted.map(({ m, person, program, phase }) => {
       const at = new Date(m.uploadedAt);
       return {
         uploadedAt: m.uploadedAt,
@@ -292,27 +311,55 @@ export function buildComparisonInput(ms: readonly BrainProfile[], locale: Locale
         person,
         ...measurementNumbers(m),
         ...(withProgram ? { program } : {}),
+        ...(withPhase ? { phase } : {}),
       };
     }),
   };
 }
 
-/** 施術前と施術後の組（測定のキー）。保存された比較分析の pairs と同じ形。 */
-export interface BeforeAfterPair {
-  before: string;
-  after: string;
+/**
+ * 施術の時点どうしの組（測定のキーと、そのときの時点）。保存された比較分析の pairs と
+ * 同じ形。from が早い時点（施術前・施術中）、to が遅い時点（施術中・施術後）。
+ */
+export interface TreatmentPair {
+  from: string;
+  to: string;
+  fromPhase: TreatmentPhase;
+  toPhase: TreatmentPhase;
+}
+
+/** いまの記録で組んだ組。`guessed`＝どちらかの時点をプレーヤーから推し量った（選んでいない）。 */
+export interface CurrentTreatmentPair extends TreatmentPair {
+  guessed: boolean;
 }
 
 /**
- * 選んだ測定のうち、施術前と施術後として比べる組（lib/before-after.ts の決まり＝
- * サーバーと同じ）。画面が分析の前に「施術前と施術後もまとめます」と伝えるのに使う。
+ * 選んだ測定のうち、施術の時点どうしとして比べる組（lib/before-after.ts の決まり＝
+ * サーバーと同じ）。画面が分析の前に「施術による変化もまとめます」と伝えるのに使う。
  */
-export function comparisonBeforeAfter(ms: readonly BrainProfile[]): BeforeAfterPair[] {
+export function comparisonTreatmentPairs(ms: readonly BrainProfile[]): CurrentTreatmentPair[] {
   const sorted = comparisonOrder(ms);
-  return beforeAfterPairs(sorted).map(([i, j]) => ({
-    before: sorted[i].m.uploadedAt,
-    after: sorted[j].m.uploadedAt,
+  return treatmentPairs(sorted).map(([i, j]) => ({
+    from: sorted[i].m.uploadedAt,
+    to: sorted[j].m.uploadedAt,
+    fromPhase: treatmentPhaseOf(sorted[i]) as TreatmentPhase,
+    toPhase: treatmentPhaseOf(sorted[j]) as TreatmentPhase,
+    guessed: sorted[i].phase === null || sorted[j].phase === null,
   }));
+}
+
+/** 組の並びが同じか（キーと時点。保存された分析が、いまの記録で組み直した組と食い違うか）。 */
+export function samePairs(a: readonly TreatmentPair[], b: readonly TreatmentPair[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (p, i) =>
+        p.from === b[i].from &&
+        p.to === b[i].to &&
+        p.fromPhase === b[i].fromPhase &&
+        p.toPhase === b[i].toPhase
+    )
+  );
 }
 
 // ─── 返ってくるもの ─────────────────────────────────────────────────────────
@@ -347,12 +394,12 @@ export interface BrainComparisonContent {
   /** 総評（2〜3文）。 */
   summary: string;
   /**
-   * 施術前と施術後（0〜4）。施術前（プログラムを流さずに測った回）と施術後（流しながら
-   * 測った回）の組があるときだけ。この項目より前の分析には無い（空）。
+   * 施術による変化（0〜4）。施術前・施術中・施術後の組があるときだけ（項目の名前は
+   * 施術前と施術後しか無かった頃のまま）。この項目より前の分析には無い（空）。
    */
   beforeAfter: string[];
   /** beforeAfter が比べた組（測定のキー、比べた測定のどれか）。 */
-  pairs: BeforeAfterPair[];
+  pairs: TreatmentPair[];
   /** 主な違い（0〜4）。 */
   differences: string[];
   /** 良くなった点（別の人どうしなら、それぞれの良いところ）（0〜3）。 */
@@ -409,18 +456,26 @@ export function toAnalysisErrorCode(v: unknown): AnalysisErrorCode {
 const strings = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : [];
 
-/** 保存された組のうち、比べた測定のキーどうしのものだけ。 */
-function pairsOf(v: unknown, keys: readonly string[]): BeforeAfterPair[] {
+/**
+ * 保存された組のうち、比べた測定のキーどうしのものだけ。施術中が無かった頃の分析は
+ * `{ before, after }`（施術前→施術後）で保存してあるので、それも読む。
+ */
+function pairsOf(v: unknown, keys: readonly string[]): TreatmentPair[] {
   if (!Array.isArray(v)) return [];
-  return v.flatMap((x) => {
+  return v.flatMap((x): TreatmentPair[] => {
     if (typeof x !== "object" || x === null) return [];
-    const { before, after } = x as Record<string, unknown>;
-    return typeof before === "string" &&
-      typeof after === "string" &&
-      keys.includes(before) &&
-      keys.includes(after)
-      ? [{ before, after }]
-      : [];
+    const o = x as Record<string, unknown>;
+    const pair: TreatmentPair | null =
+      typeof o.from === "string" && typeof o.to === "string"
+        ? (() => {
+            const fromPhase = readTreatmentPhase(o.fromPhase);
+            const toPhase = readTreatmentPhase(o.toPhase);
+            return fromPhase && toPhase ? { from: o.from, to: o.to, fromPhase, toPhase } : null;
+          })()
+        : typeof o.before === "string" && typeof o.after === "string"
+          ? { from: o.before, to: o.after, fromPhase: "before", toPhase: "after" }
+          : null;
+    return pair && keys.includes(pair.from) && keys.includes(pair.to) ? [pair] : [];
   });
 }
 

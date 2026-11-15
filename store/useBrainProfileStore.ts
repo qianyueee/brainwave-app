@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BrainProfile } from "@/lib/brain-profile";
+import { readTreatmentPhase, type TreatmentPhase } from "@/lib/before-after";
 import { createPerUserStorage } from "@/lib/sync/per-user-storage";
 import {
   listBrainMeasurements,
@@ -24,6 +25,8 @@ interface BrainProfileState {
   deleteMeasurement: (uploadedAt: string) => Promise<void>;
   /** Set (or clear, with "") the memo on the measurement at `uploadedAt`. */
   setMeasurementNote: (uploadedAt: string, note: string) => Promise<void>;
+  /** 施術のタイミングを選ぶ（undefined で外す）。 */
+  setMeasurementPhase: (uploadedAt: string, phase: TreatmentPhase | undefined) => Promise<void>;
   clearProfile: () => Promise<void>;
   loadFromCloud: (userId: string) => Promise<void>;
   /**
@@ -149,6 +152,26 @@ export const useBrainProfileStore = create<BrainProfileState>()(
             await enqueue(() => upsertBrainMeasurement(uid, updated));
           } catch (err) {
             console.error("[brain-profile] note upsert failed:", err);
+            restore(uploadedAt, before);
+            throw err;
+          }
+        },
+
+        setMeasurementPhase: async (uploadedAt, phase) => {
+          const before = get().measurements.find((m) => m.uploadedAt === uploadedAt);
+          if (!before) return;
+          if (readTreatmentPhase(before.treatmentPhase) === phase) return;
+          const updated: BrainProfile = { ...before, treatmentPhase: phase };
+          if (!phase) delete updated.treatmentPhase;
+          const next = get().measurements.map((m) => (m.uploadedAt === uploadedAt ? updated : m));
+          localVersion += 1;
+          set({ measurements: next, profile: latest(next) });
+          const uid = get().cloudUserId;
+          if (!uid) return;
+          try {
+            await enqueue(() => upsertBrainMeasurement(uid, updated));
+          } catch (err) {
+            console.error("[brain-profile] phase upsert failed:", err);
             restore(uploadedAt, before);
             throw err;
           }

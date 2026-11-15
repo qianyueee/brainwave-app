@@ -36,6 +36,7 @@ import {
   type MeasurementPlayback,
 } from "@/lib/mind/measurement-playback";
 import { tallyCurrentPlayback } from "@/lib/mind/playing-program";
+import type { TreatmentPhase } from "@/lib/before-after";
 
 export type MindSourceKind = "demo" | "realtime";
 
@@ -81,6 +82,9 @@ export interface MindSessionSummary {
    *  何も流していなかった秒。lib/mind/measurement-playback.ts）。この項目より前の
    *  記録には無い（＝分からない）。 */
   playback?: MeasurementPlayback;
+  /** 施術のタイミング（施術前・施術中・施術後）。測り終えたダイアログで選ぶ（任意。
+   *  lib/before-after.ts）。取り込むと脳特性の記録に写り、AI 比較分析が使う。 */
+  treatmentPhase?: TreatmentPhase;
   /** アカウントへ保存するか・保存済みか（lib/sync/cloud-mark.ts）。デスクトップ
    *  測定アプリの自動保存だけが書く。/brain の回は取り込み（useImportSession）が
    *  別経路で送るので undefined のまま。 */
@@ -185,6 +189,8 @@ interface MindState {
   deleteSession: (id: string) => void;
   /** Set (or clear, with "") the free-text memo on a measurement. */
   setSessionNote: (id: string, note: string) => void;
+  /** 施術のタイミングを選ぶ（undefined で外す）。 */
+  setSessionPhase: (id: string, phase: TreatmentPhase | undefined) => void;
   /** 版 `rev` の内容を `owner` のアカウントへ保存できた（同期処理が呼ぶ）。 */
   markSessionSaved: (id: string, owner: string, rev: number) => void;
   /** 宛先未定の測定を `owner` のアカウントへ保存する予約にする。 */
@@ -424,6 +430,16 @@ export const useMindStore = create<MindState>()(
           ),
         }));
       },
+
+      setSessionPhase: (id, phase) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            // 版を進めるのは変わったときだけ（自動保存の測定はそれでアカウントへ送り直す）。
+            s.id === id && s.treatmentPhase !== phase
+              ? { ...s, treatmentPhase: phase, rev: sessionRev(s) + 1 }
+              : s
+          ),
+        })),
 
       markSessionSaved: (id, owner, rev) =>
         set((state) => ({

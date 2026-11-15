@@ -2,6 +2,7 @@ import type { ProgramConfig, FrequencyPhase } from "./programs";
 import { getProgramById } from "./programs";
 import type { BandPowers } from "./mind/types";
 import type { MeasurementPlayback } from "./mind/measurement-playback";
+import type { TreatmentPhase } from "./before-after";
 import { POOR_SIGNAL_LIMIT } from "./mind/types";
 import { getLocale, translator } from "./i18n";
 
@@ -50,6 +51,12 @@ export interface BrainProfile {
    * 取り込んだ記録だけが持つ。undefined＝分からない（アップロード・この項目より前の記録）。
    */
   playback?: MeasurementPlayback;
+  /**
+   * 施術のタイミング（施術前・施術中・施術後）。測った人が測り終えたダイアログか
+   * ヒストリーの記録カードで選ぶ（lib/before-after.ts）。AI 比較分析が施術による変化を
+   * まとめるときに、プレーヤーから推し量るより先にこれを使う。undefined＝選んでいない。
+   */
+  treatmentPhase?: TreatmentPhase;
   /**
    * 測定の途中でどう変わったか（前半→後半）。AI 分析が「測定中の変化」を語る
    * ための要約で、測り終えた時点で1秒ごとの行から作る（行そのものは残さない）。

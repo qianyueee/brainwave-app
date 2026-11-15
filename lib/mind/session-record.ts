@@ -54,5 +54,7 @@ export function measurementFromSession(s: MindSessionSummary): BrainProfile | nu
     targetHz: s.targetHz,
     // 測定中にプレーヤーに何が入っていたか（どの節目を再生・一時停止していたか）。
     playback: s.playback,
+    // 施術のタイミング（測り終えたダイアログで選んだもの。AI 比較分析が使う）。
+    treatmentPhase: s.treatmentPhase,
   };
 }

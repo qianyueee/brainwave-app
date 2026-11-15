@@ -24,7 +24,9 @@ import {
 } from "@/lib/mind/measurement-playback";
 import { tallyCurrentPlayback } from "@/lib/mind/playing-program";
 import { describePlayback } from "@/lib/mind/playback-label";
+import type { TreatmentPhase } from "@/lib/before-after";
 import { useLocale, useT } from "@/lib/i18n";
+import TreatmentPhasePicker from "@/components/TreatmentPhasePicker";
 
 /**
  * 10秒クイックチェック（DAILY BRAIN CHECK）。
@@ -55,6 +57,8 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
    *  限らない（練習・装着確認・話しかけられた回）ので、残すかどうかは本人が決める。 */
   const [savedId, setSavedId] = useState<string | null>(null);
   const saved = savedId !== null;
+  /** 施術のタイミング（任意）。「もう一度」で測り直しても残す——同じ時点の測り直しが多いので。 */
+  const [treatmentPhase, setTreatmentPhase] = useState<TreatmentPhase | undefined>(undefined);
 
   // 収集中のサンプル。setState で持つと 1Hz ごとに再描画が走って
   // カウントダウンのアニメーションと競合するので ref に貯める。
@@ -184,6 +188,7 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
         subjectId: subject?.id,
         subjectName: subject?.name,
         playback: resultPlayback ?? undefined,
+        treatmentPhase,
       },
       // ログインしている（していた）アカウントにも載せる。載せてよい実測かは
       // ストアが判断する。
@@ -417,6 +422,14 @@ export default function BaselineCheck({ onClose }: { onClose: () => void }) {
                     </p>
                   )}
                 </div>
+
+                {/* 施術のタイミング（任意）。保存する記録に一緒に残る。保存した後は
+                    変えられない（チェックの記録は後から書き換えない）。 */}
+                <TreatmentPhasePicker
+                  value={treatmentPhase}
+                  onChange={setTreatmentPhase}
+                  disabled={saved}
+                />
               </>
             )}
 

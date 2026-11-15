@@ -5,6 +5,7 @@ import type { BaselineCheck } from "@/store/useBaselineStore";
 import { compositeScore, sessionTagLabel } from "./brain-measurements";
 import { rateMethodLabel } from "./mind/baseline";
 import { mainProgramLabel } from "./mind/playback-label";
+import { treatmentPhaseTag } from "./treatment-phase-label";
 import { programNameById } from "./programs";
 import { subjectDisplayName } from "./subject-groups";
 import { formatTime } from "./utils";
@@ -86,6 +87,8 @@ export function buildDayRecords(
         [
           m.subject && subjectDisplayName(m.subject, locale),
           note ? null : sessionTagLabel(m, locale),
+          // 施術のタイミング（選んだ回だけ）。
+          treatmentPhaseTag(m.treatmentPhase, locale),
           // 測定中に主に流していたプログラム（♪付き。内訳は記録のカード）。
           mainProgramLabel(m.playback, locale),
         ]
@@ -112,7 +115,12 @@ export function buildDayRecords(
       title: en
         ? `10-second check${c.source === "demo" ? " (demo)" : ""}`
         : `10秒チェック${c.source === "demo" ? "（デモ）" : ""}`,
-      detail: [scores.join(sep), rateMethodLabel(c.method, locale), mainProgramLabel(c.playback, locale)]
+      detail: [
+        scores.join(sep),
+        rateMethodLabel(c.method, locale),
+        treatmentPhaseTag(c.treatmentPhase, locale),
+        mainProgramLabel(c.playback, locale),
+      ]
         .filter(Boolean)
         .join(" / "),
     });
